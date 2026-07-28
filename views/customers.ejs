@@ -4,58 +4,65 @@
   <%- include('partials/sidebar') %>
 
   <main class="flex-1 p-6 overflow-y-auto">
-    <!-- Header-Bereich -->
     <div class="flex justify-between items-center mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-800">Kundenverwaltung</h1>
-        <p class="text-sm text-gray-500">Übersicht aller Metallbau-Kunden und Kontakte</p>
+        <p class="text-sm text-gray-500">Kunden verwalten, Kontaktdaten anpassen und Kundenprojekte einsehen</p>
       </div>
-      <button onclick="toggleModal('customerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2">
-        <span>+ Neue Kundschaft anlegen</span>
+      <button onclick="toggleModal('addCustomerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow">
+        + Neue Kundschaft anlegen
       </button>
     </div>
 
-    <!-- Such- & Filterleiste -->
-    <div class="bg-white p-4 rounded-lg shadow mb-6 flex gap-4">
-      <input type="text" placeholder="Kunde, Adresse oder E-Mail suchen..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">Suchen</button>
-    </div>
-
-    <!-- Kunden-Tabelle -->
+    <!-- Tabelle -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
       <table class="w-full text-left border-collapse">
         <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
           <tr>
             <th class="p-4">Firma / Name</th>
             <th class="p-4">Ansprechpartner</th>
+            <th class="p-4">Kontakt (Tel / E-Mail)</th>
             <th class="p-4">Adresse</th>
-            <th class="p-4">Kontakt</th>
-            <th class="p-4">Notizen</th>
             <th class="p-4 text-right">Aktionen</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100 text-sm">
-          <% if (customers && customers.length > 0) { %>
+        <tbody>
+          <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
             <% customers.forEach(c => { %>
-              <tr class="hover:bg-gray-50">
-                <td class="p-4 font-semibold text-gray-800"><%= c.company_name || 'Privatkunde' %></td>
-                <td class="p-4"><%= c.contact_person %></td>
-                <td class="p-4 text-gray-600"><%= c.address %></td>
-                <td class="p-4">
-                  <div class="text-xs text-gray-800">📞 <%= c.phone || '-' %></div>
-                  <div class="text-xs text-blue-600">✉️ <%= c.email || '-' %></div>
+              <tr class="border-b hover:bg-gray-50">
+                <td class="py-3 px-4 font-bold text-gray-800"><%= c.company_name || '-' %></td>
+                <td class="py-3 px-4 text-gray-700"><%= c.contact_person || '-' %></td>
+                <td class="py-3 px-4 text-sm">
+                  <div>📞 <%= c.phone || 'Keine' %></div>
+                  <div class="text-xs text-gray-500">✉️ <%= c.email || 'Keine' %></div>
                 </td>
-                <td class="p-4 text-gray-500 italic max-w-xs truncate"><%= c.notes || '-' %></td>
-                <td class="p-4 text-right space-x-2">
-                  <a href="/customers/<%= c.id %>" class="text-blue-600 hover:underline text-xs font-medium">Projekte</a>
-                  <button class="text-gray-500 hover:text-gray-700 text-xs">Bearbeiten</button>
+                <td class="py-3 px-4 text-sm text-gray-600">
+                  <%= c.street || '' %><br>
+                  <small><%= c.zip || '' %> <%= c.city || '' %></small>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <div class="flex justify-end gap-2">
+                    <!-- Button: Projekte -->
+                    <a href="/customers/<%= c.id %>/projects" class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-semibold">
+                      📁 Projekte
+                    </a>
+
+                    <!-- Button: Bearbeiten -->
+                    <button onclick='openEditModal(<%- JSON.stringify(c) %>)' class="px-2 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded text-xs font-semibold">
+                      ✏️ Bearbeiten
+                    </button>
+
+                    <!-- Button: Löschen -->
+                    <form action="/customers/delete" method="POST" onsubmit="return confirm('Kunde wirklich löschen?');" class="inline">
+                      <input type="hidden" name="id" value="<%= c.id %>">
+                      <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-semibold">🗑️</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             <% }); %>
           <% } else { %>
-            <tr>
-              <td colspan="6" class="p-8 text-center text-gray-400">Keine Kunden vorhanden. Lege jetzt den ersten Kunden an!</td>
-            </tr>
+            <tr><td colspan="5" class="p-4 text-center text-gray-400">Keine Kunden vorhanden.</td></tr>
           <% } %>
         </tbody>
       </table>
@@ -63,44 +70,46 @@
   </main>
 </div>
 
-<!-- Modal: Neukunde anlegen -->
-<div id="customerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+<!-- Modal: Kunde Anlegen -->
+<div id="addCustomerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-    <div class="flex justify-between items-center mb-4 border-b pb-2">
-      <h3 class="text-lg font-bold text-gray-800">Neuen Kunden anlegen</h3>
-      <button onclick="toggleModal('customerModal')" class="text-gray-400 hover:text-gray-600">&times;</button>
-    </div>
-    
-    <form action="/customers/add" method="POST" class="space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Firmenname (optional)</label>
-        <input type="text" name="company_name" placeholder="z. B. Müller Bau GmbH" class="w-full border rounded-lg p-2 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Ansprechpartner *</label>
-        <input type="text" name="contact_person" required placeholder="z. B. Max Mustermann" class="w-full border rounded-lg p-2 text-sm">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Straße & Hausnummer, PLZ Ort *</label>
-        <input type="text" name="address" required placeholder="Musterstr. 1, 12345 Musterstadt" class="w-full border rounded-lg p-2 text-sm">
-      </div>
+    <h3 class="text-lg font-bold mb-4">Neuen Kunden anlegen</h3>
+    <form action="/customers/add" method="POST" class="space-y-3">
+      <input type="text" name="company_name" placeholder="Firmenname" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="contact_person" placeholder="Ansprechpartner Name" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="phone" placeholder="Telefonnummer" class="w-full border rounded p-2 text-sm">
+      <input type="email" name="email" placeholder="E-Mail" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="street" placeholder="Straße & Hausnummer" class="w-full border rounded p-2 text-sm">
       <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
-          <input type="text" name="phone" placeholder="0171 123456" class="w-full border rounded-lg p-2 text-sm">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
-          <input type="email" name="email" placeholder="kunde@beispiel.de" class="w-full border rounded-lg p-2 text-sm">
-        </div>
+        <input type="text" name="zip" placeholder="PLZ" class="border rounded p-2 text-sm">
+        <input type="text" name="city" placeholder="Ort" class="border rounded p-2 text-sm">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
-        <textarea name="notes" rows="2" placeholder="Sonderwünsche, Anfahrtshinweise..." class="w-full border rounded-lg p-2 text-sm"></textarea>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="toggleModal('addCustomerModal')" class="px-3 py-1.5 border rounded text-sm">Abbrechen</button>
+        <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-medium">Speichern</button>
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button type="button" onclick="toggleModal('customerModal')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Speichern</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Kunde Bearbeiten -->
+<div id="editCustomerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+    <h3 class="text-lg font-bold mb-4">Kunden bearbeiten</h3>
+    <form action="/customers/edit" method="POST" class="space-y-3">
+      <input type="hidden" name="id" id="edit_id">
+      <input type="text" name="company_name" id="edit_company_name" placeholder="Firmenname" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="contact_person" id="edit_contact_person" placeholder="Ansprechpartner Name" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="phone" id="edit_phone" placeholder="Telefonnummer" class="w-full border rounded p-2 text-sm">
+      <input type="email" name="email" id="edit_email" placeholder="E-Mail" class="w-full border rounded p-2 text-sm">
+      <input type="text" name="street" id="edit_street" placeholder="Straße & Hausnummer" class="w-full border rounded p-2 text-sm">
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" name="zip" id="edit_zip" placeholder="PLZ" class="border rounded p-2 text-sm">
+        <input type="text" name="city" id="edit_city" placeholder="Ort" class="border rounded p-2 text-sm">
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="toggleModal('editCustomerModal')" class="px-3 py-1.5 border rounded text-sm">Abbrechen</button>
+        <button type="submit" class="px-3 py-1.5 bg-amber-600 text-white rounded text-sm font-medium">Änderungen Speichern</button>
       </div>
     </form>
   </div>
@@ -109,6 +118,19 @@
 <script>
   function toggleModal(id) {
     document.getElementById(id).classList.toggle('hidden');
+  }
+
+  function openEditModal(customer) {
+    document.getElementById('edit_id').value = customer.id;
+    document.getElementById('edit_company_name').value = customer.company_name || '';
+    document.getElementById('edit_contact_person').value = customer.contact_person || '';
+    document.getElementById('edit_phone').value = customer.phone || '';
+    document.getElementById('edit_email').value = customer.email || '';
+    document.getElementById('edit_street').value = customer.street || '';
+    document.getElementById('edit_zip').value = customer.zip || '';
+    document.getElementById('edit_city').value = customer.city || '';
+    
+    document.getElementById('editCustomerModal').classList.remove('hidden');
   }
 </script>
 

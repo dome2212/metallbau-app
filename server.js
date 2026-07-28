@@ -84,6 +84,65 @@ app.get('/', (req, res) => {
 // ==========================================
 // KUNDENVERWALTUNG
 // ==========================================
+// POST: Kunde bearbeiten
+app.post('/customers/edit', (req, res) => {
+  const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
+
+  const sql = `
+    UPDATE customers 
+    SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?
+    WHERE id = ?
+  `;
+
+  db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id], (err) => {
+    if (err) {
+      console.error('Fehler beim Bearbeiten des Kunden:', err.message);
+      return res.status(500).send('Fehler beim Aktualisieren');
+    }
+    res.redirect('/customers');
+  });
+});
+
+// POST: Kunde löschen
+app.post('/customers/delete', (req, res) => {
+  const { id } = req.body;
+
+  db.run('DELETE FROM customers WHERE id = ?', [id], (err) => {
+    if (err) {
+      console.error('Fehler beim Löschen des Kunden:', err.message);
+      return res.status(500).send('Fehler beim Löschen');
+    }
+    res.redirect('/customers');
+  });
+});
+
+// GET: Projekte/Vorgänge eines bestimmten Kunden anzeigen
+app.get('/customers/:id/projects', (req, res) => {
+  const { id } = req.params;
+
+  // 1. Kunde abfragen
+  db.get('SELECT * FROM customers WHERE id = ?', [id], (err, customer) => {
+    if (err || !customer) return res.status(404).send('Kunde nicht gefunden');
+
+    // 2. Angebote des Kunden
+    db.all("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id], (err, offers) => {
+      // 3. Rechnungen des Kunden
+      db.all("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, invoices) => {
+        // 4. Termine des Kunden
+        db.all("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id], (err, appointments) => {
+          
+          res.render('customer-projects', {
+            customer,
+            offers: offers || [],
+            invoices: invoices || [],
+            appointments: appointments || []
+          });
+
+        });
+      });
+    });
+  });
+});
 app.get('/customers', (req, res) => {
   db.all('SELECT * FROM customers ORDER BY created_at DESC', [], (err, customers) => {
     res.render('customers', { customers: customers || [] });
