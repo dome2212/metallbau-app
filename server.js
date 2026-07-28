@@ -203,18 +203,35 @@ app.get('/documents/offers', (req, res) => {
   });
 });
 
-// POST: Neues Angebot anlegen
+// POST: Neues Angebot mit mehreren Positionen anlegen
 app.post('/documents/create-offer', (req, res) => {
-  const { customer_id, description, quantity, unit, unit_price } = req.body;
-
+  let { customer_id, title, quantity, unit, price } = req.body;
   const docNumber = 'ANG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
-  const parsedQuantity = String(quantity || '1').replace(',', '.');
-  const parsedPrice = String(unit_price || '0').replace(',', '.');
+  // Sicherstellen, dass Arrays vorliegen (falls nur 1 Position gesendet wurde)
+  const titles = Array.isArray(title) ? title : [title];
+  const quantities = Array.isArray(quantity) ? quantity : [quantity];
+  const units = Array.isArray(unit) ? unit : [unit];
+  const prices = Array.isArray(price) ? price : [price];
 
-  const qty = parseFloat(parsedQuantity) || 1;
-  const price = parseFloat(parsedPrice) || 0;
-  const totalAmount = qty * price;
+  let totalAmount = 0;
+  const itemsToInsert = [];
+
+  for (let i = 0; i < titles.length; i++) {
+    if (!titles[i] || titles[i].trim() === '') continue; // Leere Einträge überspringen
+
+    const parsedQty = parseFloat(String(quantities[i] || '1').replace(',', '.')) || 1;
+    const parsedPrice = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
+
+    totalAmount += parsedQty * parsedPrice;
+
+    itemsToInsert.push({
+      description: titles[i],
+      quantity: parsedQty,
+      unit: units[i] || 'Stk',
+      price: parsedPrice
+    });
+  }
 
   const sqlOffer = `
     INSERT INTO documents (doc_type, doc_number, customer_id, total_amount, status)
@@ -228,16 +245,13 @@ app.post('/documents/create-offer', (req, res) => {
     }
 
     const offerId = this.lastID;
+    const stmt = db.prepare('INSERT INTO offer_items (offer_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
 
-    const sqlItem = `
-      INSERT INTO offer_items (offer_id, description, quantity, unit, price)
-      VALUES (?, ?, ?, ?, ?)
-    `;
+    itemsToInsert.forEach(item => {
+      stmt.run(offerId, item.description, item.quantity, item.unit, item.price);
+    });
 
-    db.run(sqlItem, [offerId, description || 'Position 1', qty, unit || 'Stk', price], (itemErr) => {
-      if (itemErr) {
-        console.error('❌ Fehler beim Speichern der Angebotsposition:', itemErr.message);
-      }
+    stmt.finalize(() => {
       res.redirect('/documents/offers');
     });
   });
@@ -375,15 +389,35 @@ app.get('/documents/invoices', (req, res) => {
   });
 });
 
+// POST: Neue Rechnung mit mehreren Positionen erstellen
 app.post('/documents/create-invoice', (req, res) => {
-  const { customer_id, title, quantity, unit, price, due_days } = req.body;
+  let { customer_id, title, quantity, unit, price, due_days } = req.body;
   const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-  
-  const parsedQuantity = String(quantity || '1').replace(',', '.');
-  const parsedPrice = String(price || '0').replace(',', '.');
-  const qty = parseFloat(parsedQuantity) || 1;
-  const unitPrice = parseFloat(parsedPrice) || 0;
-  const totalAmount = qty * unitPrice;
+
+  // Sicherstellen, dass Arrays vorliegen (falls nur 1 Position gesendet wurde)
+  const titles = Array.isArray(title) ? title : [title];
+  const quantities = Array.isArray(quantity) ? quantity : [quantity];
+  const units = Array.isArray(unit) ? unit : [unit];
+  const prices = Array.isArray(price) ? price : [price];
+
+  let totalAmount = 0;
+  const itemsToInsert = [];
+
+  for (let i = 0; i < titles.length; i++) {
+    if (!titles[i] || titles[i].trim() === '') continue; // Leere Einträge überspringen
+
+    const parsedQty = parseFloat(String(quantities[i] || '1').replace(',', '.')) || 1;
+    const parsedPrice = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
+
+    totalAmount += parsedQty * parsedPrice;
+
+    itemsToInsert.push({
+      description: titles[i],
+      quantity: parsedQty,
+      unit: units[i] || 'Stk',
+      price: parsedPrice
+    });
+  }
 
   // Fälligkeit berechnen
   const days = parseInt(due_days || '14', 10);
@@ -396,12 +430,16 @@ app.post('/documents/create-invoice', (req, res) => {
   `;
 
   db.run(sqlInvoice, [invoiceNumber, customer_id, totalAmount, dueDate.toISOString().split('T')[0]], function (err) {
-    if (err) return res.status(500).send('Fehler beim Speichern');
+    if (err) return res.status(500).send('Fehler beim Speichern der Rechnung');
 
     const invoiceId = this.lastID;
-    const sqlItem = `INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`;
+    const stmt = db.prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
 
-    db.run(sqlItem, [invoiceId, title || 'Position 1', qty, unit || 'Stk', unitPrice], () => {
+    itemsToInsert.forEach(item => {
+      stmt.run(invoiceId, item.description, item.quantity, item.unit, item.price);
+    });
+
+    stmt.finalize(() => {
       res.redirect('/documents/invoices');
     });
   });
