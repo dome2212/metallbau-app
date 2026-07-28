@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Rechnung <%= invoice.invoice_number %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light p-4">
+
+  <div class="container bg-white p-4 rounded shadow-sm" style="max-width: 800px;">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="mb-0">Rechnung: <%= invoice.invoice_number %></h2>
+        <small class="text-muted">Erstellt am: <%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></small>
+      </div>
+      <div>
+        <span class="badge bg-primary fs-6"><%= invoice.status %></span>
+        <a href="/documents/invoices" class="btn btn-outline-secondary btn-sm ms-2">Zurück</a>
+      </div>
+    </div>
+
+    <!-- Kunden-Details -->
+    <div class="card mb-4">
+      <div class="card-header fw-bold">Empfänger / Kunde</div>
+      <div class="card-body">
+        <p class="mb-1"><strong><%= invoice.company_name || invoice.contact_person %></strong></p>
+        <p class="mb-1"><%= invoice.street %></p>
+        <p class="mb-1"><%= invoice.zip %> <%= invoice.city %></p>
+        <p class="mb-0 text-muted"><%= invoice.email %> | <%= invoice.phone %></p>
+      </div>
+    </div>
+
+    <!-- Positionen (Material & Arbeitsstunden) -->
+    <h4 class="mb-3">Verbautes Material & Leistungen</h4>
+    <table class="table table-bordered align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Beschreibung (Material / Arbeitszeit)</th>
+          <th class="text-center" style="width: 100px;">Menge</th>
+          <th class="text-center" style="width: 100px;">Einheit</th>
+          <th class="text-end" style="width: 120px;">Einzelpreis</th>
+          <th class="text-end" style="width: 120px;">Gesamt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (items.length === 0) { %>
+          <tr>
+            <td colspan="5" class="text-center text-muted">Keine Positionen hinterlegt.</td>
+          </tr>
+        <% } else { %>
+          <% items.forEach(item => { %>
+            <tr>
+              <td><%= item.description %></td>
+              <td class="text-center"><%= item.quantity %></td>
+              <td class="text-center"><%= item.unit %></td>
+              <td class="text-end"><%= (item.price || 0).toFixed(2) %> €</td>
+              <td class="text-end fw-bold"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+      <tfoot>
+        <tr class="table-secondary fs-5">
+          <td colspan="4" class="text-end fw-bold">Gesamtbetrag (Brutto):</td>
+          <td class="text-end fw-bold text-success"><%= (invoice.total_amount || 0).toFixed(2) %> €</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <% if (invoice.status_note) { %>
+      <div class="alert alert-info mt-3">
+        <strong>Hinweis/Statusgrund:</strong> <%= invoice.status_note %>
+      </div>
+    <% } %>
+  </div>
+
+</body>
+</html>

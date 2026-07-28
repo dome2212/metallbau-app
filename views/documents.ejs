@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dokumentenverwaltung - Rechnungen</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .modal-content {
+      border-radius: 12px;
+      background-color: #fdfbf7;
+    }
+    .btn-primary {
+      background-color: #0d8abc;
+      border-color: #0d8abc;
+    }
+    .btn-primary:hover {
+      background-color: #0a6f98;
+    }
+  </style>
+</head>
+<body class="container py-4">
+
+  <!-- Kopfbereich -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-1">Dokumentenverwaltung</h2>
+      <p class="text-muted mb-0">Rechnungen und Zahlungsstati</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newInvoiceModal">
+      + Neue Rechnung anlegen
+    </button>
+  </div>
+
+  <!-- Status Filter / Tabs -->
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+      <a class="nav-link active text-danger fw-bold" href="#">Gesendet</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-secondary" href="#">Bezahlt</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link text-danger fw-bold" href="#">Überfällig</a>
+    </li>
+  </ul>
+
+  <!-- Rechnungs-Tabelle -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Rechnungs-Nr.</th>
+            <th>Kunde</th>
+            <th>Datum</th>
+            <th>Betrag</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (invoices && invoices.length > 0) { %>
+            <% invoices.forEach(invoice => { %>
+              <tr>
+                <td class="fw-bold"><%= invoice.invoice_number %></td>
+                <td><%= invoice.company_name || invoice.contact_person || 'Unbekannt' %></td>
+                <td><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></td>
+                <td><%= parseFloat(invoice.total_amount).toFixed(2) %> €</td>
+                <td>
+                  <span class="badge bg-warning text-dark"><%= invoice.status %></span>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                Noch keine Rechnungen vorhanden.
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: Neue Rechnung anlegen (Das Fenster aus deinem Screenshot) -->
+  <div class="modal fade" id="newInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow">
+        
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold">Neue Rechnung anlegen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+
+        <form action="/documents/create-invoice" method="POST">
+          <div class="modal-body">
+
+            <!-- Kunden-Auswahl -->
+            <div class="mb-3">
+              <label for="customer_id" class="form-label small text-muted">Kunde auswählen *</label>
+              <select name="customer_id" id="customer_id" class="form-select" required>
+                <option value="" disabled selected>Bitte wählen...</option>
+                <% if (customers && customers.length > 0) { %>
+                  <% customers.forEach(customer => { %>
+                    <option value="<%= customer.id %>">
+                      <%= customer.company_name ? customer.company_name + ' (' + customer.contact_person + ')' : customer.contact_person %>
+                    </option>
+                  <% }); %>
+                <% } %>
+              </select>
+            </div>
+
+            <!-- Positionen / Titel -->
+            <div class="mb-3">
+              <label for="title" class="form-label small text-muted">Erste Position (z.B. Schweißarbeit / Edelstahl)</label>
+              <input type="text" name="title" id="title" class="form-control" placeholder="z. B. Platten" required>
+            </div>
+
+            <!-- Menge, Einheit, Einzelpreis -->
+            <div class="row g-2">
+              <div class="col-4">
+                <label for="quantity" class="form-label small text-muted">Menge</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" value="1" step="0.01" required>
+              </div>
+
+              <div class="col-4">
+                <label for="unit" class="form-label small text-muted">Einheit</label>
+                <select name="unit" id="unit" class="form-select">
+                  <option value="Stk">Stk</option>
+                  <option value="Std">Std</option>
+                  <option value="m">m</option>
+                  <option value="kg">kg</option>
+                  <option value="Pauschal">Pauschal</option>
+                </select>
+              </div>
+
+              <div class="col-4">
+                <label for="price" class="form-label small text-muted">Einzelpreis (€)</label>
+                <input type="number" name="price" id="price" class="form-control" placeholder="0.00" step="0.01" required>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-link text-secondary text-decoration-none" data-bs-dismiss="modal">Abbrechen</button>
+            <button type="submit" class="btn btn-primary px-4">Rechnung Erstellen</button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

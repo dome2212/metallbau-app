@@ -1,0 +1,24 @@
+<aside class="w-64 bg-slate-800 text-white min-h-screen p-4 flex flex-col justify-between">
+  <div>
+    <h2 class="text-xl font-bold tracking-wide text-blue-400 mb-6 border-b border-gray-700 pb-3">
+      🔩 Metallbau-gehrmann App
+    </h2>
+    <nav class="space-y-2">
+      <a href="/" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Dashboard</a>
+      <a href="/customers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Kunden</a>
+      <a href="/documents/offers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Angebote</a>
+      <a href="/documents/invoices" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Rechnungen</a>
+	  <a href="/calendar" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">📅 Kalender</a>
+    </nav>
+  </div>
+  
+  <div class="border-t border-gray-700 pt-3">
+    <div class="text-xs text-gray-400 mb-2">
+      Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
+      (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
+    </div>
+    <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 rounded transition">
+      Abmelden
+    </a>
+  </div>
+</aside>

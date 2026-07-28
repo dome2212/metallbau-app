@@ -1,0 +1,116 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-gray-100">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 p-6 overflow-y-auto">
+    <!-- Header-Bereich -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Kundenverwaltung</h1>
+        <p class="text-sm text-gray-500">Übersicht aller Metallbau-Kunden und Kontakte</p>
+      </div>
+      <button onclick="toggleModal('customerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2">
+        <span>+ Neue Kundschaft anlegen</span>
+      </button>
+    </div>
+
+    <!-- Such- & Filterleiste -->
+    <div class="bg-white p-4 rounded-lg shadow mb-6 flex gap-4">
+      <input type="text" placeholder="Kunde, Adresse oder E-Mail suchen..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium">Suchen</button>
+    </div>
+
+    <!-- Kunden-Tabelle -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
+          <tr>
+            <th class="p-4">Firma / Name</th>
+            <th class="p-4">Ansprechpartner</th>
+            <th class="p-4">Adresse</th>
+            <th class="p-4">Kontakt</th>
+            <th class="p-4">Notizen</th>
+            <th class="p-4 text-right">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm">
+          <% if (customers && customers.length > 0) { %>
+            <% customers.forEach(c => { %>
+              <tr class="hover:bg-gray-50">
+                <td class="p-4 font-semibold text-gray-800"><%= c.company_name || 'Privatkunde' %></td>
+                <td class="p-4"><%= c.contact_person %></td>
+                <td class="p-4 text-gray-600"><%= c.address %></td>
+                <td class="p-4">
+                  <div class="text-xs text-gray-800">📞 <%= c.phone || '-' %></div>
+                  <div class="text-xs text-blue-600">✉️ <%= c.email || '-' %></div>
+                </td>
+                <td class="p-4 text-gray-500 italic max-w-xs truncate"><%= c.notes || '-' %></td>
+                <td class="p-4 text-right space-x-2">
+                  <a href="/customers/<%= c.id %>" class="text-blue-600 hover:underline text-xs font-medium">Projekte</a>
+                  <button class="text-gray-500 hover:text-gray-700 text-xs">Bearbeiten</button>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="6" class="p-8 text-center text-gray-400">Keine Kunden vorhanden. Lege jetzt den ersten Kunden an!</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Neukunde anlegen -->
+<div id="customerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h3 class="text-lg font-bold text-gray-800">Neuen Kunden anlegen</h3>
+      <button onclick="toggleModal('customerModal')" class="text-gray-400 hover:text-gray-600">&times;</button>
+    </div>
+    
+    <form action="/customers/add" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Firmenname (optional)</label>
+        <input type="text" name="company_name" placeholder="z. B. Müller Bau GmbH" class="w-full border rounded-lg p-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Ansprechpartner *</label>
+        <input type="text" name="contact_person" required placeholder="z. B. Max Mustermann" class="w-full border rounded-lg p-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Straße & Hausnummer, PLZ Ort *</label>
+        <input type="text" name="address" required placeholder="Musterstr. 1, 12345 Musterstadt" class="w-full border rounded-lg p-2 text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
+          <input type="text" name="phone" placeholder="0171 123456" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
+          <input type="email" name="email" placeholder="kunde@beispiel.de" class="w-full border rounded-lg p-2 text-sm">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
+        <textarea name="notes" rows="2" placeholder="Sonderwünsche, Anfahrtshinweise..." class="w-full border rounded-lg p-2 text-sm"></textarea>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="toggleModal('customerModal')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleModal(id) {
+    document.getElementById(id).classList.toggle('hidden');
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,132 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-gray-100">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 p-6 overflow-y-auto">
+    <!-- Header-Bereich -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Angebotsverwaltung</h1>
+        <p class="text-sm text-gray-500">Übersicht aller erstellten Angebote für Kunden</p>
+      </div>
+      <button onclick="toggleModal('offerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2">
+        <span>+ Neues Angebot erstellen</span>
+      </button>
+    </div>
+
+    <!-- Angebots-Tabelle -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
+          <tr>
+            <th class="p-4">Angebots-Nr.</th>
+            <th class="p-4">Datum</th>
+            <th class="p-4">Kunde</th>
+            <th class="p-4">Betrag (Brutto)</th>
+            <th class="p-4">Status</th>
+            <th class="p-4 text-right">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 text-sm">
+          <% if (offers && offers.length > 0) { %>
+            <% offers.forEach(off => { %>
+              <tr class="hover:bg-gray-50">
+                <td class="p-4 font-mono font-semibold text-gray-800"><%= off.doc_number %></td>
+                <td class="p-4 text-gray-600"><%= new Date(off.created_at).toLocaleDateString('de-DE') %></td>
+                <td class="p-4 font-medium"><%= off.customer_name || off.contact_person %></td>
+                <td class="p-4 font-bold text-gray-800">
+                  <%= off.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %>
+                </td>
+                <td class="p-4">
+                  <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                    <%= off.status === 'ANGENOMMEN' ? 'bg-green-100 text-green-800' : 
+                       (off.status === 'GESENDET' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800') %>">
+                    <%= off.status %>
+                  </span>
+                </td>
+                <td class="p-4 text-right space-x-2">
+                  <% if (off.status !== 'ANGENOMMEN') { %>
+                    <form action="/documents/convert-to-invoice/<%= off.id %>" method="POST" class="inline">
+                      <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1 rounded font-medium">
+                        In Rechnung wandeln
+                      </button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          <% } else { %>
+            <tr>
+              <td colspan="6" class="p-8 text-center text-gray-400">Keine Angebote vorhanden. Lege jetzt dein erstes Angebot an!</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Neues Angebot anlegen -->
+<div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h3 class="text-lg font-bold text-gray-800">Neues Angebot anlegen</h3>
+      <button onclick="toggleModal('offerModal')" class="text-gray-400 hover:text-gray-600">&times;</button>
+    </div>
+    
+    <form action="/documents/create-offer" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Kunde auswählen *</label>
+        <select name="customer_id" required class="w-full border rounded-lg p-2 text-sm bg-white">
+          <option value="">-- Kunde wählen --</option>
+          <% if (typeof customers !== 'undefined') { %>
+            <% customers.forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
+            <% }); %>
+          <% } %>
+        </select>
+      </div>
+
+      <div class="border-t pt-2">
+        <label class="block text-xs font-bold text-gray-700 mb-2">Erste Position (z.B. Balkongeländer / Stahlbau)</label>
+        <div class="space-y-2">
+          <input type="text" name="description" required placeholder="Beschreibung (z.B. Edelstahl-Geländer V2A)" class="w-full border rounded-lg p-2 text-sm">
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-xs text-gray-500">Menge</label>
+              <input type="number" step="0.01" name="quantity" required placeholder="1" class="w-full border rounded-lg p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500">Einheit</label>
+              <select name="unit" class="w-full border rounded-lg p-2 text-sm bg-white">
+                <option value="m">m (Meter)</option>
+                <option value="Stk">Stk</option>
+                <option value="Std">Std (Stunden)</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500">Einzelpreis (€)</label>
+              <input type="number" step="0.01" name="unit_price" required placeholder="250.00" class="w-full border rounded-lg p-2 text-sm">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-4 border-t">
+        <button type="button" onclick="toggleModal('offerModal')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Angebot Erstellen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function toggleModal(id) {
+    document.getElementById(id).classList.toggle('hidden');
+  }
+</script>
+
+</body>
+</html>
