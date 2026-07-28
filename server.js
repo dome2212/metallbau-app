@@ -96,6 +96,79 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
+// ZEITERFASSUNG / STEMPELUHR
+// ==========================================
+
+// GET: Stempeluhr-Hauptseite
+app.get('/timetracking', (req, res) => {
+  const userId = req.user.id;
+
+  // 1. Alle Stempel-Events von heute für den User holen
+  const sqlToday = `
+    SELECT * FROM time_logs 
+    WHERE user_id = ? AND DATE(timestamp) = DATE('now', 'localtime')
+    ORDER BY timestamp ASC
+  `;
+
+  db.all(sqlToday, [userId], (err, todayLogs) => {
+    if (err) return res.status(500).send('Datenbankfehler');
+
+    // 2. Prüfen, ob der User aktuell eingestempelt ist (letzter Eintrag ist 'IN')
+    const lastLog = todayLogs && todayLogs.length > 0 ? todayLogs[todayLogs.length - 1] : null;
+    const isStampedIn = lastLog && lastLog.type === 'IN';
+    
+    let lastStampTime = '';
+    if (isStampedIn) {
+      lastStampTime = new Date(lastLog.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // 3. Arbeitszeit für heute berechnen (Paare aus IN und OUT summieren)
+    let totalMilliseconds = 0;
+    if (todayLogs) {
+      for (let i = 0; i < todayLogs.length; i++) {
+        if (todayLogs[i].type === 'IN') {
+          const nextLog = todayLogs[i + 1];
+          const startTime = new Date(todayLogs[i].timestamp);
+          const endTime = (nextLog && nextLog.type === 'OUT') ? new Date(nextLog.timestamp) : (isStampedIn && i === todayLogs.length - 1 ? new Date() : null);
+          
+          if (endTime) {
+            totalMilliseconds += (endTime - startTime);
+          }
+        }
+      }
+    }
+
+    const todayTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+
+    res.render('timetracking', {
+      todayLogs: todayLogs || [],
+      isStampedIn,
+      lastStampTime,
+      todayTotalHours
+    });
+  });
+});
+
+// POST: Ein- oder Ausstempeln
+app.post('/timetracking/stamp', (req, res) => {
+  const userId = req.user.id;
+  const { type, note } = req.body;
+
+  if (!['IN', 'OUT'].includes(type)) {
+    return res.status(400).send('Ungültiger Stempel-Typ');
+  }
+
+  const sql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
+  db.run(sql, [userId, type, note || null], (err) => {
+    if (err) {
+      console.error('Fehler beim Stempeln:', err.message);
+      return res.status(500).send('Fehler beim Speichern der Stempelzeit');
+    }
+    res.redirect('/timetracking');
+  });
+});
+
+// ==========================================
 // KUNDENVERWALTUNG & IDEE 5: DATEIUPLOAD
 // ==========================================
 app.post('/customers/edit', (req, res) => {

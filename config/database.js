@@ -129,6 +129,18 @@ db.serialize(() => {
     )
   `);
 
+  // 10. NEW: Zeiterfassung / Stempeluhr
+  db.run(`
+    CREATE TABLE IF NOT EXISTS time_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT CHECK(type IN ('IN', 'OUT')) NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      note TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   // Migrationen / Spaltenerweiterungen (falls existierende DBs geupdatet werden)
   db.run(`ALTER TABLE invoices ADD COLUMN status_note TEXT`, (err) => {});
   db.run(`ALTER TABLE invoices ADD COLUMN due_date DATE`, (err) => {});
