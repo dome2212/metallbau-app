@@ -34,9 +34,9 @@
               <tr class="hover:bg-gray-50">
                 <td class="p-4 font-mono font-semibold text-gray-800"><%= off.doc_number %></td>
                 <td class="p-4 text-gray-600"><%= new Date(off.created_at).toLocaleDateString('de-DE') %></td>
-                <td class="p-4 font-medium"><%= off.customer_name || off.contact_person %></td>
+                <td class="p-4 font-medium"><%= off.company_name || off.contact_person || 'Kein Kunde' %></td>
                 <td class="p-4 font-bold text-gray-800">
-                  <%= off.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %>
+                  <%= off.total_amount ? off.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) : '0,00 €' %>
                 </td>
                 <td class="p-4">
                   <span class="px-2 py-1 text-xs font-semibold rounded-full 
@@ -47,12 +47,21 @@
                 </td>
                 <td class="p-4 text-right space-x-2">
                   <% if (off.status !== 'ANGENOMMEN') { %>
-                    <form action="/documents/convert-to-invoice/<%= off.id %>" method="POST" class="inline">
-                      <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1 rounded font-medium">
-                        In Rechnung wandeln
+                    <form action="/documents/offers/convert-to-invoice" method="POST" onsubmit="return confirm('Möchtest du dieses Angebot in eine Rechnung umwandeln?');" class="inline">
+                      <input type="hidden" name="offer_id" value="<%= off.id %>">
+                      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2.5 py-1 rounded font-medium">
+                        🔄 In Rechnung wandeln
                       </button>
                     </form>
                   <% } %>
+
+                  <!-- Angebot löschen Formular -->
+                  <form action="/documents/offers/delete" method="POST" onsubmit="return confirm('Angebot wirklich unwiderruflich löschen?');" class="inline">
+                    <input type="hidden" name="offer_id" value="<%= off.id %>">
+                    <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 text-xs px-2.5 py-1 rounded font-medium transition">
+                      🗑️ Löschen
+                    </button>
+                  </form>
                 </td>
               </tr>
             <% }); %>
@@ -68,11 +77,11 @@
 </div>
 
 <!-- Modal: Neues Angebot anlegen -->
-<div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+<div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6">
     <div class="flex justify-between items-center mb-4 border-b pb-2">
       <h3 class="text-lg font-bold text-gray-800">Neues Angebot anlegen</h3>
-      <button onclick="toggleModal('offerModal')" class="text-gray-400 hover:text-gray-600">&times;</button>
+      <button onclick="toggleModal('offerModal')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
     </div>
     
     <form action="/documents/create-offer" method="POST" class="space-y-4">
@@ -80,18 +89,37 @@
         <label class="block text-xs font-medium text-gray-700 mb-1">Kunde auswählen *</label>
         <select name="customer_id" required class="w-full border rounded-lg p-2 text-sm bg-white">
           <option value="">-- Kunde wählen --</option>
-          <% if (typeof customers !== 'undefined') { %>
+          <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
             <% customers.forEach(c => { %>
-              <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
+              <option value="<%= c.id %>"><%= c.company_name ? c.company_name + ' (' + c.contact_person + ')' : c.contact_person %></option>
             <% }); %>
           <% } %>
         </select>
       </div>
 
-      <div class="border-t pt-2">
-        <label class="block text-xs font-bold text-gray-700 mb-2">Erste Position (z.B. Balkongeländer / Stahlbau)</label>
+      <!-- ARTIKEL- & MATERIALSTAMM DROPDOWN -->
+      <div class="border-t pt-3">
+        <label class="block text-xs font-bold text-blue-700 mb-1">📦 Aus Artikelstamm übernehmen (Optional)</label>
+        <select id="articleSelect" onchange="applyArticle(this)" class="w-full border border-blue-200 rounded-lg p-2 text-sm bg-blue-50/50 mb-3">
+          <option value="">-- Vorgeschriebenes Material / Leistung wählen --</option>
+          <% if (typeof articles !== 'undefined' && articles.length > 0) { %>
+            <% articles.forEach(art => { %>
+              <option 
+                value="<%= art.id %>" 
+                data-title="<%= art.title %>" 
+                data-unit="<%= art.unit %>" 
+                data-price="<%= art.unit_price %>"
+                data-desc="<%= art.description || '' %>">
+                <%= art.title %> (<%= art.unit_price.toFixed(2) %> € / <%= art.unit %>)
+              </option>
+            <% }); %>
+          <% } %>
+        </select>
+
+        <label class="block text-xs font-bold text-gray-700 mb-2">Position Details</label>
         <div class="space-y-2">
-          <input type="text" name="description" required placeholder="Beschreibung (z.B. Edelstahl-Geländer V2A)" class="w-full border rounded-lg p-2 text-sm">
+          <input type="text" id="offer_description" name="description" required placeholder="Beschreibung (z.B. Edelstahl-Geländer V2A)" class="w-full border rounded-lg p-2 text-sm">
+          
           <div class="grid grid-cols-3 gap-2">
             <div>
               <label class="block text-xs text-gray-500">Menge</label>
@@ -99,16 +127,18 @@
             </div>
             <div>
               <label class="block text-xs text-gray-500">Einheit</label>
-              <select name="unit" class="w-full border rounded-lg p-2 text-sm bg-white">
-                <option value="m">m (Meter)</option>
+              <select id="offer_unit" name="unit" class="w-full border rounded-lg p-2 text-sm bg-white">
                 <option value="Stk">Stk</option>
+                <option value="m">m (Meter)</option>
                 <option value="Std">Std (Stunden)</option>
                 <option value="kg">kg</option>
+                <option value="m²">m²</option>
+                <option value="Psch">Pauschale</option>
               </select>
             </div>
             <div>
               <label class="block text-xs text-gray-500">Einzelpreis (€)</label>
-              <input type="number" step="0.01" name="unit_price" required placeholder="250.00" class="w-full border rounded-lg p-2 text-sm">
+              <input type="number" step="0.01" id="offer_price" name="unit_price" required placeholder="250.00" class="w-full border rounded-lg p-2 text-sm">
             </div>
           </div>
         </div>
@@ -125,6 +155,33 @@
 <script>
   function toggleModal(id) {
     document.getElementById(id).classList.toggle('hidden');
+  }
+
+  // Automatisches Einfügen aus dem Artikelstamm
+  function applyArticle(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    if (!selectedOption.value) return;
+
+    const title = selectedOption.getAttribute('data-title');
+    const unit = selectedOption.getAttribute('data-unit');
+    const price = selectedOption.getAttribute('data-price');
+    const desc = selectedOption.getAttribute('data-desc');
+
+    const descriptionInput = document.getElementById('offer_description');
+    const unitSelect = document.getElementById('offer_unit');
+    const priceInput = document.getElementById('offer_price');
+
+    descriptionInput.value = title + (desc ? ' - ' + desc : '');
+    priceInput.value = price;
+
+    if (unitSelect) {
+      for (let option of unitSelect.options) {
+        if (option.value === unit) {
+          option.selected = true;
+          break;
+        }
+      }
+    }
   }
 </script>
 

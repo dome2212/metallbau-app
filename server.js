@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const db = require('./config/database');
 const { verifyToken, requireAdmin } = require('./middleware/auth');
@@ -9,12 +11,28 @@ const documentRoutes = require('./routes/documentRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Setup für Datei-Uploads (Baustellenfotos & Skizzen)
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
+
 // 1. EJS & Middleware Setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(uploadDir)); // statischer Ordner für Bilder/Dateien
 
 // 2. Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
@@ -27,24 +45,20 @@ app.use('/documents', documentRoutes);
 // DASHBOARD (Echte Daten aus der Datenbank)
 // ==========================================
 app.get('/', (req, res) => {
-  // 1. Offene Angebote abfragen
   const sqlOffers = `
     SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
     FROM documents 
     WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
   `;
 
-  // 2. Unbezahlte Rechnungen abfragen
   const sqlInvoices = `
     SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
     FROM invoices 
     WHERE status != 'Bezahlt'
   `;
 
-  // 3. Gesamtanzahl Kunden abfragen
   const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
 
-  // 4. Letzte Vorgänge (Angebote + Rechnungen) abfragen
   const sqlRecentDocs = `
     SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
     FROM documents
@@ -82,9 +96,8 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// KUNDENVERWALTUNG
+// KUNDENVERWALTUNG & IDEE 5: DATEIUPLOAD
 // ==========================================
-// POST: Kunde bearbeiten
 app.post('/customers/edit', (req, res) => {
   const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
 
@@ -95,52 +108,53 @@ app.post('/customers/edit', (req, res) => {
   `;
 
   db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id], (err) => {
-    if (err) {
-      console.error('Fehler beim Bearbeiten des Kunden:', err.message);
-      return res.status(500).send('Fehler beim Aktualisieren');
-    }
+    if (err) return res.status(500).send('Fehler beim Aktualisieren');
     res.redirect('/customers');
   });
 });
 
-// POST: Kunde löschen
 app.post('/customers/delete', (req, res) => {
   const { id } = req.body;
-
   db.run('DELETE FROM customers WHERE id = ?', [id], (err) => {
-    if (err) {
-      console.error('Fehler beim Löschen des Kunden:', err.message);
-      return res.status(500).send('Fehler beim Löschen');
-    }
+    if (err) return res.status(500).send('Fehler beim Löschen');
     res.redirect('/customers');
   });
 });
 
-// GET: Projekte/Vorgänge eines bestimmten Kunden anzeigen
 app.get('/customers/:id/projects', (req, res) => {
   const { id } = req.params;
 
-  // 1. Kunde abfragen
   db.get('SELECT * FROM customers WHERE id = ?', [id], (err, customer) => {
     if (err || !customer) return res.status(404).send('Kunde nicht gefunden');
 
-    // 2. Angebote des Kunden
     db.all("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id], (err, offers) => {
-      // 3. Rechnungen des Kunden
       db.all("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, invoices) => {
-        // 4. Termine des Kunden
         db.all("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id], (err, appointments) => {
-          
-          res.render('customer-projects', {
-            customer,
-            offers: offers || [],
-            invoices: invoices || [],
-            appointments: appointments || []
+          // IDEE 5: Zugehörige Fotos & Skizzen laden
+          db.all("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, files) => {
+            res.render('customer-projects', {
+              customer,
+              offers: offers || [],
+              invoices: invoices || [],
+              appointments: appointments || [],
+              files: files || []
+            });
           });
-
         });
       });
     });
+  });
+});
+
+// IDEE 5: POST Baustellenfoto / Skizze hochladen
+app.post('/customers/:id/upload', upload.single('file'), (req, res) => {
+  const customer_id = req.params.id;
+  if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
+
+  const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
+  db.run(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype], (err) => {
+    if (err) console.error('Fehler beim Dateiupload:', err.message);
+    res.redirect(`/customers/${customer_id}/projects`);
   });
 });
 
@@ -158,25 +172,14 @@ app.post('/customers/add', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
-  db.run(sql, [
-    company_name || null, 
-    contact_person || null, 
-    email || null, 
-    phone || null, 
-    street || null, 
-    zip || null, 
-    city || null
-  ], function (err) {
-    if (err) {
-      console.error('❌ SQL-Fehler beim Kunden-Speichern:', err.message);
-      return res.status(500).send(`<h2>Fehler beim Speichern:</h2><p style="color:red;">${err.message}</p><a href="/customers">Zurück</a>`);
-    }
+  db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null], (err) => {
+    if (err) return res.status(500).send('Fehler beim Speichern');
     res.redirect('/customers');
   });
 });
 
 // ==========================================
-// ANGEBOTSVERWALTUNG
+// ANGEBOTSVERWALTUNG & IDEE 2: UMWANDLUNG
 // ==========================================
 app.get('/documents/offers', (req, res) => {
   const query = `
@@ -188,22 +191,141 @@ app.get('/documents/offers', (req, res) => {
     
   db.all(query, [], (err, offers) => {
     db.all('SELECT * FROM customers', [], (err, customers) => {
-      res.render('offers', { 
-        offers: offers || [], 
-        customers: customers || [] 
+      // Artikel für das Auswahl-Dropdown in der View mit übergeben
+      db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
+        res.render('offers', { 
+          offers: offers || [], 
+          customers: customers || [],
+          articles: articles || []
+        });
+      });
+    });
+  });
+});
+
+// POST: Neues Angebot anlegen
+app.post('/documents/create-offer', (req, res) => {
+  const { customer_id, description, quantity, unit, unit_price } = req.body;
+
+  const docNumber = 'ANG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+
+  const parsedQuantity = String(quantity || '1').replace(',', '.');
+  const parsedPrice = String(unit_price || '0').replace(',', '.');
+
+  const qty = parseFloat(parsedQuantity) || 1;
+  const price = parseFloat(parsedPrice) || 0;
+  const totalAmount = qty * price;
+
+  const sqlOffer = `
+    INSERT INTO documents (doc_type, doc_number, customer_id, total_amount, status)
+    VALUES ('OFFER', ?, ?, ?, 'GESENDET')
+  `;
+
+  db.run(sqlOffer, [docNumber, customer_id, totalAmount], function (err) {
+    if (err) {
+      console.error('❌ Fehler beim Erstellen des Angebots:', err.message);
+      return res.status(500).send('Fehler beim Speichern des Angebots');
+    }
+
+    const offerId = this.lastID;
+
+    const sqlItem = `
+      INSERT INTO offer_items (offer_id, description, quantity, unit, price)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    db.run(sqlItem, [offerId, description || 'Position 1', qty, unit || 'Stk', price], (itemErr) => {
+      if (itemErr) {
+        console.error('❌ Fehler beim Speichern der Angebotsposition:', itemErr.message);
+      }
+      res.redirect('/documents/offers');
+    });
+  });
+});
+
+// POST: Angebot und dazugehörige Positionen löschen
+app.post('/documents/offers/delete', (req, res) => {
+  const { offer_id } = req.body;
+
+  db.run(`DELETE FROM offer_items WHERE offer_id = ?`, [offer_id], () => {
+    db.run(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id], (err) => {
+      if (err) {
+        console.error('❌ Fehler beim Löschen des Angebots:', err.message);
+        return res.status(500).send('Fehler beim Löschen des Angebots');
+      }
+      res.redirect('/documents/offers');
+    });
+  });
+});
+
+// IDEE 2: Angebot in Rechnung umwandeln
+app.post('/documents/offers/convert-to-invoice', (req, res) => {
+  const { offer_id } = req.body;
+
+  db.get('SELECT * FROM documents WHERE id = ? AND doc_type = "OFFER"', [offer_id], (err, offer) => {
+    if (err || !offer) return res.status(404).send('Angebot nicht gefunden');
+
+    const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    
+    // Fälligkeit in 14 Tagen setzen
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 14);
+
+    const sqlInvoice = `
+      INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date)
+      VALUES (?, ?, ?, 'Gesendet', ?)
+    `;
+
+    db.run(sqlInvoice, [invoiceNumber, offer.customer_id, offer.total_amount, dueDate.toISOString().split('T')[0]], function(err) {
+      if (err) return res.status(500).send('Fehler beim Umwandeln des Angebots');
+
+      const invoiceId = this.lastID;
+
+      db.all('SELECT * FROM offer_items WHERE offer_id = ?', [offer_id], (err, items) => {
+        if (!items || items.length === 0) {
+          db.run(
+            'INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, 1, "Psch", ?)',
+            [invoiceId, 'Übernahme aus Angebot #' + offer.doc_number, offer.total_amount]
+          );
+        } else {
+          const stmt = db.prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
+          items.forEach(item => {
+            stmt.run(invoiceId, item.description, item.quantity, item.unit, item.price);
+          });
+          stmt.finalize();
+        }
+
+        db.run('UPDATE documents SET status = "ANGENOMMEN" WHERE id = ?', [offer_id]);
+        res.redirect('/documents/invoices/' + invoiceId);
       });
     });
   });
 });
 
 // ==========================================
-// RECHNUNGSVERWALTUNG
+// RECHNUNGSVERWALTUNG & IDEE 1, 3 (PDF & MAHNWESEN)
 // ==========================================
 
-// GET: Rechnungs-Details anzeigen (Material, Arbeitsstunden, Positionen)
+// IDEE 1: PDF Druckansicht für Rechnungen
+app.get('/documents/invoices/:id/pdf', (req, res) => {
+  const { id } = req.params;
+  const sqlInvoice = `
+    SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
+    FROM invoices 
+    LEFT JOIN customers ON invoices.customer_id = customers.id
+    WHERE invoices.id = ?
+  `;
+  db.get(sqlInvoice, [id], (err, invoice) => {
+    if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
+
+    db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
+      res.render('invoice-pdf', { invoice, items: items || [] });
+    });
+  });
+});
+
 app.get('/documents/invoices/:id', (req, res) => {
   const { id } = req.params;
-
   const sqlInvoice = `
     SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
     FROM invoices 
@@ -211,23 +333,15 @@ app.get('/documents/invoices/:id', (req, res) => {
     WHERE invoices.id = ?
   `;
 
-  const sqlItems = `SELECT * FROM invoice_items WHERE invoice_id = ?`;
-
   db.get(sqlInvoice, [id], (err, invoice) => {
-    if (err || !invoice) {
-      return res.status(404).send('Rechnung nicht gefunden');
-    }
+    if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
 
-    db.all(sqlItems, [id], (err, items) => {
-      res.render('invoice-detail', {
-        invoice,
-        items: items || []
-      });
+    db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
+      res.render('invoice-detail', { invoice, items: items || [] });
     });
   });
 });
 
-// GET: Rechnungs-Übersicht anzeigen (MIT FILTER-FUNKTION)
 app.get('/documents/invoices', (req, res) => {
   const statusFilter = req.query.status;
 
@@ -246,96 +360,107 @@ app.get('/documents/invoices', (req, res) => {
   sqlInvoices += " ORDER BY invoices.created_at DESC";
 
   db.all(sqlInvoices, params, (err, invoices) => {
-    if (err) {
-      console.error('Fehler beim Abrufen der Rechnungen:', err.message);
-      return res.status(500).send('Datenbankfehler');
-    }
+    if (err) return res.status(500).send('Datenbankfehler');
 
     db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
-      res.render('invoices', {
-        invoices: invoices || [],
-        customers: customers || [],
-        currentStatus: statusFilter || 'Alle'
+      db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
+        res.render('invoices', {
+          invoices: invoices || [],
+          customers: customers || [],
+          articles: articles || [],
+          currentStatus: statusFilter || 'Alle'
+        });
       });
     });
   });
 });
 
-// POST: Neue Rechnung anlegen (inkl. Komma-in-Punkt Umwandlung & flexiblen Feldnamen)
 app.post('/documents/create-invoice', (req, res) => {
-  const customer_id = req.body.customer_id;
-  const title = req.body.title || req.body.description || 'Position 1';
-  const quantity = req.body.quantity || '1';
-  const unit = req.body.unit || 'Stk';
-  const rawPrice = req.body.price || req.body.unit_price || '0';
-
+  const { customer_id, title, quantity, unit, price, due_days } = req.body;
   const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
   
-  // Wandelt Komma in Punkt um, falls der Nutzer "12,50" eingegeben hat
-  const parsedQuantity = String(quantity).replace(',', '.');
-  const parsedPrice = String(rawPrice).replace(',', '.');
-
+  const parsedQuantity = String(quantity || '1').replace(',', '.');
+  const parsedPrice = String(price || '0').replace(',', '.');
   const qty = parseFloat(parsedQuantity) || 1;
   const unitPrice = parseFloat(parsedPrice) || 0;
   const totalAmount = qty * unitPrice;
 
-  console.log(`📝 Erstelle Rechnung: Menge=${qty}, Preis=${unitPrice}, Gesamt=${totalAmount}`);
+  // Fälligkeit berechnen
+  const days = parseInt(due_days || '14', 10);
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + days);
 
   const sqlInvoice = `
-    INSERT INTO invoices (invoice_number, customer_id, total_amount, status)
-    VALUES (?, ?, ?, 'Gesendet')
+    INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date)
+    VALUES (?, ?, ?, 'Gesendet', ?)
   `;
 
-  db.run(sqlInvoice, [invoiceNumber, customer_id, totalAmount], function (err) {
-    if (err) {
-      console.error('❌ Fehler beim Erstellen der Rechnung:', err.message);
-      return res.status(500).send('Fehler beim Speichern');
-    }
+  db.run(sqlInvoice, [invoiceNumber, customer_id, totalAmount, dueDate.toISOString().split('T')[0]], function (err) {
+    if (err) return res.status(500).send('Fehler beim Speichern');
 
     const invoiceId = this.lastID;
-    const sqlItem = `
-      INSERT INTO invoice_items (invoice_id, description, quantity, unit, price)
-      VALUES (?, ?, ?, ?, ?)
-    `;
+    const sqlItem = `INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`;
 
-    db.run(sqlItem, [invoiceId, title, qty, unit, unitPrice], (itemErr) => {
-      if (itemErr) {
-        console.error('❌ Fehler beim Speichern der Rechnungsposition:', itemErr.message);
-      }
+    db.run(sqlItem, [invoiceId, title || 'Position 1', qty, unit || 'Stk', unitPrice], () => {
       res.redirect('/documents/invoices');
     });
   });
 });
 
-// POST: Status einer Rechnung ändern (Bezahlt, Überfällig, Verzögert)
-app.post('/documents/invoices/update-status', (req, res) => {
-  const { invoice_id, status, status_note } = req.body;
-
-  const sql = `UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`;
-  
-  db.run(sql, [status, status_note || null, invoice_id], (err) => {
-    if (err) {
-      console.error('Fehler beim Aktualisieren des Status:', err.message);
-      return res.status(500).send('Fehler beim Aktualisieren');
-    }
+// IDEE 3: Mahnstufe erhöhen / Mahnwesen
+app.post('/documents/invoices/increase-dunning', (req, res) => {
+  const { invoice_id } = req.body;
+  const sql = `UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`;
+  db.run(sql, [invoice_id], (err) => {
+    if (err) console.error('Fehler beim Aktualisieren der Mahnstufe:', err.message);
     res.redirect('/documents/invoices');
   });
 });
 
-// POST: Rechnung löschen
+app.post('/documents/invoices/update-status', (req, res) => {
+  const { invoice_id, status, status_note } = req.body;
+  const sql = `UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`;
+  
+  db.run(sql, [status, status_note || null, invoice_id], (err) => {
+    if (err) return res.status(500).send('Fehler beim Aktualisieren');
+    res.redirect('/documents/invoices');
+  });
+});
+
 app.post('/documents/invoices/delete', (req, res) => {
   const { invoice_id } = req.body;
-
-  db.run(`DELETE FROM invoice_items WHERE invoice_id = ?`, [invoice_id], (err) => {
-    if (err) console.error('Fehler beim Löschen der Positionen:', err.message);
-
+  db.run(`DELETE FROM invoice_items WHERE invoice_id = ?`, [invoice_id], () => {
     db.run(`DELETE FROM invoices WHERE id = ?`, [invoice_id], (err) => {
-      if (err) {
-        console.error('Fehler beim Löschen der Rechnung:', err.message);
-        return res.status(500).send('Fehler beim Löschen');
-      }
+      if (err) return res.status(500).send('Fehler beim Löschen');
       res.redirect('/documents/invoices');
     });
+  });
+});
+
+// ==========================================
+// IDEE 4: ARTIKEL- & MATERIALSTAMM
+// ==========================================
+app.get('/articles', (req, res) => {
+  db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
+    res.render('articles', { articles: articles || [] });
+  });
+});
+
+app.post('/articles/add', (req, res) => {
+  const { title, unit, unit_price, description } = req.body;
+  const parsedPrice = String(unit_price).replace(',', '.');
+
+  const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
+  db.run(sql, [title, unit, parseFloat(parsedPrice) || 0, description || null], (err) => {
+    if (err) console.error('Fehler beim Anlegen des Artikels:', err.message);
+    res.redirect('/articles');
+  });
+});
+
+app.post('/articles/delete', (req, res) => {
+  const { id } = req.body;
+  db.run('DELETE FROM articles WHERE id = ?', [id], () => {
+    res.redirect('/articles');
   });
 });
 
@@ -378,23 +503,16 @@ app.post('/api/appointments/add', (req, res) => {
     VALUES (?, ?, ?, ?, ?)
   `;
 
-  db.run(sql, [title, customer_id || null, start_date, end_date || null, description], function(err) {
-    if (err) {
-      console.error('Fehler beim Termin-Speichern:', err.message);
-      return res.status(500).send('Fehler beim Speichern');
-    }
+  db.run(sql, [title, customer_id || null, start_date, end_date || null, description], (err) => {
+    if (err) return res.status(500).send('Fehler beim Speichern');
     res.redirect('/calendar');
   });
 });
 
 app.post('/api/appointments/delete/:id', (req, res) => {
   const { id } = req.params;
-
-  db.run('DELETE FROM appointments WHERE id = ?', [id], function (err) {
-    if (err) {
-      console.error('Fehler beim Löschen des Termins:', err.message);
-      return res.status(500).send('Fehler beim Löschen');
-    }
+  db.run('DELETE FROM appointments WHERE id = ?', [id], (err) => {
+    if (err) return res.status(500).send('Fehler beim Löschen');
     res.redirect('/calendar');
   });
 });
