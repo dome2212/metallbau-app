@@ -17,12 +17,37 @@
 
     <!-- Status-Filter / Tabs -->
     <div class="flex border-b border-gray-200 mb-6 gap-6 text-sm font-medium">
-      <a href="/documents/invoices" class="pb-3 border-b-2 border-blue-600 text-blue-600">Alle</a>
-      <a href="#" class="pb-3 text-gray-500 hover:text-gray-700">Entwurf</a>
-      <a href="#" class="pb-3 text-gray-500 hover:text-gray-700">Gesendet</a>
-      <a href="#" class="pb-3 text-emerald-600 hover:text-emerald-700">Bezahlt</a>
-      <a href="#" class="pb-3 text-red-600 hover:text-red-700">Überfällig</a>
-      <a href="#" class="pb-3 text-amber-600 hover:text-amber-700 font-semibold">Sonstiges / Verzögert</a>
+      <% const current = typeof currentStatus !== 'undefined' ? currentStatus : 'Alle'; %>
+
+      <a href="/documents/invoices" 
+         class="pb-3 transition-colors <%= current === 'Alle' ? 'border-b-2 border-blue-600 text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700' %>">
+        Alle
+      </a>
+
+      <a href="/documents/invoices?status=Entwurf" 
+         class="pb-3 transition-colors <%= current === 'Entwurf' ? 'border-b-2 border-blue-600 text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700' %>">
+        Entwurf
+      </a>
+
+      <a href="/documents/invoices?status=Gesendet" 
+         class="pb-3 transition-colors <%= current === 'Gesendet' ? 'border-b-2 border-blue-600 text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700' %>">
+        Gesendet
+      </a>
+
+      <a href="/documents/invoices?status=Bezahlt" 
+         class="pb-3 transition-colors <%= current === 'Bezahlt' ? 'border-b-2 border-emerald-600 text-emerald-600 font-bold' : 'text-emerald-600 hover:text-emerald-700' %>">
+        Bezahlt
+      </a>
+
+      <a href="/documents/invoices?status=Überfällig" 
+         class="pb-3 transition-colors <%= current === 'Überfällig' ? 'border-b-2 border-red-600 text-red-600 font-bold' : 'text-red-600 hover:text-red-700' %>">
+        Überfällig
+      </a>
+
+      <a href="/documents/invoices?status=Verzögert" 
+         class="pb-3 transition-colors <%= current === 'Verzögert' ? 'border-b-2 border-amber-600 text-amber-600 font-bold' : 'text-amber-600 hover:text-amber-700' %>">
+        Sonstiges / Verzögert
+      </a>
     </div>
 
     <!-- Rechnungs-Tabelle -->
@@ -42,7 +67,7 @@
           <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
             <% invoices.forEach(inv => { %>
               <tr class="border-b hover:bg-gray-50">
-                <!-- Rechnungsnummer ist jetzt anklickbar zur Detailseite -->
+                <!-- Rechnungsnummer ist anklickbar zur Detailseite -->
                 <td class="py-3 px-4 font-semibold">
                   <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1" title="Details / Positionen anzeigen">
                     📄 <%= inv.invoice_number %>

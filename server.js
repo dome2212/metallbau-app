@@ -143,6 +143,7 @@ app.get('/customers/:id/projects', (req, res) => {
     });
   });
 });
+
 app.get('/customers', (req, res) => {
   db.all('SELECT * FROM customers ORDER BY created_at DESC', [], (err, customers) => {
     res.render('customers', { customers: customers || [] });
@@ -226,20 +227,35 @@ app.get('/documents/invoices/:id', (req, res) => {
   });
 });
 
-// GET: Rechnungs-Übersicht anzeigen
+// GET: Rechnungs-Übersicht anzeigen (MIT FILTER-FUNKTION)
 app.get('/documents/invoices', (req, res) => {
-  const sqlInvoices = `
+  const statusFilter = req.query.status;
+
+  let sqlInvoices = `
     SELECT invoices.*, customers.company_name, customers.contact_person 
     FROM invoices 
     LEFT JOIN customers ON invoices.customer_id = customers.id
-    ORDER BY invoices.created_at DESC
   `;
+  let params = [];
 
-  db.all(sqlInvoices, [], (err, invoices) => {
+  if (statusFilter) {
+    sqlInvoices += " WHERE invoices.status = ?";
+    params.push(statusFilter);
+  }
+
+  sqlInvoices += " ORDER BY invoices.created_at DESC";
+
+  db.all(sqlInvoices, params, (err, invoices) => {
+    if (err) {
+      console.error('Fehler beim Abrufen der Rechnungen:', err.message);
+      return res.status(500).send('Datenbankfehler');
+    }
+
     db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
       res.render('invoices', {
         invoices: invoices || [],
-        customers: customers || []
+        customers: customers || [],
+        currentStatus: statusFilter || 'Alle'
       });
     });
   });
