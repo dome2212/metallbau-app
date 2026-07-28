@@ -8,18 +8,21 @@
       <a href="/customers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Kunden</a>
       <a href="/documents/offers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Angebote</a>
       <a href="/documents/invoices" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Rechnungen</a>
-	  <a href="/calendar" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">📅 Kalender</a>
-	  <a href="/timetracking" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">⏱️ Zeiterfassung</a>
+      <a href="/calendar" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">📅 Kalender</a>
+      <a href="/timetracking" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">⏱️ Zeiterfassung</a>
     </nav>
   </div>
   
-  <div class="border-t border-gray-700 pt-3">
-    <div class="text-xs text-gray-400 mb-2">
+  <div class="border-t border-gray-700 pt-3 space-y-2">
+    <div class="text-xs text-gray-400 mb-1">
       Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
       (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
     </div>
     <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 rounded transition">
       Abmelden
     </a>
+    <div class="text-[12px] text-slate-500 text-center pt- select-none">
+      @Domenic Rosic
+    </div>
   </div>
 </aside>
