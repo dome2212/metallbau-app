@@ -12,9 +12,9 @@ if (process.env.DATABASE_URL) {
     ssl: { rejectUnauthorized: false }
   });
 
-  console.log("Verbunden mit PostgreSQL (Cloud)");
+  console.log("🟢 Versuche mit PostgreSQL zu verbinden und Tabellen zu erstellen...");[cite: 5]
 
-  // Tabellen erstellen (PostgreSQL Syntax)
+  // Tabellen erstellen (PostgreSQL Syntax) mit Fehlerprüfung
   db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -24,11 +24,17 @@ if (process.env.DATABASE_URL) {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => {
-    if (!err) {
+    if (err) {
+      console.error("❌ FEHLER beim Erstellen der users-Tabelle:", err.message);[cite: 5]
+    } else {
+      console.log("✅ users-Tabelle bereit!");[cite: 5]
       db.query(`SELECT * FROM users WHERE role = 'ADMIN'`, (err, res) => {
         if (res && res.rows.length === 0) {
           const hashedPassword = bcrypt.hashSync('chef123', 10);
-          db.query(`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`, ['chef', hashedPassword, 'ADMIN']);
+          db.query(`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`, ['chef', hashedPassword, 'ADMIN'], (err) => {
+            if (err) console.error("❌ Fehler beim Anlegen des Admin-Users:", err.message);[cite: 5]
+            else console.log("✅ Admin-User 'chef' erfolgreich erstellt!");[cite: 5]
+          });
         }
       });
     }
@@ -46,7 +52,7 @@ if (process.env.DATABASE_URL) {
       city TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler customers:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS time_logs (
@@ -59,7 +65,7 @@ if (process.env.DATABASE_URL) {
       latitude REAL,
       longitude REAL
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler time_logs:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -71,7 +77,7 @@ if (process.env.DATABASE_URL) {
       total_price REAL DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler projects:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS documents (
@@ -83,7 +89,7 @@ if (process.env.DATABASE_URL) {
       status TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler documents:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS offer_items (
@@ -94,7 +100,7 @@ if (process.env.DATABASE_URL) {
       unit TEXT,
       price REAL
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler offer_items:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS invoices (
@@ -108,7 +114,7 @@ if (process.env.DATABASE_URL) {
       status_note TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler invoices:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS invoice_items (
@@ -119,7 +125,7 @@ if (process.env.DATABASE_URL) {
       unit TEXT,
       price REAL
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler invoice_items:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS articles (
@@ -129,7 +135,7 @@ if (process.env.DATABASE_URL) {
       unit_price REAL,
       description TEXT
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler articles:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS appointments (
@@ -140,7 +146,7 @@ if (process.env.DATABASE_URL) {
       end_date TEXT,
       description TEXT
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler appointments:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS customer_files (
@@ -151,7 +157,7 @@ if (process.env.DATABASE_URL) {
       file_type TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler customer_files:", err.message); });[cite: 5]
 
   db.query(`
     CREATE TABLE IF NOT EXISTS project_files (
@@ -162,13 +168,13 @@ if (process.env.DATABASE_URL) {
       file_type TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, (err) => { if (err) console.error("❌ Fehler project_files:", err.message); });[cite: 5]
 
 } else {
   // Lokale Entwicklung (SQLite)
-  const dbPath = path.join(__dirname, '../database.sqlite');
-  db = new sqlite3.Database(dbPath);
-  console.log("Verbunden mit SQLite (Lokal)");
+  const dbPath = path.join(__dirname, '../database.sqlite');[cite: 5]
+  db = new sqlite3.Database(dbPath);[cite: 5]
+  console.log("Verbunden mit SQLite (Lokal)");[cite: 5]
 }
 
-module.exports = db;
+module.exports = db;[cite: 5]
