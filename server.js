@@ -6,21 +6,25 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const db = require('./config/database');
 
-// Hilfsfunktionen, damit die App sowohl mit SQLite (lokal) als auch mit PostgreSQL (Render) funktioniert
+// Universelle Hilfsfunktion für SQLite (lokal) und PostgreSQL (Render)
 const dbQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     if (process.env.DATABASE_URL) {
-      // PostgreSQL: ? durch $1, $2 etc. ersetzen
       let i = 0;
-      const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+      let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+      
+      // Bei INSERT-Abfragen sicherstellen, dass die ID zurückgegeben wird, falls nicht vorhanden
+      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+        pgSql += ' RETURNING id';
+      }
+
       db.query(pgSql, params, (err, res) => {
         if (err) return reject(err);
-        // Bei INSERT geben wir die Zeilen und ggf. die generierte ID zurück
-        const lastID = res.rows && res.rows.length > 0 ? res.rows[0].id : null;
-        resolve({ rows: res.rows || [], lastID });
+        const rows = res.rows || [];
+        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
+        resolve({ rows, lastID });
       });
     } else {
-      // SQLite
       db.all(sql, params, function(err, rows) {
         if (err) return reject(err);
         resolve({ rows: rows || [], lastID: this?.lastID });
@@ -75,7 +79,6 @@ app.get('/', async (req, res) => {
 
   try {
     if (userRole !== 'ADMIN') {
-      // Mitarbeiter-Ansicht
       const sqlMonthLogs = `
         SELECT * FROM time_logs 
         WHERE user_id = ? 
@@ -115,7 +118,6 @@ app.get('/', async (req, res) => {
       res.render('dashboard-employee', { stats, recentLogs });
 
     } else {
-      // Admin/Chef-Ansicht
       const sqlOffers = `
         SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
         FROM documents 
