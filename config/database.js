@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const dbPath = path.join(__dirname, '../database.sqlite');
 const db = new sqlite3.Database(dbPath);
@@ -14,7 +15,15 @@ db.serialize(() => {
       role TEXT NOT NULL DEFAULT 'EMPLOYEE',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, () => {
+    // Automatisch einen Standard-Chef (Admin) anlegen, falls noch keiner existiert
+    db.get(`SELECT * FROM users WHERE role = 'ADMIN'`, [], (err, admin) => {
+      if (!admin) {
+        const hashedPassword = bcrypt.hashSync('chef123', 10);
+        db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'ADMIN']);
+      }
+    });
+  });
 
   // 2. Tabelle für Kunden
   db.run(`
@@ -91,7 +100,7 @@ db.serialize(() => {
     )
   `);
 
-  // 7. NEW (Idee 4): Artikelstamm / Materialkatalog
+  // 7. Artikelstamm / Materialkatalog
   db.run(`
     CREATE TABLE IF NOT EXISTS articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +112,7 @@ db.serialize(() => {
     )
   `);
 
-  // 8. NEW (Idee 2): Angebotspositionen für die spätere Umwandlung
+  // 8. Angebotspositionen für die spätere Umwandlung
   db.run(`
     CREATE TABLE IF NOT EXISTS offer_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,7 +125,7 @@ db.serialize(() => {
     )
   `);
 
-  // 9. NEW (Idee 5): Kunden-Dateien & Baustellenfotos
+  // 9. Kunden-Dateien & Baustellenfotos
   db.run(`
     CREATE TABLE IF NOT EXISTS customer_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,22 +138,58 @@ db.serialize(() => {
     )
   `);
 
-  // 10. NEW: Zeiterfassung / Stempeluhr
+  // 10. Zeiterfassung / Stempeluhr (mit optionalem Projektbezug)
   db.run(`
     CREATE TABLE IF NOT EXISTS time_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
+      project_id INTEGER,
       type TEXT CHECK(type IN ('IN', 'OUT')) NOT NULL,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       note TEXT,
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      latitude REAL,
+      longitude REAL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
     )
-  `);
+  `, () => {
+    // Falls time_logs bereits existierte, Spalten nachträglich sicherstellen
+    db.run(`ALTER TABLE time_logs ADD COLUMN project_id INTEGER`, (err) => {});
+    db.run(`ALTER TABLE time_logs ADD COLUMN latitude REAL`, (err) => {});
+    db.run(`ALTER TABLE time_logs ADD COLUMN longitude REAL`, (err) => {});
+  });
 
-  // Migrationen / Spaltenerweiterungen (falls existierende DBs geupdatet werden)
+  // Migrationen / Spaltenerweiterungen für Rechnungen
   db.run(`ALTER TABLE invoices ADD COLUMN status_note TEXT`, (err) => {});
   db.run(`ALTER TABLE invoices ADD COLUMN due_date DATE`, (err) => {});
   db.run(`ALTER TABLE invoices ADD COLUMN dunning_level INTEGER DEFAULT 0`, (err) => {});
+  
+  // 11. Aufträge / Baustellen
+  db.run(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT DEFAULT 'In Planung',
+      total_price REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 12. Projektspezifische Dateien (Zeichnungen, Skizzen, Fotos)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS project_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      file_type TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
 });
 
 module.exports = db;

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Auftrag: <%= project.title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex h-screen overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto">
+    <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+      <div>
+        <a href="/projects" class="text-xs text-blue-600 hover:underline">← Zurück zur Übersicht</a>
+        <h1 class="text-2xl font-bold text-slate-800"><%= project.title %></h1>
+      </div>
+      <span class="px-3 py-1 rounded text-sm font-semibold bg-blue-100 text-blue-800"><%= project.status %></span>
+    </header>
+
+    <div class="p-6 max-w-7xl mx-auto w-full space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Kundendaten & Details -->
+        <div class="bg-white rounded-lg shadow p-6 space-y-4">
+          <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📋 Projektdetails</h2>
+          <div>
+            <span class="text-xs text-slate-400 block">Kunde / Baustelle</span>
+            <strong class="text-slate-700"><%= project.company_name || project.contact_person %></strong>
+            <p class="text-sm text-slate-600"><%= project.street %>, <%= project.zip %> <%= project.city %></p>
+          </div>
+          
+          <!-- Auftragssumme nur für den Chef (ADMIN) sichtbar -->
+          <% if (currentUser.role === 'ADMIN') { %>
+            <div>
+              <span class="text-xs text-slate-400 block">Auftragssumme</span>
+              <span class="text-xl font-bold text-slate-800"><%= project.total_price.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+            </div>
+          <% } %>
+
+          <div>
+            <span class="text-xs text-slate-400 block">Beschreibung</span>
+            <p class="text-sm text-slate-600"><%= project.description || 'Keine Beschreibung hinterlegt.' %></p>
+          </div>
+        </div>
+
+        <!-- Technische Zeichnungen & Dateien (Sowohl Chef als auch Mitarbeiter können hier Zeichnungen hochladen & einsehen) -->
+        <div class="bg-white rounded-lg shadow p-6 space-y-4">
+          <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📐 Technische Zeichnungen & Pläne</h2>
+          
+          <!-- Upload-Formular -->
+          <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 p-4 rounded border">
+            <label class="block text-xs font-medium text-slate-700">Zeichnung / Skizze / Foto hochladen (PDF, Bild)</label>
+            <input type="file" name="file" required class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
+          </form>
+
+          <!-- Liste der hochgeladenen Dateien -->
+          <div class="space-y-2">
+            <% if (files && files.length > 0) { %>
+              <% files.forEach(file => { %>
+                <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border text-sm">
+                  <span class="truncate max-w-xs text-slate-700">📄 <%= file.original_name %></span>
+                  <a href="/uploads/<%= file.filename %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="text-xs text-slate-400 italic">Noch keine Zeichnungen oder Dokumente hochgeladen.</p>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verknüpfte Termine -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">📅 Verknüpfte Termine (Aufmaß, Montage etc.)</h2>
+        <% if (appointments && appointments.length > 0) { %>
+          <ul class="divide-y divide-slate-200">
+            <% appointments.forEach(app => { %>
+              <li class="py-3 flex justify-between items-center text-sm">
+                <div>
+                  <strong class="text-slate-800"><%= app.title %></strong>
+                  <p class="text-xs text-slate-500"><%= new Date(app.start_date).toLocaleString('de-DE') %></p>
+                </div>
+                <span class="text-xs text-slate-600"><%= app.description || '' %></span>
+              </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p class="text-sm text-slate-400">Keine spezifischen Termine für diesen Kunden im Kalender gefunden.</p>
+        <% } %>
+      </div>
+
+    </div>
+  </main>
+</body>
+</html>

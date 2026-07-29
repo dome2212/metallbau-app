@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcryptjs');
 const db = require('./config/database');
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
@@ -42,68 +43,121 @@ app.use(verifyToken);
 app.use('/documents', documentRoutes);
 
 // ==========================================
-// DASHBOARD (Echte Daten aus der Datenbank)
+// DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
 // ==========================================
 app.get('/', (req, res) => {
-  const sqlOffers = `
-    SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-    FROM documents 
-    WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
-  `;
+  const userId = req.user.id;
+  const userRole = req.user.role;
 
-  const sqlInvoices = `
-    SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-    FROM invoices 
-    WHERE status != 'Bezahlt'
-  `;
+  // Wenn der Nutzer ein normaler Mitarbeiter ist -> Monatsstunden & eigene Stempel anzeigen
+  if (userRole !== 'ADMIN') {
+    const sqlMonthLogs = `
+      SELECT * FROM time_logs 
+      WHERE user_id = ? AND strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')
+      ORDER BY timestamp ASC
+    `;
 
-  const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
+    db.all(sqlMonthLogs, [userId], (err, logs) => {
+      if (err) {
+        console.error('Fehler beim Laden der Monatsstunden:', err.message);
+        return res.status(500).send('Datenbankfehler');
+      }
 
-  const sqlRecentDocs = `
-    SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
-    FROM documents
-    LEFT JOIN customers ON documents.customer_id = customers.id
-    UNION ALL
-    SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
-    FROM invoices
-    LEFT JOIN customers ON invoices.customer_id = customers.id
-    ORDER BY id DESC LIMIT 5
-  `;
+      let totalMilliseconds = 0;
+      let isStampedIn = false;
 
-  db.get(sqlOffers, [], (err, offerData) => {
-    db.get(sqlInvoices, [], (err, invoiceData) => {
-      db.get(sqlCustomers, [], (err, customerData) => {
-        db.all(sqlRecentDocs, [], (err, recentDocs) => {
-          
-          const stats = {
-            openOffersCount: offerData ? offerData.count : 0,
-            openOffersSum: offerData ? offerData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-            openInvoicesCount: invoiceData ? invoiceData.count : 0,
-            openInvoicesSum: invoiceData ? invoiceData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-            totalCustomers: customerData ? customerData.count : 0
-          };
+      if (logs && logs.length > 0) {
+        for (let i = 0; i < logs.length; i++) {
+          if (logs[i].type === 'IN') {
+            isStampedIn = true;
+            const nextLog = logs[i + 1];
+            const startTime = new Date(logs[i].timestamp);
+            const endTime = (nextLog && nextLog.type === 'OUT') ? new Date(nextLog.timestamp) : (i === logs.length - 1 ? new Date() : null);
+            
+            if (nextLog && nextLog.type === 'OUT') {
+              isStampedIn = false;
+            }
 
-          const formattedDocs = (recentDocs || []).map(doc => ({
-            ...doc,
-            customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
-          }));
+            if (endTime) {
+              totalMilliseconds += (endTime - startTime);
+            }
+          } else if (logs[i].type === 'OUT') {
+            isStampedIn = false;
+          }
+        }
+      }
 
-          res.render('dashboard', { stats, recentDocs: formattedDocs });
+      const monthTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+
+      const stats = {
+        monthTotalHours: monthTotalHours,
+        isStampedIn: isStampedIn
+      };
+
+      const recentLogs = (logs || []).reverse().slice(0, 5);
+
+      res.render('dashboard-employee', { stats, recentLogs });
+    });
+
+  } else {
+    // Wenn es der Chef (ADMIN) ist -> Originale Geschäftsdaten anzeigen
+    const sqlOffers = `
+      SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
+      FROM documents 
+      WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
+    `;
+
+    const sqlInvoices = `
+      SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
+      FROM invoices 
+      WHERE status != 'Bezahlt'
+    `;
+
+    const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
+
+    const sqlRecentDocs = `
+      SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
+      FROM documents
+      LEFT JOIN customers ON documents.customer_id = customers.id
+      UNION ALL
+      SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
+      FROM invoices
+      LEFT JOIN customers ON invoices.customer_id = customers.id
+      ORDER BY id DESC LIMIT 5
+    `;
+
+    db.get(sqlOffers, [], (err, offerData) => {
+      db.get(sqlInvoices, [], (err, invoiceData) => {
+        db.get(sqlCustomers, [], (err, customerData) => {
+          db.all(sqlRecentDocs, [], (err, recentDocs) => {
+            
+            const stats = {
+              openOffersCount: offerData ? offerData.count : 0,
+              openOffersSum: offerData ? offerData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
+              openInvoicesCount: invoiceData ? invoiceData.count : 0,
+              openInvoicesSum: invoiceData ? invoiceData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
+              totalCustomers: customerData ? customerData.count : 0
+            };
+
+            const formattedDocs = (recentDocs || []).map(doc => ({
+              ...doc,
+              customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
+            }));
+
+            res.render('dashboard', { stats, recentDocs: formattedDocs });
+          });
         });
       });
     });
-  });
+  }
 });
 
 // ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
-
-// GET: Stempeluhr-Hauptseite
 app.get('/timetracking', (req, res) => {
   const userId = req.user.id;
 
-  // 1. Alle Stempel-Events von heute für den User holen
   const sqlToday = `
     SELECT * FROM time_logs 
     WHERE user_id = ? AND DATE(timestamp) = DATE('now', 'localtime')
@@ -113,7 +167,6 @@ app.get('/timetracking', (req, res) => {
   db.all(sqlToday, [userId], (err, todayLogs) => {
     if (err) return res.status(500).send('Datenbankfehler');
 
-    // 2. Prüfen, ob der User aktuell eingestempelt ist (letzter Eintrag ist 'IN')
     const lastLog = todayLogs && todayLogs.length > 0 ? todayLogs[todayLogs.length - 1] : null;
     const isStampedIn = lastLog && lastLog.type === 'IN';
     
@@ -122,7 +175,6 @@ app.get('/timetracking', (req, res) => {
       lastStampTime = new Date(lastLog.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     }
 
-    // 3. Arbeitszeit für heute berechnen (Paare aus IN und OUT summieren)
     let totalMilliseconds = 0;
     if (todayLogs) {
       for (let i = 0; i < todayLogs.length; i++) {
@@ -149,7 +201,6 @@ app.get('/timetracking', (req, res) => {
   });
 });
 
-// POST: Ein- oder Ausstempeln
 app.post('/timetracking/stamp', (req, res) => {
   const userId = req.user.id;
   const { type, note } = req.body;
@@ -169,7 +220,7 @@ app.post('/timetracking/stamp', (req, res) => {
 });
 
 // ==========================================
-// KUNDENVERWALTUNG & IDEE 5: DATEIUPLOAD
+// KUNDENVERWALTUNG & DATEIUPLOAD
 // ==========================================
 app.post('/customers/edit', (req, res) => {
   const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
@@ -203,7 +254,6 @@ app.get('/customers/:id/projects', (req, res) => {
     db.all("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id], (err, offers) => {
       db.all("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, invoices) => {
         db.all("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id], (err, appointments) => {
-          // IDEE 5: Zugehörige Fotos & Skizzen laden
           db.all("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, files) => {
             res.render('customer-projects', {
               customer,
@@ -219,7 +269,6 @@ app.get('/customers/:id/projects', (req, res) => {
   });
 });
 
-// IDEE 5: POST Baustellenfoto / Skizze hochladen
 app.post('/customers/:id/upload', upload.single('file'), (req, res) => {
   const customer_id = req.params.id;
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
@@ -252,7 +301,7 @@ app.post('/customers/add', (req, res) => {
 });
 
 // ==========================================
-// ANGEBOTSVERWALTUNG & IDEE 2: UMWANDLUNG
+// ANGEBOTSVERWALTUNG & UMWANDLUNG
 // ==========================================
 app.get('/documents/offers', (req, res) => {
   const query = `
@@ -264,7 +313,6 @@ app.get('/documents/offers', (req, res) => {
     
   db.all(query, [], (err, offers) => {
     db.all('SELECT * FROM customers', [], (err, customers) => {
-      // Artikel für das Auswahl-Dropdown in der View mit übergeben
       db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
         res.render('offers', { 
           offers: offers || [], 
@@ -276,12 +324,10 @@ app.get('/documents/offers', (req, res) => {
   });
 });
 
-// POST: Neues Angebot mit mehreren Positionen anlegen
 app.post('/documents/create-offer', (req, res) => {
   let { customer_id, title, quantity, unit, price } = req.body;
   const docNumber = 'ANG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
-  // Sicherstellen, dass Arrays vorliegen (falls nur 1 Position gesendet wurde)
   const titles = Array.isArray(title) ? title : [title];
   const quantities = Array.isArray(quantity) ? quantity : [quantity];
   const units = Array.isArray(unit) ? unit : [unit];
@@ -291,7 +337,7 @@ app.post('/documents/create-offer', (req, res) => {
   const itemsToInsert = [];
 
   for (let i = 0; i < titles.length; i++) {
-    if (!titles[i] || titles[i].trim() === '') continue; // Leere Einträge überspringen
+    if (!titles[i] || titles[i].trim() === '') continue;
 
     const parsedQty = parseFloat(String(quantities[i] || '1').replace(',', '.')) || 1;
     const parsedPrice = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
@@ -330,7 +376,6 @@ app.post('/documents/create-offer', (req, res) => {
   });
 });
 
-// POST: Angebot und dazugehörige Positionen löschen
 app.post('/documents/offers/delete', (req, res) => {
   const { offer_id } = req.body;
 
@@ -345,7 +390,6 @@ app.post('/documents/offers/delete', (req, res) => {
   });
 });
 
-// IDEE 2: Angebot in Rechnung umwandeln
 app.post('/documents/offers/convert-to-invoice', (req, res) => {
   const { offer_id } = req.body;
 
@@ -354,7 +398,6 @@ app.post('/documents/offers/convert-to-invoice', (req, res) => {
 
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     
-    // Fälligkeit in 14 Tagen setzen
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 14);
 
@@ -390,10 +433,8 @@ app.post('/documents/offers/convert-to-invoice', (req, res) => {
 });
 
 // ==========================================
-// RECHNUNGSVERWALTUNG & IDEE 1, 3 (PDF & MAHNWESEN)
+// RECHNUNGSVERWALTUNG & MAHNWESEN
 // ==========================================
-
-// IDEE 1: PDF Druckansicht für Rechnungen
 app.get('/documents/invoices/:id/pdf', (req, res) => {
   const { id } = req.params;
   const sqlInvoice = `
@@ -462,12 +503,10 @@ app.get('/documents/invoices', (req, res) => {
   });
 });
 
-// POST: Neue Rechnung mit mehreren Positionen erstellen
 app.post('/documents/create-invoice', (req, res) => {
   let { customer_id, title, quantity, unit, price, due_days } = req.body;
   const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
-  // Sicherstellen, dass Arrays vorliegen (falls nur 1 Position gesendet wurde)
   const titles = Array.isArray(title) ? title : [title];
   const quantities = Array.isArray(quantity) ? quantity : [quantity];
   const units = Array.isArray(unit) ? unit : [unit];
@@ -477,7 +516,7 @@ app.post('/documents/create-invoice', (req, res) => {
   const itemsToInsert = [];
 
   for (let i = 0; i < titles.length; i++) {
-    if (!titles[i] || titles[i].trim() === '') continue; // Leere Einträge überspringen
+    if (!titles[i] || titles[i].trim() === '') continue;
 
     const parsedQty = parseFloat(String(quantities[i] || '1').replace(',', '.')) || 1;
     const parsedPrice = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
@@ -492,7 +531,6 @@ app.post('/documents/create-invoice', (req, res) => {
     });
   }
 
-  // Fälligkeit berechnen
   const days = parseInt(due_days || '14', 10);
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + days);
@@ -518,7 +556,6 @@ app.post('/documents/create-invoice', (req, res) => {
   });
 });
 
-// IDEE 3: Mahnstufe erhöhen / Mahnwesen
 app.post('/documents/invoices/increase-dunning', (req, res) => {
   const { invoice_id } = req.body;
   const sql = `UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`;
@@ -549,7 +586,7 @@ app.post('/documents/invoices/delete', (req, res) => {
 });
 
 // ==========================================
-// IDEE 4: ARTIKEL- & MATERIALSTAMM
+// ARTIKEL- & MATERIALSTAMM
 // ==========================================
 app.get('/articles', (req, res) => {
   db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
@@ -625,6 +662,123 @@ app.post('/api/appointments/delete/:id', (req, res) => {
   db.run('DELETE FROM appointments WHERE id = ?', [id], (err) => {
     if (err) return res.status(500).send('Fehler beim Löschen');
     res.redirect('/calendar');
+  });
+});
+
+// ==========================================
+// AUFTRÄGE & BAUSTELLEN (Mit Zeichnungen & Uploads)
+// ==========================================
+app.get('/projects', (req, res) => {
+  const sql = `
+    SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
+    FROM projects
+    LEFT JOIN customers ON projects.customer_id = customers.id
+    ORDER BY projects.created_at DESC
+  `;
+  db.all(sql, [], (err, projects) => {
+    db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
+      res.render('projects', { projects: projects || [], customers: customers || [] });
+    });
+  });
+});
+
+app.post('/projects/add', (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  
+  const { customer_id, title, description, total_price, status } = req.body;
+  const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
+
+  const sql = `
+    INSERT INTO projects (customer_id, title, description, total_price, status)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+  db.run(sql, [customer_id || null, title, description || null, parsedPrice, status || 'In Planung'], (err) => {
+    if (err) console.error('Fehler beim Erstellen des Auftrags:', err.message);
+    res.redirect('/projects');
+  });
+});
+
+app.get('/projects/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sqlProject = `
+    SELECT projects.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city
+    FROM projects
+    LEFT JOIN customers ON projects.customer_id = customers.id
+    WHERE projects.id = ?
+  `;
+
+  db.get(sqlProject, [id], (err, project) => {
+    if (err || !project) return res.status(404).send('Auftrag nicht gefunden');
+
+    db.all('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id], (err, files) => {
+      db.all('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id], (err, appointments) => {
+        res.render('project-detail', {
+          project,
+          files: files || [],
+          appointments: appointments || []
+        });
+      });
+    });
+  });
+});
+
+app.post('/projects/:id/upload', upload.single('file'), (req, res) => {
+  const projectId = req.params.id;
+  if (!req.file) return res.redirect(`/projects/${projectId}`);
+
+  const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
+  db.run(sql, [projectId, req.file.filename, req.file.originalname, req.file.mimetype], (err) => {
+    if (err) console.error('Fehler beim Upload:', err.message);
+    res.redirect(`/projects/${projectId}`);
+  });
+});
+
+app.post('/projects/delete', (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  const { id } = req.body;
+  db.run('DELETE FROM project_files WHERE project_id = ?', [id], () => {
+    db.run('DELETE FROM projects WHERE id = ?', [id], () => {
+      res.redirect('/projects');
+    });
+  });
+});
+
+// ==========================================
+// MITARBEITER-VERWALTUNG (Nur für Chefs)
+// ==========================================
+app.get('/admin/users', verifyToken, requireAdmin, (req, res) => {
+  db.all('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC', [], (err, users) => {
+    res.render('admin-users', { users: users || [] });
+  });
+});
+
+app.post('/admin/users/add', verifyToken, requireAdmin, (req, res) => {
+  const { username, password, role } = req.body;
+  if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const userRole = role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE';
+
+  const sql = `INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`;
+  db.run(sql, [username, hashedPassword, userRole], (err) => {
+    if (err) {
+      console.error('Fehler beim Erstellen des Benutzers:', err.message);
+      return res.status(500).send('Benutzername existiert möglicherweise bereits.');
+    }
+    res.redirect('/admin/users');
+  });
+});
+
+app.post('/admin/users/delete', verifyToken, requireAdmin, (req, res) => {
+  const { id } = req.body;
+  if (parseInt(id) === req.user.id) {
+    return res.status(400).send('Du kannst deinen eigenen Account nicht löschen.');
+  }
+
+  db.run('DELETE FROM users WHERE id = ?', [id], (err) => {
+    if (err) console.error('Fehler beim Löschen:', err.message);
+    res.redirect('/admin/users');
   });
 });
 
