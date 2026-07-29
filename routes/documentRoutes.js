@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const path = require('path');
+const db = require(path.join(__dirname, '../config/database'));
 
 // POST: Angebot in eine Rechnung umwandeln
 router.post('/convert-to-invoice/:offerId', (req, res) => {
@@ -13,7 +14,7 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
       return res.status(500).send('Datenbankfehler beim Laden des Angebots');
     }
     
-    const offer = result.rows[0];
+    const offer = result ? result.rows[0] : null;
     if (!offer) {
       return res.status(404).send('Angebot nicht gefunden');
     }
@@ -27,7 +28,7 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
         return res.status(500).send('Fehler beim Erstellen der Rechnungsnummer');
       }
 
-      const row = countResult.rows[0];
+      const row = countResult ? countResult.rows[0] : null;
       const nextNum = String((row ? parseInt(row.count, 10) : 0) + 1).padStart(4, '0');
       const invoiceNumber = `RECH-${year}-${nextNum}`;
 
@@ -47,7 +48,7 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
           offer.tax_amount || 0, 
           offer.total_amount || 0
         ],
-        function (err) {
+        (err) => {
           if (err) {
             console.error('❌ Fehler beim Erstellen der Rechnung:', err.message);
             return res.status(500).send('Fehler beim Erstellen der Rechnung: ' + err.message);
