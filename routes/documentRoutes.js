@@ -7,12 +7,13 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
   const { offerId } = req.params;
 
   // 1. Das bestehende Angebot auslesen
-  db.get(`SELECT * FROM documents WHERE id = ?`, [offerId], (err, offer) => {
+  db.query(`SELECT * FROM documents WHERE id = $1`, [offerId], (err, result) => {
     if (err) {
       console.error('❌ DB-Fehler beim Laden des Angebots:', err.message);
       return res.status(500).send('Datenbankfehler beim Laden des Angebots');
     }
     
+    const offer = result.rows[0];
     if (!offer) {
       return res.status(404).send('Angebot nicht gefunden');
     }
@@ -20,22 +21,23 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
     const year = new Date().getFullYear();
 
     // 2. Nächste freie Rechnungsnummer ermitteln
-    db.get(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`, (err, row) => {
+    db.query(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`, (err, countResult) => {
       if (err) {
         console.error('❌ DB-Fehler bei Rechnungsnummer-Generierung:', err.message);
         return res.status(500).send('Fehler beim Erstellen der Rechnungsnummer');
       }
 
-      const nextNum = String((row ? row.count : 0) + 1).padStart(4, '0');
+      const row = countResult.rows[0];
+      const nextNum = String((row ? parseInt(row.count, 10) : 0) + 1).padStart(4, '0');
       const invoiceNumber = `RECH-${year}-${nextNum}`;
 
       // 3. Neue Rechnung in die Datenbank eintragen
       const sqlInsert = `
         INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
-        VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?)
+        VALUES ('INVOICE', $1, $2, 'ENTWURF', $3, $4, $5, $6)
       `;
 
-      db.run(
+      db.query(
         sqlInsert,
         [
           invoiceNumber, 
@@ -52,7 +54,7 @@ router.post('/convert-to-invoice/:offerId', (req, res) => {
           }
           
           // 4. Status des Angebots auf 'ANGENOMMEN' setzen
-          db.run(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?`, [offerId], (updateErr) => {
+          db.query(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = $1`, [offerId], (updateErr) => {
             if (updateErr) {
               console.error('⚠️ Status konnte nicht auf ANGENOMMEN gesetzt werden:', updateErr.message);
             }
