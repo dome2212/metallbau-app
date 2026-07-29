@@ -40,20 +40,8 @@ const documentRoutes = require('./routes/documentRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Setup für Datei-Uploads (Baustellenfotos & Skizzen)
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
+// Setup für Datei-Uploads im Arbeitsspeicher (Speicherung direkt als Buffer in der Datenbank)
+const upload = multer({ storage: multer.memoryStorage() });
 
 // 1. EJS & Middleware Setup
 app.set('view engine', 'ejs');
@@ -61,7 +49,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use('/uploads', express.static(uploadDir));
 
 // 2. Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
@@ -69,6 +56,37 @@ app.use('/', authRoutes);
 // 3. ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN
 app.use(verifyToken); 
 app.use('/documents', documentRoutes);
+
+// ==========================================
+// DATEI-DOWNLOAD / ANZEIGE AUS DATENBANK
+// ==========================================
+app.get('/files/customer/:id', async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT * FROM customer_files WHERE id = ?', [req.params.id]);
+    const file = result.rows[0];
+    if (!file || !file.file_data) return res.status(404).send('Datei nicht gefunden');
+    
+    res.setHeader('Content-Type', file.file_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
+    res.send(file.file_data);
+  } catch (err) {
+    res.status(500).send('Fehler beim Laden der Datei');
+  }
+});
+
+app.get('/files/project/:id', async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT * FROM project_files WHERE id = ?', [req.params.id]);
+    const file = result.rows[0];
+    if (!file || !file.file_data) return res.status(404).send('Datei nicht gefunden');
+    
+    res.setHeader('Content-Type', file.file_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
+    res.send(file.file_data);
+  } catch (err) {
+    res.status(500).send('Fehler beim Laden der Datei');
+  }
+});
 
 // ==========================================
 // DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
@@ -297,8 +315,8 @@ app.post('/customers/:id/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
 
   try {
-    const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
-    await dbQuery(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype]);
+    const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_data) VALUES (?, ?, ?, ?, ?)`;
+    await dbQuery(sql, [customer_id, req.file.originalname, req.file.originalname, req.file.mimetype, req.file.buffer]);
   } catch (err) {
     console.error('Fehler beim Dateiupload:', err.message);
   }
@@ -777,8 +795,8 @@ app.post('/projects/:id/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.redirect(`/projects/${projectId}`);
 
   try {
-    const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
-    await dbQuery(sql, [projectId, req.file.filename, req.file.originalname, req.file.mimetype]);
+    const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type, file_data) VALUES (?, ?, ?, ?, ?)`;
+    await dbQuery(sql, [projectId, req.file.originalname, req.file.originalname, req.file.mimetype, req.file.buffer]);
   } catch (err) {
     console.error('Fehler beim Upload:', err.message);
   }
@@ -832,7 +850,7 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
   }
 
   try {
-    await dbQuery('DELETE FROM users WHERE id = ?', [id]);
+    await dbQuery('DELETE FROM users WHERE id, users WHERE id = ?', [id]);
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Fehler beim Löschen');
