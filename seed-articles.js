@@ -96,16 +96,16 @@ let addedCount = 0;
 let skippedCount = 0;
 
 initialArticles.forEach((article, index) => {
-  // Prüfen, ob Artikel mit demselben Namen bereits existiert
-  db.get('SELECT id FROM articles WHERE title = ?', [article.title], (err, row) => {
+  // Prüfen, ob Artikel mit demselben Namen bereits existiert (PostgreSQL Syntax)
+  db.query('SELECT id FROM articles WHERE title = $1', [article.title], (err, res) => {
     if (err) {
       console.error(`❌ Fehler bei Prüfung von "${article.title}":`, err.message);
-    } else if (row) {
+    } else if (res.rows && res.rows.length > 0) {
       skippedCount++;
     } else {
-      // Artikel einfügen
-      const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
-      db.run(sql, [article.title, article.unit, article.unit_price, article.description], (insertErr) => {
+      // Artikel einfügen (PostgreSQL Syntax)
+      const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES ($1, $2, $3, $4)`;
+      db.query(sql, [article.title, article.unit, article.unit_price, article.description], (insertErr) => {
         if (insertErr) {
           console.error(`❌ Fehler beim Einfügen von "${article.title}":`, insertErr.message);
         } else {
