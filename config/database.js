@@ -5,19 +5,16 @@ const bcrypt = require('bcryptjs');
 
 let db;
 
-// Prüfen, ob eine Render PostgreSQL-URL vorhanden ist
 if (process.env.DATABASE_URL) {
-  // Cloud-Datenbank (Render / PostgreSQL)
+  // Cloud (Render / PostgreSQL)
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false
-    }
+    ssl: { rejectUnauthorized: false }
   });
 
   console.log("Verbunden mit PostgreSQL (Cloud)");
 
-  // Tabellen beim Start in PostgreSQL erstellen
+  // Tabellen erstellen (PostgreSQL Syntax)
   db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -28,7 +25,6 @@ if (process.env.DATABASE_URL) {
     )
   `, (err) => {
     if (!err) {
-      // Standard-Admin anlegen falls nicht vorhanden
       db.query(`SELECT * FROM users WHERE role = 'ADMIN'`, (err, res) => {
         if (res && res.rows.length === 0) {
           const hashedPassword = bcrypt.hashSync('chef123', 10);
@@ -77,15 +73,102 @@ if (process.env.DATABASE_URL) {
     )
   `);
 
+  db.query(`
+    CREATE TABLE IF NOT EXISTS documents (
+      id SERIAL PRIMARY KEY,
+      doc_type TEXT,
+      doc_number TEXT,
+      customer_id INTEGER,
+      total_amount REAL,
+      status TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS offer_items (
+      id SERIAL PRIMARY KEY,
+      offer_id INTEGER,
+      description TEXT,
+      quantity REAL,
+      unit TEXT,
+      price REAL
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      invoice_number TEXT,
+      customer_id INTEGER,
+      total_amount REAL,
+      status TEXT,
+      due_date TEXT,
+      dunning_level INTEGER DEFAULT 0,
+      status_note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS invoice_items (
+      id SERIAL PRIMARY KEY,
+      invoice_id INTEGER,
+      description TEXT,
+      quantity REAL,
+      unit TEXT,
+      price REAL
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS articles (
+      id SERIAL PRIMARY KEY,
+      title TEXT,
+      unit TEXT,
+      unit_price REAL,
+      description TEXT
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS appointments (
+      id SERIAL PRIMARY KEY,
+      title TEXT,
+      customer_id INTEGER,
+      start_date TEXT,
+      end_date TEXT,
+      description TEXT
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS customer_files (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER,
+      filename TEXT,
+      original_name TEXT,
+      file_type TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_files (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER,
+      filename TEXT,
+      original_name TEXT,
+      file_type TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
 } else {
-  // Lokale Entwicklung (SQLite wie gewohnt)
+  // Lokale Entwicklung (SQLite)
   const dbPath = path.join(__dirname, '../database.sqlite');
-  const sqliteDb = new sqlite3.Database(dbPath);
-  
+  db = new sqlite3.Database(dbPath);
   console.log("Verbunden mit SQLite (Lokal)");
-  
-  // Hier bleibt deine lokale SQLite-Struktur erhalten
-  db = sqliteDb;
 }
 
 module.exports = db;

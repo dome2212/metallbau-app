@@ -5,6 +5,30 @@ const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const db = require('./config/database');
+
+// Hilfsfunktionen, damit die App sowohl mit SQLite (lokal) als auch mit PostgreSQL (Render) funktioniert
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL: ? durch $1, $2 etc. ersetzen
+      let i = 0;
+      const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+      db.query(pgSql, params, (err, res) => {
+        if (err) return reject(err);
+        // Bei INSERT geben wir die Zeilen und ggf. die generierte ID zurück
+        const lastID = res.rows && res.rows.length > 0 ? res.rows[0].id : null;
+        resolve({ rows: res.rows || [], lastID });
+      });
+    } else {
+      // SQLite
+      db.all(sql, params, function(err, rows) {
+        if (err) return reject(err);
+        resolve({ rows: rows || [], lastID: this?.lastID });
+      });
+    }
+  });
+};
+
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
 const documentRoutes = require('./routes/documentRoutes');
@@ -33,7 +57,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use('/uploads', express.static(uploadDir)); // statischer Ordner für Bilder/Dateien
+app.use('/uploads', express.static(uploadDir));
 
 // 2. Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
@@ -45,23 +69,20 @@ app.use('/documents', documentRoutes);
 // ==========================================
 // DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
 // ==========================================
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
 
-  // Wenn der Nutzer ein normaler Mitarbeiter ist -> Monatsstunden & eigene Stempel anzeigen
-  if (userRole !== 'ADMIN') {
-    const sqlMonthLogs = `
-      SELECT * FROM time_logs 
-      WHERE user_id = ? AND strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')
-      ORDER BY timestamp ASC
-    `;
-
-    db.all(sqlMonthLogs, [userId], (err, logs) => {
-      if (err) {
-        console.error('Fehler beim Laden der Monatsstunden:', err.message);
-        return res.status(500).send('Datenbankfehler');
-      }
+  try {
+    if (userRole !== 'ADMIN') {
+      // Mitarbeiter-Ansicht
+      const sqlMonthLogs = `
+        SELECT * FROM time_logs 
+        WHERE user_id = ? 
+        ORDER BY timestamp ASC
+      `;
+      const result = await dbQuery(sqlMonthLogs, [userId]);
+      const logs = result.rows;
 
       let totalMilliseconds = 0;
       let isStampedIn = false;
@@ -88,84 +109,79 @@ app.get('/', (req, res) => {
       }
 
       const monthTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
-
-      const stats = {
-        monthTotalHours: monthTotalHours,
-        isStampedIn: isStampedIn
-      };
-
-      const recentLogs = (logs || []).reverse().slice(0, 5);
+      const stats = { monthTotalHours, isStampedIn };
+      const recentLogs = [...logs].reverse().slice(0, 5);
 
       res.render('dashboard-employee', { stats, recentLogs });
-    });
 
-  } else {
-    // Wenn es der Chef (ADMIN) ist -> Originale Geschäftsdaten anzeigen
-    const sqlOffers = `
-      SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-      FROM documents 
-      WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
-    `;
+    } else {
+      // Admin/Chef-Ansicht
+      const sqlOffers = `
+        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
+        FROM documents 
+        WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
+      `;
+      const sqlInvoices = `
+        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
+        FROM invoices 
+        WHERE status != 'Bezahlt'
+      `;
+      const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
+      const sqlRecentDocs = `
+        SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
+        FROM documents
+        LEFT JOIN customers ON documents.customer_id = customers.id
+        UNION ALL
+        SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
+        FROM invoices
+        LEFT JOIN customers ON invoices.customer_id = customers.id
+        ORDER BY id DESC LIMIT 5
+      `;
 
-    const sqlInvoices = `
-      SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-      FROM invoices 
-      WHERE status != 'Bezahlt'
-    `;
+      const offerRes = await dbQuery(sqlOffers);
+      const invoiceRes = await dbQuery(sqlInvoices);
+      const customerRes = await dbQuery(sqlCustomers);
+      const recentDocsRes = await dbQuery(sqlRecentDocs);
 
-    const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
+      const offerData = offerRes.rows[0];
+      const invoiceData = invoiceRes.rows[0];
+      const customerData = customerRes.rows[0];
 
-    const sqlRecentDocs = `
-      SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
-      FROM documents
-      LEFT JOIN customers ON documents.customer_id = customers.id
-      UNION ALL
-      SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
-      FROM invoices
-      LEFT JOIN customers ON invoices.customer_id = customers.id
-      ORDER BY id DESC LIMIT 5
-    `;
+      const stats = {
+        openOffersCount: offerData ? offerData.count : 0,
+        openOffersSum: offerData ? Number(offerData.total).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
+        openInvoicesCount: invoiceData ? invoiceData.count : 0,
+        openInvoicesSum: invoiceData ? Number(invoiceData.total).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
+        totalCustomers: customerData ? customerData.count : 0
+      };
 
-    db.get(sqlOffers, [], (err, offerData) => {
-      db.get(sqlInvoices, [], (err, invoiceData) => {
-        db.get(sqlCustomers, [], (err, customerData) => {
-          db.all(sqlRecentDocs, [], (err, recentDocs) => {
-            
-            const stats = {
-              openOffersCount: offerData ? offerData.count : 0,
-              openOffersSum: offerData ? offerData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-              openInvoicesCount: invoiceData ? invoiceData.count : 0,
-              openInvoicesSum: invoiceData ? invoiceData.total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-              totalCustomers: customerData ? customerData.count : 0
-            };
+      const formattedDocs = (recentDocsRes.rows || []).map(doc => ({
+        ...doc,
+        customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
+      }));
 
-            const formattedDocs = (recentDocs || []).map(doc => ({
-              ...doc,
-              customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
-            }));
-
-            res.render('dashboard', { stats, recentDocs: formattedDocs });
-          });
-        });
-      });
-    });
+      res.render('dashboard', { stats, recentDocs: formattedDocs });
+    }
+  } catch (err) {
+    console.error('Fehler im Dashboard:', err.message);
+    res.status(500).send('Datenbankfehler');
   }
 });
 
 // ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
-app.get('/timetracking', (req, res) => {
+app.get('/timetracking', async (req, res) => {
   const userId = req.user.id;
 
-  const sqlToday = `
-    SELECT * FROM time_logs 
-    WHERE user_id = ? AND DATE(timestamp) = DATE('now', 'localtime')
-    ORDER BY timestamp ASC
-  `;
-
-  db.all(sqlToday, [userId], (err, todayLogs) => {
-    if (err) return res.status(500).send('Datenbankfehler');
+  try {
+    const sqlToday = `
+      SELECT * FROM time_logs 
+      WHERE user_id = ? 
+      ORDER BY timestamp ASC
+    `;
+    const result = await dbQuery(sqlToday, [userId]);
+    const todayLogs = result.rows;
 
     const lastLog = todayLogs && todayLogs.length > 0 ? todayLogs[todayLogs.length - 1] : null;
     const isStampedIn = lastLog && lastLog.type === 'IN';
@@ -198,10 +214,13 @@ app.get('/timetracking', (req, res) => {
       lastStampTime,
       todayTotalHours
     });
-  });
+  } catch (err) {
+    console.error('Fehler beim Laden der Zeiterfassung:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/timetracking/stamp', (req, res) => {
+app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
   const { type, note } = req.body;
 
@@ -209,122 +228,131 @@ app.post('/timetracking/stamp', (req, res) => {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
-  const sql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
-  db.run(sql, [userId, type, note || null], (err) => {
-    if (err) {
-      console.error('Fehler beim Stempeln:', err.message);
-      return res.status(500).send('Fehler beim Speichern der Stempelzeit');
-    }
+  try {
+    const sql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
+    await dbQuery(sql, [userId, type, note || null]);
     res.redirect('/timetracking');
-  });
+  } catch (err) {
+    console.error('Fehler beim Stempeln:', err.message);
+    res.status(500).send('Fehler beim Speichern der Stempelzeit');
+  }
 });
 
 // ==========================================
 // KUNDENVERWALTUNG & DATEIUPLOAD
 // ==========================================
-app.post('/customers/edit', (req, res) => {
+app.post('/customers/edit', async (req, res) => {
   const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
-
-  const sql = `
-    UPDATE customers 
-    SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?
-    WHERE id = ?
-  `;
-
-  db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Aktualisieren');
+  try {
+    const sql = `
+      UPDATE customers 
+      SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?
+      WHERE id = ?
+    `;
+    await dbQuery(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id]);
     res.redirect('/customers');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Aktualisieren');
+  }
 });
 
-app.post('/customers/delete', (req, res) => {
+app.post('/customers/delete', async (req, res) => {
   const { id } = req.body;
-  db.run('DELETE FROM customers WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Löschen');
+  try {
+    await dbQuery('DELETE FROM customers WHERE id = ?', [id]);
     res.redirect('/customers');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
-app.get('/customers/:id/projects', (req, res) => {
+app.get('/customers/:id/projects', async (req, res) => {
   const { id } = req.params;
+  try {
+    const custRes = await dbQuery('SELECT * FROM customers WHERE id = ?', [id]);
+    const customer = custRes.rows[0];
+    if (!customer) return res.status(404).send('Kunde nicht gefunden');
 
-  db.get('SELECT * FROM customers WHERE id = ?', [id], (err, customer) => {
-    if (err || !customer) return res.status(404).send('Kunde nicht gefunden');
+    const offersRes = await dbQuery("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id]);
+    const invoicesRes = await dbQuery("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id]);
+    const appointmentsRes = await dbQuery("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id]);
+    const filesRes = await dbQuery("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id]);
 
-    db.all("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id], (err, offers) => {
-      db.all("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, invoices) => {
-        db.all("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id], (err, appointments) => {
-          db.all("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, files) => {
-            res.render('customer-projects', {
-              customer,
-              offers: offers || [],
-              invoices: invoices || [],
-              appointments: appointments || [],
-              files: files || []
-            });
-          });
-        });
-      });
+    res.render('customer-projects', {
+      customer,
+      offers: offersRes.rows || [],
+      invoices: invoicesRes.rows || [],
+      appointments: appointmentsRes.rows || [],
+      files: filesRes.rows || []
     });
-  });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/customers/:id/upload', upload.single('file'), (req, res) => {
+app.post('/customers/:id/upload', upload.single('file'), async (req, res) => {
   const customer_id = req.params.id;
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
 
-  const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
-  db.run(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype], (err) => {
-    if (err) console.error('Fehler beim Dateiupload:', err.message);
-    res.redirect(`/customers/${customer_id}/projects`);
-  });
+  try {
+    const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
+    await dbQuery(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype]);
+  } catch (err) {
+    console.error('Fehler beim Dateiupload:', err.message);
+  }
+  res.redirect(`/customers/${customer_id}/projects`);
 });
 
-app.get('/customers', (req, res) => {
-  db.all('SELECT * FROM customers ORDER BY created_at DESC', [], (err, customers) => {
-    res.render('customers', { customers: customers || [] });
-  });
+app.get('/customers', async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT * FROM customers ORDER BY created_at DESC');
+    res.render('customers', { customers: result.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/customers/add', (req, res) => {
+app.post('/customers/add', async (req, res) => {
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
-
-  const sql = `
-    INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null], (err) => {
-    if (err) return res.status(500).send('Fehler beim Speichern');
+  try {
+    const sql = `
+      INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    await dbQuery(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null]);
     res.redirect('/customers');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern');
+  }
 });
 
 // ==========================================
 // ANGEBOTSVERWALTUNG & UMWANDLUNG
 // ==========================================
-app.get('/documents/offers', (req, res) => {
-  const query = `
-    SELECT documents.*, customers.company_name, customers.contact_person 
-    FROM documents 
-    LEFT JOIN customers ON documents.customer_id = customers.id
-    WHERE doc_type = 'OFFER'
-    ORDER BY documents.created_at DESC`;
-    
-  db.all(query, [], (err, offers) => {
-    db.all('SELECT * FROM customers', [], (err, customers) => {
-      db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
-        res.render('offers', { 
-          offers: offers || [], 
-          customers: customers || [],
-          articles: articles || []
-        });
-      });
+app.get('/documents/offers', async (req, res) => {
+  try {
+    const query = `
+      SELECT documents.*, customers.company_name, customers.contact_person 
+      FROM documents 
+      LEFT JOIN customers ON documents.customer_id = customers.id
+      WHERE doc_type = 'OFFER'
+      ORDER BY documents.created_at DESC`;
+      
+    const offersRes = await dbQuery(query);
+    const customersRes = await dbQuery('SELECT * FROM customers');
+    const articlesRes = await dbQuery('SELECT * FROM articles ORDER BY title ASC');
+
+    res.render('offers', { 
+      offers: offersRes.rows || [], 
+      customers: customersRes.rows || [],
+      articles: articlesRes.rows || []
     });
-  });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/documents/create-offer', (req, res) => {
+app.post('/documents/create-offer', async (req, res) => {
   let { customer_id, title, quantity, unit, price } = req.body;
   const docNumber = 'ANG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
@@ -352,52 +380,47 @@ app.post('/documents/create-offer', (req, res) => {
     });
   }
 
-  const sqlOffer = `
-    INSERT INTO documents (doc_type, doc_number, customer_id, total_amount, status)
-    VALUES ('OFFER', ?, ?, ?, 'GESENDET')
-  `;
+  try {
+    const sqlOffer = `
+      INSERT INTO documents (doc_type, doc_number, customer_id, total_amount, status)
+      VALUES ('OFFER', ?, ?, ?, 'GESENDET')
+    `;
+    const offerInsertRes = await dbQuery(sqlOffer, [docNumber, customer_id, totalAmount]);
+    const offerId = offerInsertRes.lastID;
 
-  db.run(sqlOffer, [docNumber, customer_id, totalAmount], function (err) {
-    if (err) {
-      console.error('❌ Fehler beim Erstellen des Angebots:', err.message);
-      return res.status(500).send('Fehler beim Speichern des Angebots');
+    if (offerId) {
+      for (const item of itemsToInsert) {
+        await dbQuery('INSERT INTO offer_items (offer_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)', 
+          [offerId, item.description, item.quantity, item.unit, item.price]);
+      }
     }
 
-    const offerId = this.lastID;
-    const stmt = db.prepare('INSERT INTO offer_items (offer_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
-
-    itemsToInsert.forEach(item => {
-      stmt.run(offerId, item.description, item.quantity, item.unit, item.price);
-    });
-
-    stmt.finalize(() => {
-      res.redirect('/documents/offers');
-    });
-  });
+    res.redirect('/documents/offers');
+  } catch (err) {
+    console.error('❌ Fehler beim Erstellen des Angebots:', err.message);
+    res.status(500).send('Fehler beim Speichern des Angebots');
+  }
 });
 
-app.post('/documents/offers/delete', (req, res) => {
+app.post('/documents/offers/delete', async (req, res) => {
   const { offer_id } = req.body;
-
-  db.run(`DELETE FROM offer_items WHERE offer_id = ?`, [offer_id], () => {
-    db.run(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id], (err) => {
-      if (err) {
-        console.error('❌ Fehler beim Löschen des Angebots:', err.message);
-        return res.status(500).send('Fehler beim Löschen des Angebots');
-      }
-      res.redirect('/documents/offers');
-    });
-  });
+  try {
+    await dbQuery(`DELETE FROM offer_items WHERE offer_id = ?`, [offer_id]);
+    await dbQuery(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
+    res.redirect('/documents/offers');
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen des Angebots');
+  }
 });
 
-app.post('/documents/offers/convert-to-invoice', (req, res) => {
+app.post('/documents/offers/convert-to-invoice', async (req, res) => {
   const { offer_id } = req.body;
-
-  db.get('SELECT * FROM documents WHERE id = ? AND doc_type = "OFFER"', [offer_id], (err, offer) => {
-    if (err || !offer) return res.status(404).send('Angebot nicht gefunden');
+  try {
+    const offerRes = await dbQuery('SELECT * FROM documents WHERE id = ? AND doc_type = "OFFER"', [offer_id]);
+    const offer = offerRes.rows[0];
+    if (!offer) return res.status(404).send('Angebot nicht gefunden');
 
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 14);
 
@@ -405,105 +428,107 @@ app.post('/documents/offers/convert-to-invoice', (req, res) => {
       INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date)
       VALUES (?, ?, ?, 'Gesendet', ?)
     `;
+    const invRes = await dbQuery(sqlInvoice, [invoiceNumber, offer.customer_id, offer.total_amount, dueDate.toISOString().split('T')[0]]);
+    const invoiceId = invRes.lastID;
 
-    db.run(sqlInvoice, [invoiceNumber, offer.customer_id, offer.total_amount, dueDate.toISOString().split('T')[0]], function(err) {
-      if (err) return res.status(500).send('Fehler beim Umwandeln des Angebots');
+    const itemsRes = await dbQuery('SELECT * FROM offer_items WHERE offer_id = ?', [offer_id]);
+    const items = itemsRes.rows;
 
-      const invoiceId = this.lastID;
+    if (!items || items.length === 0) {
+      await dbQuery(
+        'INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, 1, "Psch", ?)',
+        [invoiceId, 'Übernahme aus Angebot #' + offer.doc_number, offer.total_amount]
+      );
+    } else {
+      for (const item of items) {
+        await dbQuery('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
+          [invoiceId, item.description, item.quantity, item.unit, item.price]);
+      }
+    }
 
-      db.all('SELECT * FROM offer_items WHERE offer_id = ?', [offer_id], (err, items) => {
-        if (!items || items.length === 0) {
-          db.run(
-            'INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, 1, "Psch", ?)',
-            [invoiceId, 'Übernahme aus Angebot #' + offer.doc_number, offer.total_amount]
-          );
-        } else {
-          const stmt = db.prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
-          items.forEach(item => {
-            stmt.run(invoiceId, item.description, item.quantity, item.unit, item.price);
-          });
-          stmt.finalize();
-        }
-
-        db.run('UPDATE documents SET status = "ANGENOMMEN" WHERE id = ?', [offer_id]);
-        res.redirect('/documents/invoices/' + invoiceId);
-      });
-    });
-  });
+    await dbQuery('UPDATE documents SET status = "ANGENOMMEN" WHERE id = ?', [offer_id]);
+    res.redirect('/documents/invoices/' + invoiceId);
+  } catch (err) {
+    res.status(500).send('Fehler beim Umwandeln des Angebots');
+  }
 });
 
 // ==========================================
 // RECHNUNGSVERWALTUNG & MAHNWESEN
 // ==========================================
-app.get('/documents/invoices/:id/pdf', (req, res) => {
+app.get('/documents/invoices/:id/pdf', async (req, res) => {
   const { id } = req.params;
-  const sqlInvoice = `
-    SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
-    FROM invoices 
-    LEFT JOIN customers ON invoices.customer_id = customers.id
-    WHERE invoices.id = ?
-  `;
-  db.get(sqlInvoice, [id], (err, invoice) => {
-    if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
+  try {
+    const sqlInvoice = `
+      SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
+      FROM invoices 
+      LEFT JOIN customers ON invoices.customer_id = customers.id
+      WHERE invoices.id = ?
+    `;
+    const invRes = await dbQuery(sqlInvoice, [id]);
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).send('Rechnung nicht gefunden');
 
-    db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
-      res.render('invoice-pdf', { invoice, items: items || [] });
-    });
-  });
-});
-
-app.get('/documents/invoices/:id', (req, res) => {
-  const { id } = req.params;
-  const sqlInvoice = `
-    SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
-    FROM invoices 
-    LEFT JOIN customers ON invoices.customer_id = customers.id
-    WHERE invoices.id = ?
-  `;
-
-  db.get(sqlInvoice, [id], (err, invoice) => {
-    if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
-
-    db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
-      res.render('invoice-detail', { invoice, items: items || [] });
-    });
-  });
-});
-
-app.get('/documents/invoices', (req, res) => {
-  const statusFilter = req.query.status;
-
-  let sqlInvoices = `
-    SELECT invoices.*, customers.company_name, customers.contact_person 
-    FROM invoices 
-    LEFT JOIN customers ON invoices.customer_id = customers.id
-  `;
-  let params = [];
-
-  if (statusFilter) {
-    sqlInvoices += " WHERE invoices.status = ?";
-    params.push(statusFilter);
+    const itemsRes = await dbQuery('SELECT * FROM invoice_items WHERE invoice_id = ?', [id]);
+    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [] });
+  } catch (err) {
+    res.status(500).send('Fehler beim Laden der PDF-Ansicht');
   }
-
-  sqlInvoices += " ORDER BY invoices.created_at DESC";
-
-  db.all(sqlInvoices, params, (err, invoices) => {
-    if (err) return res.status(500).send('Datenbankfehler');
-
-    db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
-      db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
-        res.render('invoices', {
-          invoices: invoices || [],
-          customers: customers || [],
-          articles: articles || [],
-          currentStatus: statusFilter || 'Alle'
-        });
-      });
-    });
-  });
 });
 
-app.post('/documents/create-invoice', (req, res) => {
+app.get('/documents/invoices/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const sqlInvoice = `
+      SELECT invoices.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city 
+      FROM invoices 
+      LEFT JOIN customers ON invoices.customer_id = customers.id
+      WHERE invoices.id = ?
+    `;
+    const invRes = await dbQuery(sqlInvoice, [id]);
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).send('Rechnung nicht gefunden');
+
+    const itemsRes = await dbQuery('SELECT * FROM invoice_items WHERE invoice_id = ?', [id]);
+    res.render('invoice-detail', { invoice, items: itemsRes.rows || [] });
+  } catch (err) {
+    res.status(500).send('Fehler beim Laden der Rechnung');
+  }
+});
+
+app.get('/documents/invoices', async (req, res) => {
+  const statusFilter = req.query.status;
+  try {
+    let sqlInvoices = `
+      SELECT invoices.*, customers.company_name, customers.contact_person 
+      FROM invoices 
+      LEFT JOIN customers ON invoices.customer_id = customers.id
+    `;
+    let params = [];
+
+    if (statusFilter && statusFilter !== 'Alle') {
+      sqlInvoices += " WHERE invoices.status = ?";
+      params.push(statusFilter);
+    }
+
+    sqlInvoices += " ORDER BY invoices.created_at DESC";
+
+    const invRes = await dbQuery(sqlInvoices, params);
+    const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
+    const artRes = await dbQuery('SELECT * FROM articles ORDER BY title ASC');
+
+    res.render('invoices', {
+      invoices: invRes.rows || [],
+      customers: custRes.rows || [],
+      articles: artRes.rows || [],
+      currentStatus: statusFilter || 'Alle'
+    });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+app.post('/documents/create-invoice', async (req, res) => {
   let { customer_id, title, quantity, unit, price, due_days } = req.body;
   const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
@@ -535,104 +560,117 @@ app.post('/documents/create-invoice', (req, res) => {
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + days);
 
-  const sqlInvoice = `
-    INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date)
-    VALUES (?, ?, ?, 'Gesendet', ?)
-  `;
+  try {
+    const sqlInvoice = `
+      INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date)
+      VALUES (?, ?, ?, 'Gesendet', ?)
+    `;
+    const invRes = await dbQuery(sqlInvoice, [invoiceNumber, customer_id, totalAmount, dueDate.toISOString().split('T')[0]]);
+    const invoiceId = invRes.lastID;
 
-  db.run(sqlInvoice, [invoiceNumber, customer_id, totalAmount, dueDate.toISOString().split('T')[0]], function (err) {
-    if (err) return res.status(500).send('Fehler beim Speichern der Rechnung');
+    if (invoiceId) {
+      for (const item of itemsToInsert) {
+        await dbQuery('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
+          [invoiceId, item.description, item.quantity, item.unit, item.price]);
+      }
+    }
 
-    const invoiceId = this.lastID;
-    const stmt = db.prepare('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)');
-
-    itemsToInsert.forEach(item => {
-      stmt.run(invoiceId, item.description, item.quantity, item.unit, item.price);
-    });
-
-    stmt.finalize(() => {
-      res.redirect('/documents/invoices');
-    });
-  });
-});
-
-app.post('/documents/invoices/increase-dunning', (req, res) => {
-  const { invoice_id } = req.body;
-  const sql = `UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`;
-  db.run(sql, [invoice_id], (err) => {
-    if (err) console.error('Fehler beim Aktualisieren der Mahnstufe:', err.message);
     res.redirect('/documents/invoices');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern der Rechnung');
+  }
 });
 
-app.post('/documents/invoices/update-status', (req, res) => {
+app.post('/documents/invoices/increase-dunning', async (req, res) => {
+  const { invoice_id } = req.body;
+  try {
+    const sql = `UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`;
+    await dbQuery(sql, [invoice_id]);
+    res.redirect('/documents/invoices');
+  } catch (err) {
+    res.status(500).send('Fehler beim Aktualisieren');
+  }
+});
+
+app.post('/documents/invoices/update-status', async (req, res) => {
   const { invoice_id, status, status_note } = req.body;
-  const sql = `UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`;
-  
-  db.run(sql, [status, status_note || null, invoice_id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Aktualisieren');
+  try {
+    const sql = `UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`;
+    await dbQuery(sql, [status, status_note || null, invoice_id]);
     res.redirect('/documents/invoices');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Aktualisieren');
+  }
 });
 
-app.post('/documents/invoices/delete', (req, res) => {
+app.post('/documents/invoices/delete', async (req, res) => {
   const { invoice_id } = req.body;
-  db.run(`DELETE FROM invoice_items WHERE invoice_id = ?`, [invoice_id], () => {
-    db.run(`DELETE FROM invoices WHERE id = ?`, [invoice_id], (err) => {
-      if (err) return res.status(500).send('Fehler beim Löschen');
-      res.redirect('/documents/invoices');
-    });
-  });
+  try {
+    await dbQuery(`DELETE FROM invoice_items WHERE invoice_id = ?`, [invoice_id]);
+    await dbQuery(`DELETE FROM invoices WHERE id = ?`, [invoice_id]);
+    res.redirect('/documents/invoices');
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
 // ==========================================
 // ARTIKEL- & MATERIALSTAMM
 // ==========================================
-app.get('/articles', (req, res) => {
-  db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
-    res.render('articles', { articles: articles || [] });
-  });
+app.get('/articles', async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT * FROM articles ORDER BY title ASC');
+    res.render('articles', { articles: result.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/articles/add', (req, res) => {
+app.post('/articles/add', async (req, res) => {
   const { title, unit, unit_price, description } = req.body;
   const parsedPrice = String(unit_price).replace(',', '.');
-
-  const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
-  db.run(sql, [title, unit, parseFloat(parsedPrice) || 0, description || null], (err) => {
-    if (err) console.error('Fehler beim Anlegen des Artikels:', err.message);
+  try {
+    const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
+    await dbQuery(sql, [title, unit, parseFloat(parsedPrice) || 0, description || null]);
     res.redirect('/articles');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern');
+  }
 });
 
-app.post('/articles/delete', (req, res) => {
+app.post('/articles/delete', async (req, res) => {
   const { id } = req.body;
-  db.run('DELETE FROM articles WHERE id = ?', [id], () => {
+  try {
+    await dbQuery('DELETE FROM articles WHERE id = ?', [id]);
     res.redirect('/articles');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
 // ==========================================
 // KALENDER & TERMINE
 // ==========================================
-app.get('/calendar', (req, res) => {
-  db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
-    res.render('calendar', { customers: customers || [] });
-  });
+app.get('/calendar', async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
+    res.render('calendar', { customers: result.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.get('/api/appointments', (req, res) => {
-  const query = `
-    SELECT appointments.id, appointments.title, appointments.start_date as start, 
-           appointments.end_date as end, appointments.description,
-           customers.company_name, customers.contact_person
-    FROM appointments
-    LEFT JOIN customers ON appointments.customer_id = customers.id
-  `;
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json([]);
-    
-    const events = (rows || []).map(app => ({
+app.get('/api/appointments', async (req, res) => {
+  try {
+    const query = `
+      SELECT appointments.id, appointments.title, appointments.start_date as start, 
+             appointments.end_date as end, appointments.description,
+             customers.company_name, customers.contact_person
+      FROM appointments
+      LEFT JOIN customers ON appointments.customer_id = customers.id
+    `;
+    const result = await dbQuery(query);
+    const events = (result.rows || []).map(app => ({
       id: app.id,
       title: `${app.title} (${app.company_name || app.contact_person || 'Privat'})`,
       start: app.start,
@@ -640,146 +678,163 @@ app.get('/api/appointments', (req, res) => {
       description: app.description
     }));
     res.json(events);
-  });
+  } catch (err) {
+    res.status(500).json([]);
+  }
 });
 
-app.post('/api/appointments/add', (req, res) => {
+app.post('/api/appointments/add', async (req, res) => {
   const { title, customer_id, start_date, end_date, description } = req.body;
-
-  const sql = `
-    INSERT INTO appointments (title, customer_id, start_date, end_date, description)
-    VALUES (?, ?, ?, ?, ?)
-  `;
-
-  db.run(sql, [title, customer_id || null, start_date, end_date || null, description], (err) => {
-    if (err) return res.status(500).send('Fehler beim Speichern');
+  try {
+    const sql = `
+      INSERT INTO appointments (title, customer_id, start_date, end_date, description)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    await dbQuery(sql, [title, customer_id || null, start_date, end_date || null, description]);
     res.redirect('/calendar');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern');
+  }
 });
 
-app.post('/api/appointments/delete/:id', (req, res) => {
+app.post('/api/appointments/delete/:id', async (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM appointments WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Löschen');
+  try {
+    await dbQuery('DELETE FROM appointments WHERE id = ?', [id]);
     res.redirect('/calendar');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
 // ==========================================
-// AUFTRÄGE & BAUSTELLEN (Mit Zeichnungen & Uploads)
+// AUFTRÄGE & BAUSTELLEN
 // ==========================================
-app.get('/projects', (req, res) => {
-  const sql = `
-    SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
-    FROM projects
-    LEFT JOIN customers ON projects.customer_id = customers.id
-    ORDER BY projects.created_at DESC
-  `;
-  db.all(sql, [], (err, projects) => {
-    db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
-      res.render('projects', { projects: projects || [], customers: customers || [] });
-    });
-  });
+app.get('/projects', async (req, res) => {
+  try {
+    const sql = `
+      SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      ORDER BY projects.created_at DESC
+    `;
+    const projRes = await dbQuery(sql);
+    const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
+    res.render('projects', { projects: projRes.rows || [], customers: custRes.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/projects/add', (req, res) => {
+app.post('/projects/add', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   
   const { customer_id, title, description, total_price, status } = req.body;
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
 
-  const sql = `
-    INSERT INTO projects (customer_id, title, description, total_price, status)
-    VALUES (?, ?, ?, ?, ?)
-  `;
-  db.run(sql, [customer_id || null, title, description || null, parsedPrice, status || 'In Planung'], (err) => {
-    if (err) console.error('Fehler beim Erstellen des Auftrags:', err.message);
+  try {
+    const sql = `
+      INSERT INTO projects (customer_id, title, description, total_price, status)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    await dbQuery(sql, [customer_id || null, title, description || null, parsedPrice, status || 'In Planung']);
     res.redirect('/projects');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Erstellen des Auftrags');
+  }
 });
 
-app.get('/projects/:id', (req, res) => {
+app.get('/projects/:id', async (req, res) => {
   const { id } = req.params;
+  try {
+    const sqlProject = `
+      SELECT projects.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?
+    `;
+    const projRes = await dbQuery(sqlProject, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-  const sqlProject = `
-    SELECT projects.*, customers.company_name, customers.contact_person, customers.email, customers.phone, customers.street, customers.zip, customers.city
-    FROM projects
-    LEFT JOIN customers ON projects.customer_id = customers.id
-    WHERE projects.id = ?
-  `;
+    const filesRes = await dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
 
-  db.get(sqlProject, [id], (err, project) => {
-    if (err || !project) return res.status(404).send('Auftrag nicht gefunden');
-
-    db.all('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id], (err, files) => {
-      db.all('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id], (err, appointments) => {
-        res.render('project-detail', {
-          project,
-          files: files || [],
-          appointments: appointments || []
-        });
-      });
+    res.render('project-detail', {
+      project,
+      files: filesRes.rows || [],
+      appointments: appRes.rows || []
     });
-  });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/projects/:id/upload', upload.single('file'), (req, res) => {
+app.post('/projects/:id/upload', upload.single('file'), async (req, res) => {
   const projectId = req.params.id;
   if (!req.file) return res.redirect(`/projects/${projectId}`);
 
-  const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
-  db.run(sql, [projectId, req.file.filename, req.file.originalname, req.file.mimetype], (err) => {
-    if (err) console.error('Fehler beim Upload:', err.message);
-    res.redirect(`/projects/${projectId}`);
-  });
+  try {
+    const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type) VALUES (?, ?, ?, ?)`;
+    await dbQuery(sql, [projectId, req.file.filename, req.file.originalname, req.file.mimetype]);
+  } catch (err) {
+    console.error('Fehler beim Upload:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
 });
 
-app.post('/projects/delete', (req, res) => {
+app.post('/projects/delete', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { id } = req.body;
-  db.run('DELETE FROM project_files WHERE project_id = ?', [id], () => {
-    db.run('DELETE FROM projects WHERE id = ?', [id], () => {
-      res.redirect('/projects');
-    });
-  });
+  try {
+    await dbQuery('DELETE FROM project_files WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM projects WHERE id = ?', [id]);
+    res.redirect('/projects');
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
 // ==========================================
 // MITARBEITER-VERWALTUNG (Nur für Chefs)
 // ==========================================
-app.get('/admin/users', verifyToken, requireAdmin, (req, res) => {
-  db.all('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC', [], (err, users) => {
-    res.render('admin-users', { users: users || [] });
-  });
+app.get('/admin/users', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await dbQuery('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC');
+    res.render('admin-users', { users: result.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
 });
 
-app.post('/admin/users/add', verifyToken, requireAdmin, (req, res) => {
+app.post('/admin/users/add', verifyToken, requireAdmin, async (req, res) => {
   const { username, password, role } = req.body;
   if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
 
   const hashedPassword = bcrypt.hashSync(password, 10);
   const userRole = role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE';
 
-  const sql = `INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`;
-  db.run(sql, [username, hashedPassword, userRole], (err) => {
-    if (err) {
-      console.error('Fehler beim Erstellen des Benutzers:', err.message);
-      return res.status(500).send('Benutzername existiert möglicherweise bereits.');
-    }
+  try {
+    const sql = `INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`;
+    await dbQuery(sql, [username, hashedPassword, userRole]);
     res.redirect('/admin/users');
-  });
+  } catch (err) {
+    res.status(500).send('Benutzername existiert möglicherweise bereits.');
+  }
 });
 
-app.post('/admin/users/delete', verifyToken, requireAdmin, (req, res) => {
+app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
   const { id } = req.body;
   if (parseInt(id) === req.user.id) {
     return res.status(400).send('Du kannst deinen eigenen Account nicht löschen.');
   }
 
-  db.run('DELETE FROM users WHERE id = ?', [id], (err) => {
-    if (err) console.error('Fehler beim Löschen:', err.message);
+  try {
+    await dbQuery('DELETE FROM users WHERE id = ?', [id]);
     res.redirect('/admin/users');
-  });
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
 });
 
 // ==========================================
