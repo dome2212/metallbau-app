@@ -1,4 +1,4 @@
-const { Pool } = require('pg');
+      const { Pool } = require('pg');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -155,6 +155,7 @@ if (process.env.DATABASE_URL) {
       filename TEXT,
       original_name TEXT,
       file_type TEXT,
+      file_data BYTEA,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => { if (err) console.error("❌ Fehler customer_files:", err.message); });
@@ -166,6 +167,7 @@ if (process.env.DATABASE_URL) {
       filename TEXT,
       original_name TEXT,
       file_type TEXT,
+      file_data BYTEA,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => { if (err) console.error("❌ Fehler project_files:", err.message); });
@@ -173,8 +175,168 @@ if (process.env.DATABASE_URL) {
 } else {
   // Lokale Entwicklung (SQLite)
   const dbPath = path.join(__dirname, '../database.sqlite');
-  db = new sqlite3.Database(dbPath);
-  console.log("Verbunden mit SQLite (Lokal)");
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error("❌ Fehler beim Öffnen der SQLite-Datenbank:", err.message);
+      return;
+    }
+    console.log("Verbunden mit SQLite (Lokal)");
+
+    // Tabellen für lokale SQLite-Umgebung erstellen (inklusive BLOB für Dateien)
+    db.serialize(() => {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'EMPLOYEE',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          company_name TEXT,
+          contact_person TEXT,
+          email TEXT,
+          phone TEXT,
+          street TEXT,
+          zip TEXT,
+          city TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS time_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          project_id INTEGER,
+          type TEXT CHECK(type IN ('IN', 'OUT')) NOT NULL,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          note TEXT,
+          latitude REAL,
+          longitude REAL
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER,
+          title TEXT NOT NULL,
+          description TEXT,
+          status TEXT DEFAULT 'In Planung',
+          total_price REAL DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS documents (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          doc_type TEXT,
+          doc_number TEXT,
+          customer_id INTEGER,
+          total_amount REAL,
+          status TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS offer_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          offer_id INTEGER,
+          description TEXT,
+          quantity REAL,
+          unit TEXT,
+          price REAL
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_number TEXT,
+          customer_id INTEGER,
+          total_amount REAL,
+          status TEXT,
+          due_date TEXT,
+          dunning_level INTEGER DEFAULT 0,
+          status_note TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS invoice_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_id INTEGER,
+          description TEXT,
+          quantity REAL,
+          unit TEXT,
+          price REAL
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS articles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          unit TEXT,
+          unit_price REAL,
+          description TEXT
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS appointments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          customer_id INTEGER,
+          start_date TEXT,
+          end_date TEXT,
+          description TEXT
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS customer_files (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER,
+          filename TEXT,
+          original_name TEXT,
+          file_type TEXT,
+          file_data BLOB,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS project_files (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER,
+          filename TEXT,
+          original_name TEXT,
+          file_type TEXT,
+          file_data BLOB,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Admin-User lokal prüfen/anlegen
+      db.get(`SELECT * FROM users WHERE role = 'ADMIN'`, (err, row) => {
+        if (!row) {
+          const hashedPassword = bcrypt.hashSync('chef123', 10);
+          db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'ADMIN'], (err) => {
+            if (!err) console.log("✅ Lokaler Admin-User 'chef' erfolgreich erstellt!");
+          });
+        }
+      });
+    });
+  });
 }
 
 module.exports = db;
