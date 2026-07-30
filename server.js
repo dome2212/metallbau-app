@@ -352,8 +352,8 @@ function formatMinutes(totalMinutes) {
   return `${hours}:${minutes < 10 ? '0' : ''}${minutes} Std.`;
 }
 
-// 1. Monatsauswertung (Admin-Report / Ansicht)
-app.get('/timetracking/admin/report', async (req, res) => {
+// 1. Monatsauswertung (Ansicht für Admin / Mitarbeiter)
+app.get('/timetracking/admin/monthly', async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
@@ -367,33 +367,21 @@ app.get('/timetracking/admin/report', async (req, res) => {
 
     const targetUserId = req.query.user_id || userId;
 
-    // Einträge für den gewählten Monat über time_logs abrufen
-    const logsRes = await dbQuery(
+    // Einträge für den gewählten Monat abrufen (Kompatibel mit SQLite & PostgreSQL via to_char)
+    const entriesRes = await dbQuery(
       `SELECT * FROM time_logs 
        WHERE user_id = ? AND to_char(timestamp, 'YYYY-MM') = ? 
-       ORDER BY timestamp DESC`,
+       ORDER BY timestamp ASC`,
       [targetUserId, month]
     );
-    const entries = logsRes.rows;
-
-    let totalMinutes = 0;
-    for (let i = 0; i < entries.length; i++) {
-      if (entries[i].type === 'IN') {
-        const nextLog = entries[i + 1];
-        if (nextLog && nextLog.type === 'OUT') {
-          const diffMs = new Date(nextLog.timestamp) - new Date(entries[i].timestamp);
-          totalMinutes += Math.floor(diffMs / (1000 * 60));
-        }
-      }
-    }
+    const entries = entriesRes.rows;
 
     res.render('time-monthly', {
       currentUser: req.user,
       users,
       entries,
       selectedMonth: month,
-      selectedUserId: targetUserId,
-      totalHoursFormatted: formatMinutes(totalMinutes)
+      selectedUserId: targetUserId
     });
   } catch (err) {
     console.error('Fehler bei Monatsauswertung:', err);
@@ -402,7 +390,7 @@ app.get('/timetracking/admin/report', async (req, res) => {
 });
 
 // 2. CSV-Export für den gewählten Monat
-app.get('/time-tracking/export-csv', async (req, res) => {
+app.get('/timetracking/admin/export-csv', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
     const month = req.query.month || new Date().toISOString().slice(0, 7);
@@ -614,7 +602,7 @@ app.post('/documents/offers/delete', async (req, res) => {
 app.post('/documents/offers/convert-to-invoice', async (req, res) => {
   const { offer_id } = req.body;
   try {
-    const offerRes = await dbQuery('SELECT * FROM documents WHERE id = ? AND doc_type = "OFFER"', [offer_id]);
+    const offerRes = await dbQuery("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [offer_id]);
     const offer = offerRes.rows[0];
     if (!offer) return res.status(404).send('Angebot nicht gefunden');
 
@@ -644,7 +632,7 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
       }
     }
 
-    await dbQuery('UPDATE documents SET status = "ANGENOMMEN" WHERE id = ?', [offer_id]);
+    await dbQuery("UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?", [offer_id]);
     res.redirect('/documents/invoices/' + invoiceId);
   } catch (err) {
     res.status(500).send('Fehler beim Umwandeln des Angebots');
