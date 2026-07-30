@@ -259,6 +259,19 @@ app.post('/projects/measurements/delete', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLEN-FOTOS LÖSCHEN
+// ==========================================
+app.post('/projects/photos/delete', async (req, res) => {
+  const { photo_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_photos WHERE id = ?', [photo_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen des Fotos:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
 app.get('/timetracking', async (req, res) => {
