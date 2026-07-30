@@ -133,7 +133,9 @@ app.get('/', async (req, res) => {
   try {
     if (userRole !== 'ADMIN') {
       const sqlMonthLogs = `
-        SELECT * FROM time_logs 
+        SELECT *, 
+               (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+        FROM time_logs 
         WHERE user_id = ? 
         ORDER BY timestamp ASC
       `;
@@ -145,11 +147,13 @@ app.get('/', async (req, res) => {
 
       if (logs && logs.length > 0) {
         for (let i = 0; i < logs.length; i++) {
+          const currentLogTime = new Date(logs[i].local_timestamp || logs[i].timestamp);
           if (logs[i].type === 'IN') {
             isStampedIn = true;
             const nextLog = logs[i + 1];
-            const startTime = new Date(logs[i].timestamp);
-            const endTime = (nextLog && nextLog.type === 'OUT') ? new Date(nextLog.timestamp) : (i === logs.length - 1 ? new Date() : null);
+            const startTime = currentLogTime;
+            const nextLogTime = nextLog ? new Date(nextLog.local_timestamp || nextLog.timestamp) : null;
+            const endTime = (nextLog && nextLog.type === 'OUT') ? nextLogTime : (i === logs.length - 1 ? new Date() : null);
             
             if (nextLog && nextLog.type === 'OUT') {
               isStampedIn = false;
@@ -330,7 +334,9 @@ app.get('/timetracking', async (req, res) => {
 
   try {
     const sqlToday = `
-      SELECT * FROM time_logs 
+      SELECT *, 
+             (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      FROM time_logs 
       WHERE user_id = ? 
       ORDER BY timestamp ASC
     `;
@@ -341,17 +347,20 @@ app.get('/timetracking', async (req, res) => {
     const isStampedIn = lastLog && lastLog.type === 'IN';
     
     let lastStampTime = '';
-    if (isStampedIn) {
-      lastStampTime = new Date(lastLog.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (isStampedIn && lastLog) {
+      const logTime = new Date(lastLog.local_timestamp || lastLog.timestamp);
+      lastStampTime = logTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     }
 
     let totalMilliseconds = 0;
     if (todayLogs) {
       for (let i = 0; i < todayLogs.length; i++) {
+        const currentLogTime = new Date(todayLogs[i].local_timestamp || todayLogs[i].timestamp);
         if (todayLogs[i].type === 'IN') {
           const nextLog = todayLogs[i + 1];
-          const startTime = new Date(todayLogs[i].timestamp);
-          const endTime = (nextLog && nextLog.type === 'OUT') ? new Date(nextLog.timestamp) : (isStampedIn && i === todayLogs.length - 1 ? new Date() : null);
+          const startTime = currentLogTime;
+          const nextLogTime = nextLog ? new Date(nextLog.local_timestamp || nextLog.timestamp) : null;
+          const endTime = (nextLog && nextLog.type === 'OUT') ? nextLogTime : (isStampedIn && i === todayLogs.length - 1 ? new Date() : null);
           
           if (endTime) {
             totalMilliseconds += (endTime - startTime);
@@ -362,8 +371,14 @@ app.get('/timetracking', async (req, res) => {
 
     const todayTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
 
+    // Übergabe der korrigierten Zeiten für die Ansicht
+    const formattedLogs = todayLogs.map(log => ({
+      ...log,
+      timestamp: log.local_timestamp || log.timestamp
+    }));
+
     res.render('timetracking', {
-      todayLogs: todayLogs || [],
+      todayLogs: formattedLogs,
       isStampedIn,
       lastStampTime,
       todayTotalHours
@@ -405,12 +420,19 @@ app.post('/timetracking/stamp', async (req, res) => {
   }
 
   try {
-    const sql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
+    const sql = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
     await dbQuery(sql, [userId, type, note || null]);
     res.redirect('/timetracking');
   } catch (err) {
-    console.error('Fehler beim Stempeln:', err.message);
-    res.status(500).send('Fehler beim Speichern der Stempelzeit');
+    // Fallback falls 'NOW()' in SQLite (lokal) fehlschlägt
+    try {
+      const fallbackSql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
+      await dbQuery(fallbackSql, [userId, type, note || null]);
+      res.redirect('/timetracking');
+    } catch (fallbackErr) {
+      console.error('Fehler beim Stempeln:', fallbackErr.message);
+      res.status(500).send('Fehler beim Speichern der Stempelzeit');
+    }
   }
 });
 
@@ -440,14 +462,19 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
 
     const targetUserId = req.query.user_id || userId;
 
-    // Einträge für den gewählten Monat abrufen (Kompatibel mit SQLite & PostgreSQL via to_char)
+    // Einträge für den gewählten Monat abrufen mit Zeitzonenanpassung
     const entriesRes = await dbQuery(
-      `SELECT * FROM time_logs 
-       WHERE user_id = ? AND to_char(timestamp, 'YYYY-MM') = ? 
+      `SELECT *, (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+       FROM time_logs 
+       WHERE user_id = ? AND to_char(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? 
        ORDER BY timestamp ASC`,
       [targetUserId, month]
     );
-    const entries = entriesRes.rows;
+    
+    const entries = (entriesRes.rows || []).map(e => ({
+      ...e,
+      timestamp: e.local_timestamp || e.timestamp
+    }));
 
     res.render('time-monthly', {
       currentUser: req.user,
@@ -469,9 +496,10 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
     const month = req.query.month || new Date().toISOString().slice(0, 7);
 
     const logsRes = await dbQuery(
-      `SELECT t.*, u.username FROM time_logs t
+      `SELECT t.*, u.username, (t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+       FROM time_logs t
        JOIN users u ON t.user_id = u.id
-       WHERE t.user_id = ? AND to_char(t.timestamp, 'YYYY-MM') = ?
+       WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
        ORDER BY t.timestamp ASC`,
       [targetUserId, month]
     );
@@ -480,7 +508,7 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
     let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt\n';
 
     entries.forEach(e => {
-      const dateObj = new Date(e.timestamp);
+      const dateObj = new Date(e.local_timestamp || e.timestamp);
       const dateStr = dateObj.toLocaleDateString('de-DE');
       const timeStr = dateObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
       const typeStr = e.type === 'IN' ? 'Kommen (IN)' : 'Gehen (OUT)';
