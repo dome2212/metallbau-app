@@ -937,6 +937,21 @@ app.post('/articles/delete', async (req, res) => {
 });
 
 // ==========================================
+// ARTIKEL- & MATERIALSTAMM (Löschen-Route)
+// ==========================================
+app.post('/articles/delete', async (req, res) => {
+  const { id } = req.body;
+  try {
+    await dbQuery('DELETE FROM articles WHERE id = ?', [id]);
+    res.redirect('/articles');
+  } catch (err) {
+    console.error('Fehler beim Löschen des Artikels:', err.message);
+    res.status(500).send('Fehler beim Löschen des Artikels');
+  }
+});
+
+
+// ==========================================
 // KALENDER & TERMINE
 // ==========================================
 app.get('/calendar', async (req, res) => {
