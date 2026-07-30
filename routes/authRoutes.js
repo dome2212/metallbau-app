@@ -6,32 +6,49 @@ const path = require('path');
 const db = require(path.join(__dirname, '../config/database'));
 const { JWT_SECRET } = require('../middleware/auth');
 
-// Initialen Admin-User anlegen, falls noch keiner existiert
-function createDefaultAdmin() {
-  db.query(`SELECT id FROM users WHERE username = 'admin'`, async (err, result) => {
-    if (err) {
-      console.error('❌ Fehler beim Prüfen des Admin-Users:', err.message);
-      return;
-    }
-
-    const user = result ? result.rows[0] : null;
-
-    if (!user) {
-      try {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        db.query(
-          `INSERT INTO users (username, password_hash, role) VALUES ($1, $2, 'ADMIN')`,
-          ['admin', hashedPassword],
-          (err) => {
-            if (err) console.error('❌ Fehler beim Erstellen des Admins:', err.message);
-            else console.log('🔑 Standard-Admin angelegt: User: "admin" | PW: "admin123"');
-          }
-        );
-      } catch (hashErr) {
-        console.error('❌ Fehler beim Passworthashing:', hashErr.message);
+// Universelle Hilfsfunktion für SQLite und PostgreSQL
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    if (process.env.DATABASE_URL) {
+      let i = 0;
+      let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+      
+      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+        pgSql += ' RETURNING id';
       }
+
+      db.query(pgSql, params, (err, res) => {
+        if (err) return reject(err);
+        const rows = res.rows || [];
+        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
+        resolve({ rows, lastID });
+      });
+    } else {
+      db.all(sql, params, function(err, rows) {
+        if (err) return reject(err);
+        resolve({ rows: rows || [], lastID: this?.lastID });
+      });
     }
   });
+};
+
+// Initialen Admin-User anlegen, falls noch keiner existiert
+async function createDefaultAdmin() {
+  try {
+    const result = await dbQuery(`SELECT id FROM users WHERE username = 'admin'`);
+    const user = result.rows[0];
+
+    if (!user) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await dbQuery(
+        `INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'ADMIN')`,
+        ['admin', hashedPassword]
+      );
+      console.log('🔑 Standard-Admin angelegt: User: "admin" | PW: "admin123"');
+    }
+  } catch (err) {
+    console.error('❌ Fehler beim Prüfen/Erstellen des Admin-Users:', err.message);
+  }
 }
 
 createDefaultAdmin();
@@ -42,41 +59,41 @@ router.get('/login', (req, res) => {
 });
 
 // POST: Login verarbeiten
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
-  db.query(`SELECT * FROM users WHERE username = $1`, [username], async (err, result) => {
-    const user = result ? result.rows[0] : null;
-    if (err || !user) {
+  try {
+    const result = await dbQuery(`SELECT * FROM users WHERE username = ?`, [username]);
+    const user = result.rows[0];
+
+    if (!user) {
       return res.render('login', { error: 'Ungültiger Benutzername oder Passwort' });
     }
 
-    try {
-      // Passwort vergleichen
-      const validPassword = await bcrypt.compare(password, user.password_hash);
-      if (!validPassword) {
-        return res.render('login', { error: 'Ungültiger Benutzername oder Passwort' });
-      }
-
-      // JWT-Token erstellen (8 Stunden Schichtdauer)
-      const token = jwt.sign(
-        { id: user.id, username: user.username, role: user.role },
-        JWT_SECRET,
-        { expiresIn: '8h' }
-      );
-
-      // Token als HTTP-Only Cookie speichern
-      res.cookie('token', token, {
-        httpOnly: true,
-        maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
-      });
-
-      res.redirect('/');
-    } catch (error) {
-      console.error('❌ Login-Fehler:', error.message);
-      res.render('login', { error: 'Fehler bei der Anmeldung. Bitte erneut versuchen.' });
+    // Passwort vergleichen
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.render('login', { error: 'Ungültiger Benutzername oder Passwort' });
     }
-  });
+
+    // JWT-Token erstellen (8 Stunden Schichtdauer)
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+        JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    // Token als HTTP-Only Cookie speichern
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
+    });
+
+    res.redirect('/');
+  } catch (error) {
+    console.error('❌ Login-Fehler:', error.message);
+    res.render('login', { error: 'Fehler bei der Anmeldung. Bitte erneut versuchen.' });
+  }
 });
 
 // GET: Logout
