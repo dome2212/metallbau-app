@@ -850,7 +850,7 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
   }
 
   try {
-    await dbQuery('DELETE FROM users WHERE id, users WHERE id = ?', [id]);
+    await dbQuery('DELETE FROM users WHERE id = ?', [id]);
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Fehler beim Löschen');
