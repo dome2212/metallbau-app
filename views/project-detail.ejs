@@ -70,6 +70,84 @@
         </div>
       </div>
 
+<!-- ========================================== -->
+<!-- DIGITALES AUFMASS -->
+<!-- ========================================== -->
+<div class="card mt-4">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">📐 Digitales Aufmaß (Baustelle)</h5>
+  </div>
+  <div class="card-body">
+    <!-- Eingabeformular -->
+    <form action="/projects/<%= project.id %>/measurements/add" method="POST" class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label class="form-label">Bauteil / Element *</label>
+        <input type="text" name="component_name" class="form-control" placeholder="z.B. Pfosten links" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Breite (mm)</label>
+        <input type="text" name="width" class="form-control" placeholder="z.B. 1200">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Höhe / Länge (mm)</label>
+        <input type="text" name="height" class="form-control" placeholder="z.B. 900">
+      </div>
+      <div class="col-md-1">
+        <label class="form-label">Anzahl</label>
+        <input type="number" name="quantity" class="form-control" value="1" min="1">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Bemerkung / Notiz</label>
+        <input type="text" name="note" class="form-control" placeholder="z.B. Schräges Dach">
+      </div>
+      <div class="col-md-1 d-flex align-items-end">
+        <button type="submit" class="btn btn-success w-100">+</button>
+      </div>
+    </form>
+
+    <hr>
+
+    <!-- Tabelle der bisherigen Aufmaße -->
+    <h6 class="text-muted mb-3">Erfasste Maße:</h6>
+    <% if (measurements && measurements.length > 0) { %>
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+          <thead>
+            <tr>
+              <th>Bauteil</th>
+              <th>Breite</th>
+              <th>Höhe / Länge</th>
+              <th>Anzahl</th>
+              <th>Notiz</th>
+              <th style="width: 80px;">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% measurements.forEach(m => { %>
+              <tr>
+                <td><strong><%= m.component_name %></strong></td>
+                <td><%= m.width ? m.width + ' mm' : '-' %></td>
+                <td><%= m.height ? m.height + ' mm' : '-' %></td>
+                <td><%= m.quantity %></td>
+                <td><%= m.note || '-' %></td>
+                <td>
+                  <form action="/projects/measurements/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" style="margin:0;">
+                    <input type="hidden" name="measurement_id" value="<%= m.id %>">
+                    <input type="hidden" name="project_id" value="<%= project.id %>">
+                    <button type="submit" class="btn btn-danger btn-sm">Löschen</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <p class="text-muted mb-0">Noch keine Maße für dieses Projekt erfasst.</p>
+    <% } %>
+  </div>
+</div>
+
       <!-- NEU: Baustellen-Abschlussfotos Sektion -->
       <div class="bg-white rounded-lg shadow p-6 space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📸 Baustellen-Abschlussfotos</h2>
