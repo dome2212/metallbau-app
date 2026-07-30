@@ -1,10 +1,32 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
+
+// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Multer Storage Setup für Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'metallbau-management',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],
+  },
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit
+});
 
 // Universelle Hilfsfunktion für SQLite (lokal) und PostgreSQL (Render)
 const dbQuery = (sql, params = []) => {
@@ -13,7 +35,6 @@ const dbQuery = (sql, params = []) => {
       let i = 0;
       let pgSql = sql.replace(/\?/g, () => `$${++i}`);
       
-      // Bei INSERT-Abfragen sicherstellen, dass die ID zurückgegeben wird, falls nicht vorhanden
       if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
         pgSql += ' RETURNING id';
       }
@@ -40,56 +61,19 @@ const documentRoutes = require('./routes/documentRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Setup für Datei-Uploads im Arbeitsspeicher (Speicherung direkt als Buffer in der Datenbank)
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 } // Optional: 15 MB Dateigrenze zur Sicherheit
-});
-
-// 1. EJS & Middleware Setup
+// EJS & Middleware Setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// 2. Öffentliche Routen (Login / Logout)
+// Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
 
-// 3. ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN
+// ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN
 app.use(verifyToken); 
 app.use('/documents', documentRoutes);
-
-// ==========================================
-// DATEI-DOWNLOAD / ANZEIGE AUS DATENBANK
-// ==========================================
-app.get('/files/customer/:id', async (req, res) => {
-  try {
-    const result = await dbQuery('SELECT * FROM customer_files WHERE id = ?', [req.params.id]);
-    const file = result.rows[0];
-    if (!file || !file.file_data) return res.status(404).send('Datei nicht gefunden');
-    
-    res.setHeader('Content-Type', file.file_type || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
-    res.send(file.file_data);
-  } catch (err) {
-    res.status(500).send('Fehler beim Laden der Datei');
-  }
-});
-
-app.get('/files/project/:id', async (req, res) => {
-  try {
-    const result = await dbQuery('SELECT * FROM project_files WHERE id = ?', [req.params.id]);
-    const file = result.rows[0];
-    if (!file || !file.file_data) return res.status(404).send('Datei nicht gefunden');
-    
-    res.setHeader('Content-Type', file.file_type || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${file.original_name}"`);
-    res.send(file.file_data);
-  } catch (err) {
-    res.status(500).send('Fehler beim Laden der Datei');
-  }
-});
 
 // ==========================================
 // DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
@@ -262,7 +246,7 @@ app.post('/timetracking/stamp', async (req, res) => {
 });
 
 // ==========================================
-// KUNDENVERWALTUNG & DATEIUPLOAD
+// KUNDENVERWALTUNG & UPLOAD (Cloudinary)
 // ==========================================
 app.post('/customers/edit', async (req, res) => {
   const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
@@ -318,8 +302,10 @@ app.post('/customers/:id/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
 
   try {
-    const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_data) VALUES (?, ?, ?, ?, ?)`;
-    await dbQuery(sql, [customer_id, req.file.originalname, req.file.originalname, req.file.mimetype, req.file.buffer]);
+    // Speichert nun die Cloudinary-URL statt Binärdaten in der DB
+    // (Achte darauf, dass deine Tabellenspalte in der DB 'file_url' statt 'file_data' heißt)
+    const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`;
+    await dbQuery(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]);
   } catch (err) {
     console.error('Fehler beim Dateiupload:', err.message);
   }
@@ -798,8 +784,8 @@ app.post('/projects/:id/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.redirect(`/projects/${projectId}`);
 
   try {
-    const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type, file_data) VALUES (?, ?, ?, ?, ?)`;
-    await dbQuery(sql, [projectId, req.file.originalname, req.file.originalname, req.file.mimetype, req.file.buffer]);
+    const sql = `INSERT INTO project_files (project_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`;
+    await dbQuery(sql, [projectId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]);
   } catch (err) {
     console.error('Fehler beim Upload:', err.message);
   }
