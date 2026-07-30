@@ -72,6 +72,7 @@ dbQuery(`
     component_name TEXT NOT NULL,
     width TEXT,
     height TEXT,
+    angle TEXT,
     quantity INT DEFAULT 1,
     note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -223,16 +224,24 @@ app.post('/projects/:id/photos/upload', upload.single('photo'), async (req, res)
 // ==========================================
 app.post('/projects/:id/measurements/add', async (req, res) => {
   const projectId = req.params.id;
-  const { component_name, width, height, quantity, note } = req.body;
+  const { component_name, width, height, angle, quantity, note } = req.body;
 
   if (!component_name) return res.redirect(`/projects/${projectId}`);
 
   try {
     const sql = `
-      INSERT INTO project_measurements (project_id, component_name, width, height, quantity, note)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO project_measurements (project_id, component_name, width, height, angle, quantity, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    await dbQuery(sql, [projectId, component_name, width || null, height || null, parseInt(quantity || '1', 10), note || null]);
+    await dbQuery(sql, [
+      projectId, 
+      component_name, 
+      width || null, 
+      height || null, 
+      angle || null, 
+      parseInt(quantity || '1', 10), 
+      note || null
+    ]);
   } catch (err) {
     console.error('Fehler beim Speichern des Aufmaßes:', err.message);
   }
