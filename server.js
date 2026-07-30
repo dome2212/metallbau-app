@@ -54,7 +54,7 @@ const dbQuery = (sql, params = []) => {
   });
 };
 
-// Automatische Erstellung der project_photos Tabelle beim Start (ohne Render Shell)
+// Automatische Erstellung der Tabellen beim Start
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_photos (
     id SERIAL PRIMARY KEY,
@@ -63,7 +63,20 @@ dbQuery(`
     original_name TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
-`).catch(err => console.log('Tabelle project_photos existiert bereits oder Fehler:', err.message));
+`).catch(err => console.log('Tabelle project_photos existiert bereits:', err.message));
+
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_measurements (
+    id SERIAL PRIMARY KEY,
+    project_id INT,
+    component_name TEXT NOT NULL,
+    width TEXT,
+    height TEXT,
+    quantity INT DEFAULT 1,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));
 
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
@@ -206,6 +219,37 @@ app.post('/projects/:id/photos/upload', upload.single('photo'), async (req, res)
 });
 
 // ==========================================
+// DIGITALES AUFMASS (Mobil / Baustelle)
+// ==========================================
+app.post('/projects/:id/measurements/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { component_name, width, height, quantity, note } = req.body;
+
+  if (!component_name) return res.redirect(`/projects/${projectId}`);
+
+  try {
+    const sql = `
+      INSERT INTO project_measurements (project_id, component_name, width, height, quantity, note)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    await dbQuery(sql, [projectId, component_name, width || null, height || null, parseInt(quantity || '1', 10), note || null]);
+  } catch (err) {
+    console.error('Fehler beim Speichern des Aufmaßes:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+app.post('/projects/measurements/delete', async (req, res) => {
+  const { measurement_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen des Aufmaßes:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
 app.get('/timetracking', async (req, res) => {
@@ -273,52 +317,6 @@ app.post('/timetracking/stamp', async (req, res) => {
     console.error('Fehler beim Stempeln:', err.message);
     res.status(500).send('Fehler beim Speichern der Stempelzeit');
   }
-});
-
-const filesRes = await dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]);
-    const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
-    const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
-    
-    // NEU: Aufmaße für dieses Projekt laden
-    const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
-
-    res.render('project-detail', {
-      project,
-      files: filesRes.rows || [],
-      appointments: appRes.rows || [],
-      photos: photosRes.rows || [],
-      measurements: measurementsRes.rows || [] // NEU an EJS übergeben
-    });
-
-// ==========================================
-// DIGITALES AUFMASS (Mobil / Baustelle)
-// ==========================================
-app.post('/projects/:id/measurements/add', async (req, res) => {
-  const projectId = req.params.id;
-  const { component_name, width, height, quantity, note } = req.body;
-
-  if (!component_name) return res.redirect(`/projects/${projectId}`);
-
-  try {
-    const sql = `
-      INSERT INTO project_measurements (project_id, component_name, width, height, quantity, note)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    await dbQuery(sql, [projectId, component_name, width || null, height || null, parseInt(quantity || '1', 10), note || null]);
-  } catch (err) {
-    console.error('Fehler beim Speichern des Aufmaßes:', err.message);
-  }
-  res.redirect(`/projects/${projectId}`);
-});
-
-app.post('/projects/measurements/delete', async (req, res) => {
-  const { measurement_id, project_id } = req.body;
-  try {
-    await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]);
-  } catch (err) {
-    console.error('Fehler beim Löschen des Aufmaßes:', err.message);
-  }
-  res.redirect(`/projects/${project_id}`);
 });
 
 // ==========================================
@@ -842,15 +840,15 @@ app.get('/projects/:id', async (req, res) => {
 
     const filesRes = await dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
-    
-    // NEU: Fotos für dieses Projekt aus der Datenbank laden
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
       files: filesRes.rows || [],
       appointments: appRes.rows || [],
-      photos: photosRes.rows || [] // NEU: Übergabe an EJS
+      photos: photosRes.rows || [],
+      measurements: measurementsRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
