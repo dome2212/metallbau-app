@@ -54,6 +54,19 @@ const dbQuery = (sql, params = []) => {
   });
 };
 
+// Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 // Automatische Erstellung der Tabellen beim Start
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_photos (
@@ -325,10 +338,32 @@ app.get('/timetracking', async (req, res) => {
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
-  const { type, note } = req.body;
+  const { type, note, latitude, longitude } = req.body;
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
+  }
+
+  // GPS-Sicherheitsprüfung beim Einstempeln (IN)
+  if (type === 'IN') {
+    if (!latitude || !longitude) {
+      return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
+    }
+
+    const FIRM_LAT = 51.3069467;
+    const FIRM_LNG = 6.9483845;
+    const MAX_DISTANCE_METERS = 300; // 300 Meter Kulanz für GPS-Abweichungen
+
+    const distance = getDistanceFromLatLonInMeters(
+      parseFloat(latitude), 
+      parseFloat(longitude), 
+      FIRM_LAT, 
+      FIRM_LNG
+    );
+
+    if (distance > MAX_DISTANCE_METERS) {
+      return res.status(400).send(`Einstempeln verweigert: Du bist ca. ${Math.round(distance)} Meter von der Firma entfernt (Erlaubt: max. ${MAX_DISTANCE_METERS}m).`);
+    }
   }
 
   try {
