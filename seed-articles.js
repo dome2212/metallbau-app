@@ -32,20 +32,10 @@ async function seedArticles() {
     console.log('Starte das Einfügen der Standard-Metallbau-Artikel...');
 
     for (const article of initialArticles) {
-      // Prüfen, ob der Artikel bereits existiert (optional, verhindert Duplikate)
-      // Hier wird der Einfachheit halber direkt eingefügt:
-      const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
-      
-      if (process.env.DATABASE_URL) {
-        // PostgreSQL (Render)
-        let pgSql = sql.replace(/\?/g, (_, i) => `$${i + 1}`); // (Achtung: je nach Helper, hier direkt Standard)
-        // Nutze hier deine bestehende dbQuery Funktion falls vorhanden:
-      }
-      
-      // Universeller Insert via Standard-Befehl (angepasst an deine server.js Logik):
       const queryText = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
-      // Beispielhafter Aufruf (vorausgesetzt du nutzt deine dbQuery Funktion):
-      // await dbQuery(queryText, [article.title, article.unit, article.unit_price, article.description]);
+      
+      // Hier wurde der Kommentar entfernt, damit die Artikel tatsächlich in die Datenbank geschrieben werden:
+      await dbQuery(queryText, [article.title, article.unit, article.unit_price, article.description]);
     }
 
     console.log('Alle Artikel wurden erfolgreich hinzugefügt!');
