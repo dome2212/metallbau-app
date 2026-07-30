@@ -134,14 +134,17 @@ app.get('/', async (req, res) => {
         WHERE status != 'Bezahlt'
       `;
       const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
+      
       const sqlRecentDocs = `
-        SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
-        FROM documents
-        LEFT JOIN customers ON documents.customer_id = customers.id
-        UNION ALL
-        SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
-        FROM invoices
-        LEFT JOIN customers ON invoices.customer_id = customers.id
+        SELECT * FROM (
+          SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
+          FROM documents
+          LEFT JOIN customers ON documents.customer_id = customers.id
+          UNION ALL
+          SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
+          FROM invoices
+          LEFT JOIN customers ON invoices.customer_id = customers.id
+        ) combined
         ORDER BY id DESC LIMIT 5
       `;
 
@@ -302,8 +305,6 @@ app.post('/customers/:id/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
 
   try {
-    // Speichert nun die Cloudinary-URL statt Binärdaten in der DB
-    // (Achte darauf, dass deine Tabellenspalte in der DB 'file_url' statt 'file_data' heißt)
     const sql = `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`;
     await dbQuery(sql, [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]);
   } catch (err) {
@@ -845,6 +846,12 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).send('Fehler beim Löschen');
   }
 });
+
+// ==========================================
+// AUTOMATISCHE BEREINIGUNG DER ALTEN UPLOADS
+// ==========================================
+dbQuery("DELETE FROM project_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
+dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
 
 // ==========================================
 // SERVER START
