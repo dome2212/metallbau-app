@@ -149,7 +149,7 @@
         <% } %>
       </div>
 
-      <!-- NEU: Baustellen-Abschlussfotos Sektion -->
+      <!-- Baustellen-Abschlussfotos Sektion -->
       <div class="bg-white rounded-lg shadow p-6 space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📸 Baustellen-Abschlussfotos</h2>
         
@@ -160,11 +160,21 @@
           <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Foto hochladen</button>
         </form>
 
-        <!-- Galerie der hochgeladenen Fotos -->
+        <!-- Galerie der hochgeladenen Fotos mit X-Löschbutton -->
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           <% if (photos && photos.length > 0) { %>
             <% photos.forEach(photo => { %>
-              <div class="relative bg-slate-50 rounded border p-2 flex flex-col items-center">
+              <div class="relative bg-slate-50 rounded border p-2 flex flex-col items-center group">
+                
+                <!-- Löschen-Button mit X -->
+                <form action="/projects/photos/delete" method="POST" onsubmit="return confirm('Foto wirklich löschen?');" class="absolute top-3 right-3 z-10">
+                  <input type="hidden" name="photo_id" value="<%= photo.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <button type="submit" class="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow transition opacity-80 group-hover:opacity-100" title="Foto löschen">
+                    &times;
+                  </button>
+                </form>
+
                 <a href="<%= photo.file_url %>" target="_blank" class="w-full">
                   <img src="<%= photo.file_url %>" alt="Baustellenfoto" class="w-full h-32 object-cover rounded hover:opacity-90 transition">
                 </a>
