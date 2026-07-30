@@ -32,7 +32,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use('/uploads', express.static(uploadDir)); // statischer Ordner für Bilder/Dateien
+app.use('/uploads', express.static(uploadDir));
 
 // 2. Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
@@ -42,7 +42,7 @@ app.use(verifyToken);
 app.use('/documents', documentRoutes);
 
 // ==========================================
-// DASHBOARD (Echte Daten aus der Datenbank)
+// DASHBOARD
 // ==========================================
 app.get('/', (req, res) => {
   const sqlOffers = `
@@ -96,17 +96,15 @@ app.get('/', (req, res) => {
 });
 
 // ==========================================
-// KUNDENVERWALTUNG & IDEE 5: DATEIUPLOAD
+// KUNDENVERWALTUNG & DATEIUPLOAD
 // ==========================================
 app.post('/customers/edit', (req, res) => {
   const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
-
   const sql = `
     UPDATE customers 
     SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?
     WHERE id = ?
   `;
-
   db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id], (err) => {
     if (err) return res.status(500).send('Fehler beim Aktualisieren');
     res.redirect('/customers');
@@ -123,14 +121,12 @@ app.post('/customers/delete', (req, res) => {
 
 app.get('/customers/:id/projects', (req, res) => {
   const { id } = req.params;
-
   db.get('SELECT * FROM customers WHERE id = ?', [id], (err, customer) => {
     if (err || !customer) return res.status(404).send('Kunde nicht gefunden');
 
     db.all("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id], (err, offers) => {
       db.all("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, invoices) => {
         db.all("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id], (err, appointments) => {
-          // IDEE 5: Zugehörige Fotos & Skizzen laden
           db.all("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id], (err, files) => {
             res.render('customer-projects', {
               customer,
@@ -146,7 +142,6 @@ app.get('/customers/:id/projects', (req, res) => {
   });
 });
 
-// IDEE 5: POST Baustellenfoto / Skizze hochladen
 app.post('/customers/:id/upload', upload.single('file'), (req, res) => {
   const customer_id = req.params.id;
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
@@ -166,12 +161,10 @@ app.get('/customers', (req, res) => {
 
 app.post('/customers/add', (req, res) => {
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
-
   const sql = `
     INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-
   db.run(sql, [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null], (err) => {
     if (err) return res.status(500).send('Fehler beim Speichern');
     res.redirect('/customers');
@@ -179,7 +172,7 @@ app.post('/customers/add', (req, res) => {
 });
 
 // ==========================================
-// ANGEBOTSVERWALTUNG & IDEE 2: UMWANDLUNG
+// ANGEBOTSVERWALTUNG
 // ==========================================
 app.get('/documents/offers', (req, res) => {
   const query = `
@@ -191,7 +184,6 @@ app.get('/documents/offers', (req, res) => {
     
   db.all(query, [], (err, offers) => {
     db.all('SELECT * FROM customers', [], (err, customers) => {
-      // Artikel für das Auswahl-Dropdown in der View mit übergeben
       db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
         res.render('offers', { 
           offers: offers || [], 
@@ -203,15 +195,12 @@ app.get('/documents/offers', (req, res) => {
   });
 });
 
-// POST: Neues Angebot anlegen
 app.post('/documents/create-offer', (req, res) => {
   const { customer_id, description, quantity, unit, unit_price } = req.body;
-
   const docNumber = 'ANG-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
   const parsedQuantity = String(quantity || '1').replace(',', '.');
   const parsedPrice = String(unit_price || '0').replace(',', '.');
-
   const qty = parseFloat(parsedQuantity) || 1;
   const price = parseFloat(parsedPrice) || 0;
   const totalAmount = qty * price;
@@ -222,52 +211,34 @@ app.post('/documents/create-offer', (req, res) => {
   `;
 
   db.run(sqlOffer, [docNumber, customer_id, totalAmount], function (err) {
-    if (err) {
-      console.error('❌ Fehler beim Erstellen des Angebots:', err.message);
-      return res.status(500).send('Fehler beim Speichern des Angebots');
-    }
-
+    if (err) return res.status(500).send('Fehler beim Speichern des Angebots');
     const offerId = this.lastID;
 
     const sqlItem = `
       INSERT INTO offer_items (offer_id, description, quantity, unit, price)
       VALUES (?, ?, ?, ?, ?)
     `;
-
-    db.run(sqlItem, [offerId, description || 'Position 1', qty, unit || 'Stk', price], (itemErr) => {
-      if (itemErr) {
-        console.error('❌ Fehler beim Speichern der Angebotsposition:', itemErr.message);
-      }
+    db.run(sqlItem, [offerId, description || 'Position 1', qty, unit || 'Stk', price], () => {
       res.redirect('/documents/offers');
     });
   });
 });
 
-// POST: Angebot und dazugehörige Positionen löschen
 app.post('/documents/offers/delete', (req, res) => {
   const { offer_id } = req.body;
-
   db.run(`DELETE FROM offer_items WHERE offer_id = ?`, [offer_id], () => {
-    db.run(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id], (err) => {
-      if (err) {
-        console.error('❌ Fehler beim Löschen des Angebots:', err.message);
-        return res.status(500).send('Fehler beim Löschen des Angebots');
-      }
+    db.run(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id], () => {
       res.redirect('/documents/offers');
     });
   });
 });
 
-// IDEE 2: Angebot in Rechnung umwandeln
 app.post('/documents/offers/convert-to-invoice', (req, res) => {
   const { offer_id } = req.body;
-
   db.get('SELECT * FROM documents WHERE id = ? AND doc_type = "OFFER"', [offer_id], (err, offer) => {
     if (err || !offer) return res.status(404).send('Angebot nicht gefunden');
 
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    
-    // Fälligkeit in 14 Tagen setzen
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 14);
 
@@ -277,8 +248,7 @@ app.post('/documents/offers/convert-to-invoice', (req, res) => {
     `;
 
     db.run(sqlInvoice, [invoiceNumber, offer.customer_id, offer.total_amount, dueDate.toISOString().split('T')[0]], function(err) {
-      if (err) return res.status(500).send('Fehler beim Umwandeln des Angebots');
-
+      if (err) return res.status(500).send('Fehler beim Umwandeln');
       const invoiceId = this.lastID;
 
       db.all('SELECT * FROM offer_items WHERE offer_id = ?', [offer_id], (err, items) => {
@@ -303,10 +273,8 @@ app.post('/documents/offers/convert-to-invoice', (req, res) => {
 });
 
 // ==========================================
-// RECHNUNGSVERWALTUNG & IDEE 1, 3 (PDF & MAHNWESEN)
+// RECHNUNGSVERWALTUNG
 // ==========================================
-
-// IDEE 1: PDF Druckansicht für Rechnungen
 app.get('/documents/invoices/:id/pdf', (req, res) => {
   const { id } = req.params;
   const sqlInvoice = `
@@ -317,7 +285,6 @@ app.get('/documents/invoices/:id/pdf', (req, res) => {
   `;
   db.get(sqlInvoice, [id], (err, invoice) => {
     if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
-
     db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
       res.render('invoice-pdf', { invoice, items: items || [] });
     });
@@ -332,10 +299,8 @@ app.get('/documents/invoices/:id', (req, res) => {
     LEFT JOIN customers ON invoices.customer_id = customers.id
     WHERE invoices.id = ?
   `;
-
   db.get(sqlInvoice, [id], (err, invoice) => {
     if (err || !invoice) return res.status(404).send('Rechnung nicht gefunden');
-
     db.all('SELECT * FROM invoice_items WHERE invoice_id = ?', [id], (err, items) => {
       res.render('invoice-detail', { invoice, items: items || [] });
     });
@@ -344,7 +309,6 @@ app.get('/documents/invoices/:id', (req, res) => {
 
 app.get('/documents/invoices', (req, res) => {
   const statusFilter = req.query.status;
-
   let sqlInvoices = `
     SELECT invoices.*, customers.company_name, customers.contact_person 
     FROM invoices 
@@ -360,8 +324,6 @@ app.get('/documents/invoices', (req, res) => {
   sqlInvoices += " ORDER BY invoices.created_at DESC";
 
   db.all(sqlInvoices, params, (err, invoices) => {
-    if (err) return res.status(500).send('Datenbankfehler');
-
     db.all('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC', [], (err, customers) => {
       db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
         res.render('invoices', {
@@ -385,7 +347,6 @@ app.post('/documents/create-invoice', (req, res) => {
   const unitPrice = parseFloat(parsedPrice) || 0;
   const totalAmount = qty * unitPrice;
 
-  // Fälligkeit berechnen
   const days = parseInt(due_days || '14', 10);
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + days);
@@ -397,7 +358,6 @@ app.post('/documents/create-invoice', (req, res) => {
 
   db.run(sqlInvoice, [invoiceNumber, customer_id, totalAmount, dueDate.toISOString().split('T')[0]], function (err) {
     if (err) return res.status(500).send('Fehler beim Speichern');
-
     const invoiceId = this.lastID;
     const sqlItem = `INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`;
 
@@ -407,22 +367,16 @@ app.post('/documents/create-invoice', (req, res) => {
   });
 });
 
-// IDEE 3: Mahnstufe erhöhen / Mahnwesen
 app.post('/documents/invoices/increase-dunning', (req, res) => {
   const { invoice_id } = req.body;
-  const sql = `UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`;
-  db.run(sql, [invoice_id], (err) => {
-    if (err) console.error('Fehler beim Aktualisieren der Mahnstufe:', err.message);
+  db.run(`UPDATE invoices SET dunning_level = dunning_level + 1, status = 'Überfällig' WHERE id = ?`, [invoice_id], () => {
     res.redirect('/documents/invoices');
   });
 });
 
 app.post('/documents/invoices/update-status', (req, res) => {
   const { invoice_id, status, status_note } = req.body;
-  const sql = `UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`;
-  
-  db.run(sql, [status, status_note || null, invoice_id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Aktualisieren');
+  db.run(`UPDATE invoices SET status = ?, status_note = ? WHERE id = ?`, [status, status_note || null, invoice_id], () => {
     res.redirect('/documents/invoices');
   });
 });
@@ -430,15 +384,14 @@ app.post('/documents/invoices/update-status', (req, res) => {
 app.post('/documents/invoices/delete', (req, res) => {
   const { invoice_id } = req.body;
   db.run(`DELETE FROM invoice_items WHERE invoice_id = ?`, [invoice_id], () => {
-    db.run(`DELETE FROM invoices WHERE id = ?`, [invoice_id], (err) => {
-      if (err) return res.status(500).send('Fehler beim Löschen');
+    db.run(`DELETE FROM invoices WHERE id = ?`, [invoice_id], () => {
       res.redirect('/documents/invoices');
     });
   });
 });
 
 // ==========================================
-// IDEE 4: ARTIKEL- & MATERIALSTAMM
+// ARTIKEL- & MATERIALSTAMM
 // ==========================================
 app.get('/articles', (req, res) => {
   db.all('SELECT * FROM articles ORDER BY title ASC', [], (err, articles) => {
@@ -449,22 +402,14 @@ app.get('/articles', (req, res) => {
 app.post('/articles/add', (req, res) => {
   const { title, unit, unit_price, description } = req.body;
   const parsedPrice = String(unit_price).replace(',', '.');
-
-  const sql = `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`;
-  db.run(sql, [title, unit, parseFloat(parsedPrice) || 0, description || null], (err) => {
-    if (err) console.error('Fehler beim Anlegen des Artikels:', err.message);
+  db.run(`INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`, [title, unit, parseFloat(parsedPrice) || 0, description || null], () => {
     res.redirect('/articles');
   });
 });
 
-// Route zum Löschen eines Artikels hinzugefügt
 app.post('/articles/delete', (req, res) => {
   const { id } = req.body;
-  db.run('DELETE FROM articles WHERE id = ?', [id], (err) => {
-    if (err) {
-      console.error('❌ Fehler beim Löschen des Artikels:', err.message);
-      return res.status(500).send('Fehler beim Löschen des Artikels');
-    }
+  db.run('DELETE FROM articles WHERE id = ?', [id], () => {
     res.redirect('/articles');
   });
 });
@@ -488,7 +433,6 @@ app.get('/api/appointments', (req, res) => {
   `;
   db.all(query, [], (err, rows) => {
     if (err) return res.status(500).json([]);
-    
     const events = (rows || []).map(app => ({
       id: app.id,
       title: `${app.title} (${app.company_name || app.contact_person || 'Privat'})`,
@@ -502,22 +446,14 @@ app.get('/api/appointments', (req, res) => {
 
 app.post('/api/appointments/add', (req, res) => {
   const { title, customer_id, start_date, end_date, description } = req.body;
-
-  const sql = `
-    INSERT INTO appointments (title, customer_id, start_date, end_date, description)
-    VALUES (?, ?, ?, ?, ?)
-  `;
-
-  db.run(sql, [title, customer_id || null, start_date, end_date || null, description], (err) => {
-    if (err) return res.status(500).send('Fehler beim Speichern');
+  db.run(`INSERT INTO appointments (title, customer_id, start_date, end_date, description) VALUES (?, ?, ?, ?, ?)`, [title, customer_id || null, start_date, end_date || null, description], () => {
     res.redirect('/calendar');
   });
 });
 
 app.post('/api/appointments/delete/:id', (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM appointments WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).send('Fehler beim Löschen');
+  db.run('DELETE FROM appointments WHERE id = ?', [id], () => {
     res.redirect('/calendar');
   });
 });
