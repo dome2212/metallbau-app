@@ -796,11 +796,15 @@ app.get('/projects/:id', async (req, res) => {
 
     const filesRes = await dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
+    
+    // NEU: Fotos für dieses Projekt aus der Datenbank laden
+    const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
       files: filesRes.rows || [],
-      appointments: appRes.rows || []
+      appointments: appRes.rows || [],
+      photos: photosRes.rows || [] // NEU: Übergabe an EJS
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
