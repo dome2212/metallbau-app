@@ -6,6 +6,11 @@ const bcrypt = require('bcryptjs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
+const seedArticles = require('./seed-articles');
+
+// Nach dem erfolgreichen Aufbau der Tabellen einfügen lassen:
+// seedArticles();
+
 
 // Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
