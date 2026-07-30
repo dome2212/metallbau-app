@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Metallbau Management System",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "postinstall": "npm rebuild sqlite3 --build-from-source"
