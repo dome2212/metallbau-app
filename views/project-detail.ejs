@@ -60,7 +60,7 @@
               <% files.forEach(file => { %>
                 <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border text-sm">
                   <span class="truncate max-w-xs text-slate-700">📄 <%= file.original_name %></span>
-                  <a href="/uploads/<%= file.filename %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                  <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
                 </div>
               <% }) %>
             <% } else { %>
