@@ -149,6 +149,44 @@
         <% } %>
       </div>
 
+      <!-- ========================================== -->
+      <!-- NEU: BAUSTELLEN-NOTIZBUCH -->
+      <!-- ========================================== -->
+      <div class="bg-white rounded-lg shadow p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📝 Baustellen-Notizbuch</h2>
+        
+        <!-- Eingabeformular für neue Notizen -->
+        <form action="/projects/<%= project.id %>/notes/add" method="POST" class="space-y-3 bg-slate-50 p-4 rounded border">
+          <label class="block text-xs font-medium text-slate-700">Neue Notiz / Absprache / Baustellen-Info hinzufügen</label>
+          <textarea name="note_text" rows="2" required class="w-full text-sm border border-slate-300 rounded p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="z.B. Kunde wünscht nachträglich eine Änderung der RAL-Farbe..."></textarea>
+          <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-4 py-2 rounded transition">Notiz speichern</button>
+        </form>
+
+        <!-- Liste der vorhandenen Notizen -->
+        <div class="space-y-3 pt-2">
+          <h3 class="text-sm font-semibold text-slate-700">Vorherige Notizen:</h3>
+          <% if (notes && notes.length > 0) { %>
+            <div class="space-y-2">
+              <% notes.forEach(note => { %>
+                <div class="flex justify-between items-start bg-slate-50 p-3 rounded border text-sm">
+                  <div class="space-y-1 pr-4">
+                    <p class="text-slate-800 whitespace-pre-wrap"><%= note.note_text %></p>
+                    <span class="text-[10px] text-slate-400 block"><%= new Date(note.created_at).toLocaleString('de-DE') %></span>
+                  </div>
+                  <form action="/projects/notes/delete" method="POST" onsubmit="return confirm('Notiz wirklich löschen?');" class="shrink-0">
+                    <input type="hidden" name="note_id" value="<%= note.id %>">
+                    <input type="hidden" name="project_id" value="<%= project.id %>">
+                    <button type="submit" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
+                  </form>
+                </div>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="text-xs text-slate-400 italic">Noch keine Notizen für dieses Projekt hinterlegt.</p>
+          <% } %>
+        </div>
+      </div>
+
       <!-- Baustellen-Abschlussfotos Sektion -->
       <div class="bg-white rounded-lg shadow p-6 space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">📸 Baustellen-Abschlussfotos</h2>
