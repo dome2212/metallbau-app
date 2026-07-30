@@ -92,6 +92,16 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));
 
+// NEU: Tabelle für das Baustellen-Notizbuch
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_notes (
+    id SERIAL PRIMARY KEY,
+    project_id INT,
+    note_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
+
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
 const documentRoutes = require('./routes/documentRoutes');
@@ -267,6 +277,34 @@ app.post('/projects/measurements/delete', async (req, res) => {
     await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]);
   } catch (err) {
     console.error('Fehler beim Löschen des Aufmaßes:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// BAUSTELLEN-NOTIZBUCH
+// ==========================================
+app.post('/projects/:id/notes/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { note_text } = req.body;
+
+  if (!note_text || note_text.trim() === '') return res.redirect(`/projects/${projectId}`);
+
+  try {
+    const sql = `INSERT INTO project_notes (project_id, note_text) VALUES (?, ?)`;
+    await dbQuery(sql, [projectId, note_text.trim()]);
+  } catch (err) {
+    console.error('Fehler beim Speichern der Notiz:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+app.post('/projects/notes/delete', async (req, res) => {
+  const { note_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_notes WHERE id = ?', [note_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Notiz:', err.message);
   }
   res.redirect(`/projects/${project_id}`);
 });
@@ -982,13 +1020,17 @@ app.get('/projects/:id', async (req, res) => {
     const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    
+    // NEU: Notizen für dieses Projekt laden
+    const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
       files: filesRes.rows || [],
       appointments: appRes.rows || [],
       photos: photosRes.rows || [],
-      measurements: measurementsRes.rows || []
+      measurements: measurementsRes.rows || [],
+      notes: notesRes.rows || [] // NEU übergeben
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
