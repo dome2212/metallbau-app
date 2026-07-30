@@ -531,6 +531,56 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
   }
 });
 
+
+// ==========================================
+// STEMPELUHR: MONATSAUSWERTUNG (Admin-Report)
+// ==========================================
+app.get('/timetracking/admin/report', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const role = req.session.user.role;
+    const month = req.query.month || new Date().toISOString().slice(0, 7);
+
+    let users = [];
+    if (role === 'ADMIN') {
+      [users] = await dbQuery('SELECT id, username FROM users');
+    }
+
+    const targetUserId = req.query.user_id || userId;
+
+    const [entries] = await dbQuery(
+      `SELECT * FROM time_tracking 
+       WHERE user_id = ? AND DATE_FORMAT(start_time, '%Y-%m') = ? 
+       ORDER BY start_time DESC`,
+      [targetUserId, month]
+    );
+
+    let totalMinutes = 0;
+    entries.forEach(entry => {
+      if (entry.end_time) {
+        const diffMs = new Date(entry.end_time) - new Date(entry.start_time);
+        totalMinutes += Math.floor(diffMs / (1000 * 60));
+      }
+    });
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const totalHoursFormatted = `${hours}:${minutes < 10 ? '0' : ''}${minutes} Std.`;
+
+    res.render('time-monthly', {
+      currentUser: req.session.user,
+      users,
+      entries,
+      selectedMonth: month,
+      selectedUserId: targetUserId,
+      totalHoursFormatted
+    });
+  } catch (err) {
+    console.error('Fehler bei Monatsauswertung:', err);
+    res.status(500).send('Interner Serverfehler');
+  }
+});
+
 // ==========================================
 // KUNDENVERWALTUNG & UPLOAD (Cloudinary)
 // ==========================================
