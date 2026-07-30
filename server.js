@@ -7,111 +7,110 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 
-// Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
-db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+// Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen[span_0](start_span)[span_0](end_span)
+db.query("SET timezone = 'Europe/Berlin';").catch(() => {});[span_1](start_span)[span_1](end_span)
 
 
-// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)[span_2](start_span)[span_2](end_span)
+cloudinary.config({[span_3](start_span)[span_3](end_span)
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,[span_4](start_span)[span_4](end_span)
+  api_key: process.env.CLOUDINARY_API_KEY,[span_5](start_span)[span_5](end_span)
+  api_secret: process.env.CLOUDINARY_API_SECRET[span_6](start_span)[span_6](end_span)
+});[span_7](start_span)[span_7](end_span)
 
-// Multer Storage Setup für Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'metallbau-management',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],
-  },
-});
+// Multer Storage Setup für Cloudinary[span_8](start_span)[span_8](end_span)
+const storage = new CloudinaryStorage({[span_9](start_span)[span_9](end_span)
+  cloudinary: cloudinary,[span_10](start_span)[span_10](end_span)
+  params: {[span_11](start_span)[span_11](end_span)
+    folder: 'metallbau-management',[span_12](start_span)[span_12](end_span)
+    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],[span_13](start_span)[span_13](end_span)
+  },[span_14](start_span)[span_14](end_span)
+});[span_15](start_span)[span_15](end_span)
 
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit
-});
+const upload = multer({[span_16](start_span)[span_16](end_span)
+  storage: storage,[span_17](start_span)[span_17](end_span)
+  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit[span_18](start_span)[span_18](end_span)
+});[span_19](start_span)[span_19](end_span)
 
-// Universelle Hilfsfunktion für SQLite (lokal) und PostgreSQL (Render)
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    if (process.env.DATABASE_URL) {
-      let i = 0;
-      let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-      
-      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-        pgSql += ' RETURNING id';
-      }
+// Universelle Hilfsfunktion für SQLite (lokal) und PostgreSQL (Render)[span_20](start_span)[span_20](end_span)
+const dbQuery = (sql, params = []) => {[span_21](start_span)[span_21](end_span)
+  return new Promise((resolve, reject) => {[span_22](start_span)[span_22](end_span)
+    if (process.env.DATABASE_URL) {[span_23](start_span)[span_23](end_span)
+      let i = 0;[span_24](start_span)[span_24](end_span)
+      let pgSql = sql.replace(/\?/g, () => `$${++i}`);[span_25](start_span)[span_25](end_span)[span_26](start_span)[span_26](end_span)
+      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {[span_27](start_span)[span_27](end_span)
+        pgSql += ' RETURNING id';[span_28](start_span)[span_28](end_span)
+      }[span_29](start_span)[span_29](end_span)
 
-      db.query(pgSql, params, (err, res) => {
-        if (err) return reject(err);
-        const rows = res.rows || [];
-        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
-        resolve({ rows, lastID });
-      });
-    } else {
-      db.all(sql, params, function(err, rows) {
-        if (err) return reject(err);
-        resolve({ rows: rows || [], lastID: this?.lastID });
-      });
-    }
-  });
-};
+      db.query(pgSql, params, (err, res) => {[span_30](start_span)[span_30](end_span)
+        if (err) return reject(err);[span_31](start_span)[span_31](end_span)
+        const rows = res.rows || [];[span_32](start_span)[span_32](end_span)
+        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;[span_33](start_span)[span_33](end_span)
+        resolve({ rows, lastID });[span_34](start_span)[span_34](end_span)
+      });[span_35](start_span)[span_35](end_span)
+    } else {[span_36](start_span)[span_36](end_span)
+      db.all(sql, params, function(err, rows) {[span_37](start_span)[span_37](end_span)
+        if (err) return reject(err);[span_38](start_span)[span_38](end_span)
+        resolve({ rows: rows || [], lastID: this?.lastID });[span_39](start_span)[span_39](end_span)
+      });[span_40](start_span)[span_40](end_span)
+    }[span_41](start_span)[span_41](end_span)
+  });[span_42](start_span)[span_42](end_span)
+};[span_43](start_span)[span_43](end_span)
 
-// Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+// Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)[span_44](start_span)[span_44](end_span)
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {[span_45](start_span)[span_45](end_span)
+  const R = 6371e3;[span_46](start_span)[span_46](end_span)
+  const dLat = (lat2 - lat1) * Math.PI / 180;[span_47](start_span)[span_47](end_span)
+  const dLon = (lon2 - lon1) * Math.PI / 180;[span_48](start_span)[span_48](end_span)
+  const a =[span_49](start_span)[span_49](end_span)
+    Math.sin(dLat/2) * Math.sin(dLat/2) +[span_50](start_span)[span_50](end_span)
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *[span_51](start_span)[span_51](end_span)
+    Math.sin(dLon/2) * Math.sin(dLon/2);[span_52](start_span)[span_52](end_span)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));[span_53](start_span)[span_53](end_span)
+  return R * c;[span_54](start_span)[span_54](end_span)
+}[span_55](start_span)[span_55](end_span)
 
-// Automatische Erstellung der Tabellen beim Start
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS project_photos (
-    id SERIAL PRIMARY KEY,
-    project_id INT,
-    file_url TEXT NOT NULL,
-    original_name TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle project_photos existiert bereits:', err.message));
+// Automatische Erstellung der Tabellen beim Start[span_56](start_span)[span_56](end_span)
+dbQuery(`[span_57](start_span)[span_57](end_span)
+  CREATE TABLE IF NOT EXISTS project_photos ([span_58](start_span)[span_58](end_span)
+    id SERIAL PRIMARY KEY,[span_59](start_span)[span_59](end_span)
+    project_id INT,[span_60](start_span)[span_60](end_span)
+    file_url TEXT NOT NULL,[span_61](start_span)[span_61](end_span)
+    original_name TEXT,[span_62](start_span)[span_62](end_span)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP[span_63](start_span)[span_63](end_span)
+  )[span_64](start_span)[span_64](end_span)
+`).catch(err => console.log('Tabelle project_photos existiert bereits:', err.message));[span_65](start_span)[span_65](end_span)
 
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS project_measurements (
-    id SERIAL PRIMARY KEY,
-    project_id INT,
-    component_name TEXT NOT NULL,
-    width TEXT,
-    height TEXT,
-    angle TEXT,
-    quantity INT DEFAULT 1,
-    note TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));
+dbQuery(`[span_66](start_span)[span_66](end_span)
+  CREATE TABLE IF NOT EXISTS project_measurements ([span_67](start_span)[span_67](end_span)
+    id SERIAL PRIMARY KEY,[span_68](start_span)[span_68](end_span)
+    project_id INT,[span_69](start_span)[span_69](end_span)
+    component_name TEXT NOT NULL,[span_70](start_span)[span_70](end_span)
+    width TEXT,[span_71](start_span)[span_71](end_span)
+    height TEXT,[span_72](start_span)[span_72](end_span)
+    angle TEXT,[span_73](start_span)[span_73](end_span)
+    quantity INT DEFAULT 1,[span_74](start_span)[span_74](end_span)
+    note TEXT,[span_75](start_span)[span_75](end_span)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP[span_76](start_span)[span_76](end_span)
+  )[span_77](start_span)[span_77](end_span)
+`).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));[span_78](start_span)[span_78](end_span)
 
-// Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+// Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render[span_79](start_span)[span_79](end_span)
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});[span_80](start_span)[span_80](end_span)
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});[span_81](start_span)[span_81](end_span)
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});[span_82](start_span)[span_82](end_span)
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});[span_83](start_span)[span_83](end_span)
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});[span_84](start_span)[span_84](end_span)
 
-// NEU: Tabelle für das Baustellen-Notizbuch
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS project_notes (
-    id SERIAL PRIMARY KEY,
-    project_id INT,
-    note_text TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
+// NEU: Tabelle für das Baustellen-Notizbuch[span_85](start_span)[span_85](end_span)
+dbQuery(`[span_86](start_span)[span_86](end_span)
+  CREATE TABLE IF NOT EXISTS project_notes ([span_87](start_span)[span_87](end_span)
+    id SERIAL PRIMARY KEY,[span_88](start_span)[span_88](end_span)
+    project_id INT,[span_89](start_span)[span_89](end_span)
+    note_text TEXT NOT NULL,[span_90](start_span)[span_90](end_span)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP[span_91](start_span)[span_91](end_span)
+  )[span_92](start_span)[span_92](end_span)
+`).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));[span_93](start_span)[span_93](end_span)
 
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
@@ -120,19 +119,19 @@ const documentRoutes = require('./routes/documentRoutes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// EJS & Middleware Setup
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(cookieParser());
+// EJS & Middleware Setup[span_94](start_span)[span_94](end_span)
+app.set('view engine', 'ejs');[span_95](start_span)[span_95](end_span)
+app.set('views', path.join(__dirname, 'views'));[span_96](start_span)[span_96](end_span)
+app.use(express.urlencoded({ extended: true }));[span_97](start_span)[span_97](end_span)
+app.use(express.json());[span_98](start_span)[span_98](end_span)
+app.use(cookieParser());[span_99](start_span)[span_99](end_span)
 
-// Öffentliche Routen (Login / Logout)
-app.use('/', authRoutes);
+// Öffentliche Routen (Login / Logout)[span_100](start_span)[span_100](end_span)
+app.use('/', authRoutes);[span_101](start_span)[span_101](end_span)
 
-// ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN
-app.use(verifyToken); 
-app.use('/documents', documentRoutes);
+// ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN[span_102](start_span)[span_102](end_span)
+app.use(verifyToken);[span_103](start_span)[span_103](end_span)
+app.use('/documents', documentRoutes);[span_104](start_span)[span_104](end_span)
 
 // ==========================================
 // DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
@@ -382,7 +381,6 @@ app.get('/timetracking', async (req, res) => {
 
     const todayTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
 
-    // Übergabe der korrigierten Zeiten für die Ansicht
     const formattedLogs = todayLogs.map(log => ({
       ...log,
       timestamp: log.local_timestamp || log.timestamp
@@ -408,7 +406,6 @@ app.post('/timetracking/stamp', async (req, res) => {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
-  // GPS-Sicherheitsprüfung beim Einstempeln (IN)
   if (type === 'IN') {
     if (!latitude || !longitude) {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
@@ -416,7 +413,7 @@ app.post('/timetracking/stamp', async (req, res) => {
 
     const FIRM_LAT = 51.3069467;
     const FIRM_LNG = 6.9483845;
-    const MAX_DISTANCE_METERS = 300; // 300 Meter Kulanz für GPS-Abweichungen
+    const MAX_DISTANCE_METERS = 300;
 
     const distance = getDistanceFromLatLonInMeters(
       parseFloat(latitude), 
@@ -431,11 +428,12 @@ app.post('/timetracking/stamp', async (req, res) => {
   }
 
   try {
-    const sql = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
+    // Verwendung von NOW() ohne manuelle Zeitzonenkonvertierung, 
+    // da die Datenbankverbindung nun fest auf 'Europe/Berlin' eingestellt ist.
+    const sql = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, NOW())`;
     await dbQuery(sql, [userId, type, note || null]);
     res.redirect('/timetracking');
   } catch (err) {
-    // Fallback falls 'NOW()' in SQLite (lokal) fehlschlägt
     try {
       const fallbackSql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
       await dbQuery(fallbackSql, [userId, type, note || null]);
@@ -450,20 +448,17 @@ app.post('/timetracking/stamp', async (req, res) => {
 // ==========================================
 // STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
 // ==========================================
-
-// Hilfsfunktion zur Formatierung von Minuten in Stunden (z.B. 125 Min -> "2:05")
 function formatMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${hours}:${minutes < 10 ? '0' : ''}${minutes} Std.`;
 }
 
-// 1. Monatsauswertung (Ansicht für Admin / Mitarbeiter)
 app.get('/timetracking/admin/monthly', async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
-    const month = req.query.month || new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+    const month = req.query.month || new Date().toISOString().slice(0, 7);
 
     let users = [];
     if (role === 'ADMIN') {
@@ -473,7 +468,6 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
 
     const targetUserId = req.query.user_id || userId;
 
-    // Einträge für den gewählten Monat abrufen mit Zeitzonenanpassung
     const entriesRes = await dbQuery(
       `SELECT *, (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
        FROM time_logs 
@@ -500,7 +494,6 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
   }
 });
 
-// 2. CSV-Export für den gewählten Monat
 app.get('/timetracking/admin/export-csv', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
@@ -1059,8 +1052,6 @@ app.get('/projects/:id', async (req, res) => {
     const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
-    
-    // NEU: Notizen für dieses Projekt laden
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
@@ -1069,7 +1060,7 @@ app.get('/projects/:id', async (req, res) => {
       appointments: appRes.rows || [],
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
-      notes: notesRes.rows || [] // NEU übergeben
+      notes: notesRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
