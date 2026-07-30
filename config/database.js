@@ -12,6 +12,11 @@ if (process.env.DATABASE_URL) {
     ssl: { rejectUnauthorized: false }
   });
 
+  // Jede neue Verbindung im Pool automatisch auf die deutsche Zeitzone stellen
+  db.on('connect', (client) => {
+    client.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+  });
+
   console.log("🟢 Versuche mit PostgreSQL zu verbinden und Tabellen zu erstellen...");
 
   // Tabellen erstellen (PostgreSQL Syntax) mit Fehlerprüfung
