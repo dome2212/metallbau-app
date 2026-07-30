@@ -342,6 +342,107 @@ app.post('/timetracking/stamp', async (req, res) => {
 });
 
 // ==========================================
+// STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
+// ==========================================
+
+// Hilfsfunktion zur Formatierung von Minuten in Stunden (z.B. 125 Min -> "2:05")
+function formatMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}:${minutes < 10 ? '0' : ''}${minutes} Std.`;
+}
+
+// 1. Monatsauswertung (Ansicht für Admin / Mitarbeiter)
+app.get('/time-tracking/monthly', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const role = req.session.user.role;
+    const month = req.query.month || new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+
+    // Wenn Admin, alle Mitarbeiter anzeigen, sonst nur den eigenen
+    let users = [];
+    if (role === 'ADMIN') {
+      [users] = await dbQuery('SELECT id, username FROM users');
+    }
+
+    const targetUserId = req.query.user_id || userId;
+
+    // Einträge für den gewählten Monat abrufen
+    const [entries] = await dbQuery(
+      `SELECT * FROM time_tracking 
+       WHERE user_id = ? AND DATE_FORMAT(start_time, '%Y-%m') = ? 
+       ORDER BY start_time DESC`,
+      [targetUserId, month]
+    );
+
+    // Gesamtminuten berechnen
+    let totalMinutes = 0;
+    entries.forEach(entry => {
+      if (entry.end_time) {
+        const diffMs = new Date(entry.end_time) - new Date(entry.start_time);
+        totalMinutes += Math.floor(diffMs / (1000 * 60));
+      }
+    });
+
+    res.render('time-monthly', {
+      currentUser: req.session.user,
+      users,
+      entries,
+      selectedMonth: month,
+      selectedUserId: targetUserId,
+      totalHoursFormatted: formatMinutes(totalMinutes)
+    });
+  } catch (err) {
+    console.error('Fehler bei Monatsauswertung:', err);
+    res.status(500).send('Interner Serverfehler');
+  }
+});
+
+// 2. CSV-Export für den gewählten Monat
+app.get('/time-tracking/export-csv', async (req, res) => {
+  try {
+    const targetUserId = req.query.user_id || req.session.user.id;
+    const month = req.query.month || new Date().toISOString().slice(0, 7);
+
+    const [entries] = await dbQuery(
+      `SELECT t.*, u.username FROM time_tracking t
+       JOIN users u ON t.user_id = u.id
+       WHERE t.user_id = ? AND DATE_FORMAT(t.start_time, '%Y-%m') = ?
+       ORDER BY t.start_time ASC`,
+      [targetUserId, month]
+    );
+
+    // CSV-Header zusammenbauen
+    let csv = 'Mitarbeiter;Datum;Start;Ende;Pause (Min);Gesamt;Notiz\n';
+
+    entries.forEach(e => {
+      const startDate = new Date(e.start_time);
+      const endDate = e.end_time ? new Date(e.end_time) : null;
+      
+      const dateStr = startDate.toLocaleDateString('de-DE');
+      const startStr = startDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const endStr = endDate ? endDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : 'Aktiv';
+      
+      let durationStr = '-';
+      if (endDate) {
+        const diffMin = Math.floor((endDate - startDate) / (1000 * 60));
+        durationStr = formatMinutes(diffMin);
+      }
+
+      csv += `"${e.username}","${dateStr}","${startStr}","${endStr}","${e.break_minutes || 0}","${durationStr}","${e.note || ''}"\n`;
+    });
+
+    res.header('Content-Type', 'text/csv; charset=utf-8');
+    res.attachment(`Zeiterfassung_${month}.csv`);
+    res.send(csv);
+  } catch (err) {
+    console.error('Fehler beim CSV-Export:', err);
+    res.status(500).send('Fehler beim Generieren der CSV-Datei.');
+  }
+});
+
+
+// ==========================================
 // KUNDENVERWALTUNG & UPLOAD (Cloudinary)
 // ==========================================
 app.post('/customers/edit', async (req, res) => {
