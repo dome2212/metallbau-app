@@ -7,6 +7,10 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 
+// Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
+db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+
+
 // Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
