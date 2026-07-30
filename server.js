@@ -92,6 +92,13 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));
 
+// Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+
 // NEU: Tabelle für das Baustellen-Notizbuch
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_notes (
