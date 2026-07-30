@@ -155,13 +155,13 @@ if (process.env.DATABASE_URL) {
       filename TEXT,
       original_name TEXT,
       file_type TEXT,
-      file_data BYTEA,
+      file_url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => { 
     if (err) console.error("❌ Fehler customer_files:", err.message); 
     else {
-      db.query(`ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS file_data BYTEA`, () => {});
+      db.query(`ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
     }
   });
 
@@ -172,13 +172,13 @@ if (process.env.DATABASE_URL) {
       filename TEXT,
       original_name TEXT,
       file_type TEXT,
-      file_data BYTEA,
+      file_url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => { 
     if (err) console.error("❌ Fehler project_files:", err.message); 
     else {
-      db.query(`ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_data BYTEA`, () => {});
+      db.query(`ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
     }
   });
 
@@ -192,7 +192,7 @@ if (process.env.DATABASE_URL) {
     }
     console.log("Verbunden mit SQLite (Lokal)");
 
-    // Tabellen für lokale SQLite-Umgebung erstellen (inklusive BLOB für Dateien)
+    // Tabellen für lokale SQLite-Umgebung erstellen
     db.serialize(() => {
       db.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -319,7 +319,7 @@ if (process.env.DATABASE_URL) {
           filename TEXT,
           original_name TEXT,
           file_type TEXT,
-          file_data BLOB,
+          file_url TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -331,7 +331,7 @@ if (process.env.DATABASE_URL) {
           filename TEXT,
           original_name TEXT,
           file_type TEXT,
-          file_data BLOB,
+          file_url TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
