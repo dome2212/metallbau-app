@@ -8,8 +8,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 
 // Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
-db.query("SET timezone = 'Europe/Berlin';").catch(() => {});[span_0](start_span)[span_0](end_span)
-
+db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 
 // Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
 cloudinary.config({
@@ -17,7 +16,6 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
-
 
 // Multer Storage Setup für Cloudinary
 const storage = new CloudinaryStorage({
