@@ -784,11 +784,13 @@ app.get('/projects/:id', async (req, res) => {
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
     const filesRes = await dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]); // <-- Neu geladen
     const appRes = await dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]);
 
     res.render('project-detail', {
       project,
       files: filesRes.rows || [],
+      photos: photosRes.rows || [], // <-- Neu übergeben
       appointments: appRes.rows || []
     });
   } catch (err) {
@@ -814,6 +816,7 @@ app.post('/projects/delete', async (req, res) => {
   const { id } = req.body;
   try {
     await dbQuery('DELETE FROM project_files WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_photos WHERE project_id = ?', [id]); // <-- Auch Abschlussfotos beim Löschen entfernen
     await dbQuery('DELETE FROM projects WHERE id = ?', [id]);
     res.redirect('/projects');
   } catch (err) {
@@ -868,6 +871,7 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
 // ==========================================
 dbQuery("DELETE FROM project_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
 dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
+dbQuery("DELETE FROM project_photos WHERE file_url LIKE '/uploads/%'").catch(() => {});
 
 // ==========================================
 // SERVER START
