@@ -179,6 +179,22 @@ app.get('/', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLEN-FOTOS (Abschlussfotos)
+// ==========================================
+app.post('/projects/:id/photos/upload', upload.single('photo'), async (req, res) => {
+  const projectId = req.params.id;
+  if (!req.file) return res.redirect(`/projects/${projectId}`);
+
+  try {
+    const sql = `INSERT INTO project_photos (project_id, file_url, original_name) VALUES (?, ?, ?)`;
+    await dbQuery(sql, [projectId, req.file.path, req.file.originalname]);
+  } catch (err) {
+    console.error('Fehler beim Foto-Upload:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+// ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
 app.get('/timetracking', async (req, res) => {
