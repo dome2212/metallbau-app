@@ -11,12 +11,13 @@ const db = require('./config/database');
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});[span_0](start_span)[span_0](end_span)
 
 
-// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)[span_1](start_span)[span_1](end_span)
+// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,[span_2](start_span)[span_2](end_span)
-  api_key: process.env.CLOUDINARY_API_KEY,[span_3](start_span)[span_3](end_span)
-  api_secret: process.env.CLOUDINARY_API_SECRET[span_4](start_span)[span_4](end_span)
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
 
 // Multer Storage Setup für Cloudinary
 const storage = new CloudinaryStorage({
