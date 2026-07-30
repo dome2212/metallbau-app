@@ -1,4 +1,4 @@
-      const { Pool } = require('pg');
+const { Pool } = require('pg');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -158,7 +158,12 @@ if (process.env.DATABASE_URL) {
       file_data BYTEA,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler customer_files:", err.message); });
+  `, (err) => { 
+    if (err) console.error("❌ Fehler customer_files:", err.message); 
+    else {
+      db.query(`ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS file_data BYTEA`, () => {});
+    }
+  });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS project_files (
@@ -170,7 +175,12 @@ if (process.env.DATABASE_URL) {
       file_data BYTEA,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler project_files:", err.message); });
+  `, (err) => { 
+    if (err) console.error("❌ Fehler project_files:", err.message); 
+    else {
+      db.query(`ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_data BYTEA`, () => {});
+    }
+  });
 
 } else {
   // Lokale Entwicklung (SQLite)
