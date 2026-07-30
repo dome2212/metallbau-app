@@ -41,7 +41,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Setup für Datei-Uploads im Arbeitsspeicher (Speicherung direkt als Buffer in der Datenbank)
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 } // Optional: 15 MB Dateigrenze zur Sicherheit
+});
 
 // 1. EJS & Middleware Setup
 app.set('view engine', 'ejs');
