@@ -1,37 +1,44 @@
 <%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100">
+<div class="flex h-screen bg-gray-100 overflow-hidden">
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 p-6 overflow-y-auto">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 min-h-screen pt-16 md:pt-6">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
+    <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <div class="text-sm text-blue-600 mb-1"><a href="/customers" class="hover:underline">← Zurück zur Kundenübersicht</a></div>
-        <h1 class="text-2xl font-bold text-gray-800">Projekte & Vorgänge: <%= customer.company_name || customer.contact_person %></h1>
-        <p class="text-sm text-gray-500"><%= customer.street %>, <%= customer.zip %> <%= customer.city %> | 📞 <%= customer.phone || 'Keine Tel.' %> | ✉️ <%= customer.email || 'Keine E-Mail' %></p>
+        <div class="text-xs md:text-sm text-blue-600 mb-1">
+          <a href="/customers" class="hover:underline">← Zurück zur Kundenübersicht</a>
+        </div>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Projekte & Vorgänge: <%= customer.company_name || customer.contact_person %></h1>
+        <p class="text-xs md:text-sm text-gray-500 mt-1">
+          <%= customer.street || '' %>, <%= customer.zip || '' %> <%= customer.city || '' %> 
+          <%= customer.phone ? '| 📞 ' + customer.phone : '' %> 
+          <%= customer.email ? '| ✉️ ' + customer.email : '' %>
+        </p>
       </div>
     </div>
 
-    <div class="space-y-6">
+    <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6 space-y-6">
+      
       <!-- Dateien & Uploads -->
-      <div class="bg-white rounded-lg shadow p-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">📁 Kundendateien & Dokumente</h2>
+      <div class="bg-white rounded-xl shadow p-4 md:p-6 space-y-4">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 border-b pb-2">📁 Kundendateien & Dokumente</h2>
         
         <!-- Upload-Formular -->
-        <form action="/customers/<%= customer.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-gray-50 p-4 rounded border mb-4">
+        <form action="/customers/<%= customer.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-gray-50 p-4 rounded-lg border">
           <label class="block text-xs font-medium text-gray-700">Datei hochladen (PDF, Bild, etc.)</label>
           <input type="file" name="file" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition w-full sm:w-auto">Datei hochladen</button>
         </form>
 
         <!-- Liste der hochgeladenen Dateien -->
         <div class="space-y-2">
-          <% if (files && files.length > 0) { %>
+          <% if (typeof files !== 'undefined' && files.length > 0) { %>
             <% files.forEach(file => { %>
-              <div class="flex justify-between items-center bg-gray-50 p-2.5 rounded border text-sm">
-                <span class="truncate max-w-xs text-gray-700">📄 <%= file.original_name %></span>
-                <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+              <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border text-sm gap-2">
+                <span class="truncate text-gray-700 text-xs md:text-sm">📄 <%= file.original_name %></span>
+                <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium whitespace-nowrap">Ansehen / Download</a>
               </div>
             <% }) %>
           <% } else { %>
@@ -41,79 +48,88 @@
       </div>
 
       <!-- Rechnungen -->
-      <div class="bg-white rounded-lg shadow p-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">📄 Rechnungen</h2>
-        <% if (invoices.length > 0) { %>
-          <table class="w-full text-left text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-              <tr>
-                <th class="p-2">Rechnungs-Nr.</th>
-                <th class="p-2">Betrag</th>
-                <th class="p-2">Status</th>
-                <th class="p-2 text-right">Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% invoices.forEach(inv => { %>
-                <tr class="border-b">
-                  <td class="p-2 font-semibold"><%= inv.invoice_number %></td>
-                  <td class="p-2"><%= parseFloat(inv.total_amount || 0).toFixed(2) %> €</td>
-                  <td class="p-2"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= inv.status %></span></td>
-                  <td class="p-2 text-right"><a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline">Details 👁️</a></td>
+      <div class="bg-white rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 mb-3 border-b pb-2">📄 Rechnungen</h2>
+        <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-left text-sm border-collapse min-w-[500px]">
+              <thead class="bg-gray-50 text-gray-500 uppercase text-xs border-b">
+                <tr>
+                  <th class="p-3">Rechnungs-Nr.</th>
+                  <th class="p-3">Betrag</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Aktion</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <% invoices.forEach(inv => { %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="p-3 font-semibold text-gray-800"><%= inv.invoice_number %></td>
+                    <td class="p-3 text-gray-600"><%= parseFloat(inv.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= inv.status %></span></td>
+                    <td class="p-3 text-right"><a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline text-xs font-semibold">Details 👁️</a></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
         <% } else { %>
-          <p class="text-sm text-gray-400">Keine Rechnungen für diesen Kunden hinterlegt.</p>
+          <p class="text-xs md:text-sm text-gray-400">Keine Rechnungen für diesen Kunden hinterlegt.</p>
         <% } %>
       </div>
 
       <!-- Angebote -->
-      <div class="bg-white rounded-lg shadow p-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">📋 Angebote</h2>
-        <% if (offers.length > 0) { %>
-          <table class="w-full text-left text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-              <tr>
-                <th class="p-2">Angebots-Nr.</th>
-                <th class="p-2">Betrag</th>
-                <th class="p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% offers.forEach(off => { %>
-                <tr class="border-b">
-                  <td class="p-2 font-semibold"><%= off.doc_number %></td>
-                  <td class="p-2"><%= parseFloat(off.total_amount || 0).toFixed(2) %> €</td>
-                  <td class="p-2"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800"><%= off.status %></span></td>
+      <div class="bg-white rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 mb-3 border-b pb-2">📋 Angebote</h2>
+        <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-left text-sm border-collapse min-w-[400px]">
+              <thead class="bg-gray-50 text-gray-500 uppercase text-xs border-b">
+                <tr>
+                  <th class="p-3">Angebots-Nr.</th>
+                  <th class="p-3">Betrag</th>
+                  <th class="p-3">Status</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <% offers.forEach(off => { %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="p-3 font-semibold text-gray-800"><%= off.doc_number %></td>
+                    <td class="p-3 text-gray-600"><%= parseFloat(off.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800"><%= off.status %></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
         <% } else { %>
-          <p class="text-sm text-gray-400">Keine Angebote für diesen Kunden hinterlegt.</p>
+          <p class="text-xs md:text-sm text-gray-400">Keine Angebote für diesen Kunden hinterlegt.</p>
         <% } %>
       </div>
 
       <!-- Termine -->
-      <div class="bg-white rounded-lg shadow p-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">📅 Termine & Baustellen</h2>
-        <% if (appointments.length > 0) { %>
-          <ul class="divide-y text-sm">
+      <div class="bg-white rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 mb-3 border-b pb-2">📅 Termine & Baustellen</h2>
+        <% if (typeof appointments !== 'undefined' && appointments.length > 0) { %>
+          <ul class="divide-y divide-gray-200 text-sm">
             <% appointments.forEach(app => { %>
-              <li class="py-2">
-                <strong><%= app.title %></strong> - <span class="text-gray-500"><%= app.start_date %></span>
-                <% if (app.description) { %><p class="text-xs text-gray-600"><%= app.description %></p><% } %>
+              <li class="py-3">
+                <div class="font-semibold text-gray-800 text-sm"><%= app.title %></div>
+                <div class="text-xs text-gray-500">📅 <%= app.start_date %></div>
+                <% if (app.description) { %>
+                  <p class="text-xs text-gray-600 mt-1 bg-gray-50 p-2 rounded border"><%= app.description %></p>
+                <% } %>
               </li>
             <% }) %>
           </ul>
         <% } else { %>
-          <p class="text-sm text-gray-400">Keine Termine vorhanden.</p>
+          <p class="text-xs md:text-sm text-gray-400">Keine Termine vorhanden.</p>
         <% } %>
       </div>
+
     </div>
   </main>
 </div>
+
 </body>
 </html>
