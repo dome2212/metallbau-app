@@ -450,17 +450,31 @@ app.post('/timetracking/stamp', async (req, res) => {
 app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   try {
     const selectedDate = req.query.date;
+    const selectedUserId = req.query.user_id;
+
+    // Alle Benutzer für das Dropdown-Menü laden
+    const usersRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
+    const users = usersRes.rows || [];
+
     let query = `
       SELECT time_logs.*, users.username, 
              (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
       FROM time_logs 
       JOIN users ON time_logs.user_id = users.id 
+      WHERE 1=1
     `;
     let queryParams = [];
 
+    // Nach Datum filtern, falls angegeben
     if (selectedDate) {
-      query += ` WHERE DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
+      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
       queryParams.push(selectedDate);
+    }
+
+    // Nach Mitarbeiter filtern, falls angegeben
+    if (selectedUserId) {
+      query += ` AND time_logs.user_id = ? `;
+      queryParams.push(selectedUserId);
     }
 
     query += ` ORDER BY time_logs.timestamp DESC`;
@@ -473,7 +487,9 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     
     res.render('admin-timetracking', { 
       logs, 
+      users,
       selectedDate: selectedDate || '',
+      selectedUserId: selectedUserId || '',
       user: req.session ? req.session.user : req.user 
     });
   } catch (err) {
@@ -481,6 +497,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).send("Fehler beim Laden der Zeiterfassung");
   }
 });
+
 
 // ==========================================
 // STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
