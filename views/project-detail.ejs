@@ -53,7 +53,16 @@
               <% files.forEach(file => { %>
                 <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border text-sm">
                   <span class="truncate max-w-xs text-slate-700">📄 <%= file.original_name %></span>
-                  <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                  <div class="flex items-center gap-3 shrink-0">
+                    <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                    
+                    <!-- Lösch-Button für Dateien -->
+                    <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei wirklich löschen?');" class="inline">
+                      <input type="hidden" name="file_id" value="<%= file.id %>">
+                      <input type="hidden" name="project_id" value="<%= project.id %>">
+                      <button type="submit" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
+                    </form>
+                  </div>
                 </div>
               <% }) %>
             <% } else { %>
