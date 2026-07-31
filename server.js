@@ -7,6 +7,14 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 
+// Automatische Einbindung von PDFKit (lädt es, falls im System vorhanden, ohne Shell-Befehl)
+let PDFKit;
+try {
+  PDFKit = require('pdfkit');
+} catch (e) {
+  console.log('Hinweis: pdfkit Modul wird geladen...');
+}
+
 // Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 
@@ -533,6 +541,97 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err);
     res.status(500).send("Fehler beim Laden der Zeiterfassung");
+  }
+});
+
+// ==========================================
+// ARBEITSZEITEN PDF EXPORT ROUTE
+// ==========================================
+app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, date } = req.query;
+
+  try {
+    let query = `
+      SELECT time_logs.*, users.username, 
+             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      FROM time_logs 
+      JOIN users ON time_logs.user_id = users.id 
+      WHERE 1=1
+    `;
+    let queryParams = [];
+
+    if (user_id) {
+      query += ` AND time_logs.user_id = ?`;
+      queryParams.push(user_id);
+    }
+
+    if (date) {
+      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ?`;
+      queryParams.push(date);
+    }
+
+    query += ` ORDER BY time_logs.timestamp DESC`;
+
+    const result = await dbQuery(query, queryParams);
+    const logs = (result.rows || []).map(log => ({
+      ...log,
+      timestamp: log.local_timestamp || log.timestamp
+    }));
+
+    if (!PDFKit) {
+      return res.status(500).send('PDF-Generator Modul ist nicht geladen.');
+    }
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=Arbeitszeiten_Export.pdf');
+
+    doc.pipe(res);
+
+    doc.fontSize(20).font('Helvetica-Bold').text('Arbeitszeiten-Übersicht', { align: 'left' });
+    doc.fontSize(10).font('Helvetica').text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
+    doc.moveDown(2);
+
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.text('Datum / Uhrzeit', 50, doc.y, { continued: true, width: 120 });
+    doc.text('Mitarbeiter', 170, doc.y, { continued: true, width: 120 });
+    doc.text('Aktion', 290, doc.y, { continued: true, width: 100 });
+    doc.text('Notiz', 390, doc.y, { width: 160 });
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    doc.font('Helvetica').fontSize(9);
+    if (logs && logs.length > 0) {
+      logs.forEach(log => {
+        const logDate = new Date(log.timestamp).toLocaleString('de-DE', {
+          dateStyle: 'short',
+          timeStyle: 'short'
+        });
+        const actionText = log.type === 'IN' ? 'Eingestempelt (IN)' : 'Ausgestempelt (OUT)';
+        const noteText = log.log_note || log.note || '-';
+
+        if (doc.y > 750) {
+          doc.addPage();
+        }
+
+        const currentY = doc.y;
+        doc.text(logDate, 50, currentY, { continued: true, width: 120 });
+        doc.text(log.username || 'Unbekannt', 170, currentY, { continued: true, width: 120 });
+        doc.text(actionText, 290, currentY, { continued: true, width: 100 });
+        doc.text(noteText, 390, currentY, { width: 160 });
+        doc.moveDown(0.8);
+      });
+    } else {
+      doc.text('Keine Einträge für diesen Filter gefunden.', 50, doc.y);
+    }
+
+    doc.end();
+
+  } catch (err) {
+    console.error('Fehler beim PDF-Export:', err.message);
+    res.status(500).send('Fehler beim Generieren der PDF.');
   }
 });
 
@@ -1234,3 +1333,4 @@ app.listen(PORT, () => {
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
 });
+
