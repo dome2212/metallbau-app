@@ -352,6 +352,33 @@ app.post('/projects/photos/delete', async (req, res) => {
 });
 
 // ==========================================
+// PROJEKT-DATEIEN LÖSCHEN
+// ==========================================
+app.post('/projects/files/delete', async (req, res) => {
+  const { file_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_files WHERE id = ?', [file_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Datei:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// KUNDEN-DATEIEN LÖSCHEN (Falls benötigt)
+// ==========================================
+app.post('/customers/files/delete', async (req, res) => {
+  const { file_id, customer_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM customer_files WHERE id = ?', [file_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Kundendatei:', err.message);
+  }
+  res.redirect(`/customers/${customer_id}/projects`);
+});
+
+
+// ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
 app.get('/timetracking', async (req, res) => {
