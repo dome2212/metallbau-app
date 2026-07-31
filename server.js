@@ -578,6 +578,15 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
       timestamp: log.local_timestamp || log.timestamp
     }));
 
+    // Mitarbeiter-Namen für die Überschrift ermitteln
+    let employeeName = 'Alle Mitarbeiter';
+    if (user_id) {
+      const userRes = await dbQuery('SELECT username FROM users WHERE id = ?', [user_id]);
+      if (userRes.rows && userRes.rows.length > 0) {
+        employeeName = userRes.rows[0].username;
+      }
+    }
+
     if (!PDFKit) {
       return res.status(500).send('PDF-Generator Modul ist nicht geladen.');
     }
@@ -585,23 +594,29 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     const doc = new PDFKit({ margin: 50, size: 'A4' });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=Arbeitszeiten_Export.pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Arbeitszeiten_${employeeName.replace(/\s+/g, '_')}.pdf`);
 
     doc.pipe(res);
 
-    doc.fontSize(20).font('Helvetica-Bold').text('Arbeitszeiten-Übersicht', { align: 'left' });
-    doc.fontSize(10).font('Helvetica').text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
-    doc.moveDown(2);
+    // PDF-Kopfbereich
+    doc.fontSize(18).font('Helvetica-Bold').text('Arbeitszeiten-Übersicht', { align: 'left' });
+    doc.fontSize(12).font('Helvetica').text(`Mitarbeiter: ${employeeName}`, { align: 'left' });
+    if (date) {
+      doc.text(`Datum: ${date}`, { align: 'left' });
+    }
+    doc.fontSize(9).text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
+    doc.moveDown(1.5);
 
+    // Tabellen-Header
     doc.fontSize(10).font('Helvetica-Bold');
-    doc.text('Datum / Uhrzeit', 50, doc.y, { continued: true, width: 120 });
-    doc.text('Mitarbeiter', 170, doc.y, { continued: true, width: 120 });
-    doc.text('Aktion', 290, doc.y, { continued: true, width: 100 });
-    doc.text('Notiz', 390, doc.y, { width: 160 });
+    doc.text('Datum / Uhrzeit', 50, doc.y, { continued: true, width: 140 });
+    doc.text('Aktion', 190, doc.y, { continued: true, width: 140 });
+    doc.text('Notiz', 330, doc.y, { width: 220 });
     doc.moveDown(0.5);
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
 
+    // Tabelleneinträge
     doc.font('Helvetica').fontSize(9);
     if (logs && logs.length > 0) {
       logs.forEach(log => {
@@ -617,10 +632,9 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
         }
 
         const currentY = doc.y;
-        doc.text(logDate, 50, currentY, { continued: true, width: 120 });
-        doc.text(log.username || 'Unbekannt', 170, currentY, { continued: true, width: 120 });
-        doc.text(actionText, 290, currentY, { continued: true, width: 100 });
-        doc.text(noteText, 390, currentY, { width: 160 });
+        doc.text(logDate, 50, currentY, { continued: true, width: 140 });
+        doc.text(actionText, 190, currentY, { continued: true, width: 140 });
+        doc.text(noteText, 330, currentY, { width: 220 });
         doc.moveDown(0.8);
       });
     } else {
@@ -634,6 +648,7 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     res.status(500).send('Fehler beim Generieren der PDF.');
   }
 });
+
 
 // ==========================================
 // STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
