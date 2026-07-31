@@ -125,6 +125,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+app.use(express.static('public'));
+
 // Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
 
