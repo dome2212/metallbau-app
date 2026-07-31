@@ -1,31 +1,43 @@
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-xl">
+<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
+<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md w-full sticky top-0 z-30">
+  <button onclick="toggleSidebar()" class="text-sm px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white font-medium flex items-center gap-1">
+    ☰ Menü
+  </button>
+  <span class="font-bold text-blue-400 text-sm truncate">Metallbau-gehrmann</span>
+</div>
+
+<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
+<div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+
+<!-- Die eigentliche Sidebar -->
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl">
   <div>
-    <!-- Mobiler Schließen-Button -->
-    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3 md:block">
-      <h2 class="text-xl font-bold tracking-wide text-blue-400">
-        🔩 Metallbau-gehrmann App
+    <!-- Kopfbereich mit Schließen-Button für Mobil -->
+    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
+      <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">
+        🔩 Metallbau-gehrmann
       </h2>
-      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1">
+      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1 font-bold">
         ✕
       </button>
     </div>
 
-    <nav class="space-y-2">
-      <a href="/" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Dashboard</a>
+    <nav class="space-y-1.5">
+      <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Dashboard</a>
       
       <!-- Für Alle sichtbar -->
-      <a href="/projects" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">🏗️ Aufträge & Baustellen</a>
-      <a href="/calendar" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">📅 Kalender</a>
-      <a href="/timetracking" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">⏱️ Zeiterfassung</a>
+      <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
+      <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
+      <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
 
       <!-- NUR FÜR CHEFS (ADMIN) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
-        <a href="/admin/users" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">👥 Mitarbeiter-Logins</a>
-        <a href="/customers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Kunden</a>
-        <a href="/documents/offers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Angebote</a>
-        <a href="/documents/invoices" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Rechnungen</a>
-        <a href="/articles" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Artikelstamm</a>
+        <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
+        <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Kunden</a>
+        <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Angebote</a>
+        <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Rechnungen</a>
+        <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Artikelstamm</a>
       <% } %>
     </nav>
   </div>
@@ -35,7 +47,7 @@
       Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
       (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
     </div>
-    <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 rounded transition">
+    <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-2 rounded transition font-medium">
       Abmelden
     </a>
     <div class="text-[10px] text-slate-500 text-center pt-1 select-none">
@@ -43,17 +55,6 @@
     </div>
   </div>
 </aside>
-
-<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
-<div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black opacity-50 z-40 hidden md:hidden"></div>
-
-<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
-<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md">
-  <button onclick="toggleSidebar()" class="text-xl px-2 py-1 bg-slate-800 rounded text-white">
-    ☰ Menü
-  </button>
-  <span class="font-bold text-blue-400 text-sm">Metallbau-gehrmann</span>
-</div>
 
 <script>
   function toggleSidebar() {
