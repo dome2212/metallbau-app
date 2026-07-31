@@ -177,5 +177,34 @@
   });
 </script>
 
+<!-- CSS-Anpassung für FullCalendar-Buttons auf mobilen Geräten -->
+<style>
+  @media (max-width: 768px) {
+    .fc .fc-toolbar {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .fc .fc-toolbar-chunk {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+    /* Buttons in der rechten Toolbar-Sektion (Monat, Woche, Liste) untereinander/umbruchsicher anordnen */
+    .fc .fc-toolbar-chunk:nth-child(3) {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.25rem;
+      width: 100%;
+    }
+    .fc .fc-toolbar-chunk:nth-child(3) button {
+      width: 100%;
+      text-align: center;
+      padding: 0.4rem 0.2rem;
+      font-size: 0.75rem;
+    }
+  }
+</style>
+
 </body>
 </html>
