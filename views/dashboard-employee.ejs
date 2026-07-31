@@ -1,21 +1,16 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>Mitarbeiter Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-100 flex h-screen overflow-hidden">
+<%- include('partials/header') %>
 
+<div class="flex h-screen bg-slate-100 overflow-hidden">
   <!-- Sidebar einbinden -->
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-0">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+    
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
       <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Mein Monatsüberblick</h1>
     </header>
 
-    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-6">
       
       <!-- Statistik-Karten -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -78,6 +73,7 @@
 
     </div>
   </main>
+</div>
 
 </body>
 </html>
