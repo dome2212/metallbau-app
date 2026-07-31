@@ -10,68 +10,70 @@
   <!-- Sidebar einbinden -->
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto">
-    <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-slate-800">⏱️ Mein Monatsüberblick</h1>
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-0">
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Mein Monatsüberblick</h1>
     </header>
 
-    <div class="p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
       
       <!-- Statistik-Karten -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         
         <!-- Arbeitsstunden diesen Monat -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
-          <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Arbeitsstunden (Aktueller Monat)</p>
-          <p class="text-3xl font-bold text-slate-800 mt-2"><%= stats.monthTotalHours %> Std.</p>
+        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
+          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Arbeitsstunden (Aktueller Monat)</p>
+          <p class="text-2xl md:text-3xl font-bold text-slate-800 mt-2"><%= stats.monthTotalHours %> Std.</p>
         </div>
 
         <!-- Aktueller Stempelstatus -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
-          <p class="text-sm font-medium text-slate-500 uppercase tracking-wider">Aktueller Status</p>
-          <p class="text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
+        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
+          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Aktueller Status</p>
+          <p class="text-lg md:text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
             <%= stats.isStampedIn ? '🟢 Aktuell eingestempelt' : '🔴 Aktuell ausgestempelt' %>
           </p>
-          <a href="/timetracking" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Stempeluhr &rarr;</a>
+          <a href="/timetracking" class="text-xs text-blue-600 hover:underline mt-2 inline-block font-semibold">Zur Stempeluhr &rarr;</a>
         </div>
 
       </div>
 
       <!-- Letzte Stempel-Aktivitäten -->
-      <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200">
-          <h2 class="text-lg font-semibold text-slate-800">Meine letzten Stempel-Einträge diesen Monat</h2>
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-4 md:px-6 py-4 border-b border-slate-200">
+          <h2 class="text-base md:text-lg font-semibold text-slate-800">Meine letzten Stempel-Einträge diesen Monat</h2>
         </div>
-        <table class="w-full text-left text-sm text-slate-600">
-          <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
-            <tr>
-              <th class="p-4">Aktion</th>
-              <th class="p-4">Zeitpunkt</th>
-              <th class="p-4">Notiz</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-200">
-            <% if (recentLogs && recentLogs.length > 0) { %>
-              <% recentLogs.forEach(log => { %>
-                <tr class="hover:bg-slate-50">
-                  <td class="p-4 font-semibold">
-                    <% if (log.type === 'IN') { %>
-                      <span class="text-green-600 bg-green-50 px-2 py-1 rounded text-xs">Eingestempelt (IN)</span>
-                    <% } else { %>
-                      <span class="text-red-600 bg-red-50 px-2 py-1 rounded text-xs">Ausgestempelt (OUT)</span>
-                    <% } %>
-                  </td>
-                  <td class="p-4"><%= new Date(log.timestamp).toLocaleString('de-DE') %></td>
-                  <td class="p-4 text-slate-500"><%= log.note || '-' %></td>
-                </tr>
-              <% }) %>
-            <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600 min-w-[600px]">
+            <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
               <tr>
-                <td colspan="3" class="p-6 text-center text-slate-400">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+                <th class="p-4">Aktion</th>
+                <th class="p-4">Zeitpunkt</th>
+                <th class="p-4">Notiz</th>
               </tr>
-            <% } %> <!-- Korrigiert: Hier stand vorher nur <% %> -->
-          </tbody>
-        </table>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <% if (typeof recentLogs !== 'undefined' && recentLogs.length > 0) { %>
+                <% recentLogs.forEach(log => { %>
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-4 font-semibold">
+                      <% if (log.type === 'IN') { %>
+                        <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs">Eingestempelt (IN)</span>
+                      <% } else { %>
+                        <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs">Ausgestempelt (OUT)</span>
+                      <% } %>
+                    </td>
+                    <td class="p-4 text-xs md:text-sm"><%= new Date(log.timestamp).toLocaleString('de-DE') %></td>
+                    <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="3" class="p-6 text-center text-slate-400 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>
