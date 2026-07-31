@@ -1,5 +1,5 @@
 <!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
-<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md w-full sticky top-0 z-30">
+<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md w-full fixed top-0 left-0 z-30">
   <button onclick="toggleSidebar()" class="text-sm px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white font-medium flex items-center gap-1">
     ☰ Menü
   </button>
@@ -55,6 +55,9 @@
     </div>
   </div>
 </aside>
+
+<!-- WICHTIG: Abstandhalter oben für Mobil, damit der Inhalt nicht unter der fixierten Menüleiste verschwindet -->
+<div class="md:hidden h-14"></div>
 
 <script>
   function toggleSidebar() {
