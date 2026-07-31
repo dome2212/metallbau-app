@@ -545,7 +545,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// ARBEITSZEITEN PDF EXPORT ROUTE
+// ARBEITSZEITEN PDF EXPORT ROUTE (KORRIGIERT)
 // ==========================================
 app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) => {
   const { user_id, date } = req.query;
@@ -609,12 +609,13 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
 
     // Tabellen-Header
     doc.fontSize(10).font('Helvetica-Bold');
-    doc.text('Datum / Uhrzeit', 50, doc.y, { continued: true, width: 140 });
-    doc.text('Aktion', 190, doc.y, { continued: true, width: 140 });
-    doc.text('Notiz', 330, doc.y, { width: 220 });
+    let startY = doc.y;
+    doc.text('Datum / Uhrzeit', 50, startY, { width: 130 });
+    doc.text('Aktion', 185, startY, { width: 150 });
+    doc.text('Notiz', 345, startY, { width: 200 });
     doc.moveDown(0.5);
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.5);
+    doc.moveDown(0.8);
 
     // Tabelleneinträge
     doc.font('Helvetica').fontSize(9);
@@ -631,11 +632,12 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
           doc.addPage();
         }
 
-        const currentY = doc.y;
-        doc.text(logDate, 50, currentY, { continued: true, width: 140 });
-        doc.text(actionText, 190, currentY, { continued: true, width: 140 });
-        doc.text(noteText, 330, currentY, { width: 220 });
-        doc.moveDown(0.8);
+        const rowY = doc.y;
+        doc.text(logDate, 50, rowY, { width: 130, lineBreak: false });
+        doc.text(actionText, 185, rowY, { width: 150, lineBreak: false });
+        doc.text(noteText, 345, rowY, { width: 200 });
+        
+        doc.moveDown(1.2);
       });
     } else {
       doc.text('Keine Einträge für diesen Filter gefunden.', 50, doc.y);
@@ -1348,4 +1350,3 @@ app.listen(PORT, () => {
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
 });
-
