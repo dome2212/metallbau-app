@@ -445,6 +445,44 @@ app.post('/timetracking/stamp', async (req, res) => {
 });
 
 // ==========================================
+// ARBEITSZEITEN-ÜBERSICHT (Für Sekretariat / Admin)
+// ==========================================
+app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const selectedDate = req.query.date;
+    let query = `
+      SELECT time_logs.*, users.username, 
+             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      FROM time_logs 
+      JOIN users ON time_logs.user_id = users.id 
+    `;
+    let queryParams = [];
+
+    if (selectedDate) {
+      query += ` WHERE DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
+      queryParams.push(selectedDate);
+    }
+
+    query += ` ORDER BY time_logs.timestamp DESC`;
+
+    const result = await dbQuery(query, queryParams);
+    const logs = (result.rows || []).map(log => ({
+      ...log,
+      timestamp: log.local_timestamp || log.timestamp
+    }));
+    
+    res.render('admin-timetracking', { 
+      logs, 
+      selectedDate: selectedDate || '',
+      user: req.session ? req.session.user : req.user 
+    });
+  } catch (err) {
+    console.error('Fehler beim Laden der Zeiterfassung:', err);
+    res.status(500).send("Fehler beim Laden der Zeiterfassung");
+  }
+});
+
+// ==========================================
 // STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
 // ==========================================
 function formatMinutes(totalMinutes) {
