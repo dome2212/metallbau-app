@@ -10,40 +10,9 @@ const db = require('./config/database');
 // Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 
-// Automatische Erstellung der Artikel-Tabelle
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS articles (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    unit TEXT,
-    unit_price NUMERIC(10,2) DEFAULT 0,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle articles existiert bereits:', err.message));
-
-// Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// Multer Storage Setup für Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'metallbau-management',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],
-  },
-});
-
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit
-});
-
-// Universelle Hilfsfunktion für SQLite (lokal) und PostgreSQL (Render)
+// ==========================================
+// HILFSFUNKTION (Muss ganz oben stehen!)
+// ==========================================
 const dbQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     if (process.env.DATABASE_URL) {
@@ -68,20 +37,20 @@ const dbQuery = (sql, params = []) => {
   });
 };
 
-// Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)
-function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+// ==========================================
+// AUTOMATISCHE TABELLEN-ERSTELLUNG BEIM START
+// ==========================================
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    unit TEXT,
+    unit_price NUMERIC(10,2) DEFAULT 0,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle articles existiert bereits:', err.message));
 
-// Automatische Erstellung der Tabellen beim Start
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_photos (
     id SERIAL PRIMARY KEY,
@@ -106,14 +75,6 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_measurements existiert bereits:', err.message));
 
-// Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
-
-// NEU: Tabelle für das Baustellen-Notizbuch
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_notes (
     id SERIAL PRIMARY KEY,
@@ -122,6 +83,48 @@ dbQuery(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
+
+// Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
+dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+
+// ==========================================
+// CLOUDINARY & MULTER KONFIGURATION
+// ==========================================
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'metallbau-management',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'],
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit
+});
+
+// Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
@@ -136,7 +139,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-
 app.use(express.static('public'));
 
 // Öffentliche Routen (Login / Logout)
@@ -464,7 +466,6 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     const selectedDate = req.query.date;
     const selectedUserId = req.query.user_id;
 
-    // Alle Benutzer für das Dropdown-Menü laden
     const usersRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
     const users = usersRes.rows || [];
 
@@ -477,13 +478,11 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     `;
     let queryParams = [];
 
-    // Nach Datum filtern, falls angegeben
     if (selectedDate) {
       query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
       queryParams.push(selectedDate);
     }
 
-    // Nach Mitarbeiter filtern, falls angegeben
     if (selectedUserId) {
       query += ` AND time_logs.user_id = ? `;
       queryParams.push(selectedUserId);
@@ -510,16 +509,9 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-
 // ==========================================
 // STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
 // ==========================================
-function formatMinutes(totalMinutes) {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}:${minutes < 10 ? '0' : ''}${minutes} Std.`;
-}
-
 app.get('/timetracking/admin/monthly', async (req, res) => {
   try {
     const userId = req.user.id;
