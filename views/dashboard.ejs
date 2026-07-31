@@ -1,13 +1,12 @@
 <%- include('partials/header') %>
+<%- include('partials/sidebar') %>
 
-<div class="flex h-screen bg-gray-100">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 p-6 overflow-y-auto">
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">Dashboard - Metallbau Dashboard</h1>
+  <!-- Hauptinhalt mit automatischem linken Abstand auf PCs (md:ml-72) und oberem Abstand für das Handy-Menü -->
+  <main class="flex-1 p-4 md:p-6 md:ml-72 bg-gray-100 min-h-screen pt-16 md:pt-6">
+    <h1 class="text-xl md:text-2xl font-bold text-gray-800 mb-6">Dashboard - Metallbau Dashboard</h1>
 
     <!-- KPI Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
       <div class="bg-white p-5 rounded-lg shadow border-l-4 border-yellow-500">
         <p class="text-sm text-gray-500 font-medium">Offene Angebote</p>
         <p class="text-2xl font-bold text-gray-800"><%= stats.openOffersCount %> (<%= stats.openOffersSum %> €)</p>
@@ -22,47 +21,49 @@
       </div>
     </div>
 
-    <!-- Tabellen-Sektion -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <!-- Tabellen-Sektion mit Scroll-Container für Handys -->
+    <div class="bg-white rounded-lg shadow p-4 md:p-6">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">Letzte Vorgänge</h2>
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="border-b text-sm text-gray-600">
-            <th class="py-2">Dokument-Nr.</th>
-            <th>Typ</th>
-            <th>Kunde</th>
-            <th>Betrag (Brutto)</th>
-            <th>Status</th>
-            <th>Aktion</th>
-          </tr>
-        </thead>
-        <tbody class="text-sm divide-y">
-          <% recentDocs.forEach(doc => { %>
-            <tr>
-              <td class="py-3 font-mono font-medium"><%= doc.doc_number %></td>
-              <td><%= doc.doc_type === 'OFFER' ? 'Angebot' : 'Rechnung' %></td>
-              <td><%= doc.customer_name %></td>
-              <td><%= doc.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %></td>
-              <td>
-                <span class="px-2 py-1 text-xs rounded-full 
-                  <%= doc.status === 'BEZAHLT' ? 'bg-green-100 text-green-800' : 
-                     (doc.status === 'ENTWURF' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800') %>">
-                  <%= doc.status %>
-                </span>
-              </td>
-              <td>
-                <% if (doc.doc_type === 'OFFER' && doc.status !== 'ANGENOMMEN') { %>
-                  <form action="/documents/convert-to-invoice/<%= doc.id %>" method="POST" class="inline">
-                    <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">
-                      In Rechnung wandeln
-                    </button>
-                  </form>
-                <% } %>
-              </td>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[600px]">
+          <thead>
+            <tr class="border-b text-sm text-gray-600">
+              <th class="py-2">Dokument-Nr.</th>
+              <th>Typ</th>
+              <th>Kunde</th>
+              <th>Betrag (Brutto)</th>
+              <th>Status</th>
+              <th>Aktion</th>
             </tr>
-          <% }); %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody class="text-sm divide-y">
+            <% recentDocs.forEach(doc => { %>
+              <tr>
+                <td class="py-3 font-mono font-medium"><%= doc.doc_number %></td>
+                <td><%= doc.doc_type === 'OFFER' ? 'Angebot' : 'Rechnung' %></td>
+                <td><%= doc.customer_name %></td>
+                <td><%= doc.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %></td>
+                <td>
+                  <span class="px-2 py-1 text-xs rounded-full 
+                    <%= doc.status === 'BEZAHLT' ? 'bg-green-100 text-green-800' : 
+                       (doc.status === 'ENTWURF' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800') %>">
+                    <%= doc.status %>
+                  </span>
+                </td>
+                <td>
+                  <% if (doc.doc_type === 'OFFER' && doc.status !== 'ANGENOMMEN') { %>
+                    <form action="/documents/convert-to-invoice/<%= doc.id %>" method="POST" class="inline">
+                      <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">
+                        In Rechnung wandeln
+                      </button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 </div>
