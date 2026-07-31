@@ -36,9 +36,14 @@
           </div>
 
           <!-- Buttons -->
-          <div class="flex gap-2 w-full sm:w-auto">
+          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition flex-1 sm:flex-none">Filtern</button>
             <a href="/admin/timetracking" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none">Zurücksetzen</a>
+            
+            <!-- PDF Download Button (übernimmt aktuelle Filter per Query-Parameter) -->
+            <a href="/admin/timetracking/pdf?user_id=<%= typeof selectedUserId !== 'undefined' ? selectedUserId : '' %>&date=<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none flex items-center justify-center gap-1.5">
+              <span>📄 PDF Export</span>
+            </a>
           </div>
         </form>
       </div>
@@ -81,7 +86,8 @@
                     </td>
                     <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.log_note || log.note || '-' %></td>
                   </tr>
-                <% }) %>
+                <% %>
+              <% }) %>
               <% } else { %>
                 <tr>
                   <td colspan="5" class="p-6 text-center text-slate-400 text-sm">Keine Zeiteinträge für diesen Filter vorhanden.</td>
