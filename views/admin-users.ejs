@@ -1,12 +1,22 @@
-<%- include('header') %>
-<%- include('sidebar') %>
+<!DOCTYPE html>
+ <!-- Hier steht der Inhalt der jeweiligen Seite (z.B. Dashboard, Kunden, etc.) -->
+</main>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen">
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Mitarbeiter-Verwaltung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex h-screen overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto">
     <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">👥 Mitarbeiter-Logins verwalten</h1>
+      <h1 class="text-2xl font-bold text-slate-800">👥 Mitarbeiter-Logins verwalten</h1>
     </header>
 
-    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div class="p-6 max-w-5xl mx-auto w-full space-y-6">
       
       <!-- Formular: Neuen Mitarbeiter anlegen -->
       <div class="bg-white rounded-lg shadow p-6">
@@ -30,48 +40,3 @@
           <div class="md:col-span-3">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded text-sm transition">Account anlegen</button>
           </div>
-        </form>
-      </div>
-
-      <!-- Liste aller bestehenden Accounts -->
-      <div class="bg-white rounded-lg shadow overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-600 min-w-[500px]">
-          <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
-            <tr>
-              <th class="p-4">Benutzername</th>
-              <th class="p-4">Rolle</th>
-              <th class="p-4">Erstellt am</th>
-              <th class="p-4 text-right">Aktion</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-200">
-            <% users.forEach(u => { %>
-              <tr class="hover:bg-slate-50">
-                <td class="p-4 font-semibold text-slate-800"><%= u.username %></td>
-                <td class="p-4">
-                  <span class="px-2 py-1 rounded text-xs font-medium 
-                    <%= u.role === 'ADMIN' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' %>">
-                    <%= u.role === 'ADMIN' ? 'Chef (Admin)' : 'Mitarbeiter' %>
-                  </span>
-                </td>
-                <td class="p-4"><%= new Date(u.created_at).toLocaleDateString('de-DE') %></td>
-                <td class="p-4 text-right">
-                  <% if (u.id !== currentUser.id) { %>
-                    <form action="/admin/users/delete" method="POST" class="inline" onsubmit="return confirm('Account wirklich löschen?');">
-                      <input type="hidden" name="id" value="<%= u.id %>">
-                      <button type="submit" class="text-red-600 hover:underline text-xs font-medium">Löschen</button>
-                    </form>
-                  <% } else { %>
-                    <span class="text-xs text-slate-400 italic">Eingeloggt</span>
-                  <% } %>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-
-    </div>
-  </main>
-</body>
-</html>
