@@ -10,6 +10,18 @@ const db = require('./config/database');
 // Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 
+// Automatische Erstellung der Artikel-Tabelle
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    unit TEXT,
+    unit_price NUMERIC(10,2) DEFAULT 0,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle articles existiert bereits:', err.message));
+
 // Cloudinary Konfiguration (liest automatisch die Umgebungsvariablen von Render aus)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
