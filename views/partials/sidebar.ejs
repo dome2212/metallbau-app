@@ -1,8 +1,15 @@
-<aside class="w-64 bg-slate-800 text-white min-h-screen p-4 flex flex-col justify-between">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-xl">
   <div>
-    <h2 class="text-xl font-bold tracking-wide text-blue-400 mb-6 border-b border-gray-700 pb-3">
-      🔩 Metallbau-gehrmann App
-    </h2>
+    <!-- Mobiler Schließen-Button -->
+    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3 md:block">
+      <h2 class="text-xl font-bold tracking-wide text-blue-400">
+        🔩 Metallbau-gehrmann App
+      </h2>
+      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1">
+        ✕
+      </button>
+    </div>
+
     <nav class="space-y-2">
       <a href="/" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Dashboard</a>
       
@@ -12,14 +19,14 @@
       <a href="/timetracking" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">⏱️ Zeiterfassung</a>
 
       <!-- NUR FÜR CHEFS (ADMIN) -->
-    <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-  <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
-  <a href="/admin/users" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">👥 Mitarbeiter-Logins</a>
-  <a href="/customers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Kunden</a>
-  <a href="/documents/offers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Angebote</a>
-  <a href="/documents/invoices" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Rechnungen</a>
-  <a href="/articles" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Artikelstamm</a>
-<% } %>
+      <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+        <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
+        <a href="/admin/users" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">👥 Mitarbeiter-Logins</a>
+        <a href="/customers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Kunden</a>
+        <a href="/documents/offers" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Angebote</a>
+        <a href="/documents/invoices" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Rechnungen</a>
+        <a href="/articles" class="block px-3 py-2 rounded hover:bg-slate-700 text-gray-300">Artikelstamm</a>
+      <% } %>
     </nav>
   </div>
   
@@ -36,3 +43,23 @@
     </div>
   </div>
 </aside>
+
+<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
+<div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black opacity-50 z-40 hidden md:hidden"></div>
+
+<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
+<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md">
+  <button onclick="toggleSidebar()" class="text-xl px-2 py-1 bg-slate-800 rounded text-white">
+    ☰ Menü
+  </button>
+  <span class="font-bold text-blue-400 text-sm">Metallbau-gehrmann</span>
+</div>
+
+<script>
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    sidebar.classList.toggle('-translate-x-full');
+    backdrop.classList.toggle('hidden');
+  }
+</script>
