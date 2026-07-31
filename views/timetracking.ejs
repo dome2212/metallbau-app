@@ -1,28 +1,19 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <title>Zeiterfassung / Stempeluhr</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-100 flex h-screen overflow-hidden">
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
 
-  <!-- Sidebar einbinden -->
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto">
-    <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
-      <div class="text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
+      <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
     </header>
 
-    <div class="p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
 
       <!-- STAMPEL-KARTE -->
-      <div class="bg-white rounded-lg shadow p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
+      <div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
-            <h2 class="text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
+            <h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
             <p class="text-sm text-slate-500 mt-1">
               Status: 
               <% if (isStampedIn) { %>
@@ -36,9 +27,9 @@
               <% } %>
             </p>
           </div>
-          <div class="mt-4 md:mt-0 text-right">
+          <div class="mt-4 md:mt-0 text-left md:text-right">
             <span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>
-            <span class="text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
+            <span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
           </div>
         </div>
 
@@ -70,11 +61,11 @@
 
           <div class="flex items-center space-x-4 pt-2">
             <% if (!isStampedIn) { %>
-              <button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition flex-1">
+              <button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
                 🟢 Einstempeln (Arbeit beginnen)
               </button>
             <% } else { %>
-              <button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition flex-1">
+              <button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
                 🔴 Ausstempeln (Feierabend / Pause)
               </button>
             <% } %>
@@ -84,11 +75,11 @@
       </div>
 
       <!-- HEUTIGE HISTORIE -->
-      <div class="bg-white rounded-lg shadow p-6">
+      <div class="bg-white rounded-lg shadow p-4 md:p-6">
         <h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
         <% if (todayLogs && todayLogs.length > 0) { %>
           <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-600">
+            <table class="w-full text-left text-sm text-slate-600 min-w-[550px]">
               <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
                 <tr>
                   <th class="p-3">Typ</th>
@@ -130,15 +121,15 @@
 
       <!-- ADMIN BEREICH (Falls Admin) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg shadow p-6">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg shadow p-4 md:p-6">
           <h3 class="text-lg font-semibold text-amber-900 mb-2">👑 Admin-Auswertung & Lohnbuchhaltung</h3>
           <p class="text-sm text-amber-700 mb-4">Hier hast du als Administrator Zugriff auf die Monatsübersichten aller Mitarbeiter und den CSV-Export.</p>
           
-          <div class="flex space-x-4">
-            <a href="/timetracking/admin/report" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded shadow transition">
+          <div class="flex flex-col md:flex-row gap-3">
+            <a href="/timetracking/admin/report" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
               📊 Monatsauswertung öffnen
             </a>
-            <a href="/timetracking/admin/export-csv" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded shadow transition">
+            <a href="/timetracking/admin/export-csv" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
               📥 CSV-Export für Lohnbüro
             </a>
           </div>
