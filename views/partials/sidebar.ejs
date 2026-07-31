@@ -1,4 +1,4 @@
-<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
+<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar)[span_1](start_span)[span_1](end_span) -->
 <div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md w-full fixed top-0 left-0 z-30">
   <button onclick="toggleSidebar()" class="text-sm px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white font-medium flex items-center gap-1">
     ☰ Menü
@@ -6,13 +6,13 @@
   <span class="font-bold text-blue-400 text-sm truncate">Metallbau-Gehrmann</span>
 </div>
 
-<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
+<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist)[span_2](start_span)[span_2](end_span) -->
 <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
 
-<!-- Die eigentliche Sidebar -->
+<!-- Die eigentliche Sidebar[span_3](start_span)[span_3](end_span) -->
 <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl">
   <div>
-    <!-- Kopfbereich mit Schließen-Button für Mobil -->
+    <!-- Kopfbereich mit Schließen-Button für Mobil[span_4](start_span)[span_4](end_span) -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
       <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">
         🔩 Metallbau-Gehrmann
@@ -25,15 +25,16 @@
     <nav class="space-y-1.5">
       <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Dashboard</a>
       
-      <!-- Für Alle sichtbar -->
+      <!-- Für Alle sichtbar[span_5](start_span)[span_5](end_span) -->
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
 
-      <!-- NUR FÜR CHEFS (ADMIN) -->
+      <!-- NUR FÜR CHEFS (ADMIN)[span_6](start_span)[span_6](end_span) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
         <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
+        <a href="/admin/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Arbeitszeiten-Übersicht</a>
         <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Kunden</a>
         <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Angebote</a>
         <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Rechnungen</a>
@@ -56,7 +57,7 @@
   </div>
 </aside>
 
-<!-- WICHTIG: Abstandhalter oben für Mobil, damit der Inhalt nicht unter der fixierten Menüleiste verschwindet -->
+<!-- WICHTIG: Abstandhalter oben für Mobil, damit der Inhalt nicht unter der fixierten Menüleiste verschwindet[span_7](start_span)[span_7](end_span) -->
 <div class="md:hidden h-14"></div>
 
 <script>
