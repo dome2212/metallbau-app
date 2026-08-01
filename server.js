@@ -1,5 +1,5 @@
 const express = require('express');
-const path = path = require('path');
+const path = require('path');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
