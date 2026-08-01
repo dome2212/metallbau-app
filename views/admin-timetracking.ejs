@@ -1,7 +1,7 @@
-<%- include('partials/header') %>[cite: 7]
+<%- include('partials/header') %>
 
 <div class="flex h-screen bg-slate-100 overflow-hidden">
-  <%- include('partials/sidebar') %>[cite: 7]
+  <%- include('partials/sidebar') %>
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -37,10 +37,10 @@
             </select>
           </div>
 
-          <!-- Datum -->
+          <!-- Datum (Sicherer Ansatz für deutsche Lokalzeit) -->
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Datum</label>
-            <input type="date" name="date" required value="<%= new Date().toISOString().split('T')[0] %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <input type="date" name="date" required value="<%= new Date().toLocaleDateString('sv-SE') %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Uhrzeit -->
@@ -89,7 +89,7 @@
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition flex-1 sm:flex-none">Filtern</button>
             <a href="/admin/timetracking" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none">Zurücksetzen</a>
             
-            <!-- PDF Download Button (übernimmt aktuelle Filter per Query-Parameter) -->
+            <!-- PDF Download Button -->
             <a href="/admin/timetracking/pdf?user_id=<%= typeof selectedUserId !== 'undefined' ? selectedUserId : '' %>&date=<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none flex items-center justify-center gap-1.5">
               <span>📄 PDF Export</span>
             </a>
@@ -101,7 +101,7 @@
       <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 md:px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 class="text-base md:text-lg font-semibold text-slate-800">Erfasste Einträge</h2>
-          <span class="text-xs text-slate-500">Datum & Uhrzeit</span>
+          <span class="text-xs text-slate-500">Datum & Uhrzeit (Berlin)</span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-600 min-w-[700px]">
@@ -119,9 +119,24 @@
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
                   <% 
-                    const logDate = new Date(log.timestamp);
-                    const formattedDate = logDate.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
-                    const formattedTime = logDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    // Direktes Parsen des sauberen Berlin-Strings aus der DB (verhindert Browser-Zeitzonenfehler)
+                    let rawTimeStr = log.timestamp; 
+                    if (log.local_timestamp) {
+                      rawTimeStr = log.local_timestamp;
+                    }
+                    // Falls das Format 'YYYY-MM-DD HH:MM:SS' ist:
+                    let formattedDate = '-';
+                    let formattedTime = '-';
+                    if (rawTimeStr && typeof rawTimeStr === 'string' && rawTimeStr.includes(' ')) {
+                      const parts = rawTimeStr.split(' ');
+                      const dateParts = parts[0].split('-');
+                      formattedDate = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`;
+                      formattedTime = parts[1].substring(0, 5);
+                    } else if (rawTimeStr) {
+                      const d = new Date(rawTimeStr);
+                      formattedDate = d.toLocaleDateString('de-DE');
+                      formattedTime = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    }
                   %>
                   <tr class="hover:bg-slate-50">
                     <td class="p-4 font-medium text-slate-800"><%= formattedDate %></td>
