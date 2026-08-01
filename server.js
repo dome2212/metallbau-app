@@ -545,7 +545,7 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
 });
 
 // ==========================================
-// URLAUBSVERWALTUNG (Vacations) [KORRIGIERT]
+// URLAUBSVERWALTUNG (Vacations) [AKTUALISIERT]
 // ==========================================
 app.get('/vacations', async (req, res) => {
   const userId = req.user.id;
@@ -573,8 +573,9 @@ app.get('/vacations', async (req, res) => {
 
     res.render('vacations', { 
       vacations: vacationsRes.rows || [],
-      users: usersRes.rows || [], // Hier wird 'users' nun fehlerfrei übergeben!
-      user: req.user 
+      users: usersRes.rows || [], 
+      user: req.user,
+      currentUser: req.user // Wichtig für die Admin-Abfrage im Frontend
     });
   } catch (err) {
     console.error('Fehler beim Laden der Urlaubsübersicht:', err.message);
@@ -593,6 +594,30 @@ app.post('/vacations/add', async (req, res) => {
   } catch (err) {
     console.error('Fehler beim Speichern des Urlaubsantrags:', err.message);
     res.status(500).send('Fehler beim Speichern');
+  }
+});
+
+// NEU: Status ändern (Genehmigen / Ablehnen)[cite: 6]
+app.post('/vacations/status', verifyToken, requireAdmin, async (req, res) => {
+  const { id, status } = req.body;
+  try {
+    await dbQuery('UPDATE vacations SET status = ? WHERE id = ?', [status, id]);
+    res.redirect('/vacations');
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren des Urlaubsstatus:', err.message);
+    res.status(500).send('Fehler beim Aktualisieren des Status');
+  }
+});
+
+// NEU: Urlaubsantrag löschen[cite: 6]
+app.post('/vacations/delete', verifyToken, requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  try {
+    await dbQuery('DELETE FROM vacations WHERE id = ?', [id]);
+    res.redirect('/vacations');
+  } catch (err) {
+    console.error('Fehler beim Löschen des Urlaubsantrags:', err.message);
+    res.status(500).send('Fehler beim Löschen');
   }
 });
 
