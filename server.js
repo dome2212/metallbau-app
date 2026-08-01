@@ -384,7 +384,7 @@ app.post('/projects/files/delete', async (req, res) => {
 });
 
 // ==========================================
-// KUNDEN-DATEIEN LÖSCHEN (Falls benötigt)
+// KUNDEN-DATEIEN LÖSCHEN
 // ==========================================
 app.post('/customers/files/delete', async (req, res) => {
   const { file_id, customer_id } = req.body;
@@ -395,7 +395,6 @@ app.post('/customers/files/delete', async (req, res) => {
   }
   res.redirect(`/customers/${customer_id}/projects`);
 });
-
 
 // ==========================================
 // ZEITERFASSUNG / STEMPELUHR
@@ -459,7 +458,6 @@ app.get('/timetracking', async (req, res) => {
       display_time: log.local_timestamp ? log.local_timestamp.split(' ')[1].substring(0, 5) : ''
     }));
 
-    // Kunden für das Dropdown laden
     const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
 
     res.render('timetracking', {
@@ -477,14 +475,13 @@ app.get('/timetracking', async (req, res) => {
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
-  const userRole = req.user.role; // Rolle des Nutzers ermitteln
+  const userRole = req.user.role;
   const { type, note, customer_id, latitude, longitude } = req.body;
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
-  // GPS-Prüfung nur durchführen, wenn es sich um einen normalen Mitarbeiter handelt
   if (type === 'IN' && userRole !== 'ADMIN') {
     if (!latitude || !longitude) {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
@@ -524,9 +521,6 @@ app.post('/timetracking/stamp', async (req, res) => {
   }
 });
 
-// ==========================================
-// STEMPEL-EINTRAG LÖSCHEN (Nur für Admins)
-// ==========================================
 app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, res) => {
   const { log_id } = req.body;
   try {
@@ -538,9 +532,6 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
   }
 });
 
-// ==========================================
-// ARBEITSZEITEN-ÜBERSICHT (Für Sekretariat / Admin)
-// ==========================================
 app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   try {
     const selectedDate = req.query.date;
@@ -589,9 +580,6 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// ==========================================
-// ARBEITSZEITEN PDF EXPORT ROUTE (KORRIGIERT)
-// ==========================================
 app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) => {
   const { user_id, date } = req.query;
 
@@ -623,7 +611,6 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
       timestamp: log.local_timestamp || log.timestamp
     }));
 
-    // Mitarbeiter-Namen für die Überschrift ermitteln
     let employeeName = 'Alle Mitarbeiter';
     if (user_id) {
       const userRes = await dbQuery('SELECT username FROM users WHERE id = ?', [user_id]);
@@ -643,7 +630,6 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
 
     doc.pipe(res);
 
-    // PDF-Kopfbereich
     doc.fontSize(18).font('Helvetica-Bold').text('Arbeitszeiten-Übersicht', { align: 'left' });
     doc.fontSize(12).font('Helvetica').text(`Mitarbeiter: ${employeeName}`, { align: 'left' });
     if (date) {
@@ -652,7 +638,6 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     doc.fontSize(9).text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
     doc.moveDown(1.5);
 
-    // Tabellen-Header
     doc.fontSize(10).font('Helvetica-Bold');
     let startY = doc.y;
     doc.text('Datum / Uhrzeit', 50, startY, { width: 130 });
@@ -662,7 +647,6 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.8);
 
-    // Tabelleneinträge
     doc.font('Helvetica').fontSize(9);
     if (logs && logs.length > 0) {
       logs.forEach(log => {
@@ -696,10 +680,6 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
   }
 });
 
-
-// ==========================================
-// STEMPELUHR: MONATSAUSWERTUNG & CSV-EXPORT
-// ==========================================
 app.get('/timetracking/admin/monthly', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1004,7 +984,6 @@ app.get('/projects/board', async (req, res) => {
     const projRes = await dbQuery(sql);
     const projects = projRes.rows || [];
 
-    // Projekte nach Status gruppieren
     const columns = {
       'In Planung': projects.filter(p => p.status === 'In Planung' || !p.status),
       'Avor / Vorbereitung': projects.filter(p => p.status === 'Avor / Vorbereitung'),
@@ -1020,7 +999,6 @@ app.get('/projects/board', async (req, res) => {
     res.status(500).send('Datenbankfehler');
   }
 });
-
 
 // ==========================================
 // RECHNUNGSVERWALTUNG & MAHNWESEN
@@ -1313,9 +1291,6 @@ app.post('/projects/add', async (req, res) => {
   }
 });
 
-// ==========================================
-// NEUE ROUTE: STATUS DIREKT AKTUALISIEREN
-// ==========================================
 app.post('/projects/update-status', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
 
