@@ -111,6 +111,16 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle vacations existiert bereits:', err.message));
 
+// NEU: Tabelle für den Live-Ticker / Pinnwand
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS tickers (
+    id SERIAL PRIMARY KEY,
+    message TEXT NOT NULL,
+    author TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle tickers existiert bereits:', err.message));
+
 // Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
@@ -1545,6 +1555,53 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
     await dbQuery('DELETE FROM users WHERE id = ?', [id]);
     res.redirect('/admin/users');
   } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
+});
+
+// ==========================================
+// TICKER / INFOBRET-ROUTEN
+// ==========================================
+app.get('/ticker', async (req, res) => {
+  try {
+    const result = await dbQuery(`
+      SELECT tickers.*, 
+             TO_CHAR(tickers.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'DD.MM.YYYY HH24:MI') as formatted_date 
+      FROM tickers 
+      ORDER BY created_at DESC
+    `);
+    res.render('ticker', { tickers: result.rows || [], user: req.user });
+  } catch (err) {
+    console.error('Fehler beim Laden des Tickers:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+app.post('/ticker/add', async (req, res) => {
+  const { message } = req.body;
+  const author = req.user ? req.user.username : 'Unbekannt';
+
+  if (!message || message.trim() === '') {
+    return res.redirect('/ticker');
+  }
+
+  try {
+    const sql = `INSERT INTO tickers (message, author) VALUES (?, ?)`;
+    await dbQuery(sql, [message.trim(), author]);
+    res.redirect('/ticker');
+  } catch (err) {
+    console.error('Fehler beim Hinzufügen der Ticker-Meldung:', err.message);
+    res.status(500).send('Fehler beim Speichern');
+  }
+});
+
+app.post('/ticker/delete', verifyToken, requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  try {
+    await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
+    res.redirect('/ticker');
+  } catch (err) {
+    console.error('Fehler beim Löschen der Ticker-Meldung:', err.message);
     res.status(500).send('Fehler beim Löschen');
   }
 });
