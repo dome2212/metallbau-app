@@ -97,6 +97,20 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
 
+// NEUE DATENBANK-TABELLE FÜR DEN TICKER (Aufgaben & Mängel)
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_tasks (
+    id SERIAL PRIMARY KEY,
+    project_id INT,
+    title TEXT NOT NULL,
+    category TEXT DEFAULT 'Restarbeit',
+    description TEXT,
+    photo_url TEXT,
+    status TEXT DEFAULT 'Offen',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
+
 dbQuery(`
   CREATE TABLE IF NOT EXISTS vacations (
     id SERIAL PRIMARY KEY,
@@ -110,21 +124,6 @@ dbQuery(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).catch(err => console.log('Tabelle vacations existiert bereits:', err.message));
-
-// NEU: Tabelle für Baustellen-Aufgaben, Restarbeiten & Mängel
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS project_tasks (
-    id SERIAL PRIMARY KEY,
-    project_id INT NOT NULL,
-    user_id INT,
-    title TEXT NOT NULL,
-    description TEXT,
-    category TEXT DEFAULT 'Restarbeit',
-    status TEXT DEFAULT 'Offen',
-    photo_url TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
 
 // Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
@@ -366,6 +365,52 @@ app.post('/projects/measurements/delete', async (req, res) => {
 });
 
 // ==========================================
+// NEUE ROUTEN FÜR DEN TICKER (Aufgaben & Mängel)
+// ==========================================
+app.post('/projects/:id/tasks/add', upload.single('photo'), async (req, res) => {
+  const projectId = req.params.id;
+  const { title, category, description } = req.body;
+
+  if (!title || title.trim() === '') return res.redirect(`/projects/${projectId}`);
+
+  let photoUrl = null;
+  if (req.file) {
+    photoUrl = req.file.path;
+  }
+
+  try {
+    const sql = `
+      INSERT INTO project_tasks (project_id, title, category, description, photo_url, status)
+      VALUES (?, ?, ?, ?, ?, 'Offen')
+    `;
+    await dbQuery(sql, [projectId, title.trim(), category || 'Restarbeit', description || null, photoUrl]);
+  } catch (err) {
+    console.error('Fehler beim Hinzufügen der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+app.post('/projects/tasks/status', async (req, res) => {
+  const { task_id, project_id, status } = req.body;
+  try {
+    await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status, task_id]);
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren des Aufgaben-Status:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+app.post('/projects/tasks/delete', async (req, res) => {
+  const { task_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
 // BAUSTELLEN-NOTIZBUCH
 // ==========================================
 app.post('/projects/:id/notes/add', async (req, res) => {
@@ -430,53 +475,6 @@ app.post('/customers/files/delete', async (req, res) => {
     console.error('Fehler beim Löschen der Kundendatei:', err.message);
   }
   res.redirect(`/customers/${customer_id}/projects`);
-});
-
-// ==========================================
-// BAUSTELLEN-AUFGABEN, RESTARBEITEN & MÄNGEL TICKER
-// ==========================================
-app.post('/projects/:id/tasks/add', upload.single('photo'), async (req, res) => {
-  const projectId = req.params.id;
-  const userId = req.user.id;
-  const { title, description, category } = req.body;
-
-  if (!title) return res.redirect(`/projects/${projectId}`);
-
-  let photoUrl = null;
-  if (req.file) {
-    photoUrl = req.file.path;
-  }
-
-  try {
-    const sql = `
-      INSERT INTO project_tasks (project_id, user_id, title, description, category, photo_url, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'Offen')
-    `;
-    await dbQuery(sql, [projectId, userId, title, description || null, category || 'Restarbeit', photoUrl]);
-  } catch (err) {
-    console.error('Fehler beim Speichern der Aufgabe:', err.message);
-  }
-  res.redirect(`/projects/${projectId}`);
-});
-
-app.post('/projects/tasks/status', async (req, res) => {
-  const { task_id, project_id, status } = req.body;
-  try {
-    await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status, task_id]);
-  } catch (err) {
-    console.error('Fehler beim Aktualisieren der Aufgabe:', err.message);
-  }
-  res.redirect(`/projects/${project_id}`);
-});
-
-app.post('/projects/tasks/delete', async (req, res) => {
-  const { task_id, project_id } = req.body;
-  try {
-    await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]);
-  } catch (err) {
-    console.error('Fehler beim Löschen der Aufgabe:', err.message);
-  }
-  res.redirect(`/projects/${project_id}`);
 });
 
 // ==========================================
