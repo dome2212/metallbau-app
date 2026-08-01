@@ -1,66 +1,103 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <title>Werkstatt Kanban-Board</title>
-    <link rel="stylesheet" href="/css/style.css"> <!-- Falls CSS vorhanden -->
-    <style>
-        .kanban-container { display: flex; gap: 15px; overflow-x: auto; padding: 20px 0; }
-        .kanban-column { background: #f4f5f7; border-radius: 6px; width: 280px; min-width: 280px; padding: 15px; display: flex; flex-direction: column; max-height: 80vh; overflow-y: auto; }
-        .kanban-column h3 { font-size: 16px; margin-top: 0; color: #333; border-bottom: 2px solid #ccc; padding-bottom: 8px; }
-        .kanban-card { background: #fff; border-radius: 4px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .kanban-card h4 { margin: 0 0 8px 0; font-size: 14px; }
-        .kanban-card p { margin: 4px 0; font-size: 12px; color: #666; }
-        .kanban-actions { margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .kanban-actions select { font-size: 11px; padding: 2px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Werkstatt Kanban-Board - Metallbau-Gehrmann</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2563eb">
 </head>
-<body>
-    <div class="container" style="max-width: 100%;">
-        <h1>Werkstatt Kanban-Board</h1>
-        <p><a href="/projects">Zurück zur Tabellenansicht</a> | <a href="/">Dashboard</a></p>
+<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen">
 
-        <div class="kanban-container">
-            <% 
-              const statuses = [
-                { key: 'In Planung', label: 'In Planung' },
-                { key: 'Avor / Vorbereitung', label: 'Avor / Vorbereitung' },
-                { key: 'In Produktion', label: 'In Produktion (Schlosserei)' },
-                { key: 'Oberfläche', label: 'Oberfläche (Verzinken/Lack)' },
-                { key: 'Montagebereit', label: 'Montagebereit' },
-                { key: 'Abgeschlossen', label: 'Abgeschlossen' }
-              ];
-            %>
+  <!-- Sidebar einbinden -->
+  <%- include('partials/sidebar') %>
 
-            <% statuses.forEach(col => { %>
-                <div class="kanban-column">
-                    <h3><%= col.label %> (<%= columns[col.key] ? columns[col.key].length : 0 %>)</h3>
-                    
-                    <% if (columns[col.key] && columns[col.key].length > 0) { %>
-                        <% columns[col.key].forEach(project => { %>
-                            <div class="kanban-card">
-                                <h4><a href="/projects/<%= project.id %>"><%= project.title %></a></h4>
-                                <p><strong>Kunde:</strong> <%= project.company_name || project.contact_person || 'Unbekannt' %></p>
-                                <p><strong>Wert:</strong> <%= Number(project.total_price || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) %></p>
-                                
-                                <div class="kanban-actions">
-                                    <form action="/projects/update-status" method="POST">
-                                        <input type="hidden" name="id" value="<%= project.id %>">
-                                        <select name="status" onchange="this.form.submit()">
-                                            <% statuses.forEach(s => { %>
-                                                <option value="<%= s.key %>" <%= project.status === s.key ? 'selected' : '' %>><%= s.label %></option>
-                                            <% }) %>
-                                        </select>
-                                    </form>
-                                </div>
-                            </div>
-                        <% }) %>
-                    <% } else { %>
-                        <p style="font-size: 12px; color: #999; font-style: italic;">Keine Aufträge</p>
-                    <% } %>
-                </div>
-            <% }) %>
-        </div>
+  <!-- Hauptinhalt -->
+  <main class="flex-1 p-4 md:p-8 max-w-full overflow-x-hidden">
+    
+    <!-- Kopfbereich -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Werkstatt Kanban-Board</h1>
+        <p class="text-sm text-gray-500">Übersicht der Fertigungsphasen und Baustellen</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="/projects" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-medium transition">
+          📄 Zur Tabellenansicht
+        </a>
+      </div>
     </div>
+
+    <!-- Kanban Spalten Container -->
+    <div class="flex gap-4 overflow-x-auto pb-6 items-start">
+      <% 
+        const statuses = [
+          { key: 'In Planung', label: 'In Planung', color: 'border-slate-400 bg-slate-50' },
+          { key: 'Avor / Vorbereitung', label: 'Avor / Vorbereitung', color: 'border-blue-400 bg-blue-50/30' },
+          { key: 'In Produktion', label: 'In Produktion (Schlosserei)', color: 'border-amber-400 bg-amber-50/30' },
+          { key: 'Oberfläche', label: 'Oberfläche (Verzinken/Lack)', color: 'border-purple-400 bg-purple-50/30' },
+          { key: 'Montagebereit', label: 'Montagebereit', color: 'border-emerald-400 bg-emerald-50/30' },
+          { key: 'Abgeschlossen', label: 'Abgeschlossen', color: 'border-gray-400 bg-gray-50' }
+        ];
+      %>
+
+      <% statuses.forEach(col => { %>
+        <div class="bg-gray-200/70 rounded-xl w-80 min-w-[320px] p-3 flex flex-col max-h-[calc(100vh-180px)] shadow-sm border-t-4 <%= col.color %>">
+          
+          <!-- Spalten-Überschrift -->
+          <div class="flex justify-between items-center mb-3 px-1">
+            <h3 class="font-bold text-gray-700 text-sm"><%= col.label %></h3>
+            <span class="bg-gray-300 text-gray-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+              <%= columns[col.key] ? columns[col.key].length : 0 %>
+            </span>
+          </div>
+
+          <!-- Karten-Container -->
+          <div class="overflow-y-auto space-y-3 flex-1 pr-1">
+            <% if (columns[col.key] && columns[col.key].length > 0) { %>
+              <% columns[col.key].forEach(project => { %>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
+                  
+                  <h4 class="font-bold text-blue-600 text-sm mb-1">
+                    <a href="/projects/<%= project.id %>" class="hover:underline"><%= project.title %></a>
+                  </h4>
+                  
+                  <p class="text-xs text-gray-600 mb-1">
+                    <strong class="text-gray-700">Kunde:</strong> <%= project.company_name || project.contact_person || 'Unbekannt' %>
+                  </p>
+                  
+                  <p class="text-xs text-gray-600 mb-3">
+                    <strong class="text-gray-700">Wert:</strong> <%= Number(project.total_price || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) %>
+                  </p>
+                  
+                  <!-- Status-Wechsel direkt auf der Karte -->
+                  <div class="border-t border-gray-100 pt-2 mt-2">
+                    <form action="/projects/update-status" method="POST">
+                      <input type="hidden" name="id" value="<%= project.id %>">
+                      <select name="status" onchange="this.form.submit()" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-1.5 text-gray-700 focus:outline-none focus:border-blue-500 font-medium">
+                        <% statuses.forEach(s => { %>
+                          <option value="<%= s.key %>" <%= project.status === s.key ? 'selected' : '' %>><%= s.label %></option>
+                        <% }) %>
+                      </select>
+                    </form>
+                  </div>
+
+                </div>
+              <% }) %>
+            <% } else { %>
+              <div class="text-center py-8 text-gray-400 text-xs italic bg-white/50 rounded-lg border border-dashed border-gray-300">
+                Keine Aufträge
+              </div>
+            <% } %>
+          </div>
+
+        </div>
+      <% %>
+      <% }) %>
+    </div>
+
+  </main>
+
 </body>
 </html>
