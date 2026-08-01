@@ -3,134 +3,142 @@
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
-      <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
+      <div class="flex items-center gap-3">
+        <!-- ZURÜCK-BUTTON -->
+        <button onclick="history.back()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>[span_3](start_span)[span_3](end_span)
+      </div>
+      <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>[span_4](start_span)[span_4](end_span)
     </header>
 
-    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">[span_5](start_span)[span_5](end_span)
 
       <!-- STAMPEL-KARTE -->
-      <div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">[span_6](start_span)[span_6](end_span)
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">[span_7](start_span)[span_7](end_span)
           <div>
-            <h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
+            <h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>[span_8](start_span)[span_8](end_span)
             <p class="text-sm text-slate-500 mt-1">
-              Status: 
-              <% if (isStampedIn) { %>
+              Status:[span_9](start_span)[span_9](end_span)
+              <% if (isStampedIn) { %>[span_10](start_span)[span_10](end_span)
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Eingestempelt seit <%= lastStampTime %> Uhr
+                  Eingestempelt seit <%= lastStampTime %> Uhr[span_11](start_span)[span_11](end_span)
                 </span>
               <% } else { %>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                  Ausgestempelt
+                  Ausgestempelt[span_12](start_span)[span_12](end_span)
                 </span>
               <% } %>
             </p>
           </div>
-          <div class="mt-4 md:mt-0 text-left md:text-right">
-            <span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>
-            <span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
+          <div class="mt-4 md:mt-0 text-left md:text-right">[span_13](start_span)[span_13](end_span)
+            <span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>[span_14](start_span)[span_14](end_span)
+            <span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>[span_15](start_span)[span_15](end_span)
           </div>
         </div>
 
         <!-- Formular zum Stempeln -->
-        <form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">
-          <input type="hidden" name="latitude" id="latitude">
-          <input type="hidden" name="longitude" id="longitude">
+        <form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">[span_16](start_span)[span_16](end_span)
+          <input type="hidden" name="latitude" id="latitude">[span_17](start_span)[span_17](end_span)
+          <input type="hidden" name="longitude" id="longitude">[span_18](start_span)[span_18](end_span)
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">[span_19](start_span)[span_19](end_span)
             <!-- Projekt- oder Kundenbezug -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>
-              <select name="customer_id" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-                <option value="">-- Allgemein / Werkstatt --</option>
-                <% if (typeof customers !== 'undefined') { %>
-                  <% customers.forEach(cust => { %>
-                    <option value="<%= cust.id %>"><%= cust.company_name || cust.contact_person %></option>
-                  <% }) %>
-                <% } %>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>[span_20](start_span)[span_20](end_span)
+              <select name="customer_id" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">[span_21](start_span)[span_21](end_span)
+                <option value="">-- Allgemein / Werkstatt --</option>[span_22](start_span)[span_22](end_span)
+                <% if (typeof customers !== 'undefined') { %>[span_23](start_span)[span_23](end_span)
+                  <% customers.forEach(cust => { %>[span_24](start_span)[span_24](end_span)
+                    <option value="<%= cust.id %>"><%= cust.company_name || cust.contact_person %></option>[span_25](start_span)[span_25](end_span)
+                  <% }) %>[span_26](start_span)[span_26](end_span)
+                <% } %>[span_27](start_span)[span_27](end_span)
               </select>
             </div>
 
             <!-- Notiz / Beschreibung -->
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>
-              <input type="text" name="note" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>[span_28](start_span)[span_28](end_span)
+              <input type="text" name="note" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">[span_29](start_span)[span_29](end_span)
             </div>
           </div>
 
-          <div class="flex items-center space-x-4 pt-2">
-            <% if (!isStampedIn) { %>
+          <div class="flex items-center space-x-4 pt-2">[span_30](start_span)[span_30](end_span)
+            <% if (!isStampedIn) { %>[span_31](start_span)[span_31](end_span)
               <button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
-                🟢 Einstempeln (Arbeit beginnen)
+                🟢 Einstempeln (Arbeit beginnen)[span_32](start_span)[span_32](end_span)
               </button>
             <% } else { %>
               <button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
-                🔴 Ausstempeln (Feierabend / Pause)
+                🔴 Ausstempeln (Feierabend / Pause)[span_33](start_span)[span_33](end_span)
               </button>
             <% } %>
           </div>
-          <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
+          <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>[span_34](start_span)[span_34](end_span)
         </form>
       </div>
 
       <!-- HEUTIGE HISTORIE -->
-      <div class="bg-white rounded-lg shadow p-4 md:p-6">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
-        <% if (todayLogs && todayLogs.length > 0) { %>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-600 min-w-[550px]">
-              <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+      <div class="bg-white rounded-lg shadow p-4 md:p-6">[span_35](start_span)[span_35](end_span)
+        <h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>[span_36](start_span)[span_36](end_span)
+        <% if (todayLogs && todayLogs.length > 0) { %>[span_37](start_span)[span_37](end_span)
+          <div class="overflow-x-auto">[span_38](start_span)[span_38](end_span)
+            <table class="w-full text-left text-sm text-slate-600 min-w-[550px]">[span_39](start_span)[span_39](end_span)
+              <thead class="bg-slate-50 text-slate-700 uppercase text-xs">[span_40](start_span)[span_40](end_span)
                 <tr>
-                  <th class="p-3">Typ</th>
-                  <th class="p-3">Uhrzeit</th>
-                  <th class="p-3">Projekt / Kunde</th>
-                  <th class="p-3">Notiz</th>
-                  <th class="p-3">GPS-Standort</th>
+                  <th class="p-3">Typ</th>[span_41](start_span)[span_41](end_span)
+                  <th class="p-3">Uhrzeit</th>[span_42](start_span)[span_42](end_span)
+                  <th class="p-3">Projekt / Kunde</th>[span_43](start_span)[span_43](end_span)
+                  <th class="p-3">Notiz</th>[span_44](start_span)[span_44](end_span)
+                  <th class="p-3">GPS-Standort</th>[span_45](start_span)[span_45](end_span)
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-200">
-                <% todayLogs.forEach(log => { %>
+              <tbody class="divide-y divide-slate-200">[span_46](start_span)[span_46](end_span)
+                <% todayLogs.forEach(log => { %>[span_47](start_span)[span_47](end_span)
                   <tr>
-                    <td class="p-3 font-semibold">
-                      <% if (log.type === 'IN') { %>
-                        <span class="text-green-600">Eingestempelt (IN)</span>
+                    <td class="p-3 font-semibold">[span_48](start_span)[span_48](end_span)
+                      <% if (log.type === 'IN') { %>[span_49](start_span)[span_49](end_span)
+                        <span class="text-green-600">Eingestempelt (IN)</span>[span_50](start_span)[span_50](end_span)
                       <% } else { %>
-                        <span class="text-red-600">Ausgestempelt (OUT)</span>
+                        <span class="text-red-600">Ausgestempelt (OUT)</span>[span_51](start_span)[span_51](end_span)
                       <% } %>
                     </td>
-                    <td class="p-3"><%= new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %></td>
-                    <td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>
-                    <td class="p-3"><%= log.note || '-' %></td>
-                    <td class="p-3 text-xs text-slate-400">
-                      <% if (log.latitude && log.longitude) { %>
-                        Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
+                    <td class="p-3"><%= new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %></td>[span_52](start_span)[span_52](end_span)
+                    <td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>[span_53](start_span)[span_53](end_span)
+                    <td class="p-3"><%= log.note || '-' %></td>[span_54](start_span)[span_54](end_span)
+                    <td class="p-3 text-xs text-slate-400">[span_55](start_span)[span_55](end_span)
+                      <% if (log.latitude && log.longitude) { %>[span_56](start_span)[span_56](end_span)
+                        Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>[span_57](start_span)[span_57](end_span)
                       <% } else { %>
-                        -
+                        -[span_58](start_span)[span_58](end_span)
                       <% } %>
                     </td>
                   </tr>
-                <% }) %>
+                <% }) %>[span_59](start_span)[span_59](end_span)
               </tbody>
             </table>
           </div>
         <% } else { %>
-          <p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>
+          <p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>[span_60](start_span)[span_60](end_span)
         <% } %>
       </div>
 
       <!-- ADMIN BEREICH (Falls Admin) -->
-      <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg shadow p-4 md:p-6">
-          <h3 class="text-lg font-semibold text-amber-900 mb-2">👑 Admin-Auswertung & Lohnbuchhaltung</h3>
-          <p class="text-sm text-amber-700 mb-4">Hier hast du als Administrator Zugriff auf die Monatsübersichten aller Mitarbeiter und den CSV-Export.</p>
+      <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>[span_61](start_span)[span_61](end_span)
+        <div class="bg-amber-50 border border-amber-200 rounded-lg shadow p-4 md:p-6">[span_62](start_span)[span_62](end_span)
+          <h3 class="text-lg font-semibold text-amber-900 mb-2">👑 Admin-Auswertung & Lohnbuchhaltung</h3>[span_63](start_span)[span_63](end_span)
+          <p class="text-sm text-amber-700 mb-4">Hier hast du als Administrator Zugriff auf die Monatsübersichten aller Mitarbeiter und den CSV-Export.</p>[span_64](start_span)[span_64](end_span)
           
-          <div class="flex flex-col md:flex-row gap-3">
-            <a href="/timetracking/admin/report" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
-              📊 Monatsauswertung öffnen
+          <div class="flex flex-col md:flex-row gap-3">[span_65](start_span)[span_65](end_span)
+            <a href="/timetracking/admin/report" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">[span_66](start_span)[span_66](end_span)
+              📊 Monatsauswertung öffnen[span_67](start_span)[span_67](end_span)
             </a>
-            <a href="/timetracking/admin/export-csv" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
-              📥 CSV-Export für Lohnbüro
+            <a href="/timetracking/admin/export-csv" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">[span_68](start_span)[span_68](end_span)
+              📥 CSV-Export für Lohnbüro[span_69](start_span)[span_69](end_span)
             </a>
           </div>
         </div>
@@ -144,7 +152,7 @@
     setInterval(() => {
       const now = new Date();
       document.getElementById('live-clock').innerText = 'Aktuelle Uhrzeit: ' + now.toLocaleTimeString('de-DE');
-    }, 1000);
+    }, 1000);[span_70](start_span)[span_70](end_span)
 
     // Optional: GPS-Standort beim Absenden ermitteln
     if (navigator.geolocation) {
@@ -162,8 +170,8 @@
         { timeout: 10000 }
       );
     } else {
-      document.getElementById('gps-status').innerText = 'Geolocation wird von diesem Browser nicht unterstützt.';
+      document.getElementById('gps-status').innerText = 'Geolocation wird von diesem Browser nicht unterstützt.';[span_71](start_span)[span_71](end_span)
     }
   </script>
 </body>
-</html>
+</html>[span_72](start_span)[span_72](end_span)
