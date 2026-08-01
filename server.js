@@ -715,7 +715,7 @@ app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) 
 
     const sql = `
       INSERT INTO time_logs (user_id, type, note, timestamp) 
-      VALUES (?, ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin')
+      VALUES (?, ?, ?, (TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin') AT TIME ZONE 'UTC')
     `;
     
     await dbQuery(sql, [user_id, type, note || null, timestampString]);
