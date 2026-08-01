@@ -991,6 +991,38 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
 });
 
 // ==========================================
+// KANBAN-BOARD FÜR DIE WERKSTATT
+// ==========================================
+app.get('/projects/board', async (req, res) => {
+  try {
+    const sql = `
+      SELECT projects.*, customers.company_name, customers.contact_person
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      ORDER BY projects.created_at DESC
+    `;
+    const projRes = await dbQuery(sql);
+    const projects = projRes.rows || [];
+
+    // Projekte nach Status gruppieren
+    const columns = {
+      'In Planung': projects.filter(p => p.status === 'In Planung' || !p.status),
+      'Avor / Vorbereitung': projects.filter(p => p.status === 'Avor / Vorbereitung'),
+      'In Produktion': projects.filter(p => p.status === 'In Produktion'),
+      'Oberfläche': projects.filter(p => p.status === 'Oberfläche'),
+      'Montagebereit': projects.filter(p => p.status === 'Montagebereit'),
+      'Abgeschlossen': projects.filter(p => p.status === 'Abgeschlossen')
+    };
+
+    res.render('project-board', { columns });
+  } catch (err) {
+    console.error('Fehler beim Laden des Kanban-Boards:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+
+// ==========================================
 // RECHNUNGSVERWALTUNG & MAHNWESEN
 // ==========================================
 app.get('/documents/invoices/:id/pdf', async (req, res) => {
