@@ -1,190 +1,162 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-      <div class="flex items-center gap-3">
-        <!-- ZURÜCK-BUTTON -->
-        <button onclick="history.back()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
-      </div>
-      <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
-    </header>
-
-    <div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
-
-      <!-- STAMPEL-KARTE -->
-      <div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
-            <p class="text-sm text-slate-500 mt-1">
-              Status: 
-              <% if (isStampedIn) { %>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Eingestempelt seit <%= lastStampTime %> Uhr
-                </span>
-              <% } else { %>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                  Ausgestempelt
-                </span>
-              <% } %>
-            </p>
-          </div>
-          <div class="mt-4 md:mt-0 text-left md:text-right">
-            <span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>
-            <span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
-          </div>
-        </div>
-
-        <!-- Formular zum Stempeln -->
-        <form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">
-          <input type="hidden" name="latitude" id="latitude">
-          <input type="hidden" name="longitude" id="longitude">
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Projekt- oder Kundenbezug -->
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>
-              <select name="customer_id" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-                <option value="">-- Allgemein / Werkstatt --</option>
-                <% if (typeof customers !== 'undefined') { %>
-                  <% customers.forEach(cust => { %>
-                    <option value="<%= cust.id %>"><%= cust.company_name || cust.contact_person %></option>
-                  <% }) %>
-                <% } %>
-              </select>
-            </div>
-
-            <!-- Notiz / Beschreibung -->
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>
-              <input type="text" name="note" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
-            </div>
-          </div>
-
-          <div class="flex items-center space-x-4 pt-2">
-            <% if (!isStampedIn) { %>
-              <button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
-                🟢 Einstempeln (Arbeit beginnen)
-              </button>
-            <% } else { %>
-              <button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
-                🔴 Ausstempeln (Feierabend / Pause)
-              </button>
-            <% } %>
-          </div>
-          <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
-        </form>
-      </div>
-
-      <!-- HEUTIGE HISTORIE -->
-      <div class="bg-white rounded-lg shadow p-4 md:p-6">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
-        <% if (todayLogs && todayLogs.length > 0) { %>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-600 min-w-[550px]">
-              <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
-                <tr>
-                  <th class="p-3">Typ</th>
-                  <th class="p-3">Uhrzeit</th>
-                  <th class="p-3">Projekt / Kunde</th>
-                  <th class="p-3">Notiz</th>
-                  <th class="p-3">GPS-Standort</th>
-                  <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-                    <th class="p-3">Aktion</th>
-                  <% } %>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-200">
-                <% todayLogs.forEach(log => { %>
-                  <tr>
-                    <td class="p-3 font-semibold">
-                      <% if (log.type === 'IN') { %>
-                        <span class="text-green-600">Eingestempelt (IN)</span>
-                      <% } else { %>
-                        <span class="text-red-600">Ausgestempelt (OUT)</span>
-                      <% } %>
-                    </td>
-                    <td class="p-3"><%= new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %></td>
-                    <td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>
-                    <td class="p-3"><%= log.note || '-' %></td>
-                    <td class="p-3 text-xs text-slate-400">
-                      <% if (log.latitude && log.longitude) { %>
-                        Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
-                      <% } else { %>
-                        -
-                      <% } %>
-                    </td>
-                    <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-                      <td class="p-3">
-                        <form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');">
-                          <input type="hidden" name="log_id" value="<%= log.id %>">
-                          <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition">
-                            🗑️ Löschen
-                          </button>
-                        </form>
-                      </td>
-                    <% } %>
-                  </tr>
-                <% }) %>
-              </tbody>
-            </table>
-          </div>
-        <% } else { %>
-          <p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>
-        <% } %>
-      </div>
-
-      <!-- ADMIN BEREICH (Falls Admin) -->
-      <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg shadow p-4 md:p-6">
-          <h3 class="text-lg font-semibold text-amber-900 mb-2">👑 Admin-Auswertung & Lohnbuchhaltung</h3>
-          <p class="text-sm text-amber-700 mb-4">Hier hast du als Administrator Zugriff auf die Monatsübersichten aller Mitarbeiter und den CSV-Export.</p>
-          
-          <div class="flex flex-col md:flex-row gap-3">
-            <a href="/timetracking/admin/report" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
-              📊 Monatsauswertung öffnen
-            </a>
-            <a href="/timetracking/admin/export-csv" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded shadow transition text-center">
-              📥 CSV-Export für Lohnbüro
-            </a>
-          </div>
-        </div>
-      <% } %>
-
-    </div>
-  </main>
-
-  <script>
-    // Live Uhrzeit oben rechts
-    setInterval(() => {
-      const now = new Date();
-      document.getElementById('live-clock').innerText = 'Aktuelle Uhrzeit: ' + now.toLocaleTimeString('de-DE');
-    }, 1000);
-
-    // Optional: GPS-Standort beim Absenden ermitteln
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          document.getElementById('latitude').value = position.coords.latitude;
-          document.getElementById('longitude').value = position.coords.longitude;
-          document.getElementById('gps-status').innerText = '📍 GPS-Standort erfolgreich erfasst.';
-          document.getElementById('gps-status').classList.remove('text-slate-400');
-          document.getElementById('gps-status').classList.add('text-green-600');
-        },
-        (error) => {
-          document.getElementById('gps-status').innerText = '⚠️ GPS-Standort konnte nicht ermittelt werden (optional).';
-        },
-        { timeout: 10000 }
-      );
-    } else {
-      document.getElementById('gps-status').innerText = 'Geolocation wird von diesem Browser nicht unterstützt.';
-    }
-  </script>
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+<header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+<div class="flex items-center gap-3">
+<!-- ZURÜCK-BUTTON -->
+<button onclick="history.back()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
+<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+</svg>
+</button>
+<h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
+</div>
+<div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
+</header>
+<div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+<!-- STAMPEL-KARTE -->
+<div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+<div>
+<h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
+<p class="text-sm text-slate-500 mt-1">
+Status:
+<% if (isStampedIn) { %>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+Eingestempelt seit <%= lastStampTime %> Uhr
+</span>
+<% } else { %>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+Ausgestempelt
+</span>
+<% } %>
+</p>
+</div>
+<div class="mt-4 md:mt-0 text-left md:text-right">
+<span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>
+<span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
+</div>
+</div>
+<!-- Formular zum Stempeln -->
+<form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">
+<input type="hidden" name="latitude" id="latitude">
+<input type="hidden" name="longitude" id="longitude">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Projekt- oder Kundenbezug -->
+<div>
+<label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>
+<select name="customer_id" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+<option value="">-- Allgemein / Werkstatt --</option>
+<% if (typeof customers !== 'undefined') { %>
+<% customers.forEach(cust => { %>
+<option value="<%= cust.id %>"><%= cust.company_name || cust.contact_person %></option>
+<% }) %>
+<% } %>
+</select>
+</div>
+<!-- Notiz / Beschreibung -->
+<div>
+<label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>
+<input type="text" name="note" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
+</div>
+</div>
+<div class="flex items-center space-x-4 pt-2">
+<% if (!isStampedIn) { %>
+<button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
+🟢 Einstempeln (Arbeit beginnen)
+</button>
+<% } else { %>
+<button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
+🔴 Ausstempeln (Feierabend / Pause)
+</button>
+<% } %>
+</div>
+<p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
+</form>
+</div>
+<!-- HEUTIGE HISTORIE -->
+<div class="bg-white rounded-lg shadow p-4 md:p-6">
+<h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
+<% if (todayLogs && todayLogs.length > 0) { %>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm text-slate-600 min-w-[550px]">
+<thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+<tr>
+<th class="p-3">Typ</th>
+<th class="p-3">Uhrzeit</th>
+<th class="p-3">Projekt / Kunde</th>
+<th class="p-3">Notiz</th>
+<th class="p-3">GPS-Standort</th>
+<% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+<th class="p-3">Aktion</th>
+<% } %>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200">
+<% todayLogs.forEach(log => { %>
+<tr>
+<td class="p-3 font-semibold">
+<% if (log.type === 'IN') { %>
+<span class="text-green-600">Eingestempelt (IN)</span>
+<% } else { %>
+<span class="text-red-600">Ausgestempelt (OUT)</span>
+<% } %>
+</td>
+<td class="p-3"><%= new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %></td>
+<td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>
+<td class="p-3"><%= log.note || '-' %></td>
+<td class="p-3 text-xs text-slate-400">
+<% if (log.latitude && log.longitude) { %>
+Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
+<% } else { %>
+-
+<% } %>
+</td>
+<% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+<td class="p-3">
+<form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');">
+<input type="hidden" name="log_id" value="<%= log.id %>">
+<button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition">
+🗑️ Löschen
+</button>
+</form>
+</td>
+<% } %>
+</tr>
+<% }) %>
+</tbody>
+</table>
+</div>
+<% } else { %>
+<p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>
+<% } %>
+</div>
+</div>
+</main>
+<script>
+// Live Uhrzeit oben rechts
+setInterval(() => {
+const now = new Date();
+document.getElementById('live-clock').innerText = 'Aktuelle Uhrzeit: ' + now.toLocaleTimeString('de-DE');
+}, 1000);
+// Optional: GPS-Standort beim Absenden ermitteln
+if (navigator.geolocation) {
+navigator.geolocation.getCurrentPosition(
+(position) => {
+document.getElementById('latitude').value = position.coords.latitude;
+document.getElementById('longitude').value = position.coords.longitude;
+document.getElementById('gps-status').innerText = '📍 GPS-Standort erfolgreich erfasst.';
+document.getElementById('gps-status').classList.remove('text-slate-400');
+document.getElementById('gps-status').classList.add('text-green-600');
+},
+(error) => {
+document.getElementById('gps-status').innerText = '⚠️ GPS-Standort konnte nicht ermittelt werden (optional).';
+},
+{ timeout: 10000 }
+);
+} else {
+document.getElementById('gps-status').innerText = 'Geolocation wird von diesem Browser nicht unterstützt.';
+}
+</script>
 </body>
 </html>
