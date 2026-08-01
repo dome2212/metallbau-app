@@ -517,7 +517,7 @@ app.get('/timetracking', async (req, res) => {
              TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       LEFT JOIN customers ON time_logs.customer_id = customers.id
-      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp) = CURRENT_DATE
+      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
       ORDER BY time_logs.timestamp ASC
     `;
     const result = await dbQuery(sqlToday, [userId]);
@@ -581,6 +581,7 @@ app.get('/timetracking', async (req, res) => {
     res.status(500).send('Datenbankfehler');
   }
 });
+
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
