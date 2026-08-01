@@ -550,7 +550,7 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
 });
 
 // ==========================================
-// URLAUBSVERWALTUNG (Vacations) [AKTUALISIERT MIT CLOUDINARY]
+// URLAUBSVERWALTUNG (Vacations)
 // ==========================================
 app.get('/vacations', async (req, res) => {
   const userId = req.user.id;
