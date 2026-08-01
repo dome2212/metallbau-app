@@ -92,6 +92,18 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
 
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS vacations (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    reason TEXT,
+    status TEXT DEFAULT 'Beantragt',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle vacations existiert bereits:', err.message));
+
 // Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
@@ -529,6 +541,54 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
   } catch (err) {
     console.error('Fehler beim Löschen des Stempel-Eintrags:', err.message);
     res.status(500).send('Fehler beim Löschen');
+  }
+});
+
+// ==========================================
+// URLAUBSVERWALTUNG (Vacations)
+// ==========================================
+app.get('/vacations', async (req, res) => {
+  const userId = req.user.id;
+  const userRole = req.user.role;
+
+  try {
+    let vacationsRes;
+    if (userRole === 'ADMIN') {
+      vacationsRes = await dbQuery(`
+        SELECT vacations.*, users.username 
+        FROM vacations 
+        JOIN users ON vacations.user_id = users.id 
+        ORDER BY vacations.created_at DESC
+      `);
+    } else {
+      vacationsRes = await dbQuery(`
+        SELECT * FROM vacations 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC
+      `, [userId]);
+    }
+
+    res.render('vacations', { 
+      vacations: vacationsRes.rows || [],
+      user: req.user 
+    });
+  } catch (err) {
+    console.error('Fehler beim Laden der Urlaubsübersicht:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+app.post('/vacations/add', async (req, res) => {
+  const userId = req.user.id;
+  const { start_date, end_date, reason } = req.body;
+
+  try {
+    const sql = `INSERT INTO vacations (user_id, start_date, end_date, reason, status) VALUES (?, ?, ?, ?, 'Beantragt')`;
+    await dbQuery(sql, [userId, start_date, end_date, reason || null]);
+    res.redirect('/vacations');
+  } catch (err) {
+    console.error('Fehler beim Speichern des Urlaubsantrags:', err.message);
+    res.status(500).send('Fehler beim Speichern');
   }
 });
 
