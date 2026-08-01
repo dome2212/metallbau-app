@@ -1,7 +1,7 @@
-<%- include('partials/header') %>
+<%- include('partials/header') %>[cite: 12]
 
 <div class="flex h-screen bg-slate-100 overflow-hidden">
-  <%- include('partials/sidebar') %>
+  <%- include('partials/sidebar') %>[cite: 12]
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -46,7 +46,7 @@
           <!-- Uhrzeit -->
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Uhrzeit</label>
-            <input type="time" name="time" required value="<%= new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }) %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <input type="time" name="time" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Notiz -->
@@ -125,6 +125,7 @@
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
                   <% 
+                    // Korrigierte Zeiterfassung analog zur funktionierenden timetracking.ejs
                     let d = new Date(log.timestamp);
                     let formattedDate = d.toLocaleDateString('de-DE');
                     let formattedTime = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
