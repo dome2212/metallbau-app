@@ -505,7 +505,6 @@ app.post('/projects/tasks/status', async (req, res) => {
   res.redirect(`/projects/${project_id}`);
 });
 
-
 // ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
@@ -518,7 +517,7 @@ app.get('/timetracking', async (req, res) => {
              TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       LEFT JOIN customers ON time_logs.customer_id = customers.id
-      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
+      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp) = CURRENT_DATE
       ORDER BY time_logs.timestamp ASC
     `;
     const result = await dbQuery(sqlToday, [userId]);
@@ -746,7 +745,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
 
     let query = `
       SELECT time_logs.*, users.username, 
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
+             TO_CHAR(time_logs.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       JOIN users ON time_logs.user_id = users.id 
       WHERE 1=1
@@ -754,7 +753,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     let queryParams = [];
 
     if (selectedDate) {
-      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
+      query += ` AND DATE(time_logs.timestamp) = ? `;
       queryParams.push(selectedDate);
     }
 
@@ -803,7 +802,7 @@ app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) 
 
     const sql = `
       INSERT INTO time_logs (user_id, type, note, timestamp) 
-      VALUES (?, ?, ?, (TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin') AT TIME ZONE 'UTC')
+      VALUES (?, ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS'))
     `;
     
     await dbQuery(sql, [user_id, type, note || null, timestampString]);
@@ -820,7 +819,7 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
   try {
     let query = `
       SELECT time_logs.*, users.username, 
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
+             TO_CHAR(time_logs.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       JOIN users ON time_logs.user_id = users.id 
       WHERE 1=1
@@ -833,7 +832,7 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     }
 
     if (date) {
-      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ?`;
+      query += ` AND DATE(time_logs.timestamp) = ?`;
       queryParams.push(date);
     }
 
@@ -929,9 +928,9 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
     const targetUserId = req.query.user_id || userId;
 
     const entriesRes = await dbQuery(
-      `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
+      `SELECT time_logs.*, TO_CHAR(time_logs.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
        FROM time_logs 
-       WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? 
+       WHERE user_id = ? AND to_char(time_logs.timestamp, 'YYYY-MM') = ? 
        ORDER BY time_logs.timestamp ASC`,
       [targetUserId, month]
     );
@@ -960,10 +959,10 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
     const month = req.query.month || new Date().toISOString().slice(0, 7);
 
     const logsRes = await dbQuery(
-      `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
+      `SELECT t.*, u.username, TO_CHAR(t.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
        FROM time_logs t
        JOIN users u ON t.user_id = u.id
-       WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+       WHERE t.user_id = ? AND to_char(t.timestamp, 'YYYY-MM') = ?
        ORDER BY t.timestamp ASC`,
       [targetUserId, month]
     );
@@ -1646,7 +1645,7 @@ app.get('/ticker', async (req, res) => {
   try {
     const result = await dbQuery(`
       SELECT tickers.*, 
-             TO_CHAR(tickers.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'DD.MM.YYYY HH24:MI') as formatted_date 
+             TO_CHAR(tickers.created_at, 'DD.MM.YYYY HH24:MI') as formatted_date 
       FROM tickers 
       ORDER BY created_at DESC
     `);
