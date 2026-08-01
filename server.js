@@ -545,7 +545,7 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
 });
 
 // ==========================================
-// URLAUBSVERWALTUNG (Vacations)
+// URLAUBSVERWALTUNG (Vacations) [KORRIGIERT]
 // ==========================================
 app.get('/vacations', async (req, res) => {
   const userId = req.user.id;
@@ -568,8 +568,12 @@ app.get('/vacations', async (req, res) => {
       `, [userId]);
     }
 
+    // Benutzer für das Dropdown-Menü in der Urlaubsansicht laden
+    const usersRes = await dbQuery('SELECT id, username, role FROM users ORDER BY username ASC');
+
     res.render('vacations', { 
       vacations: vacationsRes.rows || [],
+      users: usersRes.rows || [], // Hier wird 'users' nun fehlerfrei übergeben!
       user: req.user 
     });
   } catch (err) {
