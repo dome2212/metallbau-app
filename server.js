@@ -98,6 +98,17 @@ dbQuery(`
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
 
 dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_tasks (
+    id SERIAL PRIMARY KEY,
+    project_id INT,
+    task_text TEXT NOT NULL,
+    status TEXT DEFAULT 'Offen',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
+
+
+dbQuery(`
   CREATE TABLE IF NOT EXISTS vacations (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
@@ -320,6 +331,27 @@ app.post('/projects/:id/photos/upload', upload.single('photo'), async (req, res)
   }
   res.redirect(`/projects/${projectId}`);
 });
+
+// ==========================================
+// PROJEKT-AUFGABEN (TASKS)
+// ==========================================
+app.post('/projects/:id/tasks/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { task_text } = req.body;
+
+  if (!task_text || task_text.trim() === '') {
+    return res.redirect(`/projects/${projectId}`);
+  }
+
+  try {
+    const sql = `INSERT INTO project_tasks (project_id, task_text, status) VALUES (?, ?, 'Offen')`;
+    await dbQuery(sql, [projectId, task_text.trim()]);
+  } catch (err) {
+    console.error('Fehler beim Hinzufügen der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
 
 // ==========================================
 // DIGITALES AUFMASS (Mobil / Baustelle)
