@@ -29,8 +29,8 @@
       </div>
     </div>
 
-    <!-- Kanban Spalten Container: Mobil untereinander, ab Tablet (md) nebeneinander mit Scroll -->
-    <div class="flex flex-col md:flex-row md:gap-4 gap-6 pb-6 items-stretch md:items-start md:overflow-x-auto">
+    <!-- Kanban Spalten Container: Als 3er-Raster (Grid) untereinander -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6 items-start">
       <% 
         const statuses = [
           { key: 'In Planung', label: 'In Planung', color: 'border-slate-400 bg-slate-50' },
@@ -43,7 +43,7 @@
       %>
 
       <% statuses.forEach(col => { %>
-        <div class="bg-gray-200/80 rounded-xl w-full md:w-80 md:min-w-[320px] p-3 flex flex-col md:max-h-[calc(100vh-180px)] shadow-sm border-t-4 <%= col.color %>">
+        <div class="bg-gray-200/80 rounded-xl w-full p-3 flex flex-col shadow-sm border-t-4 <%= col.color %>">
           
           <!-- Spalten-Überschrift -->
           <div class="flex justify-between items-center mb-3 px-1">
