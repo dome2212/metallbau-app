@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Urlaubs- & Abwesenheitsplanung - Metallbau-Gehrmann</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#2563eb">
-</head>
-<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen overflow-x-hidden">
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
 
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800">🌴Urlaubs- & Abwesenheitsplanung</h1>
+    </header>
+
+    <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
   <!-- Sidebar einbinden -->
   <%- include('partials/sidebar') %>
 
