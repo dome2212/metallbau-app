@@ -53,12 +53,12 @@
       <div class="bg-white rounded-lg shadow overflow-hidden p-4 md:p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4">Aktuelle Aufträge</h2>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 min-w-[650px]">
+          <table class="w-full text-left text-sm text-slate-600 min-w-[750px]">
             <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
               <tr>
                 <th class="p-3">Baustelle / Titel</th>
                 <th class="p-3">Kunde</th>
-                <th class="p-3">Status</th>
+                <th class="p-3">Status ändern</th>
                 <th class="p-3">Summe</th>
                 <th class="p-3 text-right">Aktion</th>
               </tr>
@@ -70,12 +70,28 @@
                     <a href="/projects/<%= p.id %>" class="text-blue-600 hover:underline"><%= p.title %></a>
                   </td>
                   <td class="p-3"><%= p.company_name || p.contact_person %></td>
+                  
+                  <!-- Status direkt in der Tabelle bearbeiten (für Admin) oder anzeigen -->
                   <td class="p-3">
-                    <span class="px-2 py-1 rounded text-xs font-medium 
-                      <%= p.status === 'Abgeschlossen' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' %>">
-                      <%= p.status %>
-                    </span>
+                    <% if (currentUser.role === 'ADMIN') { %>
+                      <form action="/projects/update-status" method="POST" class="flex items-center space-x-2">
+                        <input type="hidden" name="id" value="<%= p.id %>">
+                        <select name="status" class="border rounded p-1 text-xs bg-white">
+                          <option value="In Planung" <%= p.status === 'In Planung' ? 'selected' : '' %>>In Planung</option>
+                          <option value="In Arbeit" <%= p.status === 'In Arbeit' ? 'selected' : '' %>>In Arbeit</option>
+                          <option value="Montage läuft" <%= p.status === 'Montage läuft' ? 'selected' : '' %>>Montage läuft</option>
+                          <option value="Abgeschlossen" <%= p.status === 'Abgeschlossen' ? 'selected' : '' %>>Abgeschlossen</option>
+                        </select>
+                        <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-2 py-1 rounded text-xs">Ändern</button>
+                      </form>
+                    <% } else { %>
+                      <span class="px-2 py-1 rounded text-xs font-medium 
+                        <%= p.status === 'Abgeschlossen' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' %>">
+                        <%= p.status %>
+                      </span>
+                    <% } %>
                   </td>
+
                   <!-- Preis nur für Admin sichtbar, Mitarbeiter sieht "Intern" -->
                   <td class="p-3 font-medium">
                     <% if (currentUser.role === 'ADMIN') { %>
@@ -104,3 +120,4 @@
   </main>
 </body>
 </html>
+
