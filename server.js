@@ -655,9 +655,9 @@ app.post('/vacations/delete', verifyToken, requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// ADMIN ZEITERFASSUNG & ZEITEN NACHTRAGEN (/timetracking/admin/)
+// ADMIN ZEITERFASSUNG & ZEITEN NACHTRAGEN
 // ==========================================
-app.get('/timetracking/admin/', verifyToken, requireAdmin, async (req, res) => {
+app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   try {
     const selectedDate = req.query.date;
     const selectedUserId = req.query.user_id;
@@ -712,7 +712,7 @@ app.get('/timetracking/admin/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/timetracking/admin/add', verifyToken, requireAdmin, async (req, res) => {
+app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) => {
   const { user_id, type, date, time, note } = req.body;
 
   if (!user_id || !type || !date || !time) {
@@ -728,14 +728,14 @@ app.post('/timetracking/admin/add', verifyToken, requireAdmin, async (req, res) 
     `;
     
     await dbQuery(sql, [user_id, type, note || null, timestampString]);
-    res.redirect('/timetracking/admin/');
+    res.redirect('/admin/timetracking');
   } catch (err) {
     console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
     res.status(500).send('Fehler beim Speichern des Eintrags.');
   }
 });
 
-app.get('/timetracking/admin/pdf', verifyToken, requireAdmin, async (req, res) => {
+app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) => {
   const { user_id, date } = req.query;
 
   try {
@@ -761,17 +761,10 @@ app.get('/timetracking/admin/pdf', verifyToken, requireAdmin, async (req, res) =
     query += ` ORDER BY time_logs.timestamp DESC`;
 
     const result = await dbQuery(query, queryParams);
-    
-    const logs = (result.rows || []).map(log => {
-      let cleanTimestamp = log.local_timestamp || log.timestamp;
-      if (typeof cleanTimestamp === 'string' && cleanTimestamp.includes(' ')) {
-        cleanTimestamp = cleanTimestamp.replace(' ', 'T');
-      }
-      return {
-        ...log,
-        parsed_date: new Date(cleanTimestamp)
-      };
-    });
+    const logs = (result.rows || []).map(log => ({
+      ...log,
+      timestamp: log.local_timestamp || log.timestamp
+    }));
 
     let employeeName = 'Alle Mitarbeiter';
     if (user_id) {
@@ -812,13 +805,12 @@ app.get('/timetracking/admin/pdf', verifyToken, requireAdmin, async (req, res) =
     doc.font('Helvetica').fontSize(9);
     if (logs && logs.length > 0) {
       logs.forEach(log => {
-        const logDate = log.parsed_date.toLocaleString('de-DE', {
-          timeZone: 'Europe/Berlin',
+        const logDate = new Date(log.timestamp).toLocaleString('de-DE', {
           dateStyle: 'short',
-          timeStyle: 'medium'
+          timeStyle: 'short'
         });
         const actionText = log.type === 'IN' ? 'Eingestempelt (IN)' : 'Ausgestempelt (OUT)';
-        const noteText = log.note || '-';
+        const noteText = log.log_note || log.note || '-';
 
         if (doc.y > 750) {
           doc.addPage();
