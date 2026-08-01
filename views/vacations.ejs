@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#2563eb">
 </head>
-<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen">
+<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen overflow-x-hidden">
 
   <!-- Sidebar einbinden -->
   <%- include('partials/sidebar') %>
@@ -19,16 +19,17 @@
     <!-- Kopfbereich -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3 border-b border-gray-200 pb-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Urlaubs- & Abwesenheitsplanung</h1>
-        <p class="text-sm text-gray-500">Urlaub, Krankmeldungen und Schulungen verwalten</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Urlaubs- & Abwesenheitsplanung</h1>
+        <p class="text-xs md:text-sm text-gray-500">Urlaub, Krankmeldungen und Schulungen verwalten</p>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Layout auf 12 Spalten angepasst für saubere Aufteilung -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
-      <!-- Linke Spalte: Neuer Antrag / Eintrag -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 h-fit">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Abwesenheit eintragen</h2>
+      <!-- Linke Spalte: Neuer Antrag / Eintrag (4 von 12 Spalten) -->
+      <div class="lg:col-span-4 bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 mb-4">Abwesenheit eintragen</h2>
         
         <form action="/vacations/add" method="POST" class="space-y-4">
           <% if (currentUser.role === 'ADMIN') { %>
@@ -67,12 +68,12 @@
         </form>
       </div>
 
-      <!-- Rechte Spalte: Liste aller Abwesenheiten -->
-      <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Übersicht aller Abwesenheiten</h2>
+      <!-- Rechte Spalte: Liste aller Abwesenheiten (8 von 12 Spalten) -->
+      <div class="lg:col-span-8 bg-white rounded-xl shadow-sm border border-gray-200 p-5 overflow-hidden">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 mb-4">Übersicht aller Abwesenheiten</h2>
         
         <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-xs">
+          <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
             <thead>
               <tr class="bg-gray-100 text-gray-700 border-b border-gray-200">
                 <th class="p-3">Mitarbeiter</th>
