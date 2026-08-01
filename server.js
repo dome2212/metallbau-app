@@ -7,7 +7,12 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 
-// Automatische Einbindung von PDFKit (lädt es, falls im System vorhanden, ohne Shell-Befehl)
+// ==========================================
+// GLOBALE ZEITZONE AUF DEUTSCHLAND FESTLEGEN
+// ==========================================
+process.env.TZ = 'Europe/Berlin';
+
+// Automatische Einbindung von PDFKit
 let PDFKit;
 try {
   PDFKit = require('pdfkit');
@@ -15,7 +20,7 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
-// Zeitzone für die Datenbankverbindung auf Deutschland / Berlin festlegen
+// Datenbank-Zeitzone explizit auf Berlin setzen
 db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 
 // ==========================================
