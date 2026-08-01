@@ -194,8 +194,8 @@ app.get('/', async (req, res) => {
   try {
     if (userRole !== 'ADMIN') {
       const sqlMonthLogs = `
-        SELECT *, 
-               (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+        SELECT time_logs.*, 
+               TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
         FROM time_logs 
         WHERE user_id = ? 
         ORDER BY timestamp ASC
@@ -841,10 +841,10 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
     const targetUserId = req.query.user_id || userId;
 
     const entriesRes = await dbQuery(
-      `SELECT *, (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
        FROM time_logs 
-       WHERE user_id = ? AND to_char(timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? 
-       ORDER BY timestamp ASC`,
+       WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? 
+       ORDER BY time_logs.timestamp ASC`,
       [targetUserId, month]
     );
     
@@ -872,7 +872,7 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
     const month = req.query.month || new Date().toISOString().slice(0, 7);
 
     const logsRes = await dbQuery(
-      `SELECT t.*, u.username, (t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
        FROM time_logs t
        JOIN users u ON t.user_id = u.id
        WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
