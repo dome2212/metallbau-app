@@ -95,6 +95,9 @@
                   <th class="p-3">Projekt / Kunde</th>
                   <th class="p-3">Notiz</th>
                   <th class="p-3">GPS-Standort</th>
+                  <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+                    <th class="p-3">Aktion</th>
+                  <% } %>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-200">
@@ -117,6 +120,16 @@
                         -
                       <% } %>
                     </td>
+                    <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+                      <td class="p-3">
+                        <form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');">
+                          <input type="hidden" name="log_id" value="<%= log.id %>">
+                          <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition">
+                            🗑️ Löschen
+                          </button>
+                        </form>
+                      </td>
+                    <% } %>
                   </tr>
                 <% }) %>
               </tbody>
