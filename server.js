@@ -467,6 +467,19 @@ app.post('/projects/files/delete', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLEN-AUFGABEN LÖSCHEN
+// ==========================================
+app.post('/projects/tasks/delete', async (req, res) => {
+  const { task_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
 // KUNDEN-DATEIEN LÖSCHEN
 // ==========================================
 app.post('/customers/files/delete', async (req, res) => {
