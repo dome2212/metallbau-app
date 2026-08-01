@@ -1,7 +1,7 @@
-<%- include('partials/header') %>
+<%- include('partials/header') %>[cite: 12]
 
 <div class="flex h-screen bg-slate-100 overflow-hidden">
-  <%- include('partials/sidebar') %>
+  <%- include('partials/sidebar') %>[cite: 12]
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -13,7 +13,7 @@
       <!-- Neuer Bereich: Manueller Zeiteintrag durch Admin -->
       <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
         <h2 class="text-base md:text-lg font-semibold text-slate-800 mb-4">➕ Arbeitszeit manuell erfassen</h2>
-        <form method="POST" action="/admin/timetracking/add" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
+        <form method="POST" action="/admin/timetracking/add" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end">
           
           <!-- Mitarbeiter -->
           <div>
@@ -37,7 +37,7 @@
             </select>
           </div>
 
-          <!-- Datum (Sicherer Ansatz für deutsche Lokalzeit) -->
+          <!-- Datum -->
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Datum</label>
             <input type="date" name="date" required value="<%= new Date().toLocaleDateString('sv-SE') %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
@@ -47,6 +47,12 @@
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Uhrzeit</label>
             <input type="time" name="time" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
+          </div>
+
+          <!-- Notiz -->
+          <div>
+            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Notiz (optional)</label>
+            <input type="text" name="note" placeholder="z.B. Kunde / Grund" class="w-full border rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Button -->
@@ -101,7 +107,7 @@
       <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 md:px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 class="text-base md:text-lg font-semibold text-slate-800">Erfasste Einträge</h2>
-          <span class="text-xs text-slate-500">Datum & Uhrzeit (Berlin)</span>
+          <span class="text-xs text-slate-500">Datum & Uhrzeit (Lokal)</span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-600 min-w-[700px]">
@@ -119,24 +125,10 @@
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
                   <% 
-                    // Direktes Parsen des sauberen Berlin-Strings aus der DB (verhindert Browser-Zeitzonenfehler)
-                    let rawTimeStr = log.timestamp; 
-                    if (log.local_timestamp) {
-                      rawTimeStr = log.local_timestamp;
-                    }
-                    // Falls das Format 'YYYY-MM-DD HH:MM:SS' ist:
-                    let formattedDate = '-';
-                    let formattedTime = '-';
-                    if (rawTimeStr && typeof rawTimeStr === 'string' && rawTimeStr.includes(' ')) {
-                      const parts = rawTimeStr.split(' ');
-                      const dateParts = parts[0].split('-');
-                      formattedDate = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`;
-                      formattedTime = parts[1].substring(0, 5);
-                    } else if (rawTimeStr) {
-                      const d = new Date(rawTimeStr);
-                      formattedDate = d.toLocaleDateString('de-DE');
-                      formattedTime = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-                    }
+                    // Korrigierte Zeiterfassung analog zur funktionierenden timetracking.ejs
+                    let d = new Date(log.timestamp);
+                    let formattedDate = d.toLocaleDateString('de-DE');
+                    let formattedTime = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
                   %>
                   <tr class="hover:bg-slate-50">
                     <td class="p-4 font-medium text-slate-800"><%= formattedDate %></td>
