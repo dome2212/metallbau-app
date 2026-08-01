@@ -461,13 +461,15 @@ app.get('/timetracking', async (req, res) => {
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
+  const userRole = req.user.role; // Rolle des aktuellen Nutzers abrufen[span_1](start_span)[span_1](end_span)
   const { type, note, customer_id, latitude, longitude } = req.body;
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
-  if (type === 'IN') {
+  // GPS-Prüfung nur durchführen, wenn der Nutzer KEIN Admin ist
+  if (type === 'IN' && userRole !== 'ADMIN') {
     if (!latitude || !longitude) {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
     }
