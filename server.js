@@ -183,6 +183,7 @@ app.get('/', async (req, res) => {
 
       let totalMilliseconds = 0;
       let isStampedIn = false;
+      const now = new Date();
 
       if (logs && logs.length > 0) {
         for (let i = 0; i < logs.length; i++) {
@@ -190,15 +191,19 @@ app.get('/', async (req, res) => {
           if (logs[i].type === 'IN') {
             isStampedIn = true;
             const nextLog = logs[i + 1];
-            const startTime = currentLogTime;
-            const nextLogTime = nextLog ? new Date(nextLog.local_timestamp || nextLog.timestamp) : null;
-            const endTime = (nextLog && nextLog.type === 'OUT') ? nextLogTime : (i === logs.length - 1 ? new Date() : null);
-            
+            const startTime = currentLogTime.getTime();
+            let endTime;
+
             if (nextLog && nextLog.type === 'OUT') {
               isStampedIn = false;
+              endTime = new Date(nextLog.local_timestamp || nextLog.timestamp).getTime();
+            } else if (i === logs.length - 1) {
+              endTime = now.getTime();
+            } else {
+              endTime = startTime;
             }
 
-            if (endTime) {
+            if (endTime > startTime) {
               totalMilliseconds += (endTime - startTime);
             }
           } else if (logs[i].type === 'OUT') {
@@ -420,16 +425,26 @@ app.get('/timetracking', async (req, res) => {
     }
 
     let totalMilliseconds = 0;
-    if (todayLogs) {
+    const now = new Date();
+
+    if (todayLogs && todayLogs.length > 0) {
       for (let i = 0; i < todayLogs.length; i++) {
         const currentLogTime = new Date(todayLogs[i].local_timestamp || todayLogs[i].timestamp);
+        
         if (todayLogs[i].type === 'IN') {
           const nextLog = todayLogs[i + 1];
-          const startTime = currentLogTime;
-          const nextLogTime = nextLog ? new Date(nextLog.local_timestamp || nextLog.timestamp) : null;
-          const endTime = (nextLog && nextLog.type === 'OUT') ? nextLogTime : (isStampedIn && i === todayLogs.length - 1 ? new Date() : null);
-          
-          if (endTime) {
+          const startTime = currentLogTime.getTime();
+          let endTime;
+
+          if (nextLog && nextLog.type === 'OUT') {
+            endTime = new Date(nextLog.local_timestamp || nextLog.timestamp).getTime();
+          } else if (i === todayLogs.length - 1 && isStampedIn) {
+            endTime = now.getTime();
+          } else {
+            endTime = startTime;
+          }
+
+          if (endTime > startTime) {
             totalMilliseconds += (endTime - startTime);
           }
         }
@@ -461,15 +476,13 @@ app.get('/timetracking', async (req, res) => {
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
-  const userRole = req.user.role; // Rolle des aktuellen Nutzers abrufen[span_1](start_span)[span_1](end_span)
   const { type, note, customer_id, latitude, longitude } = req.body;
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
-  // GPS-Prüfung nur durchführen, wenn der Nutzer KEIN Admin ist
-  if (type === 'IN' && userRole !== 'ADMIN') {
+  if (type === 'IN') {
     if (!latitude || !longitude) {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
     }
@@ -493,12 +506,12 @@ app.post('/timetracking/stamp', async (req, res) => {
   const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
 
   try {
-    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, NOW())`;
+    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
     await dbQuery(sql, [userId, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
     res.redirect('/timetracking');
   } catch (err) {
     try {
-      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id) VALUES (?, ?, ?, ?)`;
+      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
       await dbQuery(fallbackSql, [userId, type, note || null, assignedCustomerId]);
       res.redirect('/timetracking');
     } catch (fallbackErr) {
