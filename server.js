@@ -1281,6 +1281,22 @@ app.post('/projects/add', async (req, res) => {
   }
 });
 
+// ==========================================
+// NEUE ROUTE: STATUS DIREKT AKTUALISIEREN
+// ==========================================
+app.post('/projects/update-status', async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+
+  const { id, status } = req.body;
+  try {
+    await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
+    res.redirect('back');
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren des Status:', err.message);
+    res.status(500).send('Fehler beim Aktualisieren des Status');
+  }
+});
+
 app.get('/projects/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1395,4 +1411,3 @@ app.listen(PORT, () => {
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
 });
-
