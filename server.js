@@ -111,7 +111,7 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle vacations existiert bereits:', err.message));
 
-// NEU: Tabelle für den Live-Ticker / Pinnwand
+// Tabelle für den Live-Ticker / Pinnwand
 dbQuery(`
   CREATE TABLE IF NOT EXISTS tickers (
     id SERIAL PRIMARY KEY,
@@ -131,7 +131,6 @@ dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).c
 dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS file_url TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'Urlaub'`).catch(() => {});
 
-// Automatische Ergänzung für time_logs (behebt den Spaltenfehler)
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)`).catch(() => {});
@@ -156,7 +155,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 } // 15 MB Limit
+  limits: { fileSize: 15 * 1024 * 1024 }
 });
 
 // Hilfsfunktion zur Distanzberechnung in Metern (Haversine-Formel)
