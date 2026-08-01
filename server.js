@@ -99,6 +99,8 @@ dbQuery(`
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
     reason TEXT,
+    type TEXT DEFAULT 'Urlaub',
+    file_url TEXT,
     status TEXT DEFAULT 'Beantragt',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
@@ -110,6 +112,9 @@ dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+
+dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS file_url TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'Urlaub'`).catch(() => {});
 
 // Automatische Ergänzung für time_logs (behebt den Spaltenfehler)
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(() => {});
@@ -545,7 +550,7 @@ app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, re
 });
 
 // ==========================================
-// URLAUBSVERWALTUNG (Vacations) [AKTUALISIERT]
+// URLAUBSVERWALTUNG (Vacations) [AKTUALISIERT MIT CLOUDINARY]
 // ==========================================
 app.get('/vacations', async (req, res) => {
   const userId = req.user.id;
@@ -568,14 +573,13 @@ app.get('/vacations', async (req, res) => {
       `, [userId]);
     }
 
-    // Benutzer für das Dropdown-Menü in der Urlaubsansicht laden
     const usersRes = await dbQuery('SELECT id, username, role FROM users ORDER BY username ASC');
 
     res.render('vacations', { 
       vacations: vacationsRes.rows || [],
       users: usersRes.rows || [], 
       user: req.user,
-      currentUser: req.user // Wichtig für die Admin-Abfrage im Frontend
+      currentUser: req.user 
     });
   } catch (err) {
     console.error('Fehler beim Laden der Urlaubsübersicht:', err.message);
@@ -583,21 +587,37 @@ app.get('/vacations', async (req, res) => {
   }
 });
 
-app.post('/vacations/add', async (req, res) => {
-  const userId = req.user.id;
-  const { start_date, end_date, reason } = req.body;
-
+app.post('/vacations/add', upload.single('document'), async (req, res) => {
   try {
-    const sql = `INSERT INTO vacations (user_id, start_date, end_date, reason, status) VALUES (?, ?, ?, ?, 'Beantragt')`;
-    await dbQuery(sql, [userId, start_date, end_date, reason || null]);
+    const userId = req.user ? req.user.id : (req.body.user_id || req.session?.userId);
+    const { type, start_date, end_date, reason } = req.body;
+    
+    let fileUrl = null;
+    if (req.file) {
+      fileUrl = req.file.path; 
+    }
+
+    const sql = `
+      INSERT INTO vacations (user_id, type, start_date, end_date, reason, file_url, status) 
+      VALUES (?, ?, ?, ?, ?, ?, 'Beantragt')
+    `;
+    
+    await dbQuery(sql, [
+      userId, 
+      type || 'Urlaub', 
+      start_date, 
+      end_date, 
+      reason || null, 
+      fileUrl
+    ]);
+
     res.redirect('/vacations');
   } catch (err) {
     console.error('Fehler beim Speichern des Urlaubsantrags:', err.message);
-    res.status(500).send('Fehler beim Speichern');
+    res.status(500).send("Fehler beim Speichern der Abwesenheit.");
   }
 });
 
-// NEU: Status ändern (Genehmigen / Ablehnen)[cite: 6]
 app.post('/vacations/status', verifyToken, requireAdmin, async (req, res) => {
   const { id, status } = req.body;
   try {
@@ -609,7 +629,6 @@ app.post('/vacations/status', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// NEU: Urlaubsantrag löschen[cite: 6]
 app.post('/vacations/delete', verifyToken, requireAdmin, async (req, res) => {
   const { id } = req.body;
   try {
