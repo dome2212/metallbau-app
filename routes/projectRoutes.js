@@ -4,6 +4,7 @@ const db = require('../config/database');
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary } = require('cloudinary');
+const { sendEmail, sendWhatsApp } = require('../utils/notifier'); // Benachrichtigungs-Service importieren
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -68,13 +69,49 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// ERWEITERTE STATUS-ROUTE MIT AUTOMATISCHEN BENACHRICHTIGUNGEN
 router.post('/update-status', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { id, status } = req.body;
   try {
+    // 1. Status in der Datenbank aktualisieren
     await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
+
+    // 2. Projektdaten und Kundendaten (E-Mail & Telefon) für die Benachrichtigung abrufen
+    const projRes = await dbQuery(`
+      SELECT projects.title, customers.email, customers.phone, customers.company_name, customers.contact_person 
+      FROM projects 
+      LEFT JOIN customers ON projects.customer_id = customers.id 
+      WHERE projects.id = ?
+    `, [id]);
+
+    const project = projRes.rows[0];
+
+    if (project && project.email) {
+      const recipientName = project.company_name || project.contact_person || 'Sehr geehrter Kunde';
+      
+      // E-Mail senden
+      await sendEmail(
+        project.email,
+        `Status-Update zu Ihrem Projekt: ${project.title}`,
+        `<p>Guten Tag ${recipientName},</p>
+         <p>der Status Ihres Projektes <b>"${project.title}"</b> hat sich geändert.</p>
+         <p>Neuer Status: <b>${status}</b></p>
+         <p>Mit freundlichen Grüßen<br>Ihr Metallbau-Team</p>`
+      );
+
+      // Optional: WhatsApp senden, falls Telefonnummer vorhanden
+      if (project.phone) {
+        await sendWhatsApp(
+          project.phone,
+          `Hallo! Status-Update für Projekt "${project.title}": Der neue Status ist "${status}".`
+        );
+      }
+    }
+
     res.redirect('back');
   } catch (err) {
+    console.error('Fehler bei Status-Update & Benachrichtigung:', err);
     res.status(500).send('Fehler');
   }
 });
