@@ -406,10 +406,10 @@ app.get('/timetracking', async (req, res) => {
   try {
     const sqlToday = `
       SELECT time_logs.*, customers.company_name, customers.contact_person,
-             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       LEFT JOIN customers ON time_logs.customer_id = customers.id
-      WHERE time_logs.user_id = ? 
+      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
       ORDER BY time_logs.timestamp ASC
     `;
     const result = await dbQuery(sqlToday, [userId]);
@@ -419,9 +419,9 @@ app.get('/timetracking', async (req, res) => {
     const isStampedIn = lastLog && lastLog.type === 'IN';
     
     let lastStampTime = '';
-    if (isStampedIn && lastLog) {
-      const logTime = new Date(lastLog.local_timestamp || lastLog.timestamp);
-      lastStampTime = logTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (isStampedIn && lastLog && lastLog.local_timestamp) {
+      const parts = lastLog.local_timestamp.split(' ')[1].split(':');
+      lastStampTime = `${parts[0]}:${parts[1]}`;
     }
 
     let totalMilliseconds = 0;
@@ -429,15 +429,16 @@ app.get('/timetracking', async (req, res) => {
 
     if (todayLogs && todayLogs.length > 0) {
       for (let i = 0; i < todayLogs.length; i++) {
-        const currentLogTime = new Date(todayLogs[i].local_timestamp || todayLogs[i].timestamp);
+        if (!todayLogs[i].local_timestamp) continue;
+        const currentLogTime = new Date(todayLogs[i].local_timestamp.replace(' ', 'T'));
         
         if (todayLogs[i].type === 'IN') {
           const nextLog = todayLogs[i + 1];
           const startTime = currentLogTime.getTime();
           let endTime;
 
-          if (nextLog && nextLog.type === 'OUT') {
-            endTime = new Date(nextLog.local_timestamp || nextLog.timestamp).getTime();
+          if (nextLog && nextLog.type === 'OUT' && nextLog.local_timestamp) {
+            endTime = new Date(nextLog.local_timestamp.replace(' ', 'T')).getTime();
           } else if (i === todayLogs.length - 1 && isStampedIn) {
             endTime = now.getTime();
           } else {
@@ -455,7 +456,7 @@ app.get('/timetracking', async (req, res) => {
 
     const formattedLogs = todayLogs.map(log => ({
       ...log,
-      timestamp: log.local_timestamp || log.timestamp
+      display_time: log.local_timestamp ? log.local_timestamp.split(' ')[1].substring(0, 5) : ''
     }));
 
     // Kunden für das Dropdown laden
@@ -1394,3 +1395,4 @@ app.listen(PORT, () => {
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
 });
+
