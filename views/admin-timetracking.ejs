@@ -1,7 +1,7 @@
-<%- include('partials/header') %>
+<%- include('partials/header') %>[cite: 7]
 
 <div class="flex h-screen bg-slate-100 overflow-hidden">
-  <%- include('partials/sidebar') %>
+  <%- include('partials/sidebar') %>[cite: 7]
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -63,6 +63,7 @@
                 <th class="p-4">Mitarbeiter</th>
                 <th class="p-4">Aktion</th>
                 <th class="p-4">Notiz</th>
+                <th class="p-4 text-right">Löschen</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
@@ -85,11 +86,19 @@
                       <% } %>
                     </td>
                     <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.log_note || log.note || '-' %></td>
+                    <td class="p-4 text-right">
+                      <form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');" style="display:inline;">
+                        <input type="hidden" name="log_id" value="<%= log.id %>">
+                        <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                          🗑️ Löschen
+                        </button>
+                      </form>
+                    </td>
                   </tr>
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="5" class="p-6 text-center text-slate-400 text-sm">Keine Zeiteinträge für diesen Filter vorhanden.</td>
+                  <td colspan="6" class="p-6 text-center text-slate-400 text-sm">Keine Zeiteinträge für diesen Filter vorhanden.</td>
                 </tr>
               <% } %>
             </tbody>
