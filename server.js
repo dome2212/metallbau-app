@@ -493,6 +493,20 @@ app.post('/customers/files/delete', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLEN-AUFGABEN STATUS AKTUALISIEREN
+// ==========================================
+app.post('/projects/tasks/status', async (req, res) => {
+  const { task_id, project_id, status } = req.body;
+  try {
+    await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status || 'Offen', task_id]);
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren des Aufgabenstatus:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+
+// ==========================================
 // ZEITERFASSUNG / STEMPELUHR
 // ==========================================
 app.get('/timetracking', async (req, res) => {
