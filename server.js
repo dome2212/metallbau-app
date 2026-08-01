@@ -1,5 +1,5 @@
 const express = require('express');
-const path = require('path');
+const path = path = require('path');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
@@ -96,6 +96,16 @@ dbQuery(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
+
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_tasks (
+    id SERIAL PRIMARY KEY,
+    project_id INT,
+    task_text TEXT NOT NULL,
+    completed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
 
 dbQuery(`
   CREATE TABLE IF NOT EXISTS vacations (
@@ -384,6 +394,34 @@ app.post('/projects/notes/delete', async (req, res) => {
     await dbQuery('DELETE FROM project_notes WHERE id = ?', [note_id]);
   } catch (err) {
     console.error('Fehler beim Löschen der Notiz:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// PROJEKT-AUFGABEN (Tasks)
+// ==========================================
+app.post('/projects/:id/tasks/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { task_text } = req.body;
+
+  if (!task_text || task_text.trim() === '') return res.redirect(`/projects/${projectId}`);
+
+  try {
+    const sql = `INSERT INTO project_tasks (project_id, task_text) VALUES (?, ?)`;
+    await dbQuery(sql, [projectId, task_text.trim()]);
+  } catch (err) {
+    console.error('Fehler beim Speichern der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+app.post('/projects/tasks/delete', async (req, res) => {
+  const { task_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Aufgabe:', err.message);
   }
   res.redirect(`/projects/${project_id}`);
 });
@@ -1477,6 +1515,7 @@ app.get('/projects/:id', async (req, res) => {
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
@@ -1484,7 +1523,8 @@ app.get('/projects/:id', async (req, res) => {
       appointments: appRes.rows || [],
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
-      notes: notesRes.rows || []
+      notes: notesRes.rows || [],
+      tasks: tasksRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
