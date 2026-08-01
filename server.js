@@ -1,5 +1,5 @@
 const express = require('express');
-const path = require('path');
+const path = path = require('path');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
@@ -101,12 +101,14 @@ dbQuery(`
   CREATE TABLE IF NOT EXISTS project_tasks (
     id SERIAL PRIMARY KEY,
     project_id INT,
-    task_text TEXT NOT NULL,
+    title TEXT NOT NULL,
+    category TEXT,
+    description TEXT,
+    photo_url TEXT,
     status TEXT DEFAULT 'Offen',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
-
 
 dbQuery(`
   CREATE TABLE IF NOT EXISTS vacations (
@@ -146,6 +148,11 @@ dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS title TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS category TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS description TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS photo_url TEXT`).catch(() => {});
 
 // ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
@@ -333,25 +340,38 @@ app.post('/projects/:id/photos/upload', upload.single('photo'), async (req, res)
 });
 
 // ==========================================
-// PROJEKT-AUFGABEN (TASKS)
+// PROJEKT-AUFGABEN & MÄNGEL (TASKS)
 // ==========================================
-app.post('/projects/:id/tasks/add', async (req, res) => {
+app.post('/projects/:id/tasks/add', upload.single('photo'), async (req, res) => {
   const projectId = req.params.id;
-  const { task_text } = req.body;
+  const { title, category, description } = req.body;
 
-  if (!task_text || task_text.trim() === '') {
+  if (!title || title.trim() === '') {
     return res.redirect(`/projects/${projectId}`);
   }
 
+  let photoUrl = null;
+  if (req.file) {
+    photoUrl = req.file.path;
+  }
+
   try {
-    const sql = `INSERT INTO project_tasks (project_id, task_text, status) VALUES (?, ?, 'Offen')`;
-    await dbQuery(sql, [projectId, task_text.trim()]);
+    const sql = `
+      INSERT INTO project_tasks (project_id, title, category, description, photo_url, status)
+      VALUES (?, ?, ?, ?, ?, 'Offen')
+    `;
+    await dbQuery(sql, [
+      projectId, 
+      title.trim(), 
+      category || 'Restarbeit', 
+      description || null, 
+      photoUrl
+    ]);
   } catch (err) {
     console.error('Fehler beim Hinzufügen der Aufgabe:', err.message);
   }
   res.redirect(`/projects/${projectId}`);
 });
-
 
 // ==========================================
 // DIGITALES AUFMASS (Mobil / Baustelle)
@@ -1509,6 +1529,7 @@ app.get('/projects/:id', async (req, res) => {
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
@@ -1516,7 +1537,8 @@ app.get('/projects/:id', async (req, res) => {
       appointments: appRes.rows || [],
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
-      notes: notesRes.rows || []
+      notes: notesRes.rows || [],
+      tasks: tasksRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
