@@ -14,23 +14,23 @@
   <%- include('partials/sidebar') %>
 
   <!-- Hauptinhalt -->
-  <main class="flex-1 p-4 md:p-8 max-w-full overflow-x-hidden">
+  <main class="flex-1 p-3 md:p-8 max-w-full overflow-x-hidden">
     
     <!-- Kopfbereich -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 border-b border-gray-200 pb-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Werkstatt Kanban-Board</h1>
-        <p class="text-sm text-gray-500">Übersicht der Fertigungsphasen und Baustellen</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Werkstatt Kanban-Board</h1>
+        <p class="text-xs md:text-sm text-gray-500">Übersicht der Fertigungsphasen und Baustellen</p>
       </div>
-      <div class="flex gap-2">
-        <a href="/projects" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-medium transition">
-          📄 Zur Tabellenansicht
+      <div>
+        <a href="/projects" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium transition inline-block">
+          📄 Tabellenansicht
         </a>
       </div>
     </div>
 
-    <!-- Kanban Spalten Container -->
-    <div class="flex gap-4 overflow-x-auto pb-6 items-start">
+    <!-- Kanban Spalten Container: Mobil untereinander, ab Tablet (md) nebeneinander mit Scroll -->
+    <div class="flex flex-col md:flex-row md:gap-4 gap-6 pb-6 items-stretch md:items-start md:overflow-x-auto">
       <% 
         const statuses = [
           { key: 'In Planung', label: 'In Planung', color: 'border-slate-400 bg-slate-50' },
@@ -43,7 +43,7 @@
       %>
 
       <% statuses.forEach(col => { %>
-        <div class="bg-gray-200/70 rounded-xl w-80 min-w-[320px] p-3 flex flex-col max-h-[calc(100vh-180px)] shadow-sm border-t-4 <%= col.color %>">
+        <div class="bg-gray-200/80 rounded-xl w-full md:w-80 md:min-w-[320px] p-3 flex flex-col md:max-h-[calc(100vh-180px)] shadow-sm border-t-4 <%= col.color %>">
           
           <!-- Spalten-Überschrift -->
           <div class="flex justify-between items-center mb-3 px-1">
@@ -54,10 +54,10 @@
           </div>
 
           <!-- Karten-Container -->
-          <div class="overflow-y-auto space-y-3 flex-1 pr-1">
+          <div class="space-y-3 flex-1 pr-1">
             <% if (columns[col.key] && columns[col.key].length > 0) { %>
               <% columns[col.key].forEach(project => { %>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
+                <div class="bg-white rounded-lg p-3 md:p-4 shadow-sm border border-gray-200 hover:shadow-md transition">
                   
                   <h4 class="font-bold text-blue-600 text-sm mb-1">
                     <a href="/projects/<%= project.id %>" class="hover:underline"><%= project.title %></a>
@@ -75,7 +75,7 @@
                   <div class="border-t border-gray-100 pt-2 mt-2">
                     <form action="/projects/update-status" method="POST">
                       <input type="hidden" name="id" value="<%= project.id %>">
-                      <select name="status" onchange="this.form.submit()" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-1.5 text-gray-700 focus:outline-none focus:border-blue-500 font-medium">
+                      <select name="status" onchange="this.form.submit()" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-2 text-gray-700 focus:outline-none focus:border-blue-500 font-medium">
                         <% statuses.forEach(s => { %>
                           <option value="<%= s.key %>" <%= project.status === s.key ? 'selected' : '' %>><%= s.label %></option>
                         <% }) %>
@@ -86,14 +86,13 @@
                 </div>
               <% }) %>
             <% } else { %>
-              <div class="text-center py-8 text-gray-400 text-xs italic bg-white/50 rounded-lg border border-dashed border-gray-300">
+              <div class="text-center py-6 text-gray-400 text-xs italic bg-white/50 rounded-lg border border-dashed border-gray-300">
                 Keine Aufträge
               </div>
             <% } %>
           </div>
 
         </div>
-      <% %>
       <% }) %>
     </div>
 
