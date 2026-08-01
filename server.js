@@ -1079,6 +1079,33 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
 });
 
 // ==========================================
+// ZEITEN NACHTRAGEN / HINZUFÜGEN (ADMIN)
+// ==========================================
+app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, type, date, time, note } = req.body;
+
+  if (!user_id || !type || !date || !time) {
+    return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
+  }
+
+  try {
+    // Kombiniere Datum und Uhrzeit zu einem vollständigen Zeitstempel
+    const timestampString = `${date} ${time}:00`;
+
+    const sql = `
+      INSERT INTO time_logs (user_id, type, note, timestamp) 
+      VALUES (?, ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin')
+    `;
+    
+    await dbQuery(sql, [user_id, type, note || null, timestampString]);
+    res.redirect('/admin/timetracking');
+  } catch (err) {
+    console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
+    res.status(500).send('Fehler beim Speichern des Eintrags.');
+  }
+});
+
+// ==========================================
 // KANBAN-BOARD FÜR DIE WERKSTATT
 // ==========================================
 app.get('/projects/board', async (req, res) => {
