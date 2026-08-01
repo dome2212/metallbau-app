@@ -394,11 +394,12 @@ app.get('/timetracking', async (req, res) => {
 
   try {
     const sqlToday = `
-      SELECT *, 
-             (timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+      SELECT time_logs.*, customers.company_name, customers.contact_person,
+             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
       FROM time_logs 
-      WHERE user_id = ? 
-      ORDER BY timestamp ASC
+      LEFT JOIN customers ON time_logs.customer_id = customers.id
+      WHERE time_logs.user_id = ? 
+      ORDER BY time_logs.timestamp ASC
     `;
     const result = await dbQuery(sqlToday, [userId]);
     const todayLogs = result.rows;
@@ -436,11 +437,15 @@ app.get('/timetracking', async (req, res) => {
       timestamp: log.local_timestamp || log.timestamp
     }));
 
+    // Kunden für das Dropdown laden
+    const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
+
     res.render('timetracking', {
       todayLogs: formattedLogs,
       isStampedIn,
       lastStampTime,
-      todayTotalHours
+      todayTotalHours,
+      customers: custRes.rows || []
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err.message);
@@ -450,7 +455,7 @@ app.get('/timetracking', async (req, res) => {
 
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
-  const { type, note, latitude, longitude } = req.body;
+  const { type, note, customer_id, latitude, longitude } = req.body;
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
@@ -477,19 +482,35 @@ app.post('/timetracking/stamp', async (req, res) => {
     }
   }
 
+  const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
+
   try {
-    const sql = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, NOW())`;
-    await dbQuery(sql, [userId, type, note || null]);
+    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, NOW())`;
+    await dbQuery(sql, [userId, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
     res.redirect('/timetracking');
   } catch (err) {
     try {
-      const fallbackSql = `INSERT INTO time_logs (user_id, type, note) VALUES (?, ?, ?)`;
-      await dbQuery(fallbackSql, [userId, type, note || null]);
+      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id) VALUES (?, ?, ?, ?)`;
+      await dbQuery(fallbackSql, [userId, type, note || null, assignedCustomerId]);
       res.redirect('/timetracking');
     } catch (fallbackErr) {
       console.error('Fehler beim Stempeln:', fallbackErr.message);
       res.status(500).send('Fehler beim Speichern der Stempelzeit');
     }
+  }
+});
+
+// ==========================================
+// STEMPEL-EINTRAG LÖSCHEN (Nur für Admins)
+// ==========================================
+app.post('/timetracking/admin/delete', verifyToken, requireAdmin, async (req, res) => {
+  const { log_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM time_logs WHERE id = ?', [log_id]);
+    res.redirect('back');
+  } catch (err) {
+    console.error('Fehler beim Löschen des Stempel-Eintrags:', err.message);
+    res.status(500).send('Fehler beim Löschen');
   }
 });
 
