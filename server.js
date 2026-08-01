@@ -640,6 +640,9 @@ app.post('/vacations/delete', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// ==========================================
+// ADMIN ZEITERFASSUNG & ZEITEN NACHTRAGEN
+// ==========================================
 app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   try {
     const selectedDate = req.query.date;
@@ -650,7 +653,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
 
     let query = `
       SELECT time_logs.*, users.username, 
-             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       JOIN users ON time_logs.user_id = users.id 
       WHERE 1=1
@@ -670,10 +673,17 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     query += ` ORDER BY time_logs.timestamp DESC`;
 
     const result = await dbQuery(query, queryParams);
-    const logs = (result.rows || []).map(log => ({
-      ...log,
-      timestamp: log.local_timestamp || log.timestamp
-    }));
+    
+    const logs = (result.rows || []).map(log => {
+      let formattedTimestamp = log.timestamp;
+      if (log.local_timestamp) {
+        formattedTimestamp = log.local_timestamp;
+      }
+      return {
+        ...log,
+        timestamp: formattedTimestamp
+      };
+    });
     
     res.render('admin-timetracking', { 
       logs, 
@@ -688,13 +698,36 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, type, date, time, note } = req.body;
+
+  if (!user_id || !type || !date || !time) {
+    return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
+  }
+
+  try {
+    const timestampString = `${date} ${time}:00`;
+
+    const sql = `
+      INSERT INTO time_logs (user_id, type, note, timestamp) 
+      VALUES (?, ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin')
+    `;
+    
+    await dbQuery(sql, [user_id, type, note || null, timestampString]);
+    res.redirect('/admin/timetracking');
+  } catch (err) {
+    console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
+    res.status(500).send('Fehler beim Speichern des Eintrags.');
+  }
+});
+
 app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) => {
   const { user_id, date } = req.query;
 
   try {
     let query = `
       SELECT time_logs.*, users.username, 
-             (time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') as local_timestamp 
+             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
       FROM time_logs 
       JOIN users ON time_logs.user_id = users.id 
       WHERE 1=1
@@ -1075,33 +1108,6 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
     res.redirect('/documents/invoices/' + invoiceId);
   } catch (err) {
     res.status(500).send('Fehler beim Umwandeln des Angebots');
-  }
-});
-
-// ==========================================
-// ZEITEN NACHTRAGEN / HINZUFÜGEN (ADMIN)
-// ==========================================
-app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) => {
-  const { user_id, type, date, time, note } = req.body;
-
-  if (!user_id || !type || !date || !time) {
-    return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
-  }
-
-  try {
-    // Kombiniere Datum und Uhrzeit zu einem vollständigen Zeitstempel
-    const timestampString = `${date} ${time}:00`;
-
-    const sql = `
-      INSERT INTO time_logs (user_id, type, note, timestamp) 
-      VALUES (?, ?, ?, TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin')
-    `;
-    
-    await dbQuery(sql, [user_id, type, note || null, timestampString]);
-    res.redirect('/admin/timetracking');
-  } catch (err) {
-    console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
-    res.status(500).send('Fehler beim Speichern des Eintrags.');
   }
 });
 
