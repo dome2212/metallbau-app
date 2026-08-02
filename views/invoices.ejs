@@ -7,11 +7,11 @@
     <!-- Header-Bereich -->
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Angebotsverwaltung</h1>
-        <p class="text-sm text-gray-500">Erstelle und verwalte Angebote für deine Kunden</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Rechnungsverwaltung</h1>
+        <p class="text-sm text-gray-500">Erstelle und verwalte Rechnungen für deine Kunden</p>
       </div>
-      <button onclick="toggleModal('offerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm w-full md:w-auto justify-center">
-        <span>+ Neues Angebot erstellen</span>
+      <button onclick="toggleModal('invoiceModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm w-full md:w-auto justify-center">
+        <span>+ Neue Rechnung erstellen</span>
       </button>
     </div>
 
@@ -87,15 +87,15 @@
   </main>
 </div>
 
-<!-- Modal: Neues Angebot anlegen (Mehrere Positionen) -->
-<div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+<!-- Modal: Neue Rechnung anlegen (Mehrere Positionen) -->
+<div id="invoiceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full p-4 md:p-6 max-h-[90vh] flex flex-col">
     <div class="flex justify-between items-center mb-4 border-b pb-2 flex-shrink-0">
-      <h3 class="text-lg font-bold text-gray-800">Neues Angebot anlegen</h3>
-      <button onclick="toggleModal('offerModal')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+      <h3 class="text-lg font-bold text-gray-800">Neue Rechnung anlegen</h3>
+      <button onclick="toggleModal('invoiceModal')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
     </div>
     
-    <form action="/documents/create-offer" method="POST" class="space-y-4 overflow-y-auto pr-1">
+    <form action="/documents/create-invoice" method="POST" class="space-y-4 overflow-y-auto pr-1">
       <div>
         <label class="block text-xs font-medium text-gray-700 mb-1">Kunde auswählen *</label>
         <select name="customer_id" required class="w-full border rounded-lg p-2 text-sm bg-white">
@@ -111,7 +111,7 @@
       <!-- ARTIKEL- & MATERIALSTAMM SCHNELL-EINFÜGEN -->
       <div class="border-t pt-3">
         <label class="block text-xs font-bold text-blue-700 mb-1">📦 Aus Artikelstamm hinzufügen</label>
-        <select id="articleSelectOffer" onchange="addArticleToOfferList(this)" class="w-full border border-blue-200 rounded-lg p-2 text-sm bg-blue-50/50">
+        <select id="articleSelectInvoice" onchange="addArticleToInvoiceList(this)" class="w-full border border-blue-200 rounded-lg p-2 text-sm bg-blue-50/50">
           <option value="">-- Artikel/Leistung wählen, um sie als Position anzuhängen --</option>
           <% if (typeof articles !== 'undefined' && articles.length > 0) { %>
             <% articles.forEach(art => { %>
@@ -137,14 +137,14 @@
           </button>
         </div>
 
-        <div id="offerItemsContainer" class="space-y-3">
+        <div id="invoiceItemsContainer" class="space-y-3">
           <!-- Dynamische Zeilen werden per JS angehängt -->
         </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
-        <button type="button" onclick="toggleModal('offerModal')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Angebot Erstellen</button>
+        <button type="button" onclick="toggleModal('invoiceModal')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Rechnung Erstellen</button>
       </div>
     </form>
   </div>
@@ -154,26 +154,22 @@
   function toggleModal(id) {
     const modal = document.getElementById(id);
     modal.classList.toggle('hidden');
-    
-    // Leere Zeile hinzufügen, wenn Modal geöffnet wird und die Liste leer ist
     if (!modal.classList.contains('hidden')) {
-      const container = document.getElementById('offerItemsContainer');
-      if (container.children.length === 0) {
-        addCustomOfferRow();
+      const container = document.getElementById('invoiceItemsContainer');
+      if (container && container.children.length === 0) {
+        addCustomInvoiceRow();
       }
     }
   }
 
-  // Neue Angebotszeile hinzufügen
-  function addCustomOfferRow(title = '', quantity = 1, unit = 'Stk', price = '') {
-    const container = document.getElementById('offerItemsContainer');
-    const rowId = 'off_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
-
+  function addCustomInvoiceRow(title = '', quantity = 1, unit = 'Stk', price = '') {
+    const container = document.getElementById('invoiceItemsContainer');
+    const rowId = 'inv_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
     const rowHtml = `
       <div id="${rowId}" class="p-3 bg-gray-50 border rounded-lg space-y-2 relative">
         <div class="flex justify-between items-center">
           <input type="text" name="title" value="${title}" required placeholder="Beschreibung (z.B. Stahlträger HEB 160 / Geländer montieren)" class="w-full border rounded p-2 text-sm bg-white">
-          <button type="button" onclick="removeOfferRow('${rowId}')" class="ml-2 text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm" title="Position entfernen">✕</button>
+          <button type="button" onclick="removeInvoiceRow('${rowId}')" class="ml-2 text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm" title="Position entfernen">✕</button>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
@@ -198,34 +194,20 @@
         </div>
       </div>
     `;
-
     container.insertAdjacentHTML('beforeend', rowHtml);
   }
 
-  // Artikel aus dem Stammdaten-Dropdown anhängen
-  function addArticleToOfferList(selectElement) {
-    const selectedOption = selectElement.options[selectElement.selectedIndex];
-    if (!selectedOption.value) return;
-
-    const title = selectedOption.getAttribute('data-title');
-    const unit = selectedOption.getAttribute('data-unit');
-    const price = selectedOption.getAttribute('data-price');
-    const desc = selectedOption.getAttribute('data-desc');
-
-    const fullTitle = title + (desc ? ' - ' + desc : '');
-
-    addCustomOfferRow(fullTitle, 1, unit, price);
-
-    // Auswahl zurücksetzen
+  function addArticleToInvoiceList(selectElement) {
+    const opt = selectElement.options[selectElement.selectedIndex];
+    if (!opt.value) return;
+    const fullTitle = opt.getAttribute('data-title') + (opt.getAttribute('data-desc') ? ' - ' + opt.getAttribute('data-desc') : '');
+    addCustomInvoiceRow(fullTitle, 1, opt.getAttribute('data-unit'), opt.getAttribute('data-price'));
     selectElement.value = '';
   }
 
-  // Zeile löschen
-  function removeOfferRow(rowId) {
+  function removeInvoiceRow(rowId) {
     const row = document.getElementById(rowId);
-    if (row) {
-      row.remove();
-    }
+    if (row) row.remove();
   }
 </script>
 

@@ -37,7 +37,10 @@
               <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <select name="status" class="w-full border rounded p-2 text-sm">
                 <option value="In Planung">In Planung</option>
-                <option value="In Arbeit">In Arbeit</option>
+                <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
+                <option value="In Produktion">In Produktion</option>
+                <option value="Oberfläche">Oberfläche</option>
+                <option value="Montagebereit">Montagebereit</option>
                 <option value="Montage läuft">Montage läuft</option>
                 <option value="Abgeschlossen">Abgeschlossen</option>
               </select>
@@ -78,7 +81,10 @@
                         <input type="hidden" name="id" value="<%= p.id %>">
                         <select name="status" class="border rounded p-1 text-xs bg-white">
                           <option value="In Planung" <%= p.status === 'In Planung' ? 'selected' : '' %>>In Planung</option>
-                          <option value="In Arbeit" <%= p.status === 'In Arbeit' ? 'selected' : '' %>>In Arbeit</option>
+                          <option value="Avor / Vorbereitung" <%= p.status === 'Avor / Vorbereitung' ? 'selected' : '' %>>Avor / Vorbereitung</option>
+                          <option value="In Produktion" <%= p.status === 'In Produktion' ? 'selected' : '' %>>In Produktion</option>
+                          <option value="Oberfläche" <%= p.status === 'Oberfläche' ? 'selected' : '' %>>Oberfläche</option>
+                          <option value="Montagebereit" <%= p.status === 'Montagebereit' ? 'selected' : '' %>>Montagebereit</option>
                           <option value="Montage läuft" <%= p.status === 'Montage läuft' ? 'selected' : '' %>>Montage läuft</option>
                           <option value="Abgeschlossen" <%= p.status === 'Abgeschlossen' ? 'selected' : '' %>>Abgeschlossen</option>
                         </select>

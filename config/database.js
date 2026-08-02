@@ -318,6 +318,28 @@ if (process.env.DATABASE_URL) {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS project_tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          category TEXT DEFAULT 'Restarbeit',
+          status TEXT DEFAULT 'Offen',
+          photo_url TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS tickers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message TEXT NOT NULL,
+          author TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS customer_files (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           customer_id INTEGER,

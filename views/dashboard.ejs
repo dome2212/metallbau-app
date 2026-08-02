@@ -42,7 +42,7 @@
                 <td class="py-3 font-mono font-medium"><%= doc.doc_number %></td>
                 <td><%= doc.doc_type === 'OFFER' ? 'Angebot' : 'Rechnung' %></td>
                 <td><%= doc.customer_name %></td>
-                <td><%= doc.total_amount.toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %></td>
+                <td><%= (doc.total_amount != null ? Number(doc.total_amount) : 0).toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %></td>
                 <td>
                   <span class="px-2 py-1 text-xs rounded-full 
                     <%= doc.status === 'BEZAHLT' ? 'bg-green-100 text-green-800' : 
@@ -52,11 +52,12 @@
                 </td>
                 <td>
                   <% if (doc.doc_type === 'OFFER' && doc.status !== 'ANGENOMMEN') { %>
-                    <form action="/documents/convert-to-invoice/<%= doc.id %>" method="POST" class="inline">
-                      <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">
-                        In Rechnung wandeln
-                      </button>
-                    </form>
+                    <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
+                        <input type="hidden" name="offer_id" value="<%= doc.id %>">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">
+                          In Rechnung wandeln
+                        </button>
+                      </form>
                   <% } %>
                 </td>
               </tr>

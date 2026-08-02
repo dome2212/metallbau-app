@@ -2,35 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const path = require('path');
-const db = require(path.join(__dirname, '../config/database'));
 const { JWT_SECRET } = require('../middleware/auth');
-
-// Universelle Hilfsfunktion für SQLite und PostgreSQL
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    if (process.env.DATABASE_URL) {
-      let i = 0;
-      let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-      
-      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-        pgSql += ' RETURNING id';
-      }
-
-      db.query(pgSql, params, (err, res) => {
-        if (err) return reject(err);
-        const rows = res.rows || [];
-        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
-        resolve({ rows, lastID });
-      });
-    } else {
-      db.all(sql, params, function(err, rows) {
-        if (err) return reject(err);
-        resolve({ rows: rows || [], lastID: this?.lastID });
-      });
-    }
-  });
-};
+const { dbQuery } = require('../utils/db');
 
 // Initialen Admin-User anlegen, falls noch keiner existiert
 async function createDefaultAdmin() {

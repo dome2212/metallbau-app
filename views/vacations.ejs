@@ -1,20 +1,10 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Urlaubs- & Abwesenheitsplanung - Metallbau-Gehrmann</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#2563eb">
-</head>
-<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen overflow-x-hidden">
+<%- include('partials/header') %>
 
-  <!-- Sidebar einbinden -->
+<div class="flex h-screen bg-gray-100 overflow-hidden">
   <%- include('partials/sidebar') %>
 
   <!-- Hauptinhalt mit korrektem Abstand für die Sidebar -->
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-64 bg-slate-100 min-h-screen pt-16 md:pt-6">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
     
     <!-- Header mit Palme -->
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -45,7 +35,7 @@
 
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">Art der Abwesenheit</label>
-              <select name="type" id="absenceType" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-2 text-gray-700 focus:outline-none focus:border-blue-500" onchange="toggleFileInput()">
+              <select name="type" id="absenceType" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-2 text-gray-700 focus:outline-none focus:border-blue-500">
                 <option value="Urlaub">🏖️ Urlaub</option>
                 <option value="Krank">🤒 Krankmeldung</option>
                 <option value="Schulung">📚 Schulung / Weiterbildung</option>
@@ -101,7 +91,7 @@
                 <% if (vacations && vacations.length > 0) { %>
                   <% vacations.forEach(v => { %>
                     <tr class="hover:bg-gray-50">
-                      <td class="p-3 font-medium text-gray-800"><%= v.username %></td>
+                      <td class="p-3 font-medium text-gray-800"><%= v.username || currentUser.username %></td>
                       <td class="p-3">
                         <span class="px-2 py-0.5 rounded font-semibold 
                           <%= v.type === 'Urlaub' ? 'bg-blue-100 text-blue-700' : (v.type === 'Krank' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700') %>">
@@ -160,11 +150,7 @@
 
   </main>
 
-  <!-- Kleinigkeit für dynamische Einblendung des Uploads -->
-  <script>
-    function toggleFileInput() {
-      // Das Feld bleibt immer sichtbar oder kann hier je nach Typ gesteuert werden
-    }
-  </script>
+</div>
+
 </body>
 </html>

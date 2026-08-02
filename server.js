@@ -121,6 +121,19 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle tickers existiert bereits:', err.message));
 
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_tasks (
+    id SERIAL PRIMARY KEY,
+    project_id INT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'Restarbeit',
+    status TEXT DEFAULT 'Offen',
+    photo_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_tasks existiert bereits:', err.message));
+
 // Automatische Ergänzung fehlender Spalten bei bestehenden Tabellen auf Render
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
@@ -518,9 +531,9 @@ app.post('/timetracking/stamp', async (req, res) => {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
     }
 
-    const FIRM_LAT = 51.3069467;
-    const FIRM_LNG = 6.9483845;
-    const MAX_DISTANCE_METERS = 300;
+    const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
+    const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
+    const MAX_DISTANCE_METERS = parseInt(process.env.FIRM_RADIUS_METERS || '300', 10);
 
     const distance = getDistanceFromLatLonInMeters(
       parseFloat(latitude), 
@@ -581,9 +594,11 @@ app.get('/vacations', async (req, res) => {
       `);
     } else {
       vacationsRes = await dbQuery(`
-        SELECT * FROM vacations 
-        WHERE user_id = ? 
-        ORDER BY created_at DESC
+        SELECT vacations.*, users.username
+        FROM vacations
+        JOIN users ON vacations.user_id = users.id
+        WHERE vacations.user_id = ?
+        ORDER BY vacations.created_at DESC
       `, [userId]);
     }
 
@@ -1477,6 +1492,7 @@ app.get('/projects/:id', async (req, res) => {
     const photosRes = await dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
@@ -1484,11 +1500,64 @@ app.get('/projects/:id', async (req, res) => {
       appointments: appRes.rows || [],
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
-      notes: notesRes.rows || []
+      notes: notesRes.rows || [],
+      tasks: tasksRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
   }
+});
+
+// ==========================================
+// BAUSTELLEN-AUFGABEN & MÄNGEL
+// ==========================================
+app.post('/projects/:id/tasks/add', upload.single('photo'), async (req, res) => {
+  const projectId = req.params.id;
+  const { title, category, description } = req.body;
+
+  if (!title || title.trim() === '') return res.redirect(`/projects/${projectId}`);
+
+  let photoUrl = null;
+  if (req.file) {
+    photoUrl = req.file.path;
+  }
+
+  try {
+    const sql = `
+      INSERT INTO project_tasks (project_id, title, description, category, status, photo_url)
+      VALUES (?, ?, ?, ?, 'Offen', ?)
+    `;
+    await dbQuery(sql, [
+      projectId,
+      title.trim(),
+      description ? description.trim() : null,
+      category || 'Restarbeit',
+      photoUrl
+    ]);
+  } catch (err) {
+    console.error('Fehler beim Speichern der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${projectId}`);
+});
+
+app.post('/projects/tasks/status', async (req, res) => {
+  const { task_id, project_id, status } = req.body;
+  try {
+    await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status, task_id]);
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
+app.post('/projects/tasks/delete', async (req, res) => {
+  const { task_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Aufgabe:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
 });
 
 app.post('/projects/:id/upload', upload.single('file'), async (req, res) => {
