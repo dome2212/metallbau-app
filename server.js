@@ -21,13 +21,27 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
-// Google Gemini KI SDK (@google/generative-ai, nutzt v1 API — kompatibel mit AI Studio Free Keys)
-let GeminiModel;
-try {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  GeminiModel = GoogleGenerativeAI;
-} catch (e) {
-  console.log('Hinweis: @google/generative-ai nicht verfügbar:', e.message);
+// Grok KI (xAI) — OpenAI-kompatible REST API, kein extra npm-Paket nötig
+async function callGrok(prompt) {
+  const apiKey = process.env.GROK_API_KEY;
+  if (!apiKey) throw new Error('GROK_API_KEY nicht konfiguriert.');
+
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'grok-3-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  return data.choices[0].message.content;
 }
 
 // PostgreSQL-Verbindung auf UTC halten (Timestamps werden als UTC gespeichert,
@@ -2410,11 +2424,8 @@ app.get('/projects/:id', async (req, res) => {
 // KI-ANGEBOTS-ASSISTENT (Gemini Chat)
 // ==========================================
 app.post('/api/ai/offer-assistant', verifyToken, async (req, res) => {
-  if (!GeminiModel) {
-    return res.status(500).json({ error: 'Google Gemini SDK nicht verfügbar.' });
-  }
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY nicht konfiguriert.' });
+  if (!process.env.GROK_API_KEY) {
+    return res.status(500).json({ error: 'GROK_API_KEY nicht konfiguriert.' });
   }
 
   const { message, context } = req.body;
@@ -2446,13 +2457,10 @@ ${context ? 'Bisheriger Kontext:\n' + context + '\n' : ''}
 Benutzer: ${message}`;
 
   try {
-    const genai = new GeminiModel(process.env.GEMINI_API_KEY);
-    const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(fullPrompt);
-    const text = result.response.text();
+    const text = await callGrok(fullPrompt);
     return res.json({ reply: text });
   } catch (err) {
-    console.error('Gemini Fehler (offer-assistant):', err);
+    console.error('Grok Fehler (offer-assistant):', err);
     return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }
 });
@@ -2461,11 +2469,8 @@ Benutzer: ${message}`;
 // KI-ANGEBOT GENERIEREN (Google Gemini)
 // ==========================================
 app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {
-  if (!GeminiModel) {
-    return res.status(500).json({ error: 'Google Gemini SDK ist nicht verfügbar.' });
-  }
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY ist nicht konfiguriert.' });
+  if (!process.env.GROK_API_KEY) {
+    return res.status(500).json({ error: 'GROK_API_KEY ist nicht konfiguriert.' });
   }
 
   const { id } = req.params;
@@ -2532,13 +2537,10 @@ ${notizenText}
 Erstelle jetzt das Angebot:
 `.trim();
 
-    const genai = new GeminiModel(process.env.GEMINI_API_KEY);
-    const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await callGrok(prompt);
     return res.json({ quote: text });
   } catch (err) {
-    console.error('Gemini Fehler:', err);
+    console.error('Grok Fehler:', err);
     return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }
 });
