@@ -5,7 +5,10 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
+    "start": "npm audit --audit-level=moderate && node server.js",
+    "start:force": "node server.js",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
     "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
