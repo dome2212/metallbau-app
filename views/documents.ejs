@@ -68,7 +68,7 @@
                 <td class="fw-bold"><%= invoice.invoice_number %></td>
                 <td><%= invoice.company_name || invoice.contact_person || 'Unbekannt' %></td>
                 <td><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></td>
-                <td><%= parseFloat(invoice.total_amount).toFixed(2) %> €</td>
+                <td><%= parseFloat(invoice.total_amount || 0).toFixed(2) %> €</td>
                 <td>
                   <span class="badge bg-warning text-dark"><%= invoice.status %></span>
                 </td>

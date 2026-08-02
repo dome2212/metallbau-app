@@ -103,8 +103,8 @@
               <td class="py-3 text-gray-400"><%= index + 1 %></td>
               <td class="py-3 font-medium text-gray-800"><%= item.description %></td>
               <td class="py-3 text-right"><%= item.quantity %> <%= item.unit %></td>
-              <td class="py-3 text-right"><%= item.price.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</td>
-              <td class="py-3 text-right font-semibold"><%= (item.quantity * item.price).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</td>
+              <td class="py-3 text-right"><%= (item.price || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</td>
+              <td class="py-3 text-right font-semibold"><%= ((item.quantity || 0) * (item.price || 0)).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</td>
             </tr>
           <% }); %>
         <% } %>

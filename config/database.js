@@ -12,9 +12,10 @@ if (process.env.DATABASE_URL) {
     ssl: { rejectUnauthorized: false }
   });
 
-  // Jede neue Verbindung im Pool automatisch auf die deutsche Zeitzone stellen
+  // Pool-Verbindungen auf UTC halten — Timestamps werden als UTC gespeichert
+  // und beim Lesen serverseitig nach Europe/Berlin konvertiert
   db.on('connect', (client) => {
-    client.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+    client.query("SET timezone = 'UTC';").catch(() => {});
   });
 
   console.log("🟢 Versuche mit PostgreSQL zu verbinden und Tabellen zu erstellen...");

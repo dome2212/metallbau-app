@@ -34,7 +34,7 @@
           <% visibleUsers.forEach(u => { %>
             <%
               const bal = vacationBalances[u.id] || { allowance: 30, used: 0, remaining: 30 };
-              const pct = Math.min(100, Math.round((bal.used / bal.allowance) * 100));
+              const pct = bal.allowance > 0 ? Math.min(100, Math.round((bal.used / bal.allowance) * 100)) : 0;
               const barColor = pct >= 90 ? 'bg-red-500' : pct >= 65 ? 'bg-amber-400' : 'bg-emerald-500';
             %>
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">

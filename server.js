@@ -20,9 +20,10 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
-// Datenbank-Zeitzone explizit auf Berlin setzen (nur PostgreSQL; SQLite kennt kein SET timezone)
+// PostgreSQL-Verbindung auf UTC halten (Timestamps werden als UTC gespeichert,
+// Anzeige-Konvertierung erfolgt per AT TIME ZONE 'Europe/Berlin' in den Abfragen)
 if (process.env.DATABASE_URL) {
-  db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+  db.query("SET timezone = 'UTC';").catch(() => {});
 }
 
 // ==========================================
@@ -635,13 +636,13 @@ app.post('/timetracking/stamp', async (req, res) => {
   const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
 
   try {
-    const tsExpr = isPg ? `(NOW() AT TIME ZONE 'Europe/Berlin')` : `CURRENT_TIMESTAMP`;
+    const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
     const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ${tsExpr})`;
     await dbQuery(sql, [userId, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
     res.redirect('/timetracking');
   } catch (err) {
     try {
-      const tsExpr = isPg ? `(NOW() AT TIME ZONE 'Europe/Berlin')` : `CURRENT_TIMESTAMP`;
+      const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
       const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, ${tsExpr})`;
       await dbQuery(fallbackSql, [userId, type, note || null, assignedCustomerId]);
       res.redirect('/timetracking');
@@ -736,7 +737,7 @@ app.get('/vacations', async (req, res) => {
 
 app.post('/vacations/add', upload.single('document'), async (req, res) => {
   try {
-    const userId = req.user ? req.user.id : (req.body.user_id || req.session?.userId);
+    const userId = req.user.id;
     const { type, start_date, end_date, reason } = req.body;
     
     let fileUrl = null;
@@ -839,7 +840,7 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
       users,
       selectedDate: selectedDate || '',
       selectedUserId: selectedUserId || '',
-      user: req.session ? req.session.user : req.user 
+      user: req.user
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err);
@@ -946,7 +947,7 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
           timeStyle: 'short'
         });
         const actionText = log.type === 'IN' ? 'Eingestempelt (IN)' : 'Ausgestempelt (OUT)';
-        const noteText = log.log_note || log.note || '-';
+        const noteText = log.note || '-';
 
         if (doc.y > 750) {
           doc.addPage();
@@ -1060,7 +1061,7 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
            ORDER BY t.timestamp ASC`,
       [targetUserId, month]
     );
-    const entries = logsRes.rows;
+    const entries = logsRes.rows || [];
 
     let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt\n';
 
