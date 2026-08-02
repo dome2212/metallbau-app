@@ -10,7 +10,7 @@
 <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
 
 <!-- Die eigentliche Sidebar -->
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl">
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 h-full max-h-screen bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl overflow-y-auto">
   <div>
     <!-- Kopfbereich mit Schließen-Button für Mobil -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
@@ -29,7 +29,7 @@
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
-<a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaubsplanung & Abwesenheit</a>
+      <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaubsplanung & Abwesenheit</a>
 
       <!-- NUR FÜR CHEFS (ADMIN) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
@@ -43,7 +43,7 @@
     </nav>
   </div>
   
-  <div class="border-t border-gray-700 pt-3 space-y-2">
+  <div class="border-t border-gray-700 pt-3 space-y-2 mt-4">
     <div class="text-xs text-gray-400 mb-1">
       Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
       (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
@@ -57,7 +57,7 @@
   </div>
 </aside>
 
-<!-- WICHTIG: Abstandhalter oben für Mobil, damit der Inhalt nicht unter der fixierten Menüleiste verschwindet -->
+<!-- Abstandhalter oben für Mobil -->
 <div class="md:hidden h-14"></div>
 
 <script>
