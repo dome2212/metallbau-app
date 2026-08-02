@@ -146,7 +146,26 @@
         </div>
         <!-- Eingabefeld -->
         <div class="p-3 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+
+          <!-- Bildvorschau (wird ausgeblendet wenn kein Bild gewählt) -->
+          <div id="kiImagePreviewBox" class="hidden mb-2 flex items-center gap-2 bg-slate-50 dark:bg-slate-700 border dark:border-slate-600 rounded-lg px-3 py-2">
+            <img id="kiImagePreview" src="" alt="Vorschau" class="h-14 w-14 object-cover rounded border dark:border-slate-600">
+            <div class="flex-1 min-w-0">
+              <p id="kiImageName" class="text-xs text-slate-600 dark:text-slate-300 truncate"></p>
+              <p class="text-[10px] text-slate-400">Bild wird mit der nächsten Nachricht analysiert</p>
+            </div>
+            <button type="button" onclick="removeKiImage()" class="text-red-400 hover:text-red-600 font-bold text-lg leading-none px-1" title="Bild entfernen">✕</button>
+          </div>
+
           <div class="flex gap-2">
+            <!-- Bild-Upload-Button -->
+            <label for="kiImageInput" title="Bild hochladen – KI analysiert automatisch"
+              class="flex-shrink-0 cursor-pointer bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 border dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg px-3 py-2 text-lg flex items-center justify-center transition"
+              style="min-width:2.6rem">
+              📷
+            </label>
+            <input type="file" id="kiImageInput" accept="image/*" class="hidden" onchange="previewKiImage(this)">
+
             <textarea id="kiChatInput" rows="2"
               placeholder="z.B. „Stahltreppe 12 Stufen, Geländer beidseitig, pulverbeschichtet RAL 7016""
               class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>
@@ -155,7 +174,7 @@
               Senden ➤
             </button>
           </div>
-          <p class="text-[10px] text-slate-400 mt-1 hidden md:block">Enter = neue Zeile · Strg+Enter = Senden</p>
+          <p class="text-[10px] text-slate-400 mt-1 hidden md:block">📷 Bild wählen oder Text eingeben · Strg+Enter = Senden</p>
         </div>
       </div>
 
@@ -411,39 +430,86 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ── Bild-Hilfsfunktionen ──────────────────────────────────────────────────────
+function previewKiImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('kiImagePreview').src = e.target.result;
+    document.getElementById('kiImageName').textContent = file.name;
+    document.getElementById('kiImagePreviewBox').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeKiImage() {
+  document.getElementById('kiImageInput').value = '';
+  document.getElementById('kiImagePreview').src = '';
+  document.getElementById('kiImageName').textContent = '';
+  document.getElementById('kiImagePreviewBox').classList.add('hidden');
+}
+
 async function sendKiMessage() {
-  const input   = document.getElementById('kiChatInput');
-  const sendBtn = document.getElementById('kiSendBtn');
-  const message = input.value.trim();
-  if (!message) return;
+  const input     = document.getElementById('kiChatInput');
+  const sendBtn   = document.getElementById('kiSendBtn');
+  const message   = input.value.trim();
+  const imageFile = document.getElementById('kiImageInput').files[0];
+
+  // Mindestens Text ODER Bild muss vorhanden sein
+  if (!message && !imageFile) return;
 
   // Benutzer-Bubble
-  appendChatBubble('user', message);
+  const displayText = message || '📷 Bild zur Analyse hochgeladen';
+  appendChatBubble('user', displayText, false, imageFile);
   input.value = '';
   sendBtn.disabled = true;
   sendBtn.textContent = '…';
 
   // Lade-Bubble
-  const loadId = appendChatBubble('bot', '⏳ Denke nach …', true);
+  const loadId = appendChatBubble('bot', '⏳ Analysiere …', true);
 
   try {
-    const res = await fetch('/api/ai/offer-assistant', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ message, context: kiChatContext })
-    });
-    const data = await res.json();
+    let data;
+
+    if (imageFile) {
+      // ── Bild-Pfad: multipart/form-data an /api/ai/offer-assistant-image ──
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      if (message) formData.append('message', message);
+
+      const res = await fetch('/api/ai/offer-assistant-image', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData
+      });
+      data = await res.json();
+      if (!res.ok || data.error) {
+        removeBubble(loadId);
+        appendChatBubble('bot', '❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+        return;
+      }
+      removeKiImage(); // Bild nach dem Senden zurücksetzen
+    } else {
+      // ── Text-Pfad: JSON an /api/ai/offer-assistant ──
+      const res = await fetch('/api/ai/offer-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ message, context: kiChatContext })
+      });
+      data = await res.json();
+      if (!res.ok || data.error) {
+        removeBubble(loadId);
+        appendChatBubble('bot', '❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+        return;
+      }
+    }
 
     removeBubble(loadId);
 
-    if (!res.ok || data.error) {
-      appendChatBubble('bot', '❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
-      return;
-    }
-
     const reply = data.reply;
-    kiChatContext += `\nBenutzer: ${message}\nAssistent: ${reply}\n`;
+    kiChatContext += `\nBenutzer: ${displayText}\nAssistent: ${reply}\n`;
 
     // JSON-Positionen herausparsen
     const positions = parsePositionsFromReply(reply);
@@ -475,10 +541,17 @@ function parsePositionsFromReply(text) {
   }
 }
 
-function appendChatBubble(role, text, isTemp = false) {
+function appendChatBubble(role, text, isTemp = false, imageFile = null) {
   const container = document.getElementById('kiChatMessages');
   const id = 'bubble_' + Date.now() + Math.random().toString(36).substr(2, 4);
   const isBot = role === 'bot';
+
+  let imgHtml = '';
+  if (imageFile) {
+    const objUrl = URL.createObjectURL(imageFile);
+    imgHtml = `<img src="${objUrl}" alt="hochgeladenes Bild" class="mt-2 rounded-lg max-h-40 max-w-full object-cover border dark:border-slate-600">`;
+  }
+
   const bubble = `
     <div id="${id}" class="flex gap-3 ${isBot ? '' : 'flex-row-reverse'}">
       <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0 ${isBot ? 'bg-violet-600' : 'bg-blue-500'}">
@@ -487,7 +560,7 @@ function appendChatBubble(role, text, isTemp = false) {
       <div class="rounded-xl px-4 py-3 text-sm shadow-sm max-w-xs whitespace-pre-wrap ${isBot
         ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-gray-200'
         : 'bg-blue-600 text-white ml-auto'
-      }">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      }">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}${imgHtml}</div>
     </div>
   `;
   container.insertAdjacentHTML('beforeend', bubble);

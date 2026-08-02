@@ -268,6 +268,16 @@ app.get('/api/search', async (req, res) => {
 // ==========================================
 // KI-API-ROUTEN (global, nicht projektgebunden)
 // ==========================================
+const multer = require('multer');
+const imageUploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // max. 10 MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Nur Bilddateien erlaubt.'));
+  }
+});
+
 async function callAI(prompt) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
@@ -304,6 +314,62 @@ app.post('/api/ai/offer-assistant', async (req, res) => {
     res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }
 });
+
+// Bildanalyse für den Angebots-Assistenten (Vision)
+app.post('/api/ai/offer-assistant-image',
+  imageUploadMemory.single('image'),
+  async (req, res) => {
+    if (!process.env.OPENROUTER_API_KEY)
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+    if (!req.file)
+      return res.status(400).json({ error: 'Kein Bild übermittelt.' });
+
+    const apiKey   = process.env.OPENROUTER_API_KEY;
+    const b64      = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+
+    const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${FIRMA.name}".
+Analysiere das Bild und erkenne alle sichtbaren Metallbau-Leistungen, Materialien, Maße oder Bauteile.
+Antworte auf Deutsch. Wenn erkennbare Leistungen vorhanden sind, antworte mit:
+1. Kurzem Einleitungssatz über das Bild
+2. JSON-Liste:
+POSITIONEN_JSON:
+[
+  {"title": "Bezeichnung", "quantity": 1, "unit": "Stk", "price": 0},
+  ...
+]
+Erlaubte Einheiten: Stk, m, Std, kg, m², Psch
+Stundensatz ca. 75–95 €, Materialpreise marktüblich. Bei Unsicherheit price: 0.`;
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+          'X-Title': 'Metallbau App'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-flash-1.5',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+            ]
+          }],
+          temperature: 0.7
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(JSON.stringify(data));
+      res.json({ reply: data.choices[0].message.content });
+    } catch (err) {
+      res.status(500).json({ error: 'KI-Bildanalyse fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+    }
+  }
+);
 
 app.post('/api/ai/article-suggest', async (req, res) => {
   if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
