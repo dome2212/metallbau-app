@@ -13,7 +13,7 @@
       <!-- Formular: Neuen Mitarbeiter anlegen -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
         <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">Neuen Mitarbeiter-Account erstellen</h2>
-        <form action="/admin/users/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form action="/admin/users/add" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Benutzername</label>
             <input type="text" name="username" required placeholder="z.B. max.mustermann" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
@@ -29,7 +29,12 @@
               <option value="ADMIN">Chef / Administrator (Voller Zugriff)</option>
             </select>
           </div>
-          <div class="md:col-span-3">
+          <div>
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">📱 WhatsApp-Nummer (optional)</label>
+            <input type="tel" name="whatsapp_phone" placeholder="z.B. 01701234567" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
+            <p class="text-[10px] text-slate-400 mt-1">Deutsche Nummer ohne Vorwahl-0 oder mit +49. Wird für Statusbenachrichtigungen genutzt.</p>
+          </div>
+          <div class="md:col-span-2">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition w-full md:w-auto">Account anlegen</button>
           </div>
         </form>
@@ -65,11 +70,12 @@
           <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100">Bestehende Accounts</h2>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[500px]">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[600px]">
             <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
               <tr>
                 <th class="p-4">Benutzername</th>
                 <th class="p-4">Rolle</th>
+                <th class="p-4">📱 WhatsApp-Nummer</th>
                 <th class="p-4 text-right">Aktion</th>
               </tr>
             </thead>
@@ -85,6 +91,22 @@
                         <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-md font-semibold">Mitarbeiter</span>
                       <% } %>
                     </td>
+                    <td class="p-4">
+                      <form action="/admin/users/set-whatsapp" method="POST" class="flex items-center gap-2">
+                        <input type="hidden" name="user_id" value="<%= u.id %>">
+                        <input type="tel" name="whatsapp_phone" value="<%= u.whatsapp_phone || '' %>"
+                          placeholder="z.B. 01701234567"
+                          class="w-36 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-green-400 focus:outline-none">
+                        <button type="submit"
+                          class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold transition"
+                          title="Nummer speichern">✓</button>
+                      </form>
+                      <% if (u.whatsapp_phone) { %>
+                        <span class="text-[10px] text-green-600 dark:text-green-400 font-medium mt-0.5 block">✅ Benachrichtigungen aktiv</span>
+                      <% } else { %>
+                        <span class="text-[10px] text-slate-400 mt-0.5 block">Keine Nummer hinterlegt</span>
+                      <% } %>
+                    </td>
                     <td class="p-4 text-right">
                       <form action="/admin/users/delete" method="POST" onsubmit="return confirm('Mitarbeiter wirklich löschen?');" class="inline">
                         <input type="hidden" name="id" value="<%= u.id %>">
@@ -95,7 +117,7 @@
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine weiteren Mitarbeiter gefunden.</td>
+                  <td colspan="4" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine weiteren Mitarbeiter gefunden.</td>
                 </tr>
               <% } %>
             </tbody>

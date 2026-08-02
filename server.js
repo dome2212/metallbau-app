@@ -237,6 +237,9 @@ dbQuery(`
 // Feature: Urlaubskonto – Jahrestage pro Mitarbeiter
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
 
+// Feature: WhatsApp-Telefonnummer pro Mitarbeiter
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
+
 // ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
 // ==========================================
@@ -2349,6 +2352,35 @@ app.post('/projects/update-status', async (req, res) => {
   const { id, status } = req.body;
   try {
     await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
+
+    // ── WhatsApp-Benachrichtigung bei bestimmten Statuswechseln ──────────────
+    if (status === 'Montagebereit' || status === 'Montage läuft' || status === 'Abgeschlossen') {
+      const projRes = await dbQuery('SELECT title FROM projects WHERE id = ?', [id]);
+      const projTitle = projRes.rows[0]?.title || `Auftrag #${id}`;
+      const usersRes = await dbQuery(
+        "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND role = 'EMPLOYEE'"
+      );
+
+      const statusEmoji = {
+        'Montagebereit':   '🔧',
+        'Montage läuft':   '👷',
+        'Abgeschlossen':   '✅'
+      }[status] || '📋';
+
+      const message =
+        `${statusEmoji} *Statusänderung – ${FIRMA.nameKurz}*\n\n` +
+        `Auftrag: *${projTitle}*\n` +
+        `Neuer Status: *${status}*\n\n` +
+        `Bitte prüfe deine Aufgaben in der App.`;
+
+      for (const user of (usersRes.rows || [])) {
+        sendWhatsApp(user.whatsapp_phone, message).catch(e =>
+          console.error(`WhatsApp an ${user.username} fehlgeschlagen:`, e.message)
+        );
+      }
+    }
+    // ── Ende WhatsApp ────────────────────────────────────────────────────────
+
     res.redirect('back');
   } catch (err) {
     console.error('Fehler beim Aktualisieren des Status:', err.message);
@@ -3204,7 +3236,7 @@ app.post('/projects/delete', async (req, res) => {
 // ==========================================
 app.get('/admin/users', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const result = await dbQuery('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC');
+    const result = await dbQuery('SELECT id, username, role, whatsapp_phone, created_at FROM users ORDER BY created_at DESC');
     res.render('admin-users', { users: result.rows || [] });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -3212,18 +3244,32 @@ app.get('/admin/users', verifyToken, requireAdmin, async (req, res) => {
 });
 
 app.post('/admin/users/add', verifyToken, requireAdmin, async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, whatsapp_phone } = req.body;
   if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
 
   const hashedPassword = bcrypt.hashSync(password, 10);
   const userRole = role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE';
+  const phone = (whatsapp_phone || '').trim() || null;
 
   try {
-    const sql = `INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`;
-    await dbQuery(sql, [username, hashedPassword, userRole]);
+    await dbQuery(
+      `INSERT INTO users (username, password_hash, role, whatsapp_phone) VALUES (?, ?, ?, ?)`,
+      [username, hashedPassword, userRole, phone]
+    );
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Benutzername existiert möglicherweise bereits.');
+  }
+});
+
+app.post('/admin/users/set-whatsapp', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, whatsapp_phone } = req.body;
+  const phone = (whatsapp_phone || '').trim() || null;
+  try {
+    await dbQuery('UPDATE users SET whatsapp_phone = ? WHERE id = ?', [phone, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern der Telefonnummer.');
   }
 });
 
