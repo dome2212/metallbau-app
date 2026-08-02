@@ -1,41 +1,41 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">🏗️ Aufträge & Baustellen</h1>
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🏗️ Aufträge & Baustellen</h1>
     </header>
 
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
       
       <!-- Nur der Chef darf neue Aufträge anlegen -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-        <div class="bg-white rounded-lg shadow p-4 md:p-6">
-          <h2 class="text-lg font-semibold text-slate-800 mb-4">Neuen Auftrag anlegen</h2>
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">Neuen Auftrag anlegen</h2>
           <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Kunde</label>
-              <select name="customer_id" required class="w-full border rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kunde</label>
+              <select name="customer_id" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
                 <% customers.forEach(c => { %>
                   <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
                 <% }) %>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Bezeichnung / Baustelle</label>
-              <input type="text" name="title" required placeholder="z.B. Stahlgeländer Balkon" class="w-full border rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bezeichnung / Baustelle</label>
+              <input type="text" name="title" required placeholder="z.B. Stahlgeländer Balkon" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Auftragssumme (€)</label>
-              <input type="text" name="total_price" placeholder="0.00" class="w-full border rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Auftragssumme (€)</label>
+              <input type="text" name="total_price" placeholder="0.00" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
             </div>
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-slate-700 mb-1">Beschreibung / Details</label>
-              <input type="text" name="description" placeholder="Optionale Details zum Bauvorhaben..." class="w-full border rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Beschreibung / Details</label>
+              <input type="text" name="description" placeholder="Optionale Details zum Bauvorhaben..." class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-              <select name="status" class="w-full border rounded p-2 text-sm">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+              <select name="status" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
                 <option value="In Planung">In Planung</option>
                 <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
                 <option value="In Produktion">In Produktion</option>
@@ -55,18 +55,18 @@
       <!-- ═══════════════════════════════════════════ -->
       <!-- FILTER & SUCHE                              -->
       <!-- ═══════════════════════════════════════════ -->
-      <div class="bg-white rounded-lg shadow p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         <!-- Suchfeld -->
         <div class="relative flex-1">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input id="proj-search" type="text" placeholder="Titel oder Kunde suchen…"
-            class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+            class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
         </div>
         <!-- Status-Filter -->
         <select id="proj-status-filter"
-          class="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-52">
+          class="border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-52">
           <option value="">Alle Status</option>
           <option value="In Planung">In Planung</option>
           <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
@@ -85,10 +85,10 @@
       <!-- ═══════════════════════════════════════════ -->
       <!-- AUFTRAGSLISTE                               -->
       <!-- ═══════════════════════════════════════════ -->
-      <div class="bg-white rounded-lg shadow overflow-hidden p-4 md:p-6">
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden p-4 md:p-6">
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 min-w-[750px]">
-            <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[750px]">
+            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
               <tr>
                 <th class="p-3">Baustelle / Titel</th>
                 <th class="p-3">Kunde</th>
@@ -97,7 +97,7 @@
                 <th class="p-3 text-right">Aktion</th>
               </tr>
             </thead>
-            <tbody id="proj-tbody" class="divide-y divide-slate-200">
+            <tbody id="proj-tbody" class="divide-y divide-slate-200 dark:divide-slate-700">
               <% projects.forEach(p => { %>
                 <%
                   const statusColors = {
@@ -111,12 +111,12 @@
                   };
                   const sc = statusColors[p.status] || 'bg-gray-100 text-gray-700';
                 %>
-                <tr class="proj-row hover:bg-slate-50"
+                <tr class="proj-row hover:bg-slate-50 dark:hover:bg-slate-700"
                     data-title="<%= (p.title || '').toLowerCase() %>"
                     data-customer="<%= ((p.company_name || p.contact_person) || '').toLowerCase() %>"
                     data-status="<%= p.status %>">
 
-                  <td class="p-3 font-semibold text-slate-800">
+                  <td class="p-3 font-semibold text-slate-800 dark:text-gray-100">
                     <a href="/projects/<%= p.id %>" class="text-blue-600 hover:underline"><%= p.title %></a>
                   </td>
 
@@ -167,7 +167,7 @@
             </tbody>
           </table>
           <!-- Keine-Ergebnisse-Hinweis -->
-          <p id="proj-empty" class="hidden text-sm text-slate-400 text-center py-8">Keine Aufträge gefunden.</p>
+          <p id="proj-empty" class="hidden text-sm text-slate-400 dark:text-slate-500 text-center py-8">Keine Aufträge gefunden.</p>
         </div>
       </div>
 

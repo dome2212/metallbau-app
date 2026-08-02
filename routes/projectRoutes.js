@@ -12,6 +12,15 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage: storage, limits: { fileSize: 15 * 1024 * 1024 } });
 
+// Multer für Audio-Uploads (im Speicher halten, dann per stream zu Cloudinary)
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    cb(null, file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/'));
+  }
+});
+
 const dbQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     let i = 0;
@@ -171,6 +180,34 @@ router.post('/:id/notes/add', async (req, res) => {
     await dbQuery(`INSERT INTO project_notes (project_id, note_text) VALUES (?, ?)`, [req.params.id, note_text.trim()]);
   }
   res.redirect(`/projects/${req.params.id}`);
+});
+
+// Audio-Notiz hochladen und als Notiz-Eintrag speichern
+router.post('/:id/notes/audio', audioUpload.single('audio'), async (req, res) => {
+  const projectId = req.params.id;
+  if (!req.file) return res.status(400).json({ error: 'Keine Audiodatei empfangen.' });
+
+  try {
+    // Buffer als Stream zu Cloudinary hochladen (resource_type 'video' = Audio + Video)
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'metallbau-audio-notes', resource_type: 'video', format: 'webm' },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
+
+    const label = (req.body.label || '').trim() || '🎙️ Sprachnotiz';
+    await dbQuery(
+      `INSERT INTO project_notes (project_id, note_text, audio_url) VALUES (?, ?, ?)`,
+      [projectId, label, result.secure_url]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Audio-Upload Fehler:', err);
+    res.status(500).json({ error: 'Upload fehlgeschlagen.' });
+  }
 });
 
 router.post('/measurements/delete', async (req, res) => {

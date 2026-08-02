@@ -1,13 +1,13 @@
 <%- include('partials/header') %>
 
-<div class="flex h-screen bg-slate-100 overflow-hidden">
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
   <!-- Sidebar einbinden -->
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
     
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Mein Monatsüberblick</h1>
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⏱️ Mein Monatsüberblick</h1>
       <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
     </header>
 
@@ -54,22 +54,22 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
 
         <!-- Arbeitsstunden diese Woche -->
-        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-indigo-500">
-          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Diese Woche</p>
-          <p class="text-2xl md:text-3xl font-bold text-slate-800 mt-2"><%= stats.weekTotalHours %> Std.</p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 border-indigo-500">
+          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Diese Woche</p>
+          <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.weekTotalHours %> Std.</p>
           <p class="text-xs text-slate-400 mt-1">Mo – heute</p>
         </div>
 
         <!-- Arbeitsstunden diesen Monat -->
-        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
-          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Stunden diesen Monat</p>
-          <p class="text-2xl md:text-3xl font-bold text-slate-800 mt-2"><%= stats.monthTotalHours %> Std.</p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
+          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stunden diesen Monat</p>
+          <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.monthTotalHours %> Std.</p>
           <p class="text-xs text-slate-400 mt-1">Soll: <%= stats.targetHours %> Std.</p>
         </div>
 
         <!-- Aktueller Stempelstatus -->
-        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
-          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Aktueller Status</p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
+          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aktueller Status</p>
           <p class="text-lg md:text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
             <%= stats.isStampedIn ? '🟢 Aktuell eingestempelt' : '🔴 Aktuell ausgestempelt' %>
           </p>
@@ -82,14 +82,14 @@
       <!-- FIRMEN-TICKER (Nur-Lese Ansicht für Mitarbeiter)      -->
       <!-- ===================================================== -->
       <% if (tickers && tickers.length > 0) { %>
-        <div class="bg-amber-50 border border-amber-300 rounded-xl shadow p-4 md:p-5">
-          <h2 class="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+        <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl shadow p-4 md:p-5">
+          <h2 class="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
             📢 Schwarzes Brett – Nachrichten vom Chef
           </h2>
           <ul class="space-y-2">
             <% tickers.forEach(t => { %>
-              <li class="bg-white border border-amber-200 rounded-lg px-4 py-3">
-                <p class="text-sm text-gray-800"><%= t.message %></p>
+              <li class="bg-white dark:bg-slate-700 border border-amber-200 dark:border-slate-600 rounded-lg px-4 py-3">
+                <p class="text-sm text-gray-800 dark:text-gray-200"><%= t.message %></p>
                 <p class="text-[10px] text-gray-400 mt-1">
                   von <strong><%= t.author %></strong> ·
                   <%= new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
@@ -101,23 +101,23 @@
       <% } %>
 
       <!-- Letzte Stempel-Aktivitäten -->
-      <div class="bg-white rounded-xl shadow overflow-hidden">
-        <div class="px-4 md:px-6 py-4 border-b border-slate-200">
-          <h2 class="text-base md:text-lg font-semibold text-slate-800">Meine letzten Stempel-Einträge diesen Monat</h2>
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+        <div class="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100">Meine letzten Stempel-Einträge diesen Monat</h2>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 min-w-[600px]">
-            <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[600px]">
+            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
               <tr>
                 <th class="p-4">Aktion</th>
                 <th class="p-4">Zeitpunkt</th>
                 <th class="p-4">Notiz</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
               <% if (typeof recentLogs !== 'undefined' && recentLogs.length > 0) { %>
                 <% recentLogs.forEach(log => { %>
-                  <tr class="hover:bg-slate-50">
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
                     <td class="p-4 font-semibold">
                       <% if (log.type === 'IN') { %>
                         <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs">Eingestempelt (IN)</span>
@@ -131,7 +131,7 @@
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="3" class="p-6 text-center text-slate-400 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+                  <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
                 </tr>
               <% } %>
             </tbody>

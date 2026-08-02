@@ -7,15 +7,15 @@ const GEO_PROJECTS = <%- JSON.stringify(typeof geoProjects !== 'undefined' ? geo
 const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
 </script>
 
-<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-<header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
 <div class="flex items-center gap-3">
-<button onclick="history.back()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
+<button onclick="history.back()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 </svg>
 </button>
-<h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Zeiterfassung & Stempeluhr</h1>
+<h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⏱️ Zeiterfassung & Stempeluhr</h1>
 </div>
 <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
 </header>
@@ -25,7 +25,7 @@ const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
 <!-- ================================================ -->
 <!-- GEO-FENCING BANNER (wird per JS ein-/ausgeblendet) -->
 <!-- ================================================ -->
-<div id="geofence-banner" class="hidden rounded-xl border-2 border-indigo-400 bg-indigo-50 p-4 shadow-sm">
+<div id="geofence-banner" class="hidden rounded-xl border-2 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 p-4 shadow-sm">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
     <div class="space-y-1">
       <p class="text-sm font-bold text-indigo-800">
@@ -50,11 +50,11 @@ const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
 </div>
 
 <!-- STAMPEL-KARTE -->
-<div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
+<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
 <div>
-<h2 class="text-lg md:text-xl font-semibold text-slate-800">Stempel-Terminal</h2>
-<p class="text-sm text-slate-500 mt-1">
+<h2 class="text-lg md:text-xl font-semibold text-slate-800 dark:text-gray-100">Stempel-Terminal</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
 Status:
 <% if (isStampedIn) { %>
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -69,7 +69,7 @@ Ausgestempelt
 </div>
 <div class="mt-4 md:mt-0 text-left md:text-right">
 <span class="text-xs text-slate-400 block">Erfasste Arbeitszeit heute</span>
-<span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
+<span class="text-xl md:text-2xl font-bold text-slate-700 dark:text-slate-200"><%= todayTotalHours %> Std.</span>
 </div>
 </div>
 
@@ -79,8 +79,8 @@ Ausgestempelt
 <input type="hidden" name="longitude" id="longitude">
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-<label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>
-<select name="customer_id" id="customer-select" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Projekt / Kunde / Baustelle</label>
+<select name="customer_id" id="customer-select" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
 <option value="">-- Allgemein / Werkstatt --</option>
 <% if (typeof customers !== 'undefined') { %>
 <% customers.forEach(cust => { %>
@@ -90,8 +90,8 @@ Ausgestempelt
 </select>
 </div>
 <div>
-<label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>
-<input type="text" name="note" id="note-input" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tätigkeit / Notiz (optional)</label>
+<input type="text" name="note" id="note-input" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
 </div>
 </div>
 <div class="flex items-center space-x-4 pt-2">
@@ -110,12 +110,12 @@ Ausgestempelt
 </div>
 
 <!-- HEUTIGE HISTORIE -->
-<div class="bg-white rounded-lg shadow p-4 md:p-6">
-<h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
+<div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+<h3 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">Heutige Stempel-Einträge</h3>
 <% if (todayLogs && todayLogs.length > 0) { %>
 <div class="overflow-x-auto">
-<table class="w-full text-left text-sm text-slate-600 min-w-[550px]">
-<thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+<table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[550px]">
+<thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
 <tr>
 <th class="p-3">Typ</th>
 <th class="p-3">Uhrzeit</th>
@@ -127,9 +127,9 @@ Ausgestempelt
 <% } %>
 </tr>
 </thead>
-<tbody class="divide-y divide-slate-200">
+<tbody class="divide-y divide-slate-200 dark:divide-slate-700">
 <% todayLogs.forEach(log => { %>
-<tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
 <td class="p-3 font-semibold">
 <% if (log.type === 'IN') { %>
 <span class="text-green-600">Eingestempelt (IN)</span>
@@ -171,7 +171,7 @@ Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
 </table>
 </div>
 <% } else { %>
-<p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>
+<p class="text-sm text-slate-500 dark:text-slate-400">Heute wurden noch keine Stempelzeiten erfasst.</p>
 <% } %>
 </div>
 

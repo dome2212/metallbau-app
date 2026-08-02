@@ -61,6 +61,14 @@
       Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
       (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
     </div>
+
+    <!-- Dark-Mode Toggle -->
+    <button id="darkToggleBtn" onclick="toggleDarkMode()"
+      class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium transition">
+      <span id="darkToggleIcon">🌙</span>
+      <span id="darkToggleLabel">Dark Mode</span>
+    </button>
+
     <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-2 rounded transition font-medium">
       Abmelden
     </a>
@@ -77,30 +85,30 @@
 <!-- GLOBALE SUCHE – Overlay                                        -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 <div id="search-overlay" class="hidden fixed inset-0 z-[999] bg-black/60 flex items-start justify-center pt-16 px-4" onclick="closeSearch(event)">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onclick="event.stopPropagation()">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onclick="event.stopPropagation()">
 
     <!-- Eingabe -->
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700">
       <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
       <input id="search-input" type="text" placeholder="Auftrag, Kunde, Termin oder Notiz suchen…"
-        class="flex-1 text-sm text-slate-800 placeholder-slate-400 outline-none bg-transparent"
+        class="flex-1 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none bg-transparent"
         oninput="onSearchInput(this.value)"
         onkeydown="onSearchKey(event)">
-      <kbd class="text-[10px] font-mono bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded cursor-pointer" onclick="closeSearch()">Esc</kbd>
+      <kbd class="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300 px-1.5 py-0.5 rounded cursor-pointer" onclick="closeSearch()">Esc</kbd>
     </div>
 
     <!-- Ergebnisse -->
-    <div id="search-results" class="max-h-[420px] overflow-y-auto divide-y divide-slate-50">
+    <div id="search-results" class="max-h-[420px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-700">
       <p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>
     </div>
 
     <!-- Footer -->
-    <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-4 text-[10px] text-slate-400">
-      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">↑↓</kbd> Navigieren</span>
-      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">↵</kbd> Öffnen</span>
-      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">Esc</kbd> Schließen</span>
+    <div class="px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-[10px] text-slate-400">
+      <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">↑↓</kbd> Navigieren</span>
+      <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">↵</kbd> Öffnen</span>
+      <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">Esc</kbd> Schließen</span>
     </div>
   </div>
 </div>
@@ -112,6 +120,28 @@
     sidebar.classList.toggle('-translate-x-full');
     backdrop.classList.toggle('hidden');
   }
+
+  // ── Dark Mode ────────────────────────────────────────────────────────────
+  function toggleDarkMode() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('darkMode', isDark); } catch(e) {}
+    updateDarkToggleUI(isDark);
+  }
+
+  function updateDarkToggleUI(isDark) {
+    const icon  = document.getElementById('darkToggleIcon');
+    const label = document.getElementById('darkToggleLabel');
+    if (!icon || !label) return;
+    icon.textContent  = isDark ? '☀️' : '🌙';
+    label.textContent = isDark ? 'Hell-Modus' : 'Dark Mode';
+  }
+
+  // Beim Laden UI-Zustand sofort setzen
+  (function() {
+    try {
+      updateDarkToggleUI(localStorage.getItem('darkMode') === 'true');
+    } catch(e) {}
+  })();
 
   // ── Suche öffnen/schließen ────────────────────────────────────────────────
   function openSearch() {
@@ -194,11 +224,11 @@
 
     box.innerHTML = results.map((r, i) => `
       <a href="${r.url}" id="sr-${i}"
-        class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer search-result-item"
+        class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer search-result-item"
         data-idx="${i}">
         <span class="text-xl leading-none mt-0.5 shrink-0">${r.icon}</span>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-slate-800 truncate">${highlight(r.label, q)}</p>
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">${highlight(r.label, q)}</p>
           ${r.sub ? `<p class="text-xs text-slate-400 truncate mt-0.5">${esc(r.sub)}</p>` : ''}
         </div>
         <span class="text-[10px] font-semibold shrink-0 mt-1 px-1.5 py-0.5 rounded ${typeBg[r.type] || 'bg-slate-100 text-slate-500'}">
@@ -228,6 +258,7 @@
 
     items.forEach((el, i) => {
       el.classList.toggle('bg-slate-100', i === activeIdx);
+      el.classList.toggle('dark:bg-slate-700', i === activeIdx);
       el.classList.toggle('hover:bg-slate-50', i !== activeIdx);
     });
     items[activeIdx]?.scrollIntoView({ block: 'nearest' });

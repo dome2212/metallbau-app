@@ -4,10 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Metallbau Gehrmann Management</title>
-  <!-- Tailwind CSS via CDN für modernes Design -->
+  <!-- Tailwind CSS via CDN mit darkMode: class -->
+  <script>
+    // Dark-Mode so früh wie möglich setzen, um Flackern zu verhindern
+    (function() {
+      try {
+        if (localStorage.getItem('darkMode') === 'true') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
   <!-- PWA Manifest & Theme-Color für den Handy-Browser -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#2563eb">
 </head>
-<body class="bg-gray-100 text-gray-950 flex flex-col md:flex-row min-h-screen">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-950 dark:text-gray-100 flex flex-col md:flex-row min-h-screen">

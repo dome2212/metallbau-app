@@ -1,12 +1,12 @@
 <%- include('partials/header') %>
 
-<div class="flex h-screen bg-slate-100 overflow-hidden">
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">📋 Arbeitszeiten-Übersicht</h1>
-      <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📋 Arbeitszeiten-Übersicht</h1>
+      <span class="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-lg">
         Monat Gesamt: <strong id="total-display">wird berechnet…</strong>
       </span>
     </header>
@@ -16,13 +16,13 @@
       <!-- ============================================================ -->
       <!-- MONATSAUSWERTUNG & FILTER                                    -->
       <!-- ============================================================ -->
-      <div class="bg-white p-4 rounded-xl shadow">
-        <h2 class="text-base font-semibold text-slate-700 mb-3">📊 Monatsauswertung</h2>
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow">
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">📊 Monatsauswertung</h2>
         <form method="GET" action="/admin/timetracking" class="flex flex-wrap gap-4 items-end">
           <!-- Mitarbeiter -->
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Mitarbeiter</label>
-            <select name="user_id" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Mitarbeiter</label>
+            <select name="user_id" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
               <option value="">Alle Mitarbeiter</option>
               <% if (typeof users !== 'undefined') { %>
                 <% users.forEach(u => { %>
@@ -33,19 +33,19 @@
           </div>
           <!-- Monat -->
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Monat</label>
-            <input type="month" name="month" value="<%= typeof selectedMonth !== 'undefined' ? selectedMonth : '' %>" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monat</label>
+            <input type="month" name="month" value="<%= typeof selectedMonth !== 'undefined' ? selectedMonth : '' %>" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
           </div>
           <!-- Soll-Stunden -->
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Soll-Std./Tag</label>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Soll-Std./Tag</label>
             <input type="number" name="daily_hours" value="<%= typeof dailyHours !== 'undefined' ? dailyHours : 8 %>" min="1" max="12" step="0.5"
-              class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-24">
+              class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white w-24">
           </div>
           <!-- Datum (Tagesfilter) -->
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Einzeltag (optional)</label>
-            <input type="date" name="date" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Einzeltag (optional)</label>
+            <input type="date" name="date" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
           </div>
           <!-- Buttons -->
           <div class="flex flex-wrap gap-2">
@@ -77,17 +77,17 @@
           const otLabel = (isOver ? '+' : '-') + otH + ' Std. ' + otM + ' Min.';
         %>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
-            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Gearbeitete Stunden</p>
-            <p class="text-2xl font-bold text-slate-800 mt-1"><%= workedHours %> Std.</p>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 border-blue-500">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Gearbeitete Stunden</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-gray-100 mt-1"><%= workedHours %> Std.</p>
             <p class="text-xs text-slate-400 mt-0.5">im Monat <%= selectedMonth %></p>
           </div>
-          <div class="bg-white rounded-xl shadow p-4 border-l-4 border-slate-400">
-            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
-            <p class="text-2xl font-bold text-slate-800 mt-1"><%= targetHours %> Std.</p>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 border-slate-400">
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-gray-100 mt-1"><%= targetHours %> Std.</p>
             <p class="text-xs text-slate-400 mt-0.5">Werktage (Mo–Fr) im Monat</p>
           </div>
-          <div class="bg-white rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">
               <%= isOver ? 'Überstunden' : 'Minusstunden' %>
             </p>
@@ -102,14 +102,14 @@
       <!-- ============================================================ -->
       <!-- MANUELLEN ZEITEINTRAG ERFASSEN                               -->
       <!-- ============================================================ -->
-      <div class="bg-white rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-semibold text-slate-800 mb-4">➕ Arbeitszeit manuell erfassen</h2>
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">➕ Arbeitszeit manuell erfassen</h2>
         <form method="POST" action="/admin/timetracking/add" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end">
 
           <!-- Mitarbeiter -->
           <div>
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Mitarbeiter</label>
-            <select name="user_id" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mitarbeiter</label>
+            <select name="user_id" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
               <option value="">Bitte wählen…</option>
               <% if (typeof users !== 'undefined' && users.length > 0) { %>
                 <% users.forEach(u => { %>
@@ -121,8 +121,8 @@
 
           <!-- Typ -->
           <div>
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Typ</label>
-            <select name="type" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Typ</label>
+            <select name="type" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
               <option value="IN">Kommen (IN)</option>
               <option value="OUT">Gehen (OUT)</option>
             </select>
@@ -130,20 +130,20 @@
 
           <!-- Datum -->
           <div>
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Datum</label>
-            <input type="date" name="date" required value="<%= new Date().toLocaleDateString('sv-SE') %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Datum</label>
+            <input type="date" name="date" required value="<%= new Date().toLocaleDateString('sv-SE') %>" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Uhrzeit -->
           <div>
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Uhrzeit</label>
-            <input type="time" name="time" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Uhrzeit</label>
+            <input type="time" name="time" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Notiz -->
           <div>
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Notiz (optional)</label>
-            <input type="text" name="note" placeholder="z.B. Kunde / Grund" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notiz (optional)</label>
+            <input type="text" name="note" placeholder="z.B. Kunde / Grund" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
           </div>
 
           <!-- Button -->
@@ -159,14 +159,14 @@
       <!-- ============================================================ -->
       <!-- TABELLE DER EINTRÄGE                                         -->
       <!-- ============================================================ -->
-      <div class="bg-white rounded-xl shadow overflow-hidden">
-        <div class="px-4 md:px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-          <h2 class="text-base md:text-lg font-semibold text-slate-800">Erfasste Einträge</h2>
-          <span class="text-xs text-slate-500">Datum &amp; Uhrzeit (Lokal)</span>
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+        <div class="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+          <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100">Erfasste Einträge</h2>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Datum &amp; Uhrzeit (Lokal)</span>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 min-w-[700px]">
-            <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[700px]">
+            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
               <tr>
                 <th class="p-4">Datum</th>
                 <th class="p-4">Uhrzeit</th>
@@ -176,7 +176,7 @@
                 <th class="p-4 text-right">Löschen</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200" id="entries-body">
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700" id="entries-body">
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
                   <%
@@ -190,10 +190,10 @@
                       ? timeParts[0] + ':' + timeParts[1]
                       : '';
                   %>
-                  <tr class="hover:bg-slate-50">
-                    <td class="p-4 font-medium text-slate-800"><%= formattedDate %></td>
-                    <td class="p-4 font-semibold text-slate-700"><%= formattedTime %> Uhr</td>
-                    <td class="p-4 font-semibold text-slate-800"><%= log.username || 'Unbekannt' %></td>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <td class="p-4 font-medium text-slate-800 dark:text-gray-200"><%= formattedDate %></td>
+                    <td class="p-4 font-semibold text-slate-700 dark:text-gray-200"><%= formattedTime %> Uhr</td>
+                    <td class="p-4 font-semibold text-slate-800 dark:text-gray-100"><%= log.username || 'Unbekannt' %></td>
                     <td class="p-4">
                       <% if (log.type === 'IN') { %>
                         <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs font-semibold">Eingestempelt (IN)</span>
@@ -214,7 +214,7 @@
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="6" class="p-6 text-center text-slate-400 text-sm">Keine Zeiteinträge für diesen Filter vorhanden.</td>
+                  <td colspan="6" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Zeiteinträge für diesen Filter vorhanden.</td>
                 </tr>
               <% } %>
             </tbody>

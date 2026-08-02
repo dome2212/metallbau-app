@@ -116,6 +116,10 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle project_notes existiert bereits:', err.message));
 
+// Audio-Notizen: Spalte audio_url nachrüsten (idempotent)
+dbQuery(`ALTER TABLE project_notes ADD COLUMN IF NOT EXISTS audio_url TEXT`)
+  .catch(() => {});
+
 dbQuery(`
   CREATE TABLE IF NOT EXISTS vacations (
     id SERIAL PRIMARY KEY,
@@ -1959,7 +1963,6 @@ app.get('/projects/:id', async (req, res) => {
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
-    const sketchesRes = await dbQuery('SELECT id, title, image_data, created_by, created_at FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     // Wetterdaten für die Termine dieses Projekts anreichern
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
@@ -1982,8 +1985,7 @@ app.get('/projects/:id', async (req, res) => {
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
       notes: notesRes.rows || [],
-      tasks: tasksRes.rows || [],
-      sketches: sketchesRes.rows || []
+      tasks: tasksRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -2258,43 +2260,6 @@ app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
 });
 
 // ==========================================
-// HANDSKIZZEN (Canvas)
-// ==========================================
-app.post('/projects/:id/sketches/save', async (req, res) => {
-  const projectId = req.params.id;
-  const { image_data, title } = req.body;
-  const createdBy = req.user ? req.user.username : 'Unbekannt';
-
-  if (!image_data || !image_data.startsWith('data:image/')) {
-    return res.status(400).json({ error: 'Kein gültiges Bild.' });
-  }
-  // Base64-Größe grob prüfen: max ~2 MB
-  if (image_data.length > 2 * 1024 * 1024 * 1.37) {
-    return res.status(400).json({ error: 'Skizze zu groß (max. 2 MB).' });
-  }
-
-  try {
-    await dbQuery(
-      'INSERT INTO project_sketches (project_id, title, image_data, created_by) VALUES (?, ?, ?, ?)',
-      [projectId, title ? title.trim() : null, image_data, createdBy]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Fehler beim Speichern der Skizze:', err.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
-  }
-});
-
-app.post('/projects/sketches/delete', async (req, res) => {
-  const { sketch_id, project_id } = req.body;
-  try {
-    await dbQuery('DELETE FROM project_sketches WHERE id = ?', [sketch_id]);
-  } catch (err) {
-    console.error('Fehler beim Löschen der Skizze:', err.message);
-  }
-  res.redirect(`/projects/${project_id}`);
-});
-
 // ==========================================
 // BAUSTELLENKOORDINATEN (Geo-Fencing)
 // ==========================================
