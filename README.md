@@ -25,9 +25,9 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 
 | Bereich | Beschreibung |
 |---|---|
-| 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht KPI-Kacheln & offene Vorgänge |
+| 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht konfigurierbare KPI-Kacheln (6 Widgets, DB-gespeichert) & offene Vorgänge |
 | 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter, Monteure lesen sie auf ihrer Startseite |
-| 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf (In Planung → Abgeschlossen), Auftragssumme (nur Chef) |
+| 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf (In Planung → Abgeschlossen), Schnellstatus-Änderung ohne Seitenreload, Suche & Statusfilter, Auftragssumme (nur Chef) |
 | 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) für jeden Termin |
 | ⏱️ **Zeiterfassung** | Stempeluhr (Ein-/Ausstempeln), GPS-Standortprüfung, Geofencing je Baustelle, Kunden-Zuordnung |
 | 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, Tagesfilter – zusammengeführt in einer Ansicht |
@@ -38,6 +38,7 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 
 | Bereich | Beschreibung |
 |---|---|
+| ⚙️ **Dashboard-Widgets** | 6 KPI-Kacheln (Angebote, Rechnungen, Kunden, Aufträge, Fällige Rechnungen, Offene Mängel) – individuell ein-/ausblendbar, Einstellung in DB gespeichert (geräteübergreifend) |
 | 👥 **Mitarbeiter-Logins** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten |
 | 📋 **Arbeitszeiten-Übersicht** | Alle Stempelzeiten aller Mitarbeiter, manuelle Einträge, Löschen, PDF-Export |
 | 👤 **Kunden** | Kundenverwaltung mit Kontaktdaten, Dateien, verknüpfte Projekte |
@@ -219,6 +220,7 @@ metallbau-app/
 | `/documents/invoices` | GET | Admin | Rechnungen |
 | `/articles` | GET | Admin | Artikelstamm |
 | `/admin/users` | GET | Admin | Mitarbeiterverwaltung |
+| `/api/user-settings` | POST | Admin | Widget-Einstellungen speichern (JSON) |
 | `/api/search` | GET | Alle | Globale Suche (JSON) |
 | `/api/appointments` | GET | Alle | Termine (JSON, für Kalender) |
 | `/api/weather` | GET | Alle | Wettervorhersage (JSON) |

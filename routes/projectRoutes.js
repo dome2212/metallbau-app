@@ -90,10 +90,19 @@ router.post('/update-status', async (req, res) => {
       }
     }
 
-    res.redirect('back');
+    // fetch()-Anfragen bekommen JSON zurück, normale Forms werden umgeleitet
+    if (req.headers['accept'] && req.headers['accept'].includes('application/json')) {
+      res.json({ ok: true });
+    } else {
+      res.redirect('back');
+    }
   } catch (err) {
     console.error('Fehler bei Status-Update & Benachrichtigung:', err);
-    res.status(500).send('Fehler');
+    if (req.headers['accept'] && req.headers['accept'].includes('application/json')) {
+      res.status(500).json({ error: 'Fehler' });
+    } else {
+      res.status(500).send('Fehler');
+    }
   }
 });
 
