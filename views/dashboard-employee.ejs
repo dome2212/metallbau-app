@@ -13,8 +13,15 @@
     <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-6">
       
       <!-- Statistik-Karten -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+
+        <!-- Arbeitsstunden diese Woche -->
+        <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-indigo-500">
+          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Diese Woche</p>
+          <p class="text-2xl md:text-3xl font-bold text-slate-800 mt-2"><%= stats.weekTotalHours %> Std.</p>
+          <p class="text-xs text-slate-400 mt-1">Mo – heute</p>
+        </div>
+
         <!-- Arbeitsstunden diesen Monat -->
         <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
           <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Arbeitsstunden (Aktueller Monat)</p>

@@ -252,7 +252,36 @@ app.get('/', async (req, res) => {
       }
 
       const monthTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
-      const stats = { monthTotalHours, isStampedIn };
+
+      // Wochenstunden berechnen (ab Montag dieser Woche)
+      const today = new Date();
+      const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1; // 0=Mo
+      const mondayStart = new Date(today);
+      mondayStart.setHours(0, 0, 0, 0);
+      mondayStart.setDate(mondayStart.getDate() - dayOfWeek);
+
+      let weekMs = 0;
+      if (logs && logs.length > 0) {
+        for (let i = 0; i < logs.length; i++) {
+          const t = new Date(logs[i].local_timestamp || logs[i].timestamp);
+          if (t < mondayStart) continue;
+          if (logs[i].type !== 'IN') continue;
+          const start = t.getTime();
+          const next = logs[i + 1];
+          let end;
+          if (next && next.type === 'OUT') {
+            end = new Date(next.local_timestamp || next.timestamp).getTime();
+          } else if (i === logs.length - 1) {
+            end = now.getTime();
+          } else {
+            end = start;
+          }
+          if (end > start) weekMs += (end - start);
+        }
+      }
+      const weekTotalHours = (weekMs / (1000 * 60 * 60)).toFixed(2);
+
+      const stats = { monthTotalHours, weekTotalHours, isStampedIn };
       const recentLogs = [...logs].reverse().slice(0, 5);
 
       res.render('dashboard-employee', { stats, recentLogs });
@@ -1641,6 +1670,20 @@ app.post('/admin/users/add', verifyToken, requireAdmin, async (req, res) => {
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Benutzername existiert möglicherweise bereits.');
+  }
+});
+
+app.post('/admin/users/change-password', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, new_password } = req.body;
+  if (!user_id || !new_password || new_password.length < 6) {
+    return res.status(400).send('Ungültige Eingabe. Passwort muss mindestens 6 Zeichen haben.');
+  }
+  const hashedPassword = bcrypt.hashSync(new_password, 10);
+  try {
+    await dbQuery('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern des Passworts');
   }
 });
 
