@@ -102,115 +102,125 @@
 <!-- ================================================ -->
 <!-- KI-ASSISTENT MODAL                               -->
 <!-- ================================================ -->
-<div id="kiAssistantModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col md:flex-row overflow-hidden">
+<div id="kiAssistantModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-end md:items-center justify-center md:p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-xl shadow-xl w-full max-w-5xl flex flex-col overflow-hidden"
+       style="height: 92dvh; max-height: 92dvh;">
 
-    <!-- LINKE SPALTE: Chat -->
-    <div class="flex flex-col flex-1 min-w-0 border-r dark:border-slate-700">
-      <!-- Chat-Header -->
-      <div class="flex justify-between items-center px-5 py-4 border-b dark:border-slate-700 flex-shrink-0">
-        <div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-gray-100">🤖 KI-Angebots-Assistent</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Beschreibe was gebaut werden soll – die KI schlägt Positionen vor</p>
-        </div>
-        <button onclick="closeKiAssistant()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+    <!-- ── Gemeinsamer Header ─────────────────────────────────── -->
+    <div class="flex justify-between items-center px-4 py-3 border-b dark:border-slate-700 flex-shrink-0">
+      <div>
+        <h3 class="text-base font-bold text-slate-800 dark:text-gray-100">🤖 KI-Angebots-Assistent</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Beschreibe was gebaut werden soll – die KI schlägt Positionen vor</p>
       </div>
-
-      <!-- Chat-Verlauf -->
-      <div id="kiChatMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900/40">
-        <!-- Begrüßungs-Nachricht -->
-        <div class="flex gap-3">
-          <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm flex-shrink-0">🤖</div>
-          <div class="bg-white dark:bg-slate-700 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-gray-200 shadow-sm max-w-sm">
-            Hallo! Ich helfe dir beim Erstellen von Angeboten.<br><br>
-            Beschreibe einfach, was gebaut oder geliefert werden soll – z.B.:<br>
-            <span class="text-violet-600 font-medium italic">„Stahlgeländer 3 Meter, verzinkt, mit Montage"</span><br><br>
-            Ich schlage dann passende Positionen vor, die du direkt ins Angebot übernehmen kannst.
-          </div>
-        </div>
-      </div>
-
-      <!-- Eingabefeld -->
-      <div class="p-4 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
-        <div class="flex gap-2">
-          <textarea id="kiChatInput" rows="2"
-            placeholder="z.B. „Stahltreppe 12 Stufen, Geländer beidseitig, pulverbeschichtet RAL 7016""
-            class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>
-          <button id="kiSendBtn" onclick="sendKiMessage()"
-            class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 flex items-center gap-1">
-            Senden ➤
-          </button>
-        </div>
-        <p class="text-[10px] text-slate-400 mt-1">Enter = neue Zeile · Strg+Enter = Senden</p>
-      </div>
+      <button onclick="closeKiAssistant()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none px-1">&times;</button>
     </div>
 
-    <!-- RECHTE SPALTE: Positionen-Vorschau + Angebot-Formular -->
-    <div class="flex flex-col w-full md:w-96 flex-shrink-0">
-      <!-- Positionen-Header -->
-      <div class="px-5 py-4 border-b dark:border-slate-700 flex-shrink-0">
-        <h4 class="text-sm font-bold text-slate-800 dark:text-gray-100">📋 Angebot zusammenstellen</h4>
-        <p class="text-xs text-slate-500 dark:text-slate-400">KI-Vorschläge übernehmen oder selbst hinzufügen</p>
-      </div>
+    <!-- ── Tabs (nur auf Mobil sichtbar) ─────────────────────── -->
+    <div class="flex md:hidden border-b dark:border-slate-700 flex-shrink-0">
+      <button id="kiTabChat" onclick="kiSwitchTab('chat')"
+        class="flex-1 py-2.5 text-sm font-semibold text-violet-600 border-b-2 border-violet-600">
+        💬 Chat
+      </button>
+      <button id="kiTabOffer" onclick="kiSwitchTab('offer')"
+        class="flex-1 py-2.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent">
+        📋 Angebot <span id="kiTabBadge" class="hidden ml-1 bg-violet-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+    </div>
 
-      <!-- Angebots-Formular (scrollbar) -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- Kunden-Auswahl -->
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kunde *</label>
-          <select id="kiCustomerSelect" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-white">
-            <option value="">-- Kunde wählen --</option>
-            <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
-              <% customers.forEach(c => { %>
-                <option value="<%= c.id %>"><%= c.company_name ? c.company_name + ' – ' + c.contact_person : c.contact_person %></option>
-              <% }); %>
-            <% } %>
-          </select>
+    <!-- ── Haupt-Inhalt (Desktop: nebeneinander, Mobil: Tabs) ── -->
+    <div class="flex flex-1 min-h-0 overflow-hidden">
+
+      <!-- CHAT-SPALTE -->
+      <div id="kiPanelChat" class="flex flex-col flex-1 min-w-0 md:border-r dark:border-slate-700">
+        <!-- Chat-Verlauf -->
+        <div id="kiChatMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900/40">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm flex-shrink-0">🤖</div>
+            <div class="bg-white dark:bg-slate-700 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-gray-200 shadow-sm max-w-sm">
+              Hallo! Ich helfe dir beim Erstellen von Angeboten.<br><br>
+              Beschreibe einfach, was gebaut oder geliefert werden soll – z.B.:<br>
+              <span class="text-violet-600 font-medium italic">„Stahlgeländer 3 Meter, verzinkt, mit Montage"</span><br><br>
+              Ich schlage dann passende Positionen vor, die du direkt ins Angebot übernehmen kannst.
+            </div>
+          </div>
         </div>
-
-        <!-- Positions-Liste -->
-        <div>
-          <div class="flex justify-between items-center mb-2">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Positionen</label>
-            <button type="button" onclick="addKiRow()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded border dark:border-slate-600">
-              + Manuell
+        <!-- Eingabefeld -->
+        <div class="p-3 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+          <div class="flex gap-2">
+            <textarea id="kiChatInput" rows="2"
+              placeholder="z.B. „Stahltreppe 12 Stufen, Geländer beidseitig, pulverbeschichtet RAL 7016""
+              class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>
+            <button id="kiSendBtn" onclick="sendKiMessage()"
+              class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex-shrink-0">
+              Senden ➤
             </button>
           </div>
-          <div id="kiItemsContainer" class="space-y-2">
-            <p id="kiEmptyHint" class="text-xs text-slate-400 dark:text-slate-500 italic text-center py-4">
-              Noch keine Positionen. Beschreibe links was benötigt wird.
-            </p>
-          </div>
-        </div>
-
-        <!-- Summe -->
-        <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-4 py-3 border dark:border-slate-600">
-          <div class="flex justify-between items-center text-sm">
-            <span class="text-slate-600 dark:text-slate-300">Netto-Summe:</span>
-            <span id="kiTotalNet" class="font-semibold text-slate-800 dark:text-gray-100">0,00 €</span>
-          </div>
-          <div class="flex justify-between items-center text-sm mt-1">
-            <span class="text-slate-600 dark:text-slate-300">MwSt. 19%:</span>
-            <span id="kiTotalVat" class="text-slate-600 dark:text-slate-400">0,00 €</span>
-          </div>
-          <div class="flex justify-between items-center font-bold text-base mt-2 pt-2 border-t dark:border-slate-600">
-            <span class="text-slate-800 dark:text-gray-100">Gesamt (Brutto):</span>
-            <span id="kiTotalGross" class="text-emerald-700 dark:text-emerald-400">0,00 €</span>
-          </div>
+          <p class="text-[10px] text-slate-400 mt-1 hidden md:block">Enter = neue Zeile · Strg+Enter = Senden</p>
         </div>
       </div>
 
-      <!-- Speichern-Button -->
-      <div class="px-4 py-4 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
-        <button onclick="submitKiOffer()"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition">
-          💾 Angebot speichern
-        </button>
-        <button onclick="closeKiAssistant()" class="w-full mt-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1">
-          Abbrechen
-        </button>
+      <!-- ANGEBOTS-SPALTE -->
+      <div id="kiPanelOffer" class="hidden md:flex flex-col w-full md:w-96 flex-shrink-0">
+        <!-- Angebots-Formular (scrollbar) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Kunden-Auswahl -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kunde *</label>
+            <select id="kiCustomerSelect" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-white">
+              <option value="">-- Kunde wählen --</option>
+              <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
+                <% customers.forEach(c => { %>
+                  <option value="<%= c.id %>"><%= c.company_name ? c.company_name + ' – ' + c.contact_person : c.contact_person %></option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+
+          <!-- Positions-Liste -->
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Positionen</label>
+              <button type="button" onclick="addKiRow()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded border dark:border-slate-600">
+                + Manuell
+              </button>
+            </div>
+            <div id="kiItemsContainer" class="space-y-2">
+              <p id="kiEmptyHint" class="text-xs text-slate-400 dark:text-slate-500 italic text-center py-4">
+                Noch keine Positionen. Beschreibe im Chat was benötigt wird.
+              </p>
+            </div>
+          </div>
+
+          <!-- Summe -->
+          <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-4 py-3 border dark:border-slate-600">
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-slate-600 dark:text-slate-300">Netto-Summe:</span>
+              <span id="kiTotalNet" class="font-semibold text-slate-800 dark:text-gray-100">0,00 €</span>
+            </div>
+            <div class="flex justify-between items-center text-sm mt-1">
+              <span class="text-slate-600 dark:text-slate-300">MwSt. 19%:</span>
+              <span id="kiTotalVat" class="text-slate-600 dark:text-slate-400">0,00 €</span>
+            </div>
+            <div class="flex justify-between items-center font-bold text-base mt-2 pt-2 border-t dark:border-slate-600">
+              <span class="text-slate-800 dark:text-gray-100">Gesamt (Brutto):</span>
+              <span id="kiTotalGross" class="text-emerald-700 dark:text-emerald-400">0,00 €</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Speichern-Button -->
+        <div class="px-4 py-4 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+          <button onclick="submitKiOffer()"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition">
+            💾 Angebot speichern
+          </button>
+          <button onclick="closeKiAssistant()" class="w-full mt-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1">
+            Abbrechen
+          </button>
+        </div>
       </div>
-    </div>
+
+    </div><!-- end Haupt-Inhalt -->
   </div>
 </div>
 
@@ -342,8 +352,46 @@ function removeOfferRow(rowId) {
 // ================================================
 let kiChatContext = '';
 
+// ── Mobil-Tab-Wechsel ────────────────────────────────────────────────────────
+function kiSwitchTab(tab) {
+  const panelChat  = document.getElementById('kiPanelChat');
+  const panelOffer = document.getElementById('kiPanelOffer');
+  const tabChat    = document.getElementById('kiTabChat');
+  const tabOffer   = document.getElementById('kiTabOffer');
+
+  if (tab === 'chat') {
+    panelChat.classList.remove('hidden');
+    panelChat.classList.add('flex');
+    panelOffer.classList.remove('flex');
+    panelOffer.classList.add('hidden');
+    tabChat.classList.add('text-violet-600', 'border-violet-600');
+    tabChat.classList.remove('text-slate-400', 'border-transparent');
+    tabOffer.classList.remove('text-violet-600', 'border-violet-600');
+    tabOffer.classList.add('text-slate-400', 'border-transparent');
+  } else {
+    panelOffer.classList.remove('hidden');
+    panelOffer.classList.add('flex');
+    panelChat.classList.remove('flex');
+    panelChat.classList.add('hidden');
+    tabOffer.classList.add('text-violet-600', 'border-violet-600');
+    tabOffer.classList.remove('text-slate-400', 'border-transparent');
+    tabChat.classList.remove('text-violet-600', 'border-violet-600');
+    tabChat.classList.add('text-slate-400', 'border-transparent');
+  }
+}
+
+function kiUpdateBadge() {
+  const count = document.querySelectorAll('#kiItemsContainer > div').length;
+  const badge = document.getElementById('kiTabBadge');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.classList.toggle('hidden', count === 0);
+}
+
 function openKiAssistant() {
   document.getElementById('kiAssistantModal').classList.remove('hidden');
+  // Mobil: immer mit Chat-Tab starten
+  if (window.innerWidth < 768) kiSwitchTab('chat');
 }
 
 function closeKiAssistant() {
@@ -496,6 +544,11 @@ function addKiRow(title = '', quantity = 1, unit = 'Stk', price = 0) {
     </div>
   `);
   updateKiTotal();
+  kiUpdateBadge();
+  // Auf Mobil: nach KI-Vorschlag automatisch zum Angebot-Tab wechseln
+  if (window.innerWidth < 768 && title) {
+    setTimeout(() => kiSwitchTab('offer'), 400);
+  }
 }
 
 function updateKiTotal() {
