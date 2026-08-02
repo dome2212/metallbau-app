@@ -54,40 +54,51 @@ async function callAI(prompt) {
   return data.choices[0].message.content;
 }
 
-// Vision-fähige KI (Bilder + Text) – nutzt google/gemma-4-31b-it:free über OpenRouter
+// Vision-fähige KI (Bilder + Text) – Fallback-Kette über kostenlose Modelle
+const VISION_MODELS_FREE = [
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
+];
+
 async function callAIWithImages(prompt, imageBuffers) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
 
-  // Bilder als base64 data-URLs verpacken (OpenAI vision format)
   const imageParts = imageBuffers.map(({ buffer, mimetype }) => ({
     type: 'image_url',
     image_url: { url: `data:${mimetype};base64,${buffer.toString('base64')}` }
   }));
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
-      'X-Title': 'Metallbau App'
-    },
-    body: JSON.stringify({
-      model: 'google/gemma-4-31b-it:free',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          ...imageParts
-        ]
-      }],
-      temperature: 0.7
-    })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(JSON.stringify(data));
-  return data.choices[0].message.content;
+  let lastError;
+  for (const model of VISION_MODELS_FREE) {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+        'X-Title': 'Metallbau App'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{
+          role: 'user',
+          content: [{ type: 'text', text: prompt }, ...imageParts]
+        }],
+        temperature: 0.7
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const code = data?.error?.code;
+      if (code === 429 || code === 404 || code === 400) { lastError = data; continue; }
+      throw new Error(JSON.stringify(data));
+    }
+    return data.choices[0].message.content;
+  }
+  throw new Error('Alle Vision-Modelle nicht verfügbar: ' + JSON.stringify(lastError));
 }
 
 function fetchWeather(lat, lng, dateStr) {

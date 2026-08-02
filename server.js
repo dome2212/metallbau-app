@@ -316,6 +316,58 @@ app.post('/api/ai/offer-assistant', async (req, res) => {
 });
 
 // Bildanalyse für den Angebots-Assistenten (Vision)
+// Kostenlose Vision-Modelle als Fallback-Kette (bei Rate-Limit wird das nächste versucht)
+const VISION_MODELS_FREE = [
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
+];
+
+async function callVisionAI(apiKey, systemPrompt, b64, mimeType) {
+  let lastError;
+  for (const model of VISION_MODELS_FREE) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+          'X-Title': 'Metallbau App'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+            ]
+          }],
+          temperature: 0.7
+        })
+      });
+      const data = await response.json();
+      // Bei Rate-Limit (429) oder Modell nicht verfügbar (404) → nächstes Modell versuchen
+      if (!response.ok) {
+        const code = data?.error?.code;
+        if (code === 429 || code === 404 || code === 400) {
+          lastError = data;
+          continue;
+        }
+        throw new Error(JSON.stringify(data));
+      }
+      return data.choices[0].message.content;
+    } catch (err) {
+      lastError = err;
+      // Nur bei Netzwerkfehlern weitermachen, nicht bei echten Fehlern
+      if (!err.message?.includes('fetch')) throw err;
+    }
+  }
+  throw new Error('Alle Vision-Modelle nicht verfügbar: ' + JSON.stringify(lastError));
+}
+
 app.post('/api/ai/offer-assistant-image',
   imageUploadMemory.single('image'),
   async (req, res) => {
@@ -342,29 +394,8 @@ Erlaubte Einheiten: Stk, m, Std, kg, m², Psch
 Stundensatz ca. 75–95 €, Materialpreise marktüblich. Bei Unsicherheit price: 0.`;
 
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
-          'X-Title': 'Metallbau App'
-        },
-        body: JSON.stringify({
-          model: 'google/gemma-4-31b-it:free',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: systemPrompt },
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
-            ]
-          }],
-          temperature: 0.7
-        })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(JSON.stringify(data));
-      res.json({ reply: data.choices[0].message.content });
+      const reply = await callVisionAI(apiKey, systemPrompt, b64, mimeType);
+      res.json({ reply });
     } catch (err) {
       res.status(500).json({ error: 'KI-Bildanalyse fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
     }
