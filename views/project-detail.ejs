@@ -7,7 +7,27 @@
         <a href="/projects" class="text-xs text-blue-600 hover:underline">← Zurück zur Übersicht</a>
         <h1 class="text-xl md:text-2xl font-bold text-slate-800"><%= project.title %></h1>
       </div>
-      <span class="px-3 py-1 rounded text-sm font-semibold bg-blue-100 text-blue-800"><%= project.status %></span>
+      <div class="flex items-center gap-2">
+        <%
+          const headerStatusColors = {
+            'In Planung':         'bg-slate-100 text-slate-700',
+            'Avor / Vorbereitung':'bg-blue-100 text-blue-800',
+            'In Produktion':      'bg-amber-100 text-amber-800',
+            'Oberfläche':         'bg-purple-100 text-purple-800',
+            'Montagebereit':      'bg-emerald-100 text-emerald-800',
+            'Montage läuft':      'bg-orange-100 text-orange-800',
+            'Abgeschlossen':      'bg-green-100 text-green-800'
+          };
+          const hsc = headerStatusColors[project.status] || 'bg-blue-100 text-blue-800';
+        %>
+        <span class="px-3 py-1 rounded text-sm font-semibold <%= hsc %>"><%= project.status %></span>
+        <% if (currentUser.role === 'ADMIN') { %>
+          <button onclick="document.getElementById('editProjectModal').classList.remove('hidden')"
+            class="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-xs font-semibold transition">
+            ✏️ Bearbeiten
+          </button>
+        <% } %>
+      </div>
     </header>
 
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
@@ -26,7 +46,7 @@
           <% if (currentUser.role === 'ADMIN') { %>
             <div>
               <span class="text-xs text-slate-400 block">Auftragssumme</span>
-              <span class="text-xl font-bold text-slate-800"><%= project.total_price.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+              <span class="text-xl font-bold text-slate-800"><%= (Number(project.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
             </div>
           <% } %>
 
@@ -70,8 +90,6 @@
                   <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded transition">Koordinaten speichern</button>
                   <button type="button" onclick="useMyLocationForProject()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium py-1.5 rounded transition">📍 Meinen Standort nutzen</button>
                 </div>
-                <input type="hidden" id="proj_lat_input" name="">
-                <input type="hidden" id="proj_lng_input" name="">
               </form>
             </div>
           <% } %>
@@ -189,6 +207,136 @@
           </div>
         <% } else { %>
           <p class="text-xs text-slate-400 italic">Noch keine Maße für dieses Projekt erfasst.</p>
+        <% } %>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- HANDSKIZZEN & CANVAS                       -->
+      <!-- ========================================== -->
+      <div class="bg-white rounded-lg shadow p-4 md:p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-slate-800 border-b pb-2">✏️ Handskizzen & Zeichnungsnotizen</h2>
+
+        <!-- Canvas-Werkzeuge -->
+        <div class="bg-slate-50 rounded-lg border p-3 space-y-3">
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+
+            <!-- Werkzeug-Auswahl -->
+            <div class="flex items-center gap-1 bg-white border rounded-lg p-1">
+              <button type="button" id="tool-pen"
+                onclick="setTool('pen')"
+                class="sketch-tool-btn active px-2.5 py-1.5 rounded text-xs font-semibold transition"
+                title="Stift">✏️ Stift</button>
+              <button type="button" id="tool-line"
+                onclick="setTool('line')"
+                class="sketch-tool-btn px-2.5 py-1.5 rounded text-xs font-semibold transition"
+                title="Linie">/ Linie</button>
+              <button type="button" id="tool-rect"
+                onclick="setTool('rect')"
+                class="sketch-tool-btn px-2.5 py-1.5 rounded text-xs font-semibold transition"
+                title="Rechteck">▭ Rechteck</button>
+              <button type="button" id="tool-eraser"
+                onclick="setTool('eraser')"
+                class="sketch-tool-btn px-2.5 py-1.5 rounded text-xs font-semibold transition"
+                title="Radierer">⬜ Radierer</button>
+            </div>
+
+            <!-- Farbe -->
+            <div class="flex items-center gap-1">
+              <span class="text-slate-500 font-medium">Farbe:</span>
+              <% ['#1e293b','#dc2626','#2563eb','#16a34a','#d97706','#7c3aed'].forEach(c => { %>
+                <button type="button"
+                  onclick="setColor('<%= c %>')"
+                  class="sketch-color-btn w-6 h-6 rounded-full border-2 border-transparent transition hover:scale-110"
+                  style="background-color:<%= c %>"
+                  data-color="<%= c %>"></button>
+              <% }) %>
+              <input type="color" id="custom-color" value="#1e293b"
+                onchange="setColor(this.value)"
+                class="w-6 h-6 rounded cursor-pointer border border-slate-300"
+                title="Eigene Farbe">
+            </div>
+
+            <!-- Strichstärke -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-500 font-medium">Stärke:</span>
+              <input type="range" id="brush-size" min="1" max="30" value="3"
+                oninput="setBrushSize(this.value)"
+                class="w-20 accent-slate-700">
+              <span id="brush-size-label" class="text-slate-600 font-semibold w-5 text-center">3</span>
+            </div>
+
+            <!-- Aktionen -->
+            <div class="flex items-center gap-1 ml-auto">
+              <button type="button" onclick="undoSketch()"
+                class="px-2.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 rounded text-xs font-semibold transition"
+                title="Rückgängig">↩ Undo</button>
+              <button type="button" onclick="clearSketch()"
+                class="px-2.5 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded text-xs font-semibold transition"
+                title="Alles löschen">🗑 Leeren</button>
+            </div>
+          </div>
+
+          <!-- Canvas -->
+          <div class="relative rounded border border-slate-300 overflow-hidden bg-white" style="touch-action: none;">
+            <canvas id="sketch-canvas"
+              class="block w-full"
+              style="cursor: crosshair; display: block;">
+            </canvas>
+            <!-- Hintergrundraster -->
+            <canvas id="sketch-grid" class="absolute inset-0 pointer-events-none w-full h-full"></canvas>
+          </div>
+
+          <!-- Speichern -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1">
+            <input type="text" id="sketch-title" placeholder="Titel der Skizze (z.B. Geländer Nordseite)" maxlength="80"
+              class="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm bg-white w-full sm:w-auto">
+            <button type="button" onclick="saveSketch(<%= project.id %>)"
+              id="sketch-save-btn"
+              class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-1.5 rounded transition whitespace-nowrap">
+              💾 Skizze speichern
+            </button>
+          </div>
+          <p id="sketch-status" class="text-xs text-slate-400 hidden"></p>
+        </div>
+
+        <!-- Gespeicherte Skizzen -->
+        <% if (sketches && sketches.length > 0) { %>
+          <div class="space-y-2">
+            <h3 class="text-sm font-semibold text-slate-700">Gespeicherte Skizzen (<%= sketches.length %>):</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <% sketches.forEach(sk => { %>
+                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden group">
+                  <!-- Vorschau klickbar zum Vollbild -->
+                  <a href="<%= sk.image_data %>" target="_blank" class="block">
+                    <img src="<%= sk.image_data %>" alt="Skizze"
+                      class="w-full h-36 object-contain bg-white hover:opacity-90 transition border-b border-slate-200">
+                  </a>
+                  <div class="p-2.5 flex justify-between items-center gap-2">
+                    <div class="min-w-0">
+                      <p class="text-xs font-semibold text-slate-800 truncate"><%= sk.title || 'Ohne Titel' %></p>
+                      <p class="text-[10px] text-slate-400">von <strong><%= sk.created_by %></strong> · <%= new Date(sk.created_at).toLocaleDateString('de-DE') %></p>
+                    </div>
+                    <form action="/projects/sketches/delete" method="POST" onsubmit="return confirm('Skizze wirklich löschen?');" class="shrink-0">
+                      <input type="hidden" name="sketch_id" value="<%= sk.id %>">
+                      <input type="hidden" name="project_id" value="<%= project.id %>">
+                      <button type="submit"
+                        class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-medium transition">
+                        🗑️
+                      </button>
+                    </form>
+                  </div>
+                  <!-- Skizze in Canvas laden -->
+                  <button type="button"
+                    onclick="loadSketchToCanvas('<%= sk.image_data.replace(/'/g, "\\'") %>')"
+                    class="w-full text-center text-[10px] text-indigo-600 hover:bg-indigo-50 py-1.5 border-t border-slate-200 transition font-medium">
+                    ↗ In Canvas laden & bearbeiten
+                  </button>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        <% } else { %>
+          <p class="text-xs text-slate-400 italic">Noch keine Skizzen für dieses Projekt gespeichert.</p>
         <% } %>
       </div>
 
@@ -386,7 +534,255 @@
 
 </main>
 
+<!-- ================================================ -->
+<!-- PROJEKT BEARBEITEN MODAL (nur Admin)              -->
+<!-- ================================================ -->
+<% if (currentUser.role === 'ADMIN') { %>
+<div id="editProjectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-4 md:p-6 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h3 class="text-lg font-bold text-slate-800">✏️ Auftrag bearbeiten</h3>
+      <button onclick="document.getElementById('editProjectModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+    </div>
+    <form action="/projects/<%= project.id %>/edit" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Bezeichnung / Baustelle *</label>
+        <input type="text" name="title" required value="<%= project.title %>" class="w-full border rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Beschreibung / Details</label>
+        <textarea name="description" rows="2" class="w-full border rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"><%= project.description || '' %></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Auftragssumme (€)</label>
+          <input type="text" name="total_price" value="<%= (Number(project.total_price) || 0).toFixed(2) %>" class="w-full border rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+          <select name="status" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+            <% ['In Planung','Avor / Vorbereitung','In Produktion','Oberfläche','Montagebereit','Montage läuft','Abgeschlossen'].forEach(s => { %>
+              <option value="<%= s %>" <%= project.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button type="button" onclick="document.getElementById('editProjectModal').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Änderungen speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<style>
+.sketch-tool-btn { color: #475569; background: transparent; }
+.sketch-tool-btn.active { background: #1e40af; color: #fff; }
+</style>
+
 <script>
+// ================================================
+// CANVAS / HANDSKIZZEN
+// ================================================
+(function() {
+  const canvas = document.getElementById('sketch-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const container = canvas.parentElement;
+    const w = container.clientWidth;
+    const h = Math.round(w * 0.55);
+    if (canvas.width === w && canvas.height === h) return;
+    const snap = canvas.width > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+    canvas.width  = w;
+    canvas.height = h;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    if (snap) ctx.putImageData(snap, 0, 0);
+    drawGrid();
+  }
+
+  function drawGrid() {
+    const grid = document.getElementById('sketch-grid');
+    if (!grid) return;
+    grid.width  = canvas.width;
+    grid.height = canvas.height;
+    const gc = grid.getContext('2d');
+    gc.clearRect(0, 0, grid.width, grid.height);
+    gc.strokeStyle = 'rgba(148,163,184,0.2)';
+    gc.lineWidth = 0.5;
+    const step = 20;
+    for (let x = step; x < grid.width; x += step) {
+      gc.beginPath(); gc.moveTo(x, 0); gc.lineTo(x, grid.height); gc.stroke();
+    }
+    for (let y = step; y < grid.height; y += step) {
+      gc.beginPath(); gc.moveTo(0, y); gc.lineTo(grid.width, y); gc.stroke();
+    }
+  }
+
+  let tool = 'pen', color = '#1e293b', brushSize = 3;
+  let drawing = false, startX = 0, startY = 0, snapshot = null;
+  const history = [];
+
+  function saveHistory() {
+    history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    if (history.length > 30) history.shift();
+  }
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width  / r.width;
+    const sy = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * sx, y: (src.clientY - r.top) * sy };
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawing = true;
+    const p = getPos(e);
+    startX = p.x; startY = p.y;
+    saveHistory();
+    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (tool === 'pen' || tool === 'eraser') {
+      ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    }
+  }
+
+  function doDraw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = getPos(e);
+    ctx.lineWidth   = tool === 'eraser' ? brushSize * 4 : brushSize;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+
+    if (tool === 'pen' || tool === 'eraser') {
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else {
+      ctx.putImageData(snapshot, 0, 0);
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = brushSize;
+      if (tool === 'line') {
+        ctx.moveTo(startX, startY); ctx.lineTo(p.x, p.y); ctx.stroke();
+      } else {
+        ctx.strokeRect(startX, startY, p.x - startX, p.y - startY);
+      }
+    }
+  }
+
+  function endDraw(e) {
+    if (!drawing) return;
+    drawing = false;
+    ctx.closePath();
+  }
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  doDraw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove',  doDraw,    { passive: false });
+  canvas.addEventListener('touchend',   endDraw,   { passive: false });
+
+  window.setTool = function(t) {
+    tool = t;
+    canvas.style.cursor = t === 'eraser' ? 'cell' : 'crosshair';
+    document.querySelectorAll('.sketch-tool-btn').forEach(b =>
+      b.classList.toggle('active', b.id === 'tool-' + t));
+  };
+
+  window.setColor = function(c) {
+    color = c;
+    document.getElementById('custom-color').value = c;
+    document.querySelectorAll('.sketch-color-btn').forEach(b =>
+      b.style.borderColor = b.dataset.color === c ? '#3b82f6' : 'transparent');
+    if (tool === 'eraser') setTool('pen');
+  };
+
+  window.setBrushSize = function(v) {
+    brushSize = parseInt(v, 10);
+    document.getElementById('brush-size-label').textContent = v;
+  };
+
+  window.undoSketch = function() {
+    if (history.length) ctx.putImageData(history.pop(), 0, 0);
+  };
+
+  window.clearSketch = function() {
+    if (!confirm('Canvas wirklich leeren?')) return;
+    saveHistory();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  window.loadSketchToCanvas = function(dataUrl) {
+    const img = new Image();
+    img.onload = () => {
+      saveHistory();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = dataUrl;
+  };
+
+  window.saveSketch = async function(projectId) {
+    const btn    = document.getElementById('sketch-save-btn');
+    const status = document.getElementById('sketch-status');
+    const title  = (document.getElementById('sketch-title').value || '').trim();
+    const imageData = canvas.toDataURL('image/png');
+
+    // Leere Canvas-Prüfung (nur weiße Pixel)
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hasDrawing = false;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] < 250 || d[i+1] < 250 || d[i+2] < 250) { hasDrawing = true; break; }
+    }
+    if (!hasDrawing) {
+      status.textContent = '⚠️ Canvas ist leer – bitte zuerst etwas zeichnen.';
+      status.className = 'text-xs text-amber-600';
+      status.classList.remove('hidden');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Speichert...';
+    status.classList.add('hidden');
+
+    try {
+      const res = await fetch('/projects/' + projectId + '/sketches/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data: imageData, title })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        status.textContent = '✅ Skizze gespeichert! Seite wird neu geladen...';
+        status.className = 'text-xs text-green-600';
+        status.classList.remove('hidden');
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        throw new Error(data.error || 'Fehler');
+      }
+    } catch (err) {
+      status.textContent = '❌ Fehler: ' + err.message;
+      status.className = 'text-xs text-red-600';
+      status.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = '💾 Skizze speichern';
+    }
+  };
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+})();
+
+// ================================================
 function useMyLocationForProject() {
 if (!navigator.geolocation) {
 alert('Geolocation wird von diesem Browser nicht unterstützt.');

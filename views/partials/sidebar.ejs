@@ -23,22 +23,25 @@
     </div>
 
     <nav class="space-y-1.5">
-      <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Dashboard</a>
+      <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏠 Dashboard</a>
       
       <!-- Für Alle sichtbar -->
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
+      <a href="/projects/board" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗂️ Kanban-Board</a>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
-      <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaubsplanung & Abwesenheit</a>
+      <a href="/timetracking/admin/monthly" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📊 Monatsauswertung</a>
+      <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
 
       <!-- NUR FÜR CHEFS (ADMIN) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
         <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
         <a href="/admin/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Arbeitszeiten-Übersicht</a>
-        <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Kunden</a>
-        <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Angebote</a>
-        <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">Rechnungen</a> 
+        <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👤 Kunden</a>
+        <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Angebote</a>
+        <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🧾 Rechnungen</a>
+        <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📦 Artikelstamm</a>
       <% } %>
     </nav>
   </div>

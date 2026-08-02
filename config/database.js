@@ -321,6 +321,17 @@ if (process.env.DATABASE_URL) {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS project_sketches (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT,
+          image_data TEXT NOT NULL,
+          created_by TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS project_tasks (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           project_id INTEGER NOT NULL,

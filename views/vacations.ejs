@@ -14,6 +14,58 @@
     <!-- Inhalt-Container -->
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
 
+      <!-- ===================================================== -->
+      <!-- URLAUBSKONTO-ÜBERSICHT (immer sichtbar)               -->
+      <!-- ===================================================== -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base md:text-lg font-bold text-gray-800">🏖️ Urlaubskonten <%= currentYear %></h2>
+          <% if (currentUser.role !== 'ADMIN') { %>
+            <span class="text-xs text-gray-500">Nur eigenes Konto sichtbar</span>
+          <% } %>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <%
+            const visibleUsers = currentUser.role === 'ADMIN'
+              ? users
+              : users.filter(u => u.id === currentUser.id);
+          %>
+          <% visibleUsers.forEach(u => { %>
+            <%
+              const bal = vacationBalances[u.id] || { allowance: 30, used: 0, remaining: 30 };
+              const pct = Math.min(100, Math.round((bal.used / bal.allowance) * 100));
+              const barColor = pct >= 90 ? 'bg-red-500' : pct >= 65 ? 'bg-amber-400' : 'bg-emerald-500';
+            %>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-semibold text-slate-800 truncate"><%= u.username %></span>
+                <span class="text-xs text-slate-400"><%= u.role %></span>
+              </div>
+              <!-- Fortschrittsbalken -->
+              <div class="w-full bg-slate-200 rounded-full h-2">
+                <div class="<%= barColor %> h-2 rounded-full transition-all" style="width:<%= pct %>%"></div>
+              </div>
+              <div class="flex justify-between text-xs text-slate-600">
+                <span><strong class="text-slate-800"><%= bal.remaining %></strong> Tage übrig</span>
+                <span><%= bal.used %>/<%= bal.allowance %> verbraucht</span>
+              </div>
+              <!-- Admin kann Jahresanspruch direkt hier anpassen -->
+              <% if (currentUser.role === 'ADMIN') { %>
+                <form action="/admin/users/set-vacation-allowance" method="POST" class="flex items-center gap-1 pt-1">
+                  <input type="hidden" name="user_id" value="<%= u.id %>">
+                  <input type="number" name="vacation_allowance" value="<%= bal.allowance %>"
+                    min="0" max="365"
+                    class="w-16 text-xs border border-slate-300 rounded px-1.5 py-1 bg-white">
+                  <span class="text-xs text-slate-500">Tage/Jahr</span>
+                  <button type="submit" class="text-xs bg-slate-700 hover:bg-slate-800 text-white px-2 py-1 rounded transition">✓</button>
+                </form>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
       <!-- Layout auf 12 Spalten angepasst für saubere Aufteilung -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         

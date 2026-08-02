@@ -15,38 +15,44 @@
       </button>
     </div>
 
-    <!-- Angebots-Tabelle -->
+    <!-- Rechnungs-Tabelle -->
     <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6">
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse min-w-[700px]">
             <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
               <tr>
-                <th class="p-4">Angebots-Nr.</th>
+                <th class="p-4">Rechnungs-Nr.</th>
                 <th class="p-4">Datum</th>
                 <th class="p-4">Kunde</th>
                 <th class="p-4">Betrag (Brutto)</th>
+                <th class="p-4">Fällig am</th>
                 <th class="p-4">Status</th>
                 <th class="p-4 text-right">Aktionen</th>
               </tr>
             </thead>
             <tbody>
-              <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
-                <% offers.forEach(offer => { %>
+              <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
+                <% invoices.forEach(invoice => { %>
                   <tr class="border-b hover:bg-gray-50 text-sm">
-                    <td class="py-3 px-4 font-semibold text-gray-800">📋 <%= offer.doc_number %></td>
-                    <td class="py-3 px-4 text-gray-600"><%= new Date(offer.created_at).toLocaleDateString('de-DE') %></td>
-                    <td class="py-3 px-4 text-gray-800 font-medium"><%= offer.company_name || offer.contact_person || 'Privat' %></td>
-                    <td class="py-3 px-4 text-gray-800 font-semibold"><%= parseFloat(offer.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="py-3 px-4 font-semibold text-gray-800">🧾 <%= invoice.invoice_number %></td>
+                    <td class="py-3 px-4 text-gray-600"><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></td>
+                    <td class="py-3 px-4 text-gray-800 font-medium"><%= invoice.company_name || invoice.contact_person || 'Privat' %></td>
+                    <td class="py-3 px-4 text-gray-800 font-semibold"><%= parseFloat(invoice.total_amount || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">
+                      <% if (invoice.due_date) { %>
+                        <%= new Date(invoice.due_date).toLocaleDateString('de-DE') %>
+                      <% } else { %>-<% } %>
+                    </td>
                     
                     <!-- STATUS ANZEIGE -->
                     <td class="py-3 px-4">
-                      <% if (offer.status === 'ANGENOMMEN') { %>
-                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">Angenommen</span>
-                      <% } else if (offer.status === 'ABGELEHNT') { %>
-                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Abgelehnt</span>
+                      <% if (invoice.status === 'Bezahlt') { %>
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">✅ Bezahlt</span>
+                      <% } else if (invoice.status === 'Überfällig') { %>
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">⚠️ Überfällig</span>
                       <% } else { %>
-                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Offen / Gesendet</span>
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800"><%= invoice.status %></span>
                       <% } %>
                     </td>
 
@@ -54,19 +60,31 @@
                     <td class="py-3 px-4 text-right">
                       <div class="flex items-center justify-end gap-2">
                         
-                        <!-- Button: In Rechnung umwandeln -->
-                        <% if (offer.status !== 'ANGENOMMEN') { %>
-                          <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
-                            <input type="hidden" name="offer_id" value="<%= offer.id %>">
-                            <button type="submit" title="In Rechnung umwandeln" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium border border-emerald-200 flex items-center gap-1">
-                              🔄 In Rechnung
+                        <!-- Button: Detail-Ansicht -->
+                        <a href="/documents/invoices/<%= invoice.id %>" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-xs font-medium border border-blue-200">
+                          📄 Detail
+                        </a>
+
+                        <!-- Button: PDF -->
+                        <a href="/documents/invoices/<%= invoice.id %>/pdf" target="_blank" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
+                          🖨️ PDF
+                        </a>
+
+                        <!-- Button: Als bezahlt markieren -->
+                        <% if (invoice.status !== 'Bezahlt') { %>
+                          <form action="/documents/invoices/update-status" method="POST" class="inline">
+                            <input type="hidden" name="invoice_id" value="<%= invoice.id %>">
+                            <input type="hidden" name="status" value="Bezahlt">
+                            <input type="hidden" name="status_note" value="">
+                            <button type="submit" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium border border-emerald-200">
+                              ✅ Bezahlt
                             </button>
                           </form>
                         <% } %>
 
                         <!-- Button: Löschen -->
-                        <form action="/documents/offers/delete" method="POST" onsubmit="return confirm('Angebot wirklich löschen?');" class="inline">
-                          <input type="hidden" name="offer_id" value="<%= offer.id %>">
+                        <form action="/documents/invoices/delete" method="POST" onsubmit="return confirm('Rechnung wirklich löschen?');" class="inline">
+                          <input type="hidden" name="invoice_id" value="<%= invoice.id %>">
                           <button type="submit" class="px-2.5 py-1 bg-gray-100 hover:bg-red-100 text-red-600 rounded text-xs font-medium" title="Löschen">🗑️</button>
                         </form>
 
@@ -76,7 +94,7 @@
                 <% }); %>
               <% } else { %>
                 <tr>
-                  <td colspan="6" class="text-center text-gray-400 py-8">Keine Angebote vorhanden.</td>
+                  <td colspan="7" class="text-center text-gray-400 py-8">Keine Rechnungen vorhanden.</td>
                 </tr>
               <% } %>
             </tbody>
@@ -131,8 +149,8 @@
       <!-- DYNAMISCHE POSITIONSLISTE -->
       <div class="border-t pt-3">
         <div class="flex justify-between items-center mb-2">
-          <label class="block text-xs font-bold text-gray-700">Angebotspositionen *</label>
-          <button type="button" onclick="addCustomOfferRow()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded font-medium border">
+        <label class="block text-xs font-bold text-gray-700">Rechnungspositionen *</label>
+        <button type="button" onclick="addCustomInvoiceRow()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded font-medium border">
             + Eigene Position hinzufügen
           </button>
         </div>

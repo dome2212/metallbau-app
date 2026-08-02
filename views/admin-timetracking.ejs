@@ -124,11 +124,18 @@
             <tbody class="divide-y divide-slate-200">
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
-                  <% 
-                    // Korrigierte Zeiterfassung analog zur funktionierenden timetracking.ejs
-                    let d = new Date(log.timestamp);
-                    let formattedDate = d.toLocaleDateString('de-DE');
-                    let formattedTime = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                  <%
+                    // timestamp ist bereits lokale Berliner Zeit als String "YYYY-MM-DD HH:MM:SS"
+                    // Kein new Date() verwenden — das würde UTC annehmen und 1-2 Std. falsch liegen
+                    const tsParts = String(log.timestamp).replace('T', ' ').split(' ');
+                    const dateParts = tsParts[0] ? tsParts[0].split('-') : [];
+                    const timeParts = tsParts[1] ? tsParts[1].split(':') : [];
+                    const formattedDate = dateParts.length === 3
+                      ? dateParts[2] + '.' + dateParts[1] + '.' + dateParts[0]
+                      : log.timestamp;
+                    const formattedTime = timeParts.length >= 2
+                      ? timeParts[0] + ':' + timeParts[1]
+                      : '';
                   %>
                   <tr class="hover:bg-slate-50">
                     <td class="p-4 font-medium text-slate-800"><%= formattedDate %></td>
@@ -141,7 +148,7 @@
                         <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs font-semibold">Ausgestempelt (OUT)</span>
                       <% } %>
                     </td>
-                    <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.log_note || log.note || '-' %></td>
+                    <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
                     <td class="p-4 text-right">
                       <form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');" style="display:inline;">
                         <input type="hidden" name="log_id" value="<%= log.id %>">

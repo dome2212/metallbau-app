@@ -20,8 +20,15 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
-// Datenbank-Zeitzone explizit auf Berlin setzen
-db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+// Datenbank-Zeitzone explizit auf Berlin setzen (nur PostgreSQL; SQLite kennt kein SET timezone)
+if (process.env.DATABASE_URL) {
+  db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+}
+
+// ==========================================
+// DB-HILFSKONSTANTE
+// ==========================================
+const isPg = !!process.env.DATABASE_URL;
 
 // ==========================================
 // HILFSFUNKTION (Muss ganz oben stehen!)
@@ -42,10 +49,20 @@ const dbQuery = (sql, params = []) => {
         resolve({ rows, lastID });
       });
     } else {
-      db.all(sql, params, function(err, rows) {
-        if (err) return reject(err);
-        resolve({ rows: rows || [], lastID: this?.lastID });
-      });
+      const trimmed = sql.trim().toUpperCase();
+      if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
+        // SELECT queries — db.all returns rows
+        db.all(sql, params, function(err, rows) {
+          if (err) return reject(err);
+          resolve({ rows: rows || [], lastID: null });
+        });
+      } else {
+        // INSERT / UPDATE / DELETE — db.run provides this.lastID and this.changes
+        db.run(sql, params, function(err) {
+          if (err) return reject(err);
+          resolve({ rows: [], lastID: this.lastID });
+        });
+      }
     }
   });
 };
@@ -144,6 +161,30 @@ dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`).
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng NUMERIC(11,8)`).catch(() => {});
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INT DEFAULT 200`).catch(() => {});
 
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS project_sketches (
+    id SERIAL PRIMARY KEY,
+    project_id INT NOT NULL,
+    title TEXT,
+    image_data TEXT NOT NULL,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.log('Tabelle project_sketches existiert bereits:', err.message));
+
+// Feature: Firmen-Ticker (Schwarzes Brett)
+dbQuery(`
+  CREATE TABLE IF NOT EXISTS tickers (
+    id SERIAL PRIMARY KEY,
+    message TEXT NOT NULL,
+    author TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(() => {});
+
+// Feature: Urlaubskonto – Jahrestage pro Mitarbeiter
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
+
 // ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
 // ==========================================
@@ -192,7 +233,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'Public')));
 
 // Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
@@ -210,13 +251,12 @@ app.get('/', async (req, res) => {
 
   try {
     if (userRole !== 'ADMIN') {
-      const sqlMonthLogs = `
-        SELECT time_logs.*, 
-               TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-        FROM time_logs 
-        WHERE user_id = ? 
-        ORDER BY timestamp ASC
-      `;
+      const sqlMonthLogs = isPg
+        ? `SELECT time_logs.*,
+                  TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs WHERE user_id = ? ORDER BY timestamp ASC`
+        : `SELECT time_logs.*, strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+           FROM time_logs WHERE user_id = ? ORDER BY timestamp ASC`;
       const result = await dbQuery(sqlMonthLogs, [userId]);
       const logs = result.rows;
 
@@ -284,7 +324,10 @@ app.get('/', async (req, res) => {
       const stats = { monthTotalHours, weekTotalHours, isStampedIn };
       const recentLogs = [...logs].reverse().slice(0, 5);
 
-      res.render('dashboard-employee', { stats, recentLogs });
+      // Ticker für Mitarbeiter laden
+      const tickerRes = await dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 5');
+
+      res.render('dashboard-employee', { stats, recentLogs, tickers: tickerRes.rows || [] });
 
     } else {
       const sqlOffers = `
@@ -334,7 +377,10 @@ app.get('/', async (req, res) => {
         customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
       }));
 
-      res.render('dashboard', { stats, recentDocs: formattedDocs });
+      // Ticker für Admin-Dashboard laden
+      const tickerRes = await dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10');
+
+      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [] });
     }
   } catch (err) {
     console.error('Fehler im Dashboard:', err.message);
@@ -471,14 +517,17 @@ app.get('/timetracking', async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const sqlToday = `
-      SELECT time_logs.*, customers.company_name, customers.contact_person,
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
-      FROM time_logs
-      LEFT JOIN customers ON time_logs.customer_id = customers.id
-      WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
-      ORDER BY time_logs.timestamp ASC
-    `;
+    const sqlToday = isPg
+      ? `SELECT time_logs.*, customers.company_name, customers.contact_person,
+                TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+         FROM time_logs LEFT JOIN customers ON time_logs.customer_id = customers.id
+         WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
+         ORDER BY time_logs.timestamp ASC`
+      : `SELECT time_logs.*, customers.company_name, customers.contact_person,
+                strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+         FROM time_logs LEFT JOIN customers ON time_logs.customer_id = customers.id
+         WHERE time_logs.user_id = ? AND date(timestamp) = date('now')
+         ORDER BY time_logs.timestamp ASC`;
     const result = await dbQuery(sqlToday, [userId]);
     const todayLogs = result.rows;
 
@@ -586,12 +635,14 @@ app.post('/timetracking/stamp', async (req, res) => {
   const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
 
   try {
-    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
+    const tsExpr = isPg ? `(NOW() AT TIME ZONE 'Europe/Berlin')` : `CURRENT_TIMESTAMP`;
+    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ${tsExpr})`;
     await dbQuery(sql, [userId, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
     res.redirect('/timetracking');
   } catch (err) {
     try {
-      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`;
+      const tsExpr = isPg ? `(NOW() AT TIME ZONE 'Europe/Berlin')` : `CURRENT_TIMESTAMP`;
+      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, ${tsExpr})`;
       await dbQuery(fallbackSql, [userId, type, note || null, assignedCustomerId]);
       res.redirect('/timetracking');
     } catch (fallbackErr) {
@@ -623,9 +674,9 @@ app.get('/vacations', async (req, res) => {
     let vacationsRes;
     if (userRole === 'ADMIN') {
       vacationsRes = await dbQuery(`
-        SELECT vacations.*, users.username 
-        FROM vacations 
-        JOIN users ON vacations.user_id = users.id 
+        SELECT vacations.*, users.username
+        FROM vacations
+        JOIN users ON vacations.user_id = users.id
         ORDER BY vacations.created_at DESC
       `);
     } else {
@@ -638,13 +689,44 @@ app.get('/vacations', async (req, res) => {
       `, [userId]);
     }
 
-    const usersRes = await dbQuery('SELECT id, username, role FROM users ORDER BY username ASC');
+    const usersRes = await dbQuery('SELECT id, username, role, COALESCE(vacation_allowance, 30) as vacation_allowance FROM users ORDER BY username ASC');
 
-    res.render('vacations', { 
+    // Urlaubskonto: verbrauchte Urlaubstage (genehmigte Urlaube) pro User berechnen
+    const currentYear = new Date().getFullYear();
+    const vacationBalances = {};
+    for (const u of (usersRes.rows || [])) {
+      const approvedRes = await dbQuery(
+        `SELECT start_date, end_date FROM vacations WHERE user_id = ? AND type = 'Urlaub' AND status = 'Genehmigt'`,
+        [u.id]
+      );
+      let usedDays = 0;
+      for (const v of (approvedRes.rows || [])) {
+        const start = new Date(v.start_date);
+        const end = new Date(v.end_date);
+        // Nur Tage des aktuellen Jahres zählen
+        if (end.getFullYear() < currentYear || start.getFullYear() > currentYear) continue;
+        const s = new Date(Math.max(start, new Date(currentYear, 0, 1)));
+        const e = new Date(Math.min(end, new Date(currentYear, 11, 31)));
+        // Arbeitstage (Mo–Fr) zählen
+        for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) usedDays++;
+        }
+      }
+      vacationBalances[u.id] = {
+        allowance: u.vacation_allowance || 30,
+        used: usedDays,
+        remaining: (u.vacation_allowance || 30) - usedDays
+      };
+    }
+
+    res.render('vacations', {
       vacations: vacationsRes.rows || [],
-      users: usersRes.rows || [], 
+      users: usersRes.rows || [],
       user: req.user,
-      currentUser: req.user 
+      currentUser: req.user,
+      vacationBalances,
+      currentYear
     });
   } catch (err) {
     console.error('Fehler beim Laden der Urlaubsübersicht:', err.message);
@@ -716,17 +798,19 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
     const usersRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
     const users = usersRes.rows || [];
 
-    let query = `
-      SELECT time_logs.*, users.username, 
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-      FROM time_logs 
-      JOIN users ON time_logs.user_id = users.id 
-      WHERE 1=1
-    `;
+    const tsCol = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const dateFilter = isPg
+      ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
+      : `date(time_logs.timestamp)`;
+
+    let query = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp
+      FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
     let queryParams = [];
 
     if (selectedDate) {
-      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ? `;
+      query += ` AND ${dateFilter} = ?`;
       queryParams.push(selectedDate);
     }
 
@@ -773,10 +857,9 @@ app.post('/admin/timetracking/add', verifyToken, requireAdmin, async (req, res) 
   try {
     const timestampString = `${date} ${time}:00`;
 
-    const sql = `
-      INSERT INTO time_logs (user_id, type, note, timestamp) 
-      VALUES (?, ?, ?, (TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin') AT TIME ZONE 'UTC')
-    `;
+    const sql = isPg
+      ? `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, (TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin') AT TIME ZONE 'UTC')`
+      : `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, ?)`;
     
     await dbQuery(sql, [user_id, type, note || null, timestampString]);
     res.redirect('/admin/timetracking');
@@ -790,13 +873,15 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
   const { user_id, date } = req.query;
 
   try {
-    let query = `
-      SELECT time_logs.*, users.username, 
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-      FROM time_logs 
-      JOIN users ON time_logs.user_id = users.id 
-      WHERE 1=1
-    `;
+    const tsColPdf = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const dateFilterPdf = isPg
+      ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
+      : `date(time_logs.timestamp)`;
+
+    let query = `SELECT time_logs.*, users.username, ${tsColPdf} as local_timestamp
+      FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
     let queryParams = [];
 
     if (user_id) {
@@ -805,7 +890,7 @@ app.get('/admin/timetracking/pdf', verifyToken, requireAdmin, async (req, res) =
     }
 
     if (date) {
-      query += ` AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = ?`;
+      query += ` AND ${dateFilterPdf} = ?`;
       queryParams.push(date);
     }
 
@@ -901,10 +986,13 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
     const targetUserId = req.query.user_id || userId;
 
     const entriesRes = await dbQuery(
-      `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-       FROM time_logs 
-       WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? 
-       ORDER BY time_logs.timestamp ASC`,
+      isPg
+        ? `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY time_logs.timestamp ASC`
+        : `SELECT time_logs.*, strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+           FROM time_logs WHERE user_id = ? AND strftime('%Y-%m', timestamp) = ?
+           ORDER BY time_logs.timestamp ASC`,
       [targetUserId, month]
     );
     
@@ -913,12 +1001,41 @@ app.get('/timetracking/admin/monthly', async (req, res) => {
       timestamp: e.local_timestamp || e.timestamp
     }));
 
+    // Überstunden-Berechnung: Gearbeitete Stunden vs. Soll (8h pro Werktag)
+    let workedMs = 0;
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].type !== 'IN') continue;
+      const start = new Date(entries[i].timestamp).getTime();
+      const next = entries[i + 1];
+      if (next && next.type === 'OUT') {
+        const end = new Date(next.timestamp).getTime();
+        if (end > start) workedMs += (end - start);
+      }
+    }
+    const workedHours = workedMs / 3600000;
+
+    // Anzahl Werktage (Mo–Fr) im gewählten Monat
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const dailyHours = parseFloat(req.query.daily_hours || '8');
+    const targetHours = workdaysInMonth * dailyHours;
+    const overtimeHours = workedHours - targetHours;
+
     res.render('time-monthly', {
       currentUser: req.user,
       users,
       entries,
       selectedMonth: month,
-      selectedUserId: targetUserId
+      selectedUserId: targetUserId,
+      workedHours: workedHours.toFixed(2),
+      targetHours: targetHours.toFixed(2),
+      overtimeHours: overtimeHours.toFixed(2),
+      dailyHours
     });
   } catch (err) {
     console.error('Fehler bei Monatsauswertung:', err);
@@ -932,11 +1049,15 @@ app.get('/timetracking/admin/export-csv', async (req, res) => {
     const month = req.query.month || new Date().toISOString().slice(0, 7);
 
     const logsRes = await dbQuery(
-      `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-       FROM time_logs t
-       JOIN users u ON t.user_id = u.id
-       WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
-       ORDER BY t.timestamp ASC`,
+      isPg
+        ? `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs t JOIN users u ON t.user_id = u.id
+           WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY t.timestamp ASC`
+        : `SELECT t.*, u.username, strftime('%Y-%m-%d %H:%M:%S', t.timestamp) as local_timestamp
+           FROM time_logs t JOIN users u ON t.user_id = u.id
+           WHERE t.user_id = ? AND strftime('%Y-%m', t.timestamp) = ?
+           ORDER BY t.timestamp ASC`,
       [targetUserId, month]
     );
     const entries = logsRes.rows;
@@ -1159,7 +1280,7 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
 
     if (!items || items.length === 0) {
       await dbQuery(
-        'INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, 1, "Psch", ?)',
+        "INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, 1, 'Psch', ?)",
         [invoiceId, 'Übernahme aus Angebot #' + offer.doc_number, offer.total_amount]
       );
     } else {
@@ -1196,6 +1317,7 @@ app.get('/projects/board', async (req, res) => {
       'In Produktion': projects.filter(p => p.status === 'In Produktion'),
       'Oberfläche': projects.filter(p => p.status === 'Oberfläche'),
       'Montagebereit': projects.filter(p => p.status === 'Montagebereit'),
+      'Montage läuft': projects.filter(p => p.status === 'Montage läuft'),
       'Abgeschlossen': projects.filter(p => p.status === 'Abgeschlossen')
     };
 
@@ -1510,6 +1632,24 @@ app.post('/projects/update-status', async (req, res) => {
   }
 });
 
+app.post('/projects/:id/edit', async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  const { id } = req.params;
+  const { title, description, total_price, status } = req.body;
+  const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
+
+  try {
+    await dbQuery(
+      'UPDATE projects SET title = ?, description = ?, total_price = ?, status = ? WHERE id = ?',
+      [title, description || null, parsedPrice, status || 'In Planung', id]
+    );
+    res.redirect(`/projects/${id}`);
+  } catch (err) {
+    console.error('Fehler beim Bearbeiten des Auftrags:', err.message);
+    res.status(500).send('Fehler beim Speichern der Änderungen');
+  }
+});
+
 app.get('/projects/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1529,6 +1669,7 @@ app.get('/projects/:id', async (req, res) => {
     const measurementsRes = await dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const notesRes = await dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
+    const sketchesRes = await dbQuery('SELECT id, title, image_data, created_by, created_at FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
     res.render('project-detail', {
       project,
@@ -1537,11 +1678,50 @@ app.get('/projects/:id', async (req, res) => {
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
       notes: notesRes.rows || [],
-      tasks: tasksRes.rows || []
+      tasks: tasksRes.rows || [],
+      sketches: sketchesRes.rows || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
   }
+});
+
+// ==========================================
+// HANDSKIZZEN (Canvas)
+// ==========================================
+app.post('/projects/:id/sketches/save', async (req, res) => {
+  const projectId = req.params.id;
+  const { image_data, title } = req.body;
+  const createdBy = req.user ? req.user.username : 'Unbekannt';
+
+  if (!image_data || !image_data.startsWith('data:image/')) {
+    return res.status(400).json({ error: 'Kein gültiges Bild.' });
+  }
+  // Base64-Größe grob prüfen: max ~2 MB
+  if (image_data.length > 2 * 1024 * 1024 * 1.37) {
+    return res.status(400).json({ error: 'Skizze zu groß (max. 2 MB).' });
+  }
+
+  try {
+    await dbQuery(
+      'INSERT INTO project_sketches (project_id, title, image_data, created_by) VALUES (?, ?, ?, ?)',
+      [projectId, title ? title.trim() : null, image_data, createdBy]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Skizze:', err.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.post('/projects/sketches/delete', async (req, res) => {
+  const { sketch_id, project_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM project_sketches WHERE id = ?', [sketch_id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen der Skizze:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
 });
 
 // ==========================================
@@ -1699,6 +1879,47 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).send('Fehler beim Löschen');
   }
+});
+
+// ==========================================
+// FIRMEN-TICKER (Schwarzes Brett)
+// ==========================================
+app.post('/ticker/add', verifyToken, requireAdmin, async (req, res) => {
+  const { message } = req.body;
+  if (!message || message.trim() === '') return res.redirect('/');
+  try {
+    await dbQuery(
+      'INSERT INTO tickers (message, author) VALUES (?, ?)',
+      [message.trim(), req.user.username]
+    );
+  } catch (err) {
+    console.error('Fehler beim Speichern des Tickers:', err.message);
+  }
+  res.redirect('/');
+});
+
+app.post('/ticker/delete', verifyToken, requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  try {
+    await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen des Tickers:', err.message);
+  }
+  res.redirect('/');
+});
+
+// ==========================================
+// URLAUBSKONTO – JAHRESANSPRUCH ANPASSEN
+// ==========================================
+app.post('/admin/users/set-vacation-allowance', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, vacation_allowance } = req.body;
+  const days = parseInt(vacation_allowance || '30', 10);
+  try {
+    await dbQuery('UPDATE users SET vacation_allowance = ? WHERE id = ?', [days, user_id]);
+  } catch (err) {
+    console.error('Fehler beim Setzen des Urlaubsanspruchs:', err.message);
+  }
+  res.redirect('/vacations');
 });
 
 // ==========================================

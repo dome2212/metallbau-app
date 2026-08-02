@@ -137,7 +137,15 @@ Ausgestempelt
 <span class="text-red-600">Ausgestempelt (OUT)</span>
 <% } %>
 </td>
-<td class="p-3"><%= new Date(log.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %></td>
+<td class="p-3">
+  <%
+    // display_time ist bereits ein HH:MM String (Berliner Zeit), kein new Date()
+    const rawTs = log.display_time || String(log.local_timestamp || log.timestamp || '');
+    const tParts = rawTs.split(':');
+    const dispTime = tParts.length >= 2 ? tParts[0].slice(-2) + ':' + tParts[1] : rawTs;
+  %>
+  <%= dispTime %> Uhr
+</td>
 <td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>
 <td class="p-3"><%= log.note || '-' %></td>
 <td class="p-3 text-xs text-slate-400">
