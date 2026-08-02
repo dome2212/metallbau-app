@@ -161,6 +161,7 @@ dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INT`).catch(() => {});
 
 // Baustellenkoordinaten für Geo-Fencing
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`).catch(() => {});
@@ -744,13 +745,19 @@ app.get('/timetracking', async (req, res) => {
   try {
     const sqlToday = isPg
       ? `SELECT time_logs.*, customers.company_name, customers.contact_person,
+                projects.title as project_title,
                 TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
-         FROM time_logs LEFT JOIN customers ON time_logs.customer_id = customers.id
+         FROM time_logs
+         LEFT JOIN customers ON time_logs.customer_id = customers.id
+         LEFT JOIN projects ON time_logs.project_id = projects.id
          WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
          ORDER BY time_logs.timestamp ASC`
       : `SELECT time_logs.*, customers.company_name, customers.contact_person,
+                projects.title as project_title,
                 strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
-         FROM time_logs LEFT JOIN customers ON time_logs.customer_id = customers.id
+         FROM time_logs
+         LEFT JOIN customers ON time_logs.customer_id = customers.id
+         LEFT JOIN projects ON time_logs.project_id = projects.id
          WHERE time_logs.user_id = ? AND date(timestamp) = date('now')
          ORDER BY time_logs.timestamp ASC`;
     const result = await dbQuery(sqlToday, [userId]);
@@ -800,26 +807,34 @@ app.get('/timetracking', async (req, res) => {
       display_time: log.local_timestamp ? log.local_timestamp.split(' ')[1].substring(0, 5) : ''
     }));
 
-    const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
-
-    // Aktive Projekte mit Baustellenkoordinaten für clientseitiges Geo-Fencing laden
-    const geoRes = await dbQuery(`
-      SELECT projects.id, projects.title, projects.site_lat, projects.site_lng, projects.site_radius,
+    // Alle aktiven Projekte für das Dropdown
+    const projectsRes = await dbQuery(`
+      SELECT projects.id, projects.title, projects.status,
+             projects.site_lat, projects.site_lng, projects.site_radius,
              customers.id as customer_id, customers.company_name, customers.contact_person
       FROM projects
       LEFT JOIN customers ON projects.customer_id = customers.id
       WHERE projects.status != 'Abgeschlossen'
-        AND projects.site_lat IS NOT NULL
-        AND projects.site_lng IS NOT NULL
+      ORDER BY projects.title ASC
     `);
+
+    const allProjects = projectsRes.rows || [];
+    // Geo-Fencing: nur Projekte mit Koordinaten (fürs clientseitige JS)
+    const geoProjects = allProjects.filter(p => p.site_lat && p.site_lng);
+
+    // Aktives Projekt aus dem letzten IN-Eintrag ermitteln
+    const activeProjectId   = isStampedIn && lastLog ? (lastLog.project_id   || null) : null;
+    const activeProjectTitle = isStampedIn && lastLog ? (lastLog.project_title || null) : null;
 
     res.render('timetracking', {
       todayLogs: formattedLogs,
       isStampedIn,
       lastStampTime,
       todayTotalHours,
-      customers: custRes.rows || [],
-      geoProjects: geoRes.rows || []
+      projects: allProjects,
+      geoProjects,
+      activeProjectId,
+      activeProjectTitle
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err.message);
@@ -830,45 +845,80 @@ app.get('/timetracking', async (req, res) => {
 app.post('/timetracking/stamp', async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
-  const { type, note, customer_id, latitude, longitude } = req.body;
+  let { type, note, project_id, latitude, longitude } = req.body;
+
+  // SWITCH = erst OUT (altes Projekt), dann IN (neues Projekt) in einem Request
+  if (type === 'SWITCH') {
+    // 1. OUT ohne Projekt eintragen (aktuelles Projekt automatisch beendet)
+    try {
+      const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
+      await dbQuery(
+        `INSERT INTO time_logs (user_id, type, note, latitude, longitude, timestamp) VALUES (?, 'OUT', ?, ?, ?, ${tsExpr})`,
+        [userId, 'Baustelle gewechselt', latitude || null, longitude || null]
+      );
+    } catch (_) {}
+    // 2. Weiter als normales IN
+    type = 'IN';
+  }
 
   if (!['IN', 'OUT'].includes(type)) {
     return res.status(400).send('Ungültiger Stempel-Typ');
   }
 
+  // GPS-Prüfung: Firma ODER bekannte Baustelle
   if (type === 'IN' && userRole !== 'ADMIN') {
     if (!latitude || !longitude) {
       return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
     }
 
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    // 1. Firmensitz prüfen
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
     const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
-    const MAX_DISTANCE_METERS = parseInt(process.env.FIRM_RADIUS_METERS || '300', 10);
+    const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || '300', 10);
+    const distFirm = getDistanceFromLatLonInMeters(lat, lng, FIRM_LAT, FIRM_LNG);
+    const atFirm = distFirm <= FIRM_RADIUS;
 
-    const distance = getDistanceFromLatLonInMeters(
-      parseFloat(latitude), 
-      parseFloat(longitude), 
-      FIRM_LAT, 
-      FIRM_LNG
-    );
+    // 2. Baustellen prüfen (alle Projekte mit Koordinaten)
+    let atSite = false;
+    if (!atFirm) {
+      const siteRes = await dbQuery(`
+        SELECT id, site_lat, site_lng, site_radius FROM projects
+        WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen'
+      `);
+      for (const proj of (siteRes.rows || [])) {
+        const d = getDistanceFromLatLonInMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
+        if (d <= (proj.site_radius || 200)) { atSite = true; break; }
+      }
+    }
 
-    if (distance > MAX_DISTANCE_METERS) {
-      return res.status(400).send(`Einstempeln verweigert: Du bist ca. ${Math.round(distance)} Meter von der Firma entfernt (Erlaubt: max. ${MAX_DISTANCE_METERS}m).`);
+    if (!atFirm && !atSite) {
+      return res.status(400).send(`Einstempeln verweigert: Du befindest dich weder an der Firma noch auf einer bekannten Baustelle (ca. ${Math.round(distFirm)} m von der Firma entfernt).`);
     }
   }
 
-  const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
+  // Projekt → customer_id ableiten
+  let assignedProjectId = project_id && project_id !== '' ? parseInt(project_id, 10) : null;
+  let assignedCustomerId = null;
+  if (assignedProjectId) {
+    try {
+      const pRes = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [assignedProjectId]);
+      assignedCustomerId = pRes.rows[0]?.customer_id || null;
+    } catch (_) {}
+  }
 
   try {
     const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
-    const sql = `INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ${tsExpr})`;
-    await dbQuery(sql, [userId, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
+    const sql = `INSERT INTO time_logs (user_id, type, note, project_id, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ${tsExpr})`;
+    await dbQuery(sql, [userId, type, note || null, assignedProjectId, assignedCustomerId, latitude || null, longitude || null]);
     res.redirect('/timetracking');
   } catch (err) {
     try {
       const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
-      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, ${tsExpr})`;
-      await dbQuery(fallbackSql, [userId, type, note || null, assignedCustomerId]);
+      const fallbackSql = `INSERT INTO time_logs (user_id, type, note, project_id, customer_id, timestamp) VALUES (?, ?, ?, ?, ?, ${tsExpr})`;
+      await dbQuery(fallbackSql, [userId, type, note || null, assignedProjectId, assignedCustomerId]);
       res.redirect('/timetracking');
     } catch (fallbackErr) {
       console.error('Fehler beim Stempeln:', fallbackErr.message);

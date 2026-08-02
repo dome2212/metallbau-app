@@ -5,6 +5,7 @@
 <script>
 const GEO_PROJECTS = <%- JSON.stringify(typeof geoProjects !== 'undefined' ? geoProjects : []) %>;
 const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
+const ACTIVE_PROJECT_ID = <%- JSON.stringify(typeof activeProjectId !== 'undefined' ? activeProjectId : null) %>;
 </script>
 
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
@@ -49,7 +50,7 @@ const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
   </div>
 </div>
 
-<!-- STAMPEL-KARTE -->
+<!-- STEMPEL-KARTE -->
 <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
 <div>
@@ -58,7 +59,7 @@ const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
 Status:
 <% if (isStampedIn) { %>
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-Eingestempelt seit <%= lastStampTime %> Uhr
+  ✅ Eingestempelt seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · 🏗️ <%= activeProjectTitle %><% } %>
 </span>
 <% } else { %>
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
@@ -73,18 +74,21 @@ Ausgestempelt
 </div>
 </div>
 
-<!-- Formular zum Stempeln -->
+<!-- ── Haupt-Stempelformular ─────────────────────── -->
 <form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">
 <input type="hidden" name="latitude" id="latitude">
 <input type="hidden" name="longitude" id="longitude">
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div>
-<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Projekt / Kunde / Baustelle</label>
-<select name="customer_id" id="customer-select" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
-<option value="">-- Allgemein / Werkstatt --</option>
-<% if (typeof customers !== 'undefined') { %>
-<% customers.forEach(cust => { %>
-<option value="<%= cust.id %>"><%= cust.company_name || cust.contact_person %></option>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Baustelle / Projekt</label>
+<select name="project_id" id="project-select" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+<option value="">🏭 Allgemein / Werkstatt</option>
+<% if (typeof projects !== 'undefined') { %>
+<% projects.forEach(proj => { %>
+<option value="<%= proj.id %>" data-customer-id="<%= proj.customer_id || '' %>"
+  <%= (typeof activeProjectId !== 'undefined' && activeProjectId && String(activeProjectId) === String(proj.id)) ? 'selected' : '' %>>
+  <%= proj.site_lat ? '📍 ' : '🔧 ' %><%= proj.title %><%= proj.company_name || proj.contact_person ? ' – ' + (proj.company_name || proj.contact_person) : '' %>
+</option>
 <% }) %>
 <% } %>
 </select>
@@ -94,19 +98,60 @@ Ausgestempelt
 <input type="text" name="note" id="note-input" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
 </div>
 </div>
-<div class="flex items-center space-x-4 pt-2">
+<div class="flex flex-col sm:flex-row gap-3 pt-2">
 <% if (!isStampedIn) { %>
-<button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
+<button type="submit" name="type" value="IN" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded shadow transition flex-1 text-center">
 🟢 Einstempeln (Arbeit beginnen)
 </button>
 <% } else { %>
-<button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition w-full md:flex-1 text-center">
+<button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition flex-1 text-center">
 🔴 Ausstempeln (Feierabend / Pause)
+</button>
+<button type="button" onclick="showSwitchPanel()" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-3 rounded shadow transition flex-1 text-center">
+🔄 Baustelle wechseln
 </button>
 <% } %>
 </div>
 <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
 </form>
+
+<!-- ── Baustellen-Wechsel-Panel (wird per JS eingeblendet) ── -->
+<div id="switch-panel" class="hidden mt-5 border-t border-slate-200 dark:border-slate-600 pt-5 space-y-4">
+  <p class="text-sm font-semibold text-amber-700 dark:text-amber-400">🔄 Baustelle wechseln – wähle die neue Baustelle und bestätige:</p>
+  <form action="/timetracking/stamp" method="POST" id="switch-form" class="space-y-3">
+    <input type="hidden" name="latitude" id="switch-latitude">
+    <input type="hidden" name="longitude" id="switch-longitude">
+    <input type="hidden" name="switch_out_first" value="1">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Neue Baustelle / Projekt</label>
+        <select name="project_id" id="switch-project-select" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm focus:ring-amber-500 focus:border-amber-500">
+          <option value="">🏭 Allgemein / Werkstatt</option>
+          <% if (typeof projects !== 'undefined') { %>
+          <% projects.forEach(proj => { %>
+          <option value="<%= proj.id %>">
+            <%= proj.site_lat ? '📍 ' : '🔧 ' %><%= proj.title %><%= proj.company_name || proj.contact_person ? ' – ' + (proj.company_name || proj.contact_person) : '' %>
+          </option>
+          <% }) %>
+          <% } %>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notiz (optional)</label>
+        <input type="text" name="note" placeholder="z.B. Schweißarbeiten" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button type="submit" name="type" value="SWITCH" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-5 py-2.5 rounded shadow transition flex-1">
+        ✅ Wechsel bestätigen (Ausstempeln + neu Einstempeln)
+      </button>
+      <button type="button" onclick="hideSwitchPanel()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 font-semibold px-5 py-2.5 rounded shadow transition">
+        Abbrechen
+      </button>
+    </div>
+  </form>
+</div>
+
 </div>
 
 <!-- HEUTIGE HISTORIE -->
@@ -146,7 +191,16 @@ Ausgestempelt
   %>
   <%= dispTime %> Uhr
 </td>
-<td class="p-3"><%= log.company_name || log.contact_person || 'Allgemein' %></td>
+<td class="p-3">
+  <% if (log.project_title) { %>
+    <span class="font-medium"><%= log.project_title %></span>
+    <% if (log.company_name || log.contact_person) { %>
+      <span class="text-xs text-slate-400 block"><%= log.company_name || log.contact_person %></span>
+    <% } %>
+  <% } else { %>
+    <%= log.company_name || log.contact_person || 'Allgemein / Werkstatt' %>
+  <% } %>
+</td>
 <td class="p-3"><%= log.note || '-' %></td>
 <td class="p-3 text-xs text-slate-400">
 <% if (log.latitude && log.longitude) { %>
@@ -228,12 +282,10 @@ function checkGeofence(lat, lng) {
     document.getElementById('geofence-distance').textContent =
       'Entfernung: ca. ' + Math.round(nearestDist) + ' m · Radius: ' + (nearest.site_radius || 200) + ' m';
 
-    // Kunden-Dropdown vorausfüllen (falls noch nicht eingestempelt)
+    // Projekt-Dropdown vorausfüllen (falls noch nicht eingestempelt)
     if (!IS_STAMPED_IN) {
-      const sel = document.getElementById('customer-select');
-      if (sel && nearest.customer_id) {
-        sel.value = String(nearest.customer_id);
-      }
+      const sel = document.getElementById('project-select');
+      if (sel) sel.value = String(nearest.id);
     }
 
     banner.classList.remove('hidden');
@@ -254,6 +306,7 @@ if (navigator.geolocation) {
     (pos) => {
       document.getElementById('latitude').value = pos.coords.latitude;
       document.getElementById('longitude').value = pos.coords.longitude;
+      syncSwitchGps(pos.coords.latitude, pos.coords.longitude);
       const statusEl = document.getElementById('gps-status');
       statusEl.textContent = '📍 GPS-Standort erfolgreich erfasst.';
       statusEl.className = 'text-xs text-green-600 italic';
@@ -271,9 +324,10 @@ if (navigator.geolocation) {
   if (GEO_PROJECTS.length > 0) {
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        // Koordinaten im Formular aktuell halten
+        // Koordinaten in beiden Formularen aktuell halten
         document.getElementById('latitude').value = pos.coords.latitude;
         document.getElementById('longitude').value = pos.coords.longitude;
+        syncSwitchGps(pos.coords.latitude, pos.coords.longitude);
         checkGeofence(pos.coords.latitude, pos.coords.longitude);
       },
       () => {},
@@ -293,11 +347,9 @@ function stampInFromGeofence() {
   const form = document.getElementById('stamp-form');
   if (!form) return;
 
-  // Kunden-ID setzen
-  const sel = document.getElementById('customer-select');
-  if (sel && detectedProject.customer_id) {
-    sel.value = String(detectedProject.customer_id);
-  }
+  // Projekt-ID setzen
+  const sel = document.getElementById('project-select');
+  if (sel) sel.value = String(detectedProject.id);
 
   // Notiz automatisch befüllen
   const noteInput = document.getElementById('note-input');
@@ -312,6 +364,34 @@ function stampInFromGeofence() {
   typeInput.value = 'IN';
   form.appendChild(typeInput);
   form.submit();
+}
+
+// ================================================
+// BAUSTELLEN-WECHSEL PANEL
+// ================================================
+function showSwitchPanel() {
+  const panel = document.getElementById('switch-panel');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  // GPS-Koordinaten in Switch-Formular übernehmen
+  const lat = document.getElementById('latitude').value;
+  const lng = document.getElementById('longitude').value;
+  if (lat) document.getElementById('switch-latitude').value = lat;
+  if (lng) document.getElementById('switch-longitude').value = lng;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideSwitchPanel() {
+  const panel = document.getElementById('switch-panel');
+  if (panel) panel.classList.add('hidden');
+}
+
+// GPS-Koordinaten laufend auch ins Switch-Formular übernehmen
+function syncSwitchGps(lat, lng) {
+  const sLat = document.getElementById('switch-latitude');
+  const sLng = document.getElementById('switch-longitude');
+  if (sLat) sLat.value = lat;
+  if (sLng) sLng.value = lng;
 }
 
 // Seite verlassen → Watch stoppen
