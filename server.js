@@ -1671,94 +1671,121 @@ app.get('/documents/offers/:id/pdf', async (req, res) => {
     const L = 50, W = 495;
     const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const customerName = offer.company_name || offer.contact_person || '-';
-    const addr = [offer.street, [offer.zip, offer.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const custAddr1 = offer.street || '';
+    const custAddr2 = [offer.zip, offer.city].filter(Boolean).join(' ');
 
-    // Briefkopf
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(FIRMA.name.toUpperCase(), L, 50);
-    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(FIRMA.slogan, L, 74);
-    doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
+    // ── Briefkopf LINKS (max. Breite 290 damit rechte Box frei bleibt) ──────
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e293b')
+       .text(FIRMA.name.toUpperCase(), L, 45, { width: 290 });
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b')
+       .text(FIRMA.slogan, L, 80, { width: 290 });
+    doc.moveTo(L, 100).lineTo(L + W, 100).lineWidth(1.5).strokeColor('#3b82f6').stroke();
 
-    // Angebots-Box rechts
-    doc.rect(360, 50, 185, 60).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('ANGEBOTS-NR.', 368, 56);
-    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b').text(offer.doc_number || '-', 368, 67);
-    doc.fontSize(8).font('Helvetica').fillColor('#64748b').text(`Datum: ${today}`, 368, 84);
-    doc.text(`Status: ${offer.status || 'Offen'}`, 368, 94);
+    // ── Firmen-Info-Box RECHTS ───────────────────────────────────────────────
+    doc.rect(355, 40, 190, 88).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#f8fafc', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text(FIRMA.name, 363, 46, { width: 174 });
+    doc.fontSize(8).font('Helvetica').fillColor('#475569');
+    doc.text(FIRMA.strasse,  363, 58, { width: 174 });
+    doc.text(FIRMA.plzOrt,   363, 69, { width: 174 });
+    doc.text(`Tel: ${FIRMA.tel}`, 363, 80, { width: 174 });
+    doc.text(`E-Mail: ${FIRMA.email}`, 363, 91, { width: 174 });
+    doc.text(FIRMA.steuernr, 363, 102, { width: 174 });
 
-    // Empfaenger
-    let y = 110;
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFAENGER', L, y);
-    y += 12;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y);
+    // ── Angebots-Info-Box (Nummer / Datum / Status) ──────────────────────────
+    doc.rect(355, 136, 190, 60).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#f8fafc', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('ANGEBOTS-NR.', 363, 142);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b').text(offer.doc_number || '-', 363, 153);
+    doc.fontSize(8).font('Helvetica').fillColor('#64748b');
+    doc.text(`Datum: ${today}`,               363, 170);
+    doc.text(`Status: ${offer.status || 'Offen'}`, 363, 181);
+
+    // ── Empfänger ────────────────────────────────────────────────────────────
+    let y = 118;
+    doc.fontSize(7).font('Helvetica').fillColor('#94a3b8')
+       .text(`${FIRMA.name} · ${FIRMA.strasse} · ${FIRMA.plzOrt}`, L, y);
     y += 14;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFÄNGER', L, y);
+    y += 12;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y, { width: 290 });
+    y += 16;
     doc.fontSize(9).font('Helvetica').fillColor('#475569');
-    if (addr) { doc.text(addr, L, y); y += 13; }
-    if (offer.email) { doc.text(offer.email, L, y); y += 13; }
-    y += 10;
+    if (offer.company_name && offer.contact_person) { doc.text(`z. Hd. ${offer.contact_person}`, L, y, { width: 290 }); y += 14; }
+    if (custAddr1) { doc.text(custAddr1, L, y, { width: 290 }); y += 14; }
+    if (custAddr2) { doc.text(custAddr2, L, y, { width: 290 }); y += 14; }
+    if (offer.email) { doc.text(offer.email, L, y, { width: 290 }); y += 14; }
+    y = Math.max(y, 210);  // mind. bis unter die Boxen rechts
 
-    // Betreff
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b').text(`Angebot ${offer.doc_number}`, L, y);
-    y += 22;
+    // ── Betreff ──────────────────────────────────────────────────────────────
+    y += 12;
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b').text(`Angebot ${offer.doc_number}`, L, y);
+    y += 20;
     doc.fontSize(9).font('Helvetica').fillColor('#475569')
-      .text(`Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:`, L, y, { width: W });
-    y += 36;
-
-    // Tabellen-Header
-    doc.rect(L, y, W, 18).fillColor('#1e293b').fill();
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
-    doc.text('Pos.', L + 4, y + 5, { width: 25 });
-    doc.text('Bezeichnung', L + 30, y + 5, { width: 230 });
-    doc.text('Menge', L + 265, y + 5, { width: 55, align: 'right' });
-    doc.text('Einzelpreis', L + 325, y + 5, { width: 75, align: 'right' });
-    doc.text('Gesamt', L + 405, y + 5, { width: 80, align: 'right' });
+      .text('Sehr geehrte Damen und Herren,', L, y, { width: W });
+    y += 13;
+    doc.text('vielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:', L, y, { width: W });
     y += 22;
 
-    // Positionen
+    // ── Tabellen-Header ──────────────────────────────────────────────────────
+    doc.rect(L, y, W, 20).fillColor('#1e293b').fill();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('Pos.', L + 4,   y + 6, { width: 25 });
+    doc.text('Bezeichnung',   L + 32,  y + 6, { width: 220 });
+    doc.text('Menge',         L + 258, y + 6, { width: 60, align: 'right' });
+    doc.text('Einzelpreis',   L + 323, y + 6, { width: 80, align: 'right' });
+    doc.text('Gesamt',        L + 408, y + 6, { width: 82, align: 'right' });
+    y += 24;
+
+    // ── Positionen ───────────────────────────────────────────────────────────
     let subtotalOffer = 0;
-    doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
     items.forEach((item, idx) => {
-      if (y > 720) { doc.addPage(); y = 50; }
+      const desc = item.description || '-';
+      // Zeilenhöhe dynamisch: mehrzeilige Beschreibungen bekommen mehr Platz
+      const lineH = desc.length > 60 ? 28 : 20;
+      if (y + lineH > 730) { doc.addPage(); y = 50; }
       const rowTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
       subtotalOffer += rowTotal;
       const bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
-      doc.rect(L, y - 2, W, 18).fillColor(bg).fill();
-      doc.fillColor('#1e293b');
-      doc.text(String(idx + 1), L + 4, y + 2, { width: 25 });
-      doc.text(item.description || '-', L + 30, y + 2, { width: 230 });
-      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`, L + 265, y + 2, { width: 55, align: 'right' });
-      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 325, y + 2, { width: 75, align: 'right' });
-      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 405, y + 2, { width: 80, align: 'right' });
-      y += 20;
+      doc.rect(L, y - 2, W, lineH).fillColor(bg).fill();
+      doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
+      doc.text(String(idx + 1),    L + 4,   y + 4, { width: 25 });
+      doc.text(desc,               L + 32,  y + 4, { width: 220 });
+      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`,
+                                   L + 258, y + 4, { width: 60,  align: 'right' });
+      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,
+                                   L + 323, y + 4, { width: 80,  align: 'right' });
+      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,
+                                   L + 408, y + 4, { width: 82,  align: 'right' });
+      y += lineH;
     });
 
-    // Summenblock
-    y += 8;
+    // ── Summenblock ──────────────────────────────────────────────────────────
+    y += 12;
     doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-    y += 10;
+    y += 14;
     const taxOffer = subtotalOffer * 0.19;
     const grandOffer = subtotalOffer + taxOffer;
-    const col1o = L + 300;
+    const col1o = L + 295;
     doc.fontSize(9).font('Helvetica').fillColor('#64748b');
-    doc.text('Zwischensumme (Netto):', col1o, y, { width: 100 });
-    doc.text(`${subtotalOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
-    y += 16;
-    doc.text('19% MwSt.:', col1o, y, { width: 100 });
-    doc.text(`${taxOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
-    y += 8;
-    doc.moveTo(col1o, y).lineTo(L + W - 5, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-    y += 8;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b');
-    doc.text('Gesamtbetrag (Brutto):', col1o, y, { width: 100 });
-    doc.text(`${grandOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
-
-    // Fusszeile
-    y += 40;
-    if (y > 720) { doc.addPage(); y = 50; }
-    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
+    doc.text('Zwischensumme (Netto):',    col1o, y, { width: 110 });
+    doc.text(`${subtotalOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 115, y, { width: 80, align: 'right' });
+    y += 18;
+    doc.text('19 % MwSt.:',              col1o, y, { width: 110 });
+    doc.text(`${taxOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,      col1o + 115, y, { width: 80, align: 'right' });
     y += 10;
+    doc.moveTo(col1o, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 10;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b');
+    doc.text('Gesamtbetrag (Brutto):',   col1o, y, { width: 110 });
+    doc.text(`${grandOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,    col1o + 115, y, { width: 80, align: 'right' });
+
+    // ── Fußzeile ─────────────────────────────────────────────────────────────
+    y += 45;
+    if (y > 730) { doc.addPage(); y = 50; }
+    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
+    y += 14;
     doc.fontSize(8).font('Helvetica').fillColor('#94a3b8');
     doc.text(`Dieses Angebot ist ${FIRMA.angebotsgueltig} Tage gültig. Bei Fragen stehen wir Ihnen gerne zur Verfügung.`, L, y, { width: W });
-    y += 16;
+    y += 14;
     doc.text(`Mit freundlichen Grüßen – ${FIRMA.name}`, L, y, { width: W });
 
     doc.end();
@@ -1796,115 +1823,144 @@ app.get('/documents/invoices/:id/pdf-download', async (req, res) => {
     const today = new Date(invoice.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const dueStr = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'sofort';
     const customerName = invoice.company_name || invoice.contact_person || '-';
-    const addr = [invoice.street, [invoice.zip, invoice.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const custAddr1 = invoice.street || '';
+    const custAddr2 = [invoice.zip, invoice.city].filter(Boolean).join(' ');
 
-    // Briefkopf
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(FIRMA.name.toUpperCase(), L, 50);
-    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(FIRMA.slogan, L, 74);
-    doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
+    // ── Briefkopf LINKS (max. Breite 290 damit rechte Box frei bleibt) ──────
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e293b')
+       .text(FIRMA.name.toUpperCase(), L, 45, { width: 290 });
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b')
+       .text(FIRMA.slogan, L, 80, { width: 290 });
+    doc.moveTo(L, 100).lineTo(L + W, 100).lineWidth(1.5).strokeColor('#3b82f6').stroke();
 
-    // Rechnungs-Box rechts
+    // ── Firmen-Info-Box RECHTS ───────────────────────────────────────────────
+    doc.rect(355, 40, 190, 88).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#f8fafc', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text(FIRMA.name, 363, 46, { width: 174 });
+    doc.fontSize(8).font('Helvetica').fillColor('#475569');
+    doc.text(FIRMA.strasse,  363, 58, { width: 174 });
+    doc.text(FIRMA.plzOrt,   363, 69, { width: 174 });
+    doc.text(`Tel: ${FIRMA.tel}`, 363, 80, { width: 174 });
+    doc.text(`E-Mail: ${FIRMA.email}`, 363, 91, { width: 174 });
+    doc.text(FIRMA.steuernr, 363, 102, { width: 174 });
+
+    // ── Rechnungs-Info-Box (Nummer / Datum / Fällig / Status) ───────────────
     const boxBg = invoice.dunning_level > 0 ? '#fef2f2' : '#f8fafc';
     const boxBorder = invoice.dunning_level > 0 ? '#fca5a5' : '#cbd5e1';
-    doc.rect(360, 50, 185, 72).lineWidth(0.5).strokeColor(boxBorder).fillAndStroke(boxBg, boxBorder);
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('RECHNUNGS-NR.', 368, 56);
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(invoice.invoice_number, 368, 67);
-    doc.fontSize(8).font('Helvetica').fillColor('#64748b').text(`Datum: ${today}`, 368, 82);
-    doc.text(`Faellig: ${dueStr}`, 368, 92);
-    doc.text(`Status: ${invoice.status}`, 368, 102);
+    doc.rect(355, 136, 190, 70).lineWidth(0.5).strokeColor(boxBorder).fillAndStroke(boxBg, boxBorder);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('RECHNUNGS-NR.', 363, 142);
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e293b').text(invoice.invoice_number, 363, 153);
+    doc.fontSize(8).font('Helvetica').fillColor('#64748b');
+    doc.text(`Datum: ${today}`,         363, 170);
+    doc.text(`Fällig: ${dueStr}`,       363, 181);
+    doc.text(`Status: ${invoice.status}`, 363, 192);
 
-    // Mahnung-Banner
+    // ── Mahnung-Banner ────────────────────────────────────────────────────────
     if (invoice.dunning_level > 0) {
       const mahnText = invoice.dunning_level === 1 ? '1. ZAHLUNGSERINNERUNG' : invoice.dunning_level === 2 ? '2. MAHNUNG' : '3. LETZTE MAHNUNG';
-      doc.rect(L, 50, 295, 20).fillColor('#fef2f2').fill();
-      doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text(mahnText, L + 4, 55, { width: 290 });
+      doc.rect(L, 106, 295, 22).fillColor('#fef2f2').fill();
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text(mahnText, L + 6, 112, { width: 280 });
     }
 
-    // Empfaenger
-    let y = 130;
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFAENGER', L, y);
-    y += 12;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y);
+    // ── Empfänger ────────────────────────────────────────────────────────────
+    let y = 120;
+    doc.fontSize(7).font('Helvetica').fillColor('#94a3b8')
+       .text(`${FIRMA.name} · ${FIRMA.strasse} · ${FIRMA.plzOrt}`, L, y);
     y += 14;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFÄNGER', L, y);
+    y += 12;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y, { width: 290 });
+    y += 16;
     doc.fontSize(9).font('Helvetica').fillColor('#475569');
-    if (invoice.company_name && invoice.contact_person) { doc.text(`z. Hd. ${invoice.contact_person}`, L, y); y += 13; }
-    if (addr) { doc.text(addr, L, y); y += 13; }
-    if (invoice.email) { doc.text(invoice.email, L, y); y += 13; }
-    y += 10;
+    if (invoice.company_name && invoice.contact_person) { doc.text(`z. Hd. ${invoice.contact_person}`, L, y, { width: 290 }); y += 14; }
+    if (custAddr1) { doc.text(custAddr1, L, y, { width: 290 }); y += 14; }
+    if (custAddr2) { doc.text(custAddr2, L, y, { width: 290 }); y += 14; }
+    if (invoice.email) { doc.text(invoice.email, L, y, { width: 290 }); y += 14; }
+    y = Math.max(y, 220);  // mind. bis unter die Boxen rechts
 
-    // Betreff
+    // ── Betreff ──────────────────────────────────────────────────────────────
+    y += 12;
     const betreff = invoice.dunning_level > 0
       ? `Mahnung zu Rechnung ${invoice.invoice_number}`
       : `Rechnung Nr. ${invoice.invoice_number}`;
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b').text(betreff, L, y);
-    y += 22;
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b').text(betreff, L, y);
+    y += 20;
     if (!invoice.dunning_level || invoice.dunning_level === 0) {
       doc.fontSize(9).font('Helvetica').fillColor('#475569')
-        .text(`Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:`, L, y, { width: W });
+        .text('Sehr geehrte Damen und Herren,', L, y, { width: W });
+      y += 13;
+      doc.text('wir erlauben uns, folgende Leistungen in Rechnung zu stellen:', L, y, { width: W });
     } else {
       doc.fontSize(9).font('Helvetica').fillColor('#dc2626')
-        .text(`Trotz unserer Rechnung vom ${today} haben wir bisher keinen Zahlungseingang verzeichnen koennen. Wir bitten um umgehende Zahlung.`, L, y, { width: W });
+        .text(`Trotz unserer Rechnung vom ${today} haben wir bisher keinen Zahlungseingang verzeichnen können. Wir bitten um umgehende Zahlung.`, L, y, { width: W });
     }
-    y += 36;
-
-    // Tabellen-Header
-    doc.rect(L, y, W, 18).fillColor('#1e293b').fill();
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
-    doc.text('Pos.', L + 4, y + 5, { width: 25 });
-    doc.text('Bezeichnung', L + 30, y + 5, { width: 230 });
-    doc.text('Menge', L + 265, y + 5, { width: 55, align: 'right' });
-    doc.text('Einzelpreis', L + 325, y + 5, { width: 75, align: 'right' });
-    doc.text('Gesamt', L + 405, y + 5, { width: 80, align: 'right' });
     y += 22;
 
-    // Positionen
+    // ── Tabellen-Header ──────────────────────────────────────────────────────
+    doc.rect(L, y, W, 20).fillColor('#1e293b').fill();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('Pos.',          L + 4,   y + 6, { width: 25 });
+    doc.text('Bezeichnung',   L + 32,  y + 6, { width: 220 });
+    doc.text('Menge',         L + 258, y + 6, { width: 60, align: 'right' });
+    doc.text('Einzelpreis',   L + 323, y + 6, { width: 80, align: 'right' });
+    doc.text('Gesamt',        L + 408, y + 6, { width: 82, align: 'right' });
+    y += 24;
+
+    // ── Positionen ───────────────────────────────────────────────────────────
     let subtotalInv = 0;
-    doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
     items.forEach((item, idx) => {
-      if (y > 700) { doc.addPage(); y = 50; }
+      const desc = item.description || '-';
+      const lineH = desc.length > 60 ? 28 : 20;
+      if (y + lineH > 730) { doc.addPage(); y = 50; }
       const rowTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
       subtotalInv += rowTotal;
       const bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
-      doc.rect(L, y - 2, W, 18).fillColor(bg).fill();
-      doc.fillColor('#1e293b');
-      doc.text(String(idx + 1), L + 4, y + 2, { width: 25 });
-      doc.text(item.description || '-', L + 30, y + 2, { width: 230 });
-      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`, L + 265, y + 2, { width: 55, align: 'right' });
-      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 325, y + 2, { width: 75, align: 'right' });
-      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 405, y + 2, { width: 80, align: 'right' });
-      y += 20;
+      doc.rect(L, y - 2, W, lineH).fillColor(bg).fill();
+      doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
+      doc.text(String(idx + 1),    L + 4,   y + 4, { width: 25 });
+      doc.text(desc,               L + 32,  y + 4, { width: 220 });
+      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`,
+                                   L + 258, y + 4, { width: 60,  align: 'right' });
+      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,
+                                   L + 323, y + 4, { width: 80,  align: 'right' });
+      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,
+                                   L + 408, y + 4, { width: 82,  align: 'right' });
+      y += lineH;
     });
 
-    // Summenblock
-    y += 8;
+    // ── Summenblock ──────────────────────────────────────────────────────────
+    y += 12;
     doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-    y += 10;
+    y += 14;
     const taxInv = subtotalInv * 0.19;
     const grandInv = subtotalInv + taxInv;
-    const col1i = L + 300;
+    const col1i = L + 295;
     doc.fontSize(9).font('Helvetica').fillColor('#64748b');
-    doc.text('Zwischensumme (Netto):', col1i, y, { width: 100 });
-    doc.text(`${subtotalInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
-    y += 16;
-    doc.text('19% MwSt.:', col1i, y, { width: 100 });
-    doc.text(`${taxInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
-    y += 8;
-    doc.moveTo(col1i, y).lineTo(L + W - 5, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-    y += 8;
+    doc.text('Zwischensumme (Netto):',    col1i, y, { width: 110 });
+    doc.text(`${subtotalInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 115, y, { width: 80, align: 'right' });
+    y += 18;
+    doc.text('19 % MwSt.:',              col1i, y, { width: 110 });
+    doc.text(`${taxInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,      col1i + 115, y, { width: 80, align: 'right' });
+    y += 10;
+    doc.moveTo(col1i, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 10;
     doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b');
-    doc.text('Gesamtbetrag (Brutto):', col1i, y, { width: 100 });
-    doc.text(`${grandInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
+    doc.text('Gesamtbetrag (Brutto):',   col1i, y, { width: 110 });
+    doc.text(`${grandInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`,    col1i + 115, y, { width: 80, align: 'right' });
 
-    // Bankdaten & Fusszeile
-    y += 40;
+    // ── Bankdaten & Fußzeile ─────────────────────────────────────────────────
+    y += 30;
     if (y > 700) { doc.addPage(); y = 50; }
     doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
-    y += 12;
+    y += 14;
     doc.fontSize(8).font('Helvetica').fillColor('#475569');
-    doc.text(`Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer ${invoice.invoice_number} innerhalb von ${FIRMA.zahlungsfrist} Tagen.`, L, y, { width: W });
-    y += 20;
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b').text('Bankverbindung:', L, y);
-    doc.font('Helvetica').fillColor('#475569').text(`  IBAN: ${FIRMA.iban}  –  BIC: ${FIRMA.bic}  –  ${FIRMA.bank}`, L + 80, y, { width: 370 });
+    doc.text(`Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer ${invoice.invoice_number} innerhalb von ${FIRMA.zahlungsfrist} Tagen auf folgendes Konto:`, L, y, { width: W });
+    y += 18;
+    // Bankdaten-Box
+    doc.rect(L, y, W, 30).fillColor('#f8fafc').fill();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b').text('Bankverbindung:', L + 8, y + 8);
+    doc.font('Helvetica').fillColor('#475569')
+       .text(`IBAN: ${FIRMA.iban}   |   BIC: ${FIRMA.bic}   |   ${FIRMA.bank}`, L + 100, y + 8, { width: 380 });
+    doc.fontSize(7).fillColor('#94a3b8').text(FIRMA.steuernr, L + 8, y + 20, { width: 200 });
 
     doc.end();
   } catch (err) {
