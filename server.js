@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
+const { sendEmail, sendWhatsApp } = require('./utils/notifier');
 
 // ==========================================
 // GLOBALE ZEITZONE AUF DEUTSCHLAND FESTLEGEN
@@ -237,8 +238,9 @@ dbQuery(`
 // Feature: Urlaubskonto – Jahrestage pro Mitarbeiter
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
 
-// Feature: WhatsApp-Telefonnummer pro Mitarbeiter
+// Feature: WhatsApp-Telefonnummer & Benachrichtigungs-Toggle pro Mitarbeiter
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
 
 // ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
@@ -2335,11 +2337,30 @@ app.post('/projects/add', async (req, res) => {
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
 
   try {
-    const sql = `
-      INSERT INTO projects (customer_id, title, description, total_price, status)
-      VALUES (?, ?, ?, ?, ?)
-    `;
-    await dbQuery(sql, [customer_id || null, title, description || null, parsedPrice, status || 'In Planung']);
+    await dbQuery(
+      `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?, ?, ?, ?, ?)`,
+      [customer_id || null, title, description || null, parsedPrice, status || 'In Planung']
+    );
+
+    // ── WhatsApp: Neuer Auftrag ──────────────────────────────────────────────
+    const usersRes = await dbQuery(
+      "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_notify = true"
+    );
+    if (usersRes.rows.length > 0) {
+      const message =
+        `🏗️ *Neuer Auftrag – ${FIRMA.nameKurz}*\n\n` +
+        `Titel: *${title}*\n` +
+        (description ? `Details: ${description}\n` : '') +
+        `Status: ${status || 'In Planung'}\n\n` +
+        `Bitte in der App ansehen.`;
+      for (const user of usersRes.rows) {
+        sendWhatsApp(user.whatsapp_phone, message).catch(e =>
+          console.error(`WhatsApp (neuer Auftrag) an ${user.username}:`, e.message)
+        );
+      }
+    }
+    // ── Ende WhatsApp ────────────────────────────────────────────────────────
+
     res.redirect('/projects');
   } catch (err) {
     res.status(500).send('Fehler beim Erstellen des Auftrags');
@@ -2358,7 +2379,7 @@ app.post('/projects/update-status', async (req, res) => {
       const projRes = await dbQuery('SELECT title FROM projects WHERE id = ?', [id]);
       const projTitle = projRes.rows[0]?.title || `Auftrag #${id}`;
       const usersRes = await dbQuery(
-        "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND role = 'EMPLOYEE'"
+        "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND role = 'EMPLOYEE' AND whatsapp_notify = true"
       );
 
       const statusEmoji = {
@@ -3236,7 +3257,7 @@ app.post('/projects/delete', async (req, res) => {
 // ==========================================
 app.get('/admin/users', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const result = await dbQuery('SELECT id, username, role, whatsapp_phone, created_at FROM users ORDER BY created_at DESC');
+    const result = await dbQuery('SELECT id, username, role, whatsapp_phone, whatsapp_notify, created_at FROM users ORDER BY created_at DESC');
     res.render('admin-users', { users: result.rows || [] });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -3270,6 +3291,18 @@ app.post('/admin/users/set-whatsapp', verifyToken, requireAdmin, async (req, res
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Fehler beim Speichern der Telefonnummer.');
+  }
+});
+
+app.post('/admin/users/toggle-whatsapp-notify', verifyToken, requireAdmin, async (req, res) => {
+  const { user_id, notify } = req.body;
+  // notify kommt als '1' (an) oder '0' (aus) vom Formular
+  const val = notify === '1';
+  try {
+    await dbQuery('UPDATE users SET whatsapp_notify = ? WHERE id = ?', [val, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern der Benachrichtigungseinstellung.');
   }
 });
 
@@ -3312,6 +3345,24 @@ app.post('/ticker/add', verifyToken, requireAdmin, async (req, res) => {
       'INSERT INTO tickers (message, author) VALUES (?, ?)',
       [message.trim(), req.user.username]
     );
+
+    // ── WhatsApp: Schwarzes Brett ────────────────────────────────────────────
+    const usersRes = await dbQuery(
+      "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_notify = true"
+    );
+    if (usersRes.rows.length > 0) {
+      const wa =
+        `📢 *Schwarzes Brett – ${FIRMA.nameKurz}*\n\n` +
+        `${message.trim()}\n\n` +
+        `— ${req.user.username}`;
+      for (const user of usersRes.rows) {
+        sendWhatsApp(user.whatsapp_phone, wa).catch(e =>
+          console.error(`WhatsApp (Ticker) an ${user.username}:`, e.message)
+        );
+      }
+    }
+    // ── Ende WhatsApp ────────────────────────────────────────────────────────
+
   } catch (err) {
     console.error('Fehler beim Speichern des Tickers:', err.message);
   }

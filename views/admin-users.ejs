@@ -92,6 +92,7 @@
                       <% } %>
                     </td>
                     <td class="p-4">
+                      <!-- Nummer eingeben & speichern -->
                       <form action="/admin/users/set-whatsapp" method="POST" class="flex items-center gap-2">
                         <input type="hidden" name="user_id" value="<%= u.id %>">
                         <input type="tel" name="whatsapp_phone" value="<%= u.whatsapp_phone || '' %>"
@@ -101,8 +102,23 @@
                           class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold transition"
                           title="Nummer speichern">✓</button>
                       </form>
+                      <!-- Benachrichtigungen an/aus -->
                       <% if (u.whatsapp_phone) { %>
-                        <span class="text-[10px] text-green-600 dark:text-green-400 font-medium mt-0.5 block">✅ Benachrichtigungen aktiv</span>
+                        <%
+                          const notifyOn = u.whatsapp_notify === true || u.whatsapp_notify === 1 || u.whatsapp_notify === 't' || u.whatsapp_notify === 'true';
+                        %>
+                        <form action="/admin/users/toggle-whatsapp-notify" method="POST" class="flex items-center gap-2 mt-1.5">
+                          <input type="hidden" name="user_id" value="<%= u.id %>">
+                          <input type="hidden" name="notify" value="<%= notifyOn ? '0' : '1' %>">
+                          <button type="submit"
+                            class="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition
+                              <%= notifyOn
+                                ? 'bg-green-50 text-green-700 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300' %>">
+                            <span><%= notifyOn ? '🔔' : '🔕' %></span>
+                            <span><%= notifyOn ? 'Aktiv – klicken zum Deaktivieren' : 'Stumm – klicken zum Aktivieren' %></span>
+                          </button>
+                        </form>
                       <% } else { %>
                         <span class="text-[10px] text-slate-400 mt-0.5 block">Keine Nummer hinterlegt</span>
                       <% } %>
