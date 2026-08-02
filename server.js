@@ -33,6 +33,26 @@ if (process.env.DATABASE_URL) {
 const isPg = !!process.env.DATABASE_URL;
 
 // ==========================================
+// FIRMEN-DATEN — hier zentral anpassen!
+// ==========================================
+const FIRMA = {
+  name:       'Frank Gehrmann Stahl- und Metallbau GmbH',          // Firmenname (groß im Briefkopf)
+  nameKurz:   'Metallbau-Gehrmann',          // Kurzform (Fußzeilen etc.)
+  slogan:     'Hochwertige Handwerksarbeit zum fairen Preis.',
+  strasse:    'Ratingerstr. 85',
+  plzOrt:     '42279 Heiligenhaus',
+  tel:        '02102 85610',
+  email:      'info@metallbau-gehrmann.de',
+  web:        'www.metallbau-gehrmann.de',
+  iban:       'DE12 3456 7890 1234 5678 90',
+  bic:        'MUBADE12',
+  bank:       'Musterbank DE',
+  steuernr:   'USt-IdNr.: DE123456789',
+  zahlungsfrist: 14,                          // Tage
+  angebotsgueltig: 30,                        // Tage
+};
+
+// ==========================================
 // HILFSFUNKTION (Muss ganz oben stehen!)
 // ==========================================
 const dbQuery = (sql, params = []) => {
@@ -1654,8 +1674,8 @@ app.get('/documents/offers/:id/pdf', async (req, res) => {
     const addr = [offer.street, [offer.zip, offer.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
     // Briefkopf
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text('METALLBAU GEHRMANN', L, 50);
-    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('Stahlbau - Edelstahlverarbeitung - Gelaender & Tore', L, 74);
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(FIRMA.name.toUpperCase(), L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(FIRMA.slogan, L, 74);
     doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
 
     // Angebots-Box rechts
@@ -1680,7 +1700,7 @@ app.get('/documents/offers/:id/pdf', async (req, res) => {
     doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b').text(`Angebot ${offer.doc_number}`, L, y);
     y += 22;
     doc.fontSize(9).font('Helvetica').fillColor('#475569')
-      .text('Sehr geehrte Damen und Herren,\nvielen Dank fuer Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:', L, y, { width: W });
+      .text(`Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:`, L, y, { width: W });
     y += 36;
 
     // Tabellen-Header
@@ -1737,9 +1757,9 @@ app.get('/documents/offers/:id/pdf', async (req, res) => {
     doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
     y += 10;
     doc.fontSize(8).font('Helvetica').fillColor('#94a3b8');
-    doc.text('Dieses Angebot ist 30 Tage gueltig. Bei Fragen stehen wir Ihnen gerne zur Verfuegung.', L, y, { width: W });
+    doc.text(`Dieses Angebot ist ${FIRMA.angebotsgueltig} Tage gültig. Bei Fragen stehen wir Ihnen gerne zur Verfügung.`, L, y, { width: W });
     y += 16;
-    doc.text('Mit freundlichen Gruessen - Metallbau Gehrmann', L, y, { width: W });
+    doc.text(`Mit freundlichen Grüßen – ${FIRMA.name}`, L, y, { width: W });
 
     doc.end();
   } catch (err) {
@@ -1779,8 +1799,8 @@ app.get('/documents/invoices/:id/pdf-download', async (req, res) => {
     const addr = [invoice.street, [invoice.zip, invoice.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
     // Briefkopf
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text('METALLBAU GEHRMANN', L, 50);
-    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('Stahlbau - Edelstahlverarbeitung - Gelaender & Tore', L, 74);
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(FIRMA.name.toUpperCase(), L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(FIRMA.slogan, L, 74);
     doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
 
     // Rechnungs-Box rechts
@@ -1820,7 +1840,7 @@ app.get('/documents/invoices/:id/pdf-download', async (req, res) => {
     y += 22;
     if (!invoice.dunning_level || invoice.dunning_level === 0) {
       doc.fontSize(9).font('Helvetica').fillColor('#475569')
-        .text('Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:', L, y, { width: W });
+        .text(`Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:`, L, y, { width: W });
     } else {
       doc.fontSize(9).font('Helvetica').fillColor('#dc2626')
         .text(`Trotz unserer Rechnung vom ${today} haben wir bisher keinen Zahlungseingang verzeichnen koennen. Wir bitten um umgehende Zahlung.`, L, y, { width: W });
@@ -1881,10 +1901,10 @@ app.get('/documents/invoices/:id/pdf-download', async (req, res) => {
     doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
     y += 12;
     doc.fontSize(8).font('Helvetica').fillColor('#475569');
-    doc.text(`Bitte ueberweisen Sie den Betrag unter Angabe der Rechnungsnummer ${invoice.invoice_number} innerhalb von 14 Tagen.`, L, y, { width: W });
+    doc.text(`Bitte überweisen Sie den Betrag unter Angabe der Rechnungsnummer ${invoice.invoice_number} innerhalb von ${FIRMA.zahlungsfrist} Tagen.`, L, y, { width: W });
     y += 20;
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b').text('Bankverbindung:', L, y);
-    doc.font('Helvetica').fillColor('#475569').text('  IBAN: DE12 3456 7890 1234 5678 90  -  BIC: MUBADE12  -  Musterbank DE', L + 80, y, { width: 370 });
+    doc.font('Helvetica').fillColor('#475569').text(`  IBAN: ${FIRMA.iban}  –  BIC: ${FIRMA.bic}  –  ${FIRMA.bank}`, L + 80, y, { width: 370 });
 
     doc.end();
   } catch (err) {
@@ -2378,9 +2398,9 @@ app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
 
     // ── Kopfzeile ────────────────────────────────────────────────────────────
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b')
-       .text('Metallbau-Gehrmann', L, 50);
+       .text(FIRMA.name.toUpperCase(), L, 50);
     doc.fontSize(9).font('Helvetica').fillColor('#64748b')
-       .text('Auftragsdokumentation · Stundennachweis · Lieferschein', L, 74);
+       .text(FIRMA.slogan, L, 74);
 
     // Trennlinie
     doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
@@ -2563,7 +2583,7 @@ app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
         doc.switchToPage(range.start + i);
         doc.moveTo(L, 820).lineTo(L + W, 820).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
         doc.fontSize(7).font('Helvetica').fillColor('#94a3b8')
-           .text(`Metallbau-Gehrmann · Auftrag #${project.id} · ${project.title} · Seite ${i + 1} von ${range.count} · Erstellt: ${today}`,
+           .text(`${FIRMA.nameKurz} · Auftrag #${project.id} · ${project.title} · Seite ${i + 1} von ${range.count} · Erstellt: ${today}`,
              L, 826, { width: W, align: 'center' });
       }
     }
