@@ -2105,6 +2105,18 @@ app.post('/documents/invoices/increase-dunning', async (req, res) => {
   }
 });
 
+app.post('/documents/invoices/update-number', async (req, res) => {
+  const { invoice_id, invoice_number } = req.body;
+  const num = (invoice_number || '').trim();
+  if (!num) return res.redirect('back');
+  try {
+    await dbQuery('UPDATE invoices SET invoice_number = ? WHERE id = ?', [num, invoice_id]);
+    res.redirect(`/documents/invoices/${invoice_id}`);
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern der Rechnungsnummer');
+  }
+});
+
 app.post('/documents/invoices/update-status', async (req, res) => {
   const { invoice_id, status, status_note } = req.body;
   try {
