@@ -484,46 +484,84 @@ app.get('/', async (req, res) => {
       res.render('dashboard-employee', { stats, recentLogs, tickers: tickerRes.rows || [] });
 
     } else {
+      // ── Offene Angebote ─────────────────────────────────────────
       const sqlOffers = `
-        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-        FROM documents 
+        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+        FROM documents
         WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'
       `;
+      // ── Unbezahlte Rechnungen ───────────────────────────────────
       const sqlInvoices = `
-        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total 
-        FROM invoices 
+        SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+        FROM invoices
         WHERE status != 'Bezahlt'
       `;
+      // ── Kunden Gesamt ───────────────────────────────────────────
       const sqlCustomers = `SELECT COUNT(*) as count FROM customers`;
-      
+
+      // ── Aktive Aufträge ─────────────────────────────────────────
+      const sqlActiveProjects = `
+        SELECT COUNT(*) as count FROM projects
+        WHERE status NOT IN ('Abgeschlossen')
+      `;
+
+      // ── Fällige Rechnungen (Fälligkeitsdatum <= heute) ──────────
+      const sqlOverdueInvoices = isPg
+        ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+           FROM invoices
+           WHERE status != 'Bezahlt'
+             AND due_date IS NOT NULL AND due_date != ''
+             AND due_date::date <= CURRENT_DATE`
+        : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+           FROM invoices
+           WHERE status != 'Bezahlt'
+             AND due_date IS NOT NULL AND due_date != ''
+             AND due_date <= date('now')`;
+
+      // ── Offene Aufgaben / Mängel ────────────────────────────────
+      const sqlOpenTasks = `
+        SELECT COUNT(*) as count FROM project_tasks
+        WHERE status = 'Offen'
+      `;
+
+      // ── Letzte Vorgänge ─────────────────────────────────────────
       const sqlRecentDocs = `
         SELECT * FROM (
-          SELECT documents.id, documents.doc_number, 'Angebot' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
+          SELECT documents.id, documents.doc_number, 'OFFER' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
           FROM documents
           LEFT JOIN customers ON documents.customer_id = customers.id
           UNION ALL
-          SELECT invoices.id, invoices.invoice_number as doc_number, 'Rechnung' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
+          SELECT invoices.id, invoices.invoice_number as doc_number, 'INVOICE' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
           FROM invoices
           LEFT JOIN customers ON invoices.customer_id = customers.id
         ) combined
         ORDER BY id DESC LIMIT 5
       `;
 
-      const offerRes = await dbQuery(sqlOffers);
-      const invoiceRes = await dbQuery(sqlInvoices);
-      const customerRes = await dbQuery(sqlCustomers);
-      const recentDocsRes = await dbQuery(sqlRecentDocs);
+      const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes] = await Promise.all([
+        dbQuery(sqlOffers),
+        dbQuery(sqlInvoices),
+        dbQuery(sqlCustomers),
+        dbQuery(sqlActiveProjects),
+        dbQuery(sqlOverdueInvoices),
+        dbQuery(sqlOpenTasks),
+        dbQuery(sqlRecentDocs),
+        dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10'),
+        dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId]),
+      ]);
 
-      const offerData = offerRes.rows[0];
-      const invoiceData = invoiceRes.rows[0];
-      const customerData = customerRes.rows[0];
+      const fmt = (n) => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
 
       const stats = {
-        openOffersCount: offerData ? offerData.count : 0,
-        openOffersSum: offerData ? Number(offerData.total).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-        openInvoicesCount: invoiceData ? invoiceData.count : 0,
-        openInvoicesSum: invoiceData ? Number(invoiceData.total).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00',
-        totalCustomers: customerData ? customerData.count : 0
+        openOffersCount:      offerRes.rows[0]?.count ?? 0,
+        openOffersSum:        fmt(offerRes.rows[0]?.total),
+        openInvoicesCount:    invoiceRes.rows[0]?.count ?? 0,
+        openInvoicesSum:      fmt(invoiceRes.rows[0]?.total),
+        totalCustomers:       customerRes.rows[0]?.count ?? 0,
+        activeProjectsCount:  activeProjectsRes.rows[0]?.count ?? 0,
+        overdueInvoicesCount: overdueRes.rows[0]?.count ?? 0,
+        overdueInvoicesSum:   fmt(overdueRes.rows[0]?.total),
+        openTasksCount:       openTasksRes.rows[0]?.count ?? 0,
       };
 
       const formattedDocs = (recentDocsRes.rows || []).map(doc => ({
@@ -531,14 +569,43 @@ app.get('/', async (req, res) => {
         customer_name: doc.company_name || doc.contact_person || 'Kein Kunde'
       }));
 
-      // Ticker für Admin-Dashboard laden
-      const tickerRes = await dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10');
+      // Widget-Einstellungen aus DB laden (Fallback: alle sichtbar)
+      let widgetSettings = {};
+      if (settingsRes.rows[0]?.settings_json) {
+        try { widgetSettings = JSON.parse(settingsRes.rows[0].settings_json); } catch (_) {}
+      }
 
-      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [] });
+      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings });
     }
   } catch (err) {
     console.error('Fehler im Dashboard:', err.message);
     res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
+// WIDGET-EINSTELLUNGEN (DB-basiert)
+// ==========================================
+app.post('/api/user-settings', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { settings } = req.body; // { w-openOffers: true, ... }
+    if (!settings || typeof settings !== 'object') return res.status(400).json({ error: 'Ungültige Daten' });
+
+    const json = JSON.stringify(settings);
+    const sql = isPg
+      ? `INSERT INTO user_settings (user_id, settings_json, updated_at)
+         VALUES (?, ?, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET settings_json = EXCLUDED.settings_json, updated_at = NOW()`
+      : `INSERT INTO user_settings (user_id, settings_json, updated_at)
+         VALUES (?, ?, datetime('now'))
+         ON CONFLICT(user_id) DO UPDATE SET settings_json = excluded.settings_json, updated_at = datetime('now')`;
+
+    await dbQuery(sql, [userId, json]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Widget-Einstellungen:', err.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
 

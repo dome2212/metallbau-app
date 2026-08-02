@@ -181,12 +181,21 @@ if (process.env.DATABASE_URL) {
       file_url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { 
-    if (err) console.error("❌ Fehler project_files:", err.message); 
+  `, (err) => {
+    if (err) console.error("❌ Fehler project_files:", err.message);
     else {
       db.query(`ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
     }
   });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL UNIQUE,
+      settings_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler user_settings:", err.message); });
 
 } else {
   // Lokale Entwicklung (SQLite)
@@ -375,6 +384,15 @@ if (process.env.DATABASE_URL) {
           file_type TEXT,
           file_url TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL UNIQUE,
+          settings_json TEXT NOT NULL DEFAULT '{}',
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
