@@ -2406,6 +2406,59 @@ app.get('/projects/:id', async (req, res) => {
 });
 
 // ==========================================
+// KI-ANGEBOTS-ASSISTENT (Gemini Chat)
+// ==========================================
+app.post('/api/ai/offer-assistant', verifyToken, async (req, res) => {
+  if (!GoogleGenAI) {
+    return res.status(500).json({ error: 'Google Gemini SDK nicht verfügbar.' });
+  }
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY nicht konfiguriert.' });
+  }
+
+  const { message, context } = req.body;
+  if (!message) return res.status(400).json({ error: 'Keine Nachricht übermittelt.' });
+
+  const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${FIRMA.name}".
+Deine Aufgabe: Hilf dem Benutzer, ein Angebot zu erstellen. Der Benutzer beschreibt, was gebaut oder geliefert werden soll.
+Du antwortest immer auf Deutsch, professionell und knapp.
+
+Wenn der Benutzer Leistungen oder Materialien nennt, antworte IMMER mit:
+1. Einem kurzen freundlichen Satz als Einleitung
+2. Einer JSON-Liste der vorgeschlagenen Angebotspositionen im folgenden Format:
+
+POSITIONEN_JSON:
+[
+  {"title": "Bezeichnung der Leistung", "quantity": 1, "unit": "Stk", "price": 0},
+  ...
+]
+
+Erlaubte Einheiten: Stk, m, Std, kg, m², Psch
+Preise: Setze realistische Marktpreise für Metallbauarbeiten ein (Stundensatz ca. 75-95 €, Materialpreise marktüblich).
+Wenn du dir bei einem Preis unsicher bist, setze 0 und schreibe einen Hinweis.
+
+Wenn der Benutzer nur eine allgemeine Frage stellt (kein konkretes Angebot), antworte normal ohne JSON.`;
+
+  const fullPrompt = `${systemPrompt}
+
+${context ? 'Bisheriger Kontext:\n' + context + '\n' : ''}
+Benutzer: ${message}`;
+
+  try {
+    const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const result = await genai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: fullPrompt,
+    });
+    const text = result.text;
+    return res.json({ reply: text });
+  } catch (err) {
+    console.error('Gemini Fehler (offer-assistant):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
 // KI-ANGEBOT GENERIEREN (Google Gemini)
 // ==========================================
 app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {

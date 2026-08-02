@@ -10,9 +10,14 @@
         <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Angebotsverwaltung</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">Erstelle und verwalte Angebote für deine Kunden</p>
       </div>
-      <button onclick="toggleModal('offerModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm w-full md:w-auto justify-center">
-        <span>+ Neues Angebot erstellen</span>
-      </button>
+      <div class="flex gap-2 w-full md:w-auto">
+        <button onclick="openKiAssistant()" class="flex-1 md:flex-none bg-violet-600 hover:bg-violet-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm justify-center">
+          🤖 KI-Assistent
+        </button>
+        <button onclick="toggleModal('offerModal')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm justify-center">
+          + Neues Angebot
+        </button>
+      </div>
     </div>
 
     <!-- Angebots-Tabelle -->
@@ -53,39 +58,30 @@
                     <!-- AKTIONEN -->
                     <td class="py-3 px-4 text-right">
                       <div class="flex items-center justify-end gap-2">
-
-                        <!-- Button: PDF Download -->
                         <a href="/documents/offers/<%= offer.id %>/pdf"
                           class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded text-xs font-medium border border-slate-200 flex items-center gap-1">
                           ⬇️ PDF
                         </a>
-                        
-                        <!-- Button: In Rechnung umwandeln -->
                         <% if (offer.status !== 'ANGENOMMEN') { %>
                           <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
                             <input type="hidden" name="offer_id" value="<%= offer.id %>">
-                            <button type="submit" title="In Rechnung umwandeln" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium border border-emerald-200 flex items-center gap-1">
+                            <button type="submit" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium border border-emerald-200 flex items-center gap-1">
                               🔄 In Rechnung
                             </button>
                           </form>
-
-                          <!-- Button: In Projekt umwandeln -->
                           <form action="/documents/offers/convert-to-project" method="POST" class="inline"
                             onsubmit="return confirm('Aus diesem Angebot ein neues Projekt anlegen?');">
                             <input type="hidden" name="offer_id" value="<%= offer.id %>">
-                            <button type="submit" title="In Projekt umwandeln"
+                            <button type="submit"
                               class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium border border-indigo-200 flex items-center gap-1">
                               🏗️ In Projekt
                             </button>
                           </form>
                         <% } %>
-
-                        <!-- Button: Löschen -->
                         <form action="/documents/offers/delete" method="POST" onsubmit="return confirm('Angebot wirklich löschen?');" class="inline">
                           <input type="hidden" name="offer_id" value="<%= offer.id %>">
                           <button type="submit" class="px-2.5 py-1 bg-gray-100 hover:bg-red-100 text-red-600 rounded text-xs font-medium" title="Löschen">🗑️</button>
                         </form>
-
                       </div>
                     </td>
                   </tr>
@@ -103,7 +99,124 @@
   </main>
 </div>
 
-<!-- Modal: Neues Angebot anlegen (Mehrere Positionen) -->
+<!-- ================================================ -->
+<!-- KI-ASSISTENT MODAL                               -->
+<!-- ================================================ -->
+<div id="kiAssistantModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col md:flex-row overflow-hidden">
+
+    <!-- LINKE SPALTE: Chat -->
+    <div class="flex flex-col flex-1 min-w-0 border-r dark:border-slate-700">
+      <!-- Chat-Header -->
+      <div class="flex justify-between items-center px-5 py-4 border-b dark:border-slate-700 flex-shrink-0">
+        <div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-gray-100">🤖 KI-Angebots-Assistent</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Beschreibe was gebaut werden soll – die KI schlägt Positionen vor</p>
+        </div>
+        <button onclick="closeKiAssistant()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- Chat-Verlauf -->
+      <div id="kiChatMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900/40">
+        <!-- Begrüßungs-Nachricht -->
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm flex-shrink-0">🤖</div>
+          <div class="bg-white dark:bg-slate-700 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-gray-200 shadow-sm max-w-sm">
+            Hallo! Ich helfe dir beim Erstellen von Angeboten.<br><br>
+            Beschreibe einfach, was gebaut oder geliefert werden soll – z.B.:<br>
+            <span class="text-violet-600 font-medium italic">„Stahlgeländer 3 Meter, verzinkt, mit Montage"</span><br><br>
+            Ich schlage dann passende Positionen vor, die du direkt ins Angebot übernehmen kannst.
+          </div>
+        </div>
+      </div>
+
+      <!-- Eingabefeld -->
+      <div class="p-4 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+        <div class="flex gap-2">
+          <textarea id="kiChatInput" rows="2"
+            placeholder="z.B. „Stahltreppe 12 Stufen, Geländer beidseitig, pulverbeschichtet RAL 7016""
+            class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>
+          <button id="kiSendBtn" onclick="sendKiMessage()"
+            class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex-shrink-0 flex items-center gap-1">
+            Senden ➤
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">Enter = neue Zeile · Strg+Enter = Senden</p>
+      </div>
+    </div>
+
+    <!-- RECHTE SPALTE: Positionen-Vorschau + Angebot-Formular -->
+    <div class="flex flex-col w-full md:w-96 flex-shrink-0">
+      <!-- Positionen-Header -->
+      <div class="px-5 py-4 border-b dark:border-slate-700 flex-shrink-0">
+        <h4 class="text-sm font-bold text-slate-800 dark:text-gray-100">📋 Angebot zusammenstellen</h4>
+        <p class="text-xs text-slate-500 dark:text-slate-400">KI-Vorschläge übernehmen oder selbst hinzufügen</p>
+      </div>
+
+      <!-- Angebots-Formular (scrollbar) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Kunden-Auswahl -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kunde *</label>
+          <select id="kiCustomerSelect" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-white">
+            <option value="">-- Kunde wählen --</option>
+            <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
+              <% customers.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.company_name ? c.company_name + ' – ' + c.contact_person : c.contact_person %></option>
+              <% }); %>
+            <% } %>
+          </select>
+        </div>
+
+        <!-- Positions-Liste -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Positionen</label>
+            <button type="button" onclick="addKiRow()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2 py-1 rounded border dark:border-slate-600">
+              + Manuell
+            </button>
+          </div>
+          <div id="kiItemsContainer" class="space-y-2">
+            <p id="kiEmptyHint" class="text-xs text-slate-400 dark:text-slate-500 italic text-center py-4">
+              Noch keine Positionen. Beschreibe links was benötigt wird.
+            </p>
+          </div>
+        </div>
+
+        <!-- Summe -->
+        <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-4 py-3 border dark:border-slate-600">
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-slate-600 dark:text-slate-300">Netto-Summe:</span>
+            <span id="kiTotalNet" class="font-semibold text-slate-800 dark:text-gray-100">0,00 €</span>
+          </div>
+          <div class="flex justify-between items-center text-sm mt-1">
+            <span class="text-slate-600 dark:text-slate-300">MwSt. 19%:</span>
+            <span id="kiTotalVat" class="text-slate-600 dark:text-slate-400">0,00 €</span>
+          </div>
+          <div class="flex justify-between items-center font-bold text-base mt-2 pt-2 border-t dark:border-slate-600">
+            <span class="text-slate-800 dark:text-gray-100">Gesamt (Brutto):</span>
+            <span id="kiTotalGross" class="text-emerald-700 dark:text-emerald-400">0,00 €</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speichern-Button -->
+      <div class="px-4 py-4 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+        <button onclick="submitKiOffer()"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm transition">
+          💾 Angebot speichern
+        </button>
+        <button onclick="closeKiAssistant()" class="w-full mt-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================ -->
+<!-- STANDARD ANGEBOT MODAL (manuell)                 -->
+<!-- ================================================ -->
 <div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
   <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-2xl w-full p-4 md:p-6 max-h-[90vh] flex flex-col">
     <div class="flex justify-between items-center mb-4 border-b dark:border-slate-700 pb-2 flex-shrink-0">
@@ -152,7 +265,6 @@
             + Eigene Position hinzufügen
           </button>
         </div>
-
         <div id="offerItemsContainer" class="space-y-3">
           <!-- Dynamische Zeilen werden per JS angehängt -->
         </div>
@@ -167,82 +279,271 @@
 </div>
 
 <script>
-  function toggleModal(id) {
-    const modal = document.getElementById(id);
-    modal.classList.toggle('hidden');
-    
-    // Leere Zeile hinzufügen, wenn Modal geöffnet wird und die Liste leer ist
-    if (!modal.classList.contains('hidden')) {
-      const container = document.getElementById('offerItemsContainer');
-      if (container.children.length === 0) {
-        addCustomOfferRow();
-      }
-    }
-  }
-
-  // Neue Angebotszeile hinzufügen
-  function addCustomOfferRow(title = '', quantity = 1, unit = 'Stk', price = '') {
+// ================================================
+// STANDARD ANGEBOT MODAL
+// ================================================
+function toggleModal(id) {
+  const modal = document.getElementById(id);
+  modal.classList.toggle('hidden');
+  if (!modal.classList.contains('hidden')) {
     const container = document.getElementById('offerItemsContainer');
-    const rowId = 'off_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
+    if (container && container.children.length === 0) addCustomOfferRow();
+  }
+}
 
-    const rowHtml = `
-      <div id="${rowId}" class="p-3 bg-gray-50 border rounded-lg space-y-2 relative">
-        <div class="flex justify-between items-center">
-          <input type="text" name="title" value="${title}" required placeholder="Beschreibung (z.B. Stahlträger HEB 160 / Geländer montieren)" class="w-full border rounded p-2 text-sm bg-white">
-          <button type="button" onclick="removeOfferRow('${rowId}')" class="ml-2 text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm" title="Position entfernen">✕</button>
+function addCustomOfferRow(title = '', quantity = 1, unit = 'Stk', price = '') {
+  const container = document.getElementById('offerItemsContainer');
+  const rowId = 'off_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
+  const unitOptions = ['Stk','m','Std','kg','m²','Psch'].map(u =>
+    `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`
+  ).join('');
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${rowId}" class="p-3 bg-gray-50 dark:bg-slate-700 border dark:border-slate-600 rounded-lg space-y-2 relative">
+      <div class="flex justify-between items-center">
+        <input type="text" name="title" value="${title.replace(/"/g,'&quot;')}" required placeholder="Beschreibung der Leistung" class="w-full border rounded p-2 text-sm bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-gray-100">
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="ml-2 text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm">✕</button>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase">Menge</label>
+          <input type="number" step="0.01" name="quantity" value="${quantity}" required class="w-full border rounded p-1.5 text-sm bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-gray-100">
         </div>
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-[10px] text-gray-500 uppercase">Menge</label>
-            <input type="number" step="0.01" name="quantity" value="${quantity}" required class="w-full border rounded p-1.5 text-sm bg-white">
-          </div>
-          <div>
-            <label class="block text-[10px] text-gray-500 uppercase">Einheit</label>
-            <select name="unit" class="w-full border rounded p-1.5 text-sm bg-white">
-              <option value="Stk" ${unit === 'Stk' ? 'selected' : ''}>Stk</option>
-              <option value="m" ${unit === 'm' ? 'selected' : ''}>m (Meter)</option>
-              <option value="Std" ${unit === 'Std' ? 'selected' : ''}>Std (Stunden)</option>
-              <option value="kg" ${unit === 'kg' ? 'selected' : ''}>kg</option>
-              <option value="m²" ${unit === 'm²' ? 'selected' : ''}>m²</option>
-              <option value="Psch" ${unit === 'Psch' ? 'selected' : ''}>Pauschale</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] text-gray-500 uppercase">Einzelpreis (€)</label>
-            <input type="number" step="0.01" name="price" value="${price}" required placeholder="0.00" class="w-full border rounded p-1.5 text-sm bg-white">
-          </div>
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase">Einheit</label>
+          <select name="unit" class="w-full border rounded p-1.5 text-sm bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-gray-100">${unitOptions}</select>
+        </div>
+        <div>
+          <label class="block text-[10px] text-gray-500 uppercase">Einzelpreis (€)</label>
+          <input type="number" step="0.01" name="price" value="${price}" required placeholder="0.00" class="w-full border rounded p-1.5 text-sm bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-gray-100">
         </div>
       </div>
-    `;
+    </div>
+  `);
+}
 
-    container.insertAdjacentHTML('beforeend', rowHtml);
+function addArticleToOfferList(selectElement) {
+  const opt = selectElement.options[selectElement.selectedIndex];
+  if (!opt.value) return;
+  const title = opt.getAttribute('data-title');
+  const unit  = opt.getAttribute('data-unit');
+  const price = opt.getAttribute('data-price');
+  const desc  = opt.getAttribute('data-desc');
+  addCustomOfferRow(title + (desc ? ' – ' + desc : ''), 1, unit, price);
+  selectElement.value = '';
+}
+
+function removeOfferRow(rowId) {
+  const row = document.getElementById(rowId);
+  if (row) row.remove();
+}
+
+// ================================================
+// KI-ANGEBOTS-ASSISTENT
+// ================================================
+let kiChatContext = '';
+
+function openKiAssistant() {
+  document.getElementById('kiAssistantModal').classList.remove('hidden');
+}
+
+function closeKiAssistant() {
+  document.getElementById('kiAssistantModal').classList.add('hidden');
+}
+
+// Strg+Enter sendet
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('kiChatInput');
+  if (inp) {
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        sendKiMessage();
+      }
+    });
   }
+});
 
-  // Artikel aus dem Stammdaten-Dropdown anhängen
-  function addArticleToOfferList(selectElement) {
-    const selectedOption = selectElement.options[selectElement.selectedIndex];
-    if (!selectedOption.value) return;
+async function sendKiMessage() {
+  const input   = document.getElementById('kiChatInput');
+  const sendBtn = document.getElementById('kiSendBtn');
+  const message = input.value.trim();
+  if (!message) return;
 
-    const title = selectedOption.getAttribute('data-title');
-    const unit = selectedOption.getAttribute('data-unit');
-    const price = selectedOption.getAttribute('data-price');
-    const desc = selectedOption.getAttribute('data-desc');
+  // Benutzer-Bubble
+  appendChatBubble('user', message);
+  input.value = '';
+  sendBtn.disabled = true;
+  sendBtn.textContent = '…';
 
-    const fullTitle = title + (desc ? ' - ' + desc : '');
+  // Lade-Bubble
+  const loadId = appendChatBubble('bot', '⏳ Denke nach …', true);
 
-    addCustomOfferRow(fullTitle, 1, unit, price);
+  try {
+    const res = await fetch('/api/ai/offer-assistant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ message, context: kiChatContext })
+    });
+    const data = await res.json();
 
-    // Auswahl zurücksetzen
-    selectElement.value = '';
-  }
+    removeBubble(loadId);
 
-  // Zeile löschen
-  function removeOfferRow(rowId) {
-    const row = document.getElementById(rowId);
-    if (row) {
-      row.remove();
+    if (!res.ok || data.error) {
+      appendChatBubble('bot', '❌ Fehler: ' + (data.error || 'Unbekannter Fehler'));
+      return;
     }
+
+    const reply = data.reply;
+    kiChatContext += `\nBenutzer: ${message}\nAssistent: ${reply}\n`;
+
+    // JSON-Positionen herausparsen
+    const positions = parsePositionsFromReply(reply);
+    const textOnly  = reply.replace(/POSITIONEN_JSON:[\s\S]*?(\])/g, '').trim();
+
+    appendChatBubble('bot', textOnly || reply);
+
+    if (positions.length > 0) {
+      positions.forEach(p => addKiRow(p.title, p.quantity, p.unit, p.price));
+      appendChatBubble('bot', `✅ ${positions.length} Position(en) wurden rechts in die Liste übernommen. Du kannst sie noch anpassen.`);
+    }
+  } catch (err) {
+    removeBubble(loadId);
+    appendChatBubble('bot', '❌ Netzwerkfehler: ' + err.message);
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = 'Senden ➤';
   }
+}
+
+function parsePositionsFromReply(text) {
+  try {
+    const match = text.match(/POSITIONEN_JSON:\s*(\[[\s\S]*?\])/);
+    if (!match) return [];
+    const arr = JSON.parse(match[1]);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function appendChatBubble(role, text, isTemp = false) {
+  const container = document.getElementById('kiChatMessages');
+  const id = 'bubble_' + Date.now() + Math.random().toString(36).substr(2, 4);
+  const isBot = role === 'bot';
+  const bubble = `
+    <div id="${id}" class="flex gap-3 ${isBot ? '' : 'flex-row-reverse'}">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0 ${isBot ? 'bg-violet-600' : 'bg-blue-500'}">
+        ${isBot ? '🤖' : '👤'}
+      </div>
+      <div class="rounded-xl px-4 py-3 text-sm shadow-sm max-w-xs whitespace-pre-wrap ${isBot
+        ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-gray-200'
+        : 'bg-blue-600 text-white ml-auto'
+      }">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', bubble);
+  container.scrollTop = container.scrollHeight;
+  return id;
+}
+
+function removeBubble(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ── KI-Positions-Liste (rechte Spalte) ──
+function addKiRow(title = '', quantity = 1, unit = 'Stk', price = 0) {
+  const container = document.getElementById('kiItemsContainer');
+  // Hinweis ausblenden
+  const hint = document.getElementById('kiEmptyHint');
+  if (hint) hint.remove();
+
+  const rowId = 'ki_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
+  const unitOptions = ['Stk','m','Std','kg','m²','Psch'].map(u =>
+    `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`
+  ).join('');
+
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${rowId}" class="bg-white dark:bg-slate-700 border dark:border-slate-600 rounded-lg p-3 space-y-2">
+      <div class="flex gap-2">
+        <input type="text" value="${String(title).replace(/"/g,'&quot;')}" placeholder="Beschreibung"
+          class="ki-title flex-1 text-xs border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-2 py-1.5 bg-white"
+          oninput="updateKiTotal()">
+        <button type="button" onclick="document.getElementById('${rowId}').remove(); updateKiTotal();"
+          class="text-red-400 hover:text-red-600 font-bold text-sm px-1">✕</button>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-0.5">Menge</label>
+          <input type="number" step="0.01" value="${quantity}" min="0"
+            class="ki-qty w-full text-xs border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-2 py-1.5 bg-white"
+            oninput="updateKiTotal()">
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-0.5">Einheit</label>
+          <select class="ki-unit w-full text-xs border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
+            ${unitOptions}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[9px] text-slate-400 uppercase mb-0.5">Preis (€)</label>
+          <input type="number" step="0.01" value="${price}" min="0"
+            class="ki-price w-full text-xs border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-2 py-1.5 bg-white"
+            oninput="updateKiTotal()">
+        </div>
+      </div>
+    </div>
+  `);
+  updateKiTotal();
+}
+
+function updateKiTotal() {
+  const rows = document.querySelectorAll('#kiItemsContainer > div');
+  let net = 0;
+  rows.forEach(row => {
+    const qty   = parseFloat(row.querySelector('.ki-qty')?.value  || 0);
+    const price = parseFloat(row.querySelector('.ki-price')?.value || 0);
+    net += qty * price;
+  });
+  const vat   = net * 0.19;
+  const gross = net + vat;
+  const fmt = v => v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  document.getElementById('kiTotalNet').textContent   = fmt(net);
+  document.getElementById('kiTotalVat').textContent   = fmt(vat);
+  document.getElementById('kiTotalGross').textContent = fmt(gross);
+}
+
+async function submitKiOffer() {
+  const customerId = document.getElementById('kiCustomerSelect').value;
+  if (!customerId) { alert('Bitte zuerst einen Kunden auswählen.'); return; }
+
+  const rows = document.querySelectorAll('#kiItemsContainer > div');
+  if (rows.length === 0) { alert('Bitte mindestens eine Position hinzufügen.'); return; }
+
+  // Formular dynamisch aufbauen und absenden
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/documents/create-offer';
+
+  const addField = (name, val) => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = name; inp.value = val;
+    form.appendChild(inp);
+  };
+
+  addField('customer_id', customerId);
+
+  rows.forEach(row => {
+    addField('title',    row.querySelector('.ki-title')?.value || '');
+    addField('quantity', row.querySelector('.ki-qty')?.value   || 1);
+    addField('unit',     row.querySelector('.ki-unit')?.value  || 'Stk');
+    addField('price',    row.querySelector('.ki-price')?.value || 0);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
 </script>
 
 </body>
