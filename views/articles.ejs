@@ -9,9 +9,14 @@
         <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">📦 Artikel- & Materialstamm</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">Standardartikel und Leistungen für Angebote & Rechnungen</p>
       </div>
-      <button onclick="toggleModal('addArticleModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm w-full md:w-auto flex items-center justify-center gap-1">
-        + Neuen Artikel anlegen
-      </button>
+      <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+        <button onclick="toggleModal('aiArticleModal')" class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-1">
+          ✨ KI-Assistent
+        </button>
+        <button onclick="toggleModal('addArticleModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-1">
+          + Neuen Artikel anlegen
+        </button>
+      </div>
     </div>
 
     <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6">
@@ -54,6 +59,38 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- Modal: KI-Assistent Artikel -->
+<div id="aiArticleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-md w-full p-4 md:p-6">
+    <div class="flex justify-between items-center mb-4 border-b dark:border-slate-700 pb-2">
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">✨ KI-Artikel vorschlagen</h3>
+      <button onclick="toggleModal('aiArticleModal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold">&times;</button>
+    </div>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Beschreibe das Material oder die Leistung – die KI schlägt Bezeichnung, Einheit und Preis vor.</p>
+    <div class="space-y-3">
+      <textarea id="ai-article-input" rows="3" placeholder="z.B. Stahlrohr 40x40 mm für Geländerbau, verzinkt" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+      <div id="ai-article-error" class="hidden text-xs text-red-600 dark:text-red-400"></div>
+      <div id="ai-article-result" class="hidden bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 text-sm space-y-1">
+        <p class="font-semibold text-purple-800 dark:text-purple-300 text-xs uppercase mb-2">KI-Vorschlag</p>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-700 dark:text-gray-300 text-xs">
+          <span class="text-gray-500 dark:text-gray-400">Bezeichnung:</span><span id="ai-res-title" class="font-medium"></span>
+          <span class="text-gray-500 dark:text-gray-400">Einheit:</span><span id="ai-res-unit"></span>
+          <span class="text-gray-500 dark:text-gray-400">Stückpreis:</span><span id="ai-res-price"></span>
+          <span class="text-gray-500 dark:text-gray-400">Beschreibung:</span><span id="ai-res-desc" class="col-span-1"></span>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t dark:border-slate-700">
+        <button type="button" onclick="toggleModal('aiArticleModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
+        <button type="button" id="ai-article-btn" onclick="fetchAiArticle()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1">
+          <span id="ai-btn-label">✨ Vorschlagen</span>
+          <span id="ai-btn-spinner" class="hidden">…</span>
+        </button>
+        <button type="button" id="ai-article-accept" onclick="acceptAiArticle()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Übernehmen</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: Neuen Artikel anlegen -->
@@ -100,6 +137,74 @@
 <script>
   function toggleModal(id) {
     document.getElementById(id).classList.toggle('hidden');
+  }
+
+  let _aiArticleData = null;
+
+  async function fetchAiArticle() {
+    const input = document.getElementById('ai-article-input').value.trim();
+    if (!input) return;
+
+    const btn = document.getElementById('ai-article-btn');
+    const label = document.getElementById('ai-btn-label');
+    const spinner = document.getElementById('ai-btn-spinner');
+    const errorEl = document.getElementById('ai-article-error');
+    const resultEl = document.getElementById('ai-article-result');
+    const acceptBtn = document.getElementById('ai-article-accept');
+
+    btn.disabled = true;
+    label.classList.add('hidden');
+    spinner.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    resultEl.classList.add('hidden');
+    acceptBtn.classList.add('hidden');
+
+    try {
+      const resp = await fetch('/api/ai/article-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: input })
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        errorEl.textContent = data.error || 'Fehler bei der KI-Anfrage.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      _aiArticleData = data.article;
+      document.getElementById('ai-res-title').textContent = data.article.title || '–';
+      document.getElementById('ai-res-unit').textContent = data.article.unit || '–';
+      document.getElementById('ai-res-price').textContent =
+        Number(data.article.unit_price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+      document.getElementById('ai-res-desc').textContent = data.article.description || '–';
+      resultEl.classList.remove('hidden');
+      acceptBtn.classList.remove('hidden');
+    } catch (e) {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      label.classList.remove('hidden');
+      spinner.classList.add('hidden');
+    }
+  }
+
+  function acceptAiArticle() {
+    if (!_aiArticleData) return;
+    // Wechsel zum Anlegen-Modal und Felder vorbelegen
+    toggleModal('aiArticleModal');
+    toggleModal('addArticleModal');
+    document.querySelector('#addArticleModal input[name="title"]').value = _aiArticleData.title || '';
+    const unitSelect = document.querySelector('#addArticleModal select[name="unit"]');
+    if (unitSelect && _aiArticleData.unit) {
+      const opt = Array.from(unitSelect.options).find(o => o.value === _aiArticleData.unit);
+      if (opt) unitSelect.value = _aiArticleData.unit;
+    }
+    document.querySelector('#addArticleModal input[name="unit_price"]').value =
+      _aiArticleData.unit_price != null ? String(_aiArticleData.unit_price).replace('.', ',') : '';
+    document.querySelector('#addArticleModal input[name="description"]').value = _aiArticleData.description || '';
+    _aiArticleData = null;
   }
 </script>
 

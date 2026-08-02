@@ -2468,6 +2468,42 @@ Benutzer: ${message}`;
 });
 
 // ==========================================
+// KI-ARTIKEL VORSCHLAG
+// ==========================================
+app.post('/api/ai/article-suggest', verifyToken, async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+  }
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'Keine Beschreibung übermittelt.' });
+
+  const prompt = `Du bist ein Assistent für einen Metallbaubetrieb. Der Benutzer beschreibt ein Material oder eine Leistung, die im Artikelstamm angelegt werden soll.
+Antworte NUR mit einem gültigen JSON-Objekt (kein Text davor oder danach) im folgenden Format:
+{
+  "title": "Bezeichnung des Artikels (kurz, präzise)",
+  "unit": "Einheit (nur eines von: Stk, m, m², kg, Std, Psch)",
+  "unit_price": 0.00,
+  "description": "Kurze Beschreibung (optional)"
+}
+
+Realistische Marktpreise für Metallbaumaterialien verwenden. Bei Unsicherheit unit_price auf 0 setzen.
+
+Benutzereingabe: ${message}`;
+
+  try {
+    const text = await callAI(prompt);
+    // JSON aus Antwort extrahieren
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return res.status(500).json({ error: 'KI konnte keinen Artikel vorschlagen.' });
+    const article = JSON.parse(match[0]);
+    return res.json({ article });
+  } catch (err) {
+    console.error('KI Fehler (article-suggest):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
 // KI-ANGEBOT GENERIEREN (Google Gemini)
 // ==========================================
 app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {
