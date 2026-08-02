@@ -27,6 +27,36 @@ const dbQuery = (sql, params = []) => {
   });
 };
 
+// POST: Angebot in ein Projekt umwandeln
+router.post('/offers/convert-to-project', async (req, res) => {
+  const { offer_id } = req.body;
+  try {
+    const offerRes = await dbQuery("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [offer_id]);
+    const offer = offerRes.rows[0];
+    if (!offer) return res.status(404).send('Angebot nicht gefunden');
+
+    // Kundendaten für den Projekttitel holen
+    const custRes = await dbQuery('SELECT company_name, contact_person FROM customers WHERE id = ?', [offer.customer_id]);
+    const cust = custRes.rows[0];
+    const customerName = (cust && (cust.company_name || cust.contact_person)) || 'Unbekannter Kunde';
+
+    const projectTitle = `Auftrag aus ${offer.doc_number} – ${customerName}`;
+
+    await dbQuery(
+      `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?, ?, ?, ?, 'In Planung')`,
+      [offer.customer_id, projectTitle, `Erstellt aus Angebot ${offer.doc_number}`, offer.total_amount || 0]
+    );
+
+    // Angebot als angenommen markieren
+    await dbQuery("UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?", [offer_id]);
+
+    res.redirect('/projects');
+  } catch (err) {
+    console.error('Fehler beim Umwandeln in Projekt:', err.message);
+    res.status(500).send('Fehler beim Erstellen des Projekts');
+  }
+});
+
 // POST: Angebot in eine Rechnung umwandeln
 router.post('/convert-to-invoice/:offerId', async (req, res) => {
   const { offerId } = req.params;

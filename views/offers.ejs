@@ -53,6 +53,12 @@
                     <!-- AKTIONEN -->
                     <td class="py-3 px-4 text-right">
                       <div class="flex items-center justify-end gap-2">
+
+                        <!-- Button: PDF Download -->
+                        <a href="/documents/offers/<%= offer.id %>/pdf"
+                          class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded text-xs font-medium border border-slate-200 flex items-center gap-1">
+                          ⬇️ PDF
+                        </a>
                         
                         <!-- Button: In Rechnung umwandeln -->
                         <% if (offer.status !== 'ANGENOMMEN') { %>
@@ -60,6 +66,16 @@
                             <input type="hidden" name="offer_id" value="<%= offer.id %>">
                             <button type="submit" title="In Rechnung umwandeln" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium border border-emerald-200 flex items-center gap-1">
                               🔄 In Rechnung
+                            </button>
+                          </form>
+
+                          <!-- Button: In Projekt umwandeln -->
+                          <form action="/documents/offers/convert-to-project" method="POST" class="inline"
+                            onsubmit="return confirm('Aus diesem Angebot ein neues Projekt anlegen?');">
+                            <input type="hidden" name="offer_id" value="<%= offer.id %>">
+                            <button type="submit" title="In Projekt umwandeln"
+                              class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium border border-indigo-200 flex items-center gap-1">
+                              🏗️ In Projekt
                             </button>
                           </form>
                         <% } %>

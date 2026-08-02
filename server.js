@@ -1571,11 +1571,278 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
 });
 
 // ==========================================
-// KANBAN-BOARD FÜR DIE WERKSTATT
-// ==========================================
-// ==========================================
 // RECHNUNGSVERWALTUNG & MAHNWESEN
 // ==========================================
+
+// PDF-Download für Angebote (PDFKit)
+app.get('/documents/offers/:id/pdf', async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!PDFKit) return res.status(500).send('PDFKit nicht geladen.');
+
+    const offerRes = await dbQuery(`
+      SELECT documents.*, customers.company_name, customers.contact_person,
+             customers.street, customers.zip, customers.city, customers.email, customers.phone
+      FROM documents
+      LEFT JOIN customers ON documents.customer_id = customers.id
+      WHERE documents.id = ? AND documents.doc_type = 'OFFER'`, [id]);
+    const offer = offerRes.rows[0];
+    if (!offer) return res.status(404).send('Angebot nicht gefunden');
+
+    const itemsRes = await dbQuery('SELECT * FROM offer_items WHERE offer_id = ? ORDER BY id ASC', [id]);
+    const items = itemsRes.rows || [];
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    const safeNum = (offer.doc_number || 'Angebot').replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Angebot_${safeNum}.pdf`);
+    doc.pipe(res);
+
+    const L = 50, W = 495;
+    const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const customerName = offer.company_name || offer.contact_person || '-';
+    const addr = [offer.street, [offer.zip, offer.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+
+    // Briefkopf
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text('METALLBAU GEHRMANN', L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('Stahlbau - Edelstahlverarbeitung - Gelaender & Tore', L, 74);
+    doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
+
+    // Angebots-Box rechts
+    doc.rect(360, 50, 185, 60).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('ANGEBOTS-NR.', 368, 56);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b').text(offer.doc_number || '-', 368, 67);
+    doc.fontSize(8).font('Helvetica').fillColor('#64748b').text(`Datum: ${today}`, 368, 84);
+    doc.text(`Status: ${offer.status || 'Offen'}`, 368, 94);
+
+    // Empfaenger
+    let y = 110;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFAENGER', L, y);
+    y += 12;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y);
+    y += 14;
+    doc.fontSize(9).font('Helvetica').fillColor('#475569');
+    if (addr) { doc.text(addr, L, y); y += 13; }
+    if (offer.email) { doc.text(offer.email, L, y); y += 13; }
+    y += 10;
+
+    // Betreff
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b').text(`Angebot ${offer.doc_number}`, L, y);
+    y += 22;
+    doc.fontSize(9).font('Helvetica').fillColor('#475569')
+      .text('Sehr geehrte Damen und Herren,\nvielen Dank fuer Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:', L, y, { width: W });
+    y += 36;
+
+    // Tabellen-Header
+    doc.rect(L, y, W, 18).fillColor('#1e293b').fill();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('Pos.', L + 4, y + 5, { width: 25 });
+    doc.text('Bezeichnung', L + 30, y + 5, { width: 230 });
+    doc.text('Menge', L + 265, y + 5, { width: 55, align: 'right' });
+    doc.text('Einzelpreis', L + 325, y + 5, { width: 75, align: 'right' });
+    doc.text('Gesamt', L + 405, y + 5, { width: 80, align: 'right' });
+    y += 22;
+
+    // Positionen
+    let subtotalOffer = 0;
+    doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
+    items.forEach((item, idx) => {
+      if (y > 720) { doc.addPage(); y = 50; }
+      const rowTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
+      subtotalOffer += rowTotal;
+      const bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
+      doc.rect(L, y - 2, W, 18).fillColor(bg).fill();
+      doc.fillColor('#1e293b');
+      doc.text(String(idx + 1), L + 4, y + 2, { width: 25 });
+      doc.text(item.description || '-', L + 30, y + 2, { width: 230 });
+      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`, L + 265, y + 2, { width: 55, align: 'right' });
+      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 325, y + 2, { width: 75, align: 'right' });
+      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 405, y + 2, { width: 80, align: 'right' });
+      y += 20;
+    });
+
+    // Summenblock
+    y += 8;
+    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 10;
+    const taxOffer = subtotalOffer * 0.19;
+    const grandOffer = subtotalOffer + taxOffer;
+    const col1o = L + 300;
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b');
+    doc.text('Zwischensumme (Netto):', col1o, y, { width: 100 });
+    doc.text(`${subtotalOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
+    y += 16;
+    doc.text('19% MwSt.:', col1o, y, { width: 100 });
+    doc.text(`${taxOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
+    y += 8;
+    doc.moveTo(col1o, y).lineTo(L + W - 5, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 8;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b');
+    doc.text('Gesamtbetrag (Brutto):', col1o, y, { width: 100 });
+    doc.text(`${grandOffer.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1o + 100, y, { width: 90, align: 'right' });
+
+    // Fusszeile
+    y += 40;
+    if (y > 720) { doc.addPage(); y = 50; }
+    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
+    y += 10;
+    doc.fontSize(8).font('Helvetica').fillColor('#94a3b8');
+    doc.text('Dieses Angebot ist 30 Tage gueltig. Bei Fragen stehen wir Ihnen gerne zur Verfuegung.', L, y, { width: W });
+    y += 16;
+    doc.text('Mit freundlichen Gruessen - Metallbau Gehrmann', L, y, { width: W });
+
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim Angebots-PDF:', err);
+    res.status(500).send('Fehler beim Erstellen des PDFs');
+  }
+});
+
+// PDF-Download fuer Rechnungen (PDFKit)
+app.get('/documents/invoices/:id/pdf-download', async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!PDFKit) return res.status(500).send('PDFKit nicht geladen.');
+
+    const invRes = await dbQuery(`
+      SELECT invoices.*, customers.company_name, customers.contact_person,
+             customers.street, customers.zip, customers.city, customers.email, customers.phone
+      FROM invoices
+      LEFT JOIN customers ON invoices.customer_id = customers.id
+      WHERE invoices.id = ?`, [id]);
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).send('Rechnung nicht gefunden');
+
+    const itemsRes = await dbQuery('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [id]);
+    const items = itemsRes.rows || [];
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    const safeNum = (invoice.invoice_number || 'Rechnung').replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Rechnung_${safeNum}.pdf`);
+    doc.pipe(res);
+
+    const L = 50, W = 495;
+    const today = new Date(invoice.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dueStr = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'sofort';
+    const customerName = invoice.company_name || invoice.contact_person || '-';
+    const addr = [invoice.street, [invoice.zip, invoice.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+
+    // Briefkopf
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text('METALLBAU GEHRMANN', L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text('Stahlbau - Edelstahlverarbeitung - Gelaender & Tore', L, 74);
+    doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
+
+    // Rechnungs-Box rechts
+    const boxBg = invoice.dunning_level > 0 ? '#fef2f2' : '#f8fafc';
+    const boxBorder = invoice.dunning_level > 0 ? '#fca5a5' : '#cbd5e1';
+    doc.rect(360, 50, 185, 72).lineWidth(0.5).strokeColor(boxBorder).fillAndStroke(boxBg, boxBorder);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b').text('RECHNUNGS-NR.', 368, 56);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(invoice.invoice_number, 368, 67);
+    doc.fontSize(8).font('Helvetica').fillColor('#64748b').text(`Datum: ${today}`, 368, 82);
+    doc.text(`Faellig: ${dueStr}`, 368, 92);
+    doc.text(`Status: ${invoice.status}`, 368, 102);
+
+    // Mahnung-Banner
+    if (invoice.dunning_level > 0) {
+      const mahnText = invoice.dunning_level === 1 ? '1. ZAHLUNGSERINNERUNG' : invoice.dunning_level === 2 ? '2. MAHNUNG' : '3. LETZTE MAHNUNG';
+      doc.rect(L, 50, 295, 20).fillColor('#fef2f2').fill();
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#dc2626').text(mahnText, L + 4, 55, { width: 290 });
+    }
+
+    // Empfaenger
+    let y = 130;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#94a3b8').text('EMPFAENGER', L, y);
+    y += 12;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text(customerName, L, y);
+    y += 14;
+    doc.fontSize(9).font('Helvetica').fillColor('#475569');
+    if (invoice.company_name && invoice.contact_person) { doc.text(`z. Hd. ${invoice.contact_person}`, L, y); y += 13; }
+    if (addr) { doc.text(addr, L, y); y += 13; }
+    if (invoice.email) { doc.text(invoice.email, L, y); y += 13; }
+    y += 10;
+
+    // Betreff
+    const betreff = invoice.dunning_level > 0
+      ? `Mahnung zu Rechnung ${invoice.invoice_number}`
+      : `Rechnung Nr. ${invoice.invoice_number}`;
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b').text(betreff, L, y);
+    y += 22;
+    if (!invoice.dunning_level || invoice.dunning_level === 0) {
+      doc.fontSize(9).font('Helvetica').fillColor('#475569')
+        .text('Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:', L, y, { width: W });
+    } else {
+      doc.fontSize(9).font('Helvetica').fillColor('#dc2626')
+        .text(`Trotz unserer Rechnung vom ${today} haben wir bisher keinen Zahlungseingang verzeichnen koennen. Wir bitten um umgehende Zahlung.`, L, y, { width: W });
+    }
+    y += 36;
+
+    // Tabellen-Header
+    doc.rect(L, y, W, 18).fillColor('#1e293b').fill();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('Pos.', L + 4, y + 5, { width: 25 });
+    doc.text('Bezeichnung', L + 30, y + 5, { width: 230 });
+    doc.text('Menge', L + 265, y + 5, { width: 55, align: 'right' });
+    doc.text('Einzelpreis', L + 325, y + 5, { width: 75, align: 'right' });
+    doc.text('Gesamt', L + 405, y + 5, { width: 80, align: 'right' });
+    y += 22;
+
+    // Positionen
+    let subtotalInv = 0;
+    doc.fontSize(9).font('Helvetica').fillColor('#1e293b');
+    items.forEach((item, idx) => {
+      if (y > 700) { doc.addPage(); y = 50; }
+      const rowTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
+      subtotalInv += rowTotal;
+      const bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
+      doc.rect(L, y - 2, W, 18).fillColor(bg).fill();
+      doc.fillColor('#1e293b');
+      doc.text(String(idx + 1), L + 4, y + 2, { width: 25 });
+      doc.text(item.description || '-', L + 30, y + 2, { width: 230 });
+      doc.text(`${parseFloat(item.quantity || 1).toLocaleString('de-DE')} ${item.unit || ''}`, L + 265, y + 2, { width: 55, align: 'right' });
+      doc.text(`${parseFloat(item.price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 325, y + 2, { width: 75, align: 'right' });
+      doc.text(`${rowTotal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, L + 405, y + 2, { width: 80, align: 'right' });
+      y += 20;
+    });
+
+    // Summenblock
+    y += 8;
+    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 10;
+    const taxInv = subtotalInv * 0.19;
+    const grandInv = subtotalInv + taxInv;
+    const col1i = L + 300;
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b');
+    doc.text('Zwischensumme (Netto):', col1i, y, { width: 100 });
+    doc.text(`${subtotalInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
+    y += 16;
+    doc.text('19% MwSt.:', col1i, y, { width: 100 });
+    doc.text(`${taxInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
+    y += 8;
+    doc.moveTo(col1i, y).lineTo(L + W - 5, y).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    y += 8;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b');
+    doc.text('Gesamtbetrag (Brutto):', col1i, y, { width: 100 });
+    doc.text(`${grandInv.toLocaleString('de-DE', { minimumFractionDigits: 2 })} EUR`, col1i + 100, y, { width: 90, align: 'right' });
+
+    // Bankdaten & Fusszeile
+    y += 40;
+    if (y > 700) { doc.addPage(); y = 50; }
+    doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
+    y += 12;
+    doc.fontSize(8).font('Helvetica').fillColor('#475569');
+    doc.text(`Bitte ueberweisen Sie den Betrag unter Angabe der Rechnungsnummer ${invoice.invoice_number} innerhalb von 14 Tagen.`, L, y, { width: W });
+    y += 20;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b').text('Bankverbindung:', L, y);
+    doc.font('Helvetica').fillColor('#475569').text('  IBAN: DE12 3456 7890 1234 5678 90  -  BIC: MUBADE12  -  Musterbank DE', L + 80, y, { width: 370 });
+
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim Rechnungs-PDF:', err);
+    res.status(500).send('Fehler beim Erstellen des PDFs');
+  }
+});
+
 app.get('/documents/invoices/:id/pdf', async (req, res) => {
   const { id } = req.params;
   try {
