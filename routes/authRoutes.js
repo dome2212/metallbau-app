@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, verifyToken } = require('../middleware/auth');
 const { dbQuery } = require('../utils/db');
 
 // Initialen Admin-User anlegen, falls noch keiner existiert
@@ -73,6 +73,46 @@ router.post('/login', async (req, res) => {
 router.get('/logout', (req, res) => {
   res.clearCookie('token');
   res.redirect('/login');
+});
+
+// ==========================================
+// PROFIL – Passwort selbst ändern
+// ==========================================
+router.get('/profile', verifyToken, (req, res) => {
+  res.render('profile', { error: null, success: null });
+});
+
+router.post('/profile/change-password', verifyToken, async (req, res) => {
+  const { current_password, new_password, confirm_password } = req.body;
+
+  if (!current_password || !new_password || !confirm_password) {
+    return res.render('profile', { error: 'Alle Felder sind Pflichtfelder.', success: null });
+  }
+  if (new_password.length < 6) {
+    return res.render('profile', { error: 'Das neue Passwort muss mindestens 6 Zeichen haben.', success: null });
+  }
+  if (new_password !== confirm_password) {
+    return res.render('profile', { error: 'Die neuen Passwörter stimmen nicht überein.', success: null });
+  }
+
+  try {
+    const result = await dbQuery('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
+    const user = result.rows[0];
+    if (!user) return res.render('profile', { error: 'Benutzer nicht gefunden.', success: null });
+
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) {
+      return res.render('profile', { error: 'Das aktuelle Passwort ist falsch.', success: null });
+    }
+
+    const hashed = await bcrypt.hash(new_password, 10);
+    await dbQuery('UPDATE users SET password_hash = ? WHERE id = ?', [hashed, req.user.id]);
+
+    res.render('profile', { error: null, success: 'Passwort erfolgreich geändert.' });
+  } catch (err) {
+    console.error('Fehler beim Passwort ändern:', err.message);
+    res.render('profile', { error: 'Serverfehler. Bitte erneut versuchen.', success: null });
+  }
 });
 
 module.exports = router;

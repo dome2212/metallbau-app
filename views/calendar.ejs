@@ -59,11 +59,9 @@
         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">Kunde zuordnen</label>
         <select name="customer_id" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
           <option value="">-- Keinem Kunden zuordnen --</option>
-          <% if (typeof customers !== 'undefined') { %>
-            <% customers.forEach(c => { %>
-              <option value="<%= c.id %>"><%= c.company_name ? c.company_name + ' (' + c.contact_person + ')' : c.contact_person %></option>
-            <% }); %>
-          <% } %>
+          <% customers.forEach(c => { %>
+            <option value="<%= c.id %>"><%= c.company_name ? c.company_name + (c.contact_person ? ' (' + c.contact_person + ')' : '') : c.contact_person %></option>
+          <% }); %>
         </select>
       </div>
 
@@ -83,7 +81,27 @@
         <textarea name="description" rows="2" placeholder="z. B. Werkzeug für V2A Geländer mitbringen" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-white"></textarea>
       </div>
 
-      <div class="flex justify-end gap-2 pt-3 border-t">
+      <!-- Mitarbeiter-Zuweisung (nur für Admin sichtbar) -->
+      <% if (locals.currentUser && currentUser.role === 'ADMIN' && users && users.length > 0) { %>
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">
+          Mitarbeiter zuweisen
+          <span class="font-normal text-gray-400 normal-case ml-1">(leer = für alle sichtbar)</span>
+        </label>
+        <div class="border dark:border-slate-600 rounded-lg p-2 space-y-1.5 max-h-36 overflow-y-auto bg-gray-50 dark:bg-slate-700">
+          <% users.forEach(u => { %>
+            <label class="flex items-center gap-2 cursor-pointer hover:bg-white dark:hover:bg-slate-600 px-2 py-1 rounded text-sm">
+              <input type="checkbox" name="user_ids" value="<%= u.id %>"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+              <span class="text-gray-800 dark:text-gray-200"><%= u.username %></span>
+            </label>
+          <% }); %>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Kein Haken = Termin für alle sichtbar</p>
+      </div>
+      <% } %>
+
+      <div class="flex justify-end gap-2 pt-3 border-t dark:border-slate-700">
         <button type="button" onclick="toggleModal('appointmentModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Termin Speichern</button>
       </div>
@@ -110,12 +128,24 @@
   </div>
 </div>
 
+<!-- Termin-Detail-Modal -->
+<div id="detailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-sm w-full p-5">
+    <div class="flex justify-between items-center mb-3 border-b dark:border-slate-700 pb-2">
+      <h3 id="detailTitle" class="text-base font-bold text-gray-800 dark:text-gray-100 truncate pr-4"></h3>
+      <button onclick="document.getElementById('detailModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl font-bold flex-shrink-0">&times;</button>
+    </div>
+    <div id="detailBody" class="text-sm space-y-2 text-gray-700 dark:text-gray-300"></div>
+    <div class="mt-4 flex justify-end">
+      <button onclick="document.getElementById('detailModal').classList.add('hidden')" class="px-4 py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <script>
   function toggleModal(id) {
     const modal = document.getElementById(id);
     modal.classList.toggle('hidden');
-    
-    // Wenn das Lösch-Modal geöffnet wird, Termine frisch vom Server abfragen
     if (id === 'deleteModal' && !modal.classList.contains('hidden')) {
       loadDeleteList();
     }
@@ -133,19 +163,24 @@
           container.innerHTML = '<p class="text-center text-gray-400 py-6 text-sm">Keine Termine vorhanden.</p>';
           return;
         }
-
         let html = '';
         events.forEach(event => {
           const startDate = new Date(event.start).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
-          const wBadge = weatherBadge(event.extendedProps && event.extendedProps.weather);
+          const wBadge    = weatherBadge(event.extendedProps && event.extendedProps.weather);
+          const assigned  = event.extendedProps && event.extendedProps.assignedUsers;
+          const assignBadge = assigned && assigned.length > 0
+            ? `<span class="text-xs text-blue-600 dark:text-blue-400 ml-1">👷 ${assigned.join(', ')}</span>`
+            : `<span class="text-xs text-gray-400 ml-1">Alle</span>`;
 
           html += `
             <div class="py-3 flex justify-between items-center gap-2">
-              <div class="overflow-hidden pr-2 flex-1">
-                <div class="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">${event.title}</div>
-                <div class="flex items-center gap-2 mt-0.5">
+              <div class="overflow-hidden pr-2 flex-1 min-w-0">
+                <div class="font-semibold text-gray-800 dark:text-gray-200 text-sm truncate">${escHtml(event.title)}</div>
+                <div class="text-xs text-gray-400 truncate">${escHtml(event.extendedProps.customerName || '')}</div>
+                <div class="flex flex-wrap items-center gap-1 mt-0.5">
                   <span class="text-xs text-gray-500 dark:text-gray-400">📅 ${startDate}</span>
                   ${wBadge}
+                  ${assignBadge}
                 </div>
               </div>
               <form action="/api/appointments/delete/${event.id}" method="POST" onsubmit="return confirm('Termin wirklich löschen?');" class="flex-shrink-0">
@@ -158,9 +193,13 @@
         });
         container.innerHTML = html;
       })
-      .catch(err => {
+      .catch(() => {
         container.innerHTML = '<p class="text-center text-red-500 py-6 text-sm">Fehler beim Laden der Termine.</p>';
       });
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -173,54 +212,80 @@
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,listWeek'
       },
-      buttonText: {
-        today: 'Heute',
-        month: 'Monat',
-        week: 'Woche',
-        list: 'Liste'
-      },
+      buttonText: { today: 'Heute', month: 'Monat', week: 'Woche', list: 'Liste' },
       events: '/api/appointments',
+
+      // Titel im Kalender: Wetter-Icon + Titel
       eventDidMount: function(info) {
-        // Wetter-Icon dem Ereignistitel voranstellen
         const w = info.event.extendedProps.weather;
-        if (!w) return;
-        const icon = w.warningLevel === 'danger' ? '🔴' : w.warningLevel === 'warn' ? '🟡' : '🟢';
+        const icon = !w ? '' : w.warningLevel === 'danger' ? '🔴 ' : w.warningLevel === 'warn' ? '🟡 ' : '🟢 ';
+        const assigned = info.event.extendedProps.assignedUsers || [];
+        const customer = info.event.extendedProps.customerName || '';
+
+        // Titel-Zeile neu setzen: Icon + Termin-Titel
         const titleEl = info.el.querySelector('.fc-event-title');
-        if (titleEl) titleEl.textContent = icon + ' ' + titleEl.textContent;
-      },
-      eventClick: function(info) {
-        const w = info.event.extendedProps.weather;
-        let weatherInfo = '';
-        if (w) {
-          const icon = w.warningLevel === 'danger' ? '🔴 GEFAHR' : w.warningLevel === 'warn' ? '🟡 WARNUNG' : '🟢 OK';
-          weatherInfo = '\n\n──── Wetter-Frühwarnung ────' +
-            '\nStatus: ' + icon +
-            '\nWetter: ' + w.weatherText +
-            '\nWindgeschw.: ' + w.windspeed + ' km/h' +
-            '\nWindböen: ' + w.windgusts + ' km/h' +
-            '\nNiederschlag: ' + w.precipitation + ' mm';
-          if (w.warningLevel === 'danger') weatherInfo += '\n⚠️ Kranarbeiten/Montage prüfen!';
-          else if (w.warningLevel === 'warn') weatherInfo += '\n⚠️ Wetterbeobachtung empfohlen.';
-        } else {
-          weatherInfo = '\n\n(Wettervorhersage nicht verfügbar – Termin > 16 Tage)';
+        if (titleEl) {
+          titleEl.textContent = icon + info.event.title;
         }
-        alert('Termin: ' + info.event.title +
-          '\nDatum: ' + new Date(info.event.start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) +
-          '\nNotizen: ' + (info.event.extendedProps.description || 'Keine') +
-          weatherInfo);
+
+        // Untertitel-Zeile (kleiner, gedämpft): Kunde + Mitarbeiter
+        const sub = [customer, assigned.length > 0 ? '👷 ' + assigned.join(', ') : ''].filter(Boolean).join(' · ');
+        if (sub) {
+          const subEl = document.createElement('div');
+          subEl.style.cssText = 'font-size:0.68rem;opacity:0.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          subEl.textContent = sub;
+          const frame = info.el.querySelector('.fc-event-main') || info.el;
+          frame.appendChild(subEl);
+        }
+      },
+
+      // Klick: Detail-Modal statt alert()
+      eventClick: function(info) {
+        const ep       = info.event.extendedProps;
+        const w        = ep.weather;
+        const assigned = ep.assignedUsers || [];
+        const start    = new Date(info.event.start).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' });
+
+        let weatherHtml = '';
+        if (w) {
+          const icon  = w.warningLevel === 'danger' ? '🔴 GEFAHR' : w.warningLevel === 'warn' ? '🟡 WARNUNG' : '🟢 OK';
+          const warn  = w.warningLevel === 'danger' ? '<p class="text-red-600 font-semibold text-xs mt-1">⚠️ Kranarbeiten / Montage prüfen!</p>'
+                      : w.warningLevel === 'warn'   ? '<p class="text-yellow-600 font-semibold text-xs mt-1">⚠️ Wetterbeobachtung empfohlen.</p>' : '';
+          weatherHtml = `
+            <div class="bg-gray-50 dark:bg-slate-700 rounded p-2 text-xs space-y-0.5 mt-1">
+              <div class="font-semibold">${icon} – ${escHtml(w.weatherText)}</div>
+              <div>Wind: ${w.windspeed} km/h · Böen: ${w.windgusts} km/h · Niederschlag: ${w.precipitation} mm</div>
+              ${warn}
+            </div>`;
+        } else {
+          weatherHtml = '<p class="text-xs text-gray-400 mt-1">(Wettervorhersage nicht verfügbar – Termin &gt; 16 Tage)</p>';
+        }
+
+        const assignHtml = assigned.length > 0
+          ? `<p>👷 <span class="font-medium">${escHtml(assigned.join(', '))}</span></p>`
+          : `<p class="text-gray-400">Alle Mitarbeiter</p>`;
+
+        document.getElementById('detailTitle').textContent = info.event.title;
+        document.getElementById('detailBody').innerHTML = `
+          <p>📅 ${escHtml(start)}</p>
+          <p>🏢 ${escHtml(ep.customerName || '–')}</p>
+          <p>📝 ${escHtml(ep.description || 'Keine Notizen')}</p>
+          ${assignHtml}
+          ${weatherHtml}
+        `;
+        document.getElementById('detailModal').classList.remove('hidden');
       }
     });
     calendar.render();
   });
 
-  // Delete-Modal: Wetter-Badge in der Terminliste anzeigen
   function weatherBadge(w) {
     if (!w) return '<span class="text-xs text-gray-400 ml-1">–</span>';
     if (w.warningLevel === 'danger')
-      return `<span class="text-xs font-semibold text-red-700 bg-red-100 rounded px-1.5 py-0.5 ml-1">🔴 Sturm/Gewitter</span>`;
+      return `<span class="text-xs font-semibold text-red-700 bg-red-100 rounded px-1.5 py-0.5">🔴 Sturm/Gewitter</span>`;
     if (w.warningLevel === 'warn')
-      return `<span class="text-xs font-semibold text-yellow-700 bg-yellow-100 rounded px-1.5 py-0.5 ml-1">🟡 Wetterwarnung</span>`;
-    return `<span class="text-xs font-semibold text-green-700 bg-green-100 rounded px-1.5 py-0.5 ml-1">🟢 OK</span>`;
+      return `<span class="text-xs font-semibold text-yellow-700 bg-yellow-100 rounded px-1.5 py-0.5">🟡 Wetterwarnung</span>`;
+    return `<span class="text-xs font-semibold text-green-700 bg-green-100 rounded px-1.5 py-0.5">🟢 OK</span>`;
   }
 </script>
 

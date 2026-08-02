@@ -364,6 +364,14 @@ if (process.env.DATABASE_URL) {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS appointment_users (
+          appointment_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          PRIMARY KEY (appointment_id, user_id)
+        )
+      `);
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS customer_files (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           customer_id INTEGER,
