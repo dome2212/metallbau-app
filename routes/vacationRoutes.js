@@ -1,23 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
 const { requireAdmin } = require('../middleware/auth');
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary } = require('cloudinary');
+const dbQuery = require('../utils/dbQuery');
 
 const upload = multer({ storage: new CloudinaryStorage({ cloudinary, params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] } }) });
-
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
 
 router.get('/', async (req, res) => {
   const vacationsRes = req.user.role === 'ADMIN'
@@ -28,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/add', upload.single('document'), async (req, res) => {
-  const userId = req.user ? req.user.id : req.body.user_id;
+  const userId = req.user.id;
   const { type, start_date, end_date, reason } = req.body;
   await dbQuery(`INSERT INTO vacations (user_id, type, start_date, end_date, reason, file_url, status) VALUES (?, ?, ?, ?, ?, ?, 'Beantragt')`,
     [userId, type || 'Urlaub', start_date, end_date, reason || null, req.file ? req.file.path : null]);
