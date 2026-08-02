@@ -111,16 +111,6 @@ dbQuery(`
   )
 `).catch(err => console.log('Tabelle vacations existiert bereits:', err.message));
 
-// Tabelle für den Live-Ticker / Pinnwand
-dbQuery(`
-  CREATE TABLE IF NOT EXISTS tickers (
-    id SERIAL PRIMARY KEY,
-    message TEXT NOT NULL,
-    author TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`).catch(err => console.log('Tabelle tickers existiert bereits:', err.message));
-
 dbQuery(`
   CREATE TABLE IF NOT EXISTS project_tasks (
     id SERIAL PRIMARY KEY,
@@ -148,6 +138,11 @@ dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)`).catch(() => {});
 dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
+
+// Baustellenkoordinaten für Geo-Fencing
+dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`).catch(() => {});
+dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng NUMERIC(11,8)`).catch(() => {});
+dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INT DEFAULT 200`).catch(() => {});
 
 // ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
@@ -449,8 +444,8 @@ app.get('/timetracking', async (req, res) => {
   try {
     const sqlToday = `
       SELECT time_logs.*, customers.company_name, customers.contact_person,
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
-      FROM time_logs 
+             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+      FROM time_logs
       LEFT JOIN customers ON time_logs.customer_id = customers.id
       WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
       ORDER BY time_logs.timestamp ASC
@@ -504,12 +499,24 @@ app.get('/timetracking', async (req, res) => {
 
     const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
 
+    // Aktive Projekte mit Baustellenkoordinaten für clientseitiges Geo-Fencing laden
+    const geoRes = await dbQuery(`
+      SELECT projects.id, projects.title, projects.site_lat, projects.site_lng, projects.site_radius,
+             customers.id as customer_id, customers.company_name, customers.contact_person
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.status != 'Abgeschlossen'
+        AND projects.site_lat IS NOT NULL
+        AND projects.site_lng IS NOT NULL
+    `);
+
     res.render('timetracking', {
       todayLogs: formattedLogs,
       isStampedIn,
       lastStampTime,
       todayTotalHours,
-      customers: custRes.rows || []
+      customers: custRes.rows || [],
+      geoProjects: geoRes.rows || []
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err.message);
@@ -1509,6 +1516,30 @@ app.get('/projects/:id', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLENKOORDINATEN (Geo-Fencing)
+// ==========================================
+app.post('/projects/:id/set-location', async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  const { id } = req.params;
+  const { site_lat, site_lng, site_radius } = req.body;
+
+  try {
+    await dbQuery(
+      'UPDATE projects SET site_lat = ?, site_lng = ?, site_radius = ? WHERE id = ?',
+      [
+        site_lat && site_lat !== '' ? parseFloat(site_lat) : null,
+        site_lng && site_lng !== '' ? parseFloat(site_lng) : null,
+        parseInt(site_radius || '200', 10),
+        id
+      ]
+    );
+  } catch (err) {
+    console.error('Fehler beim Speichern der Baustellenkoordinaten:', err.message);
+  }
+  res.redirect(`/projects/${id}`);
+});
+
+// ==========================================
 // BAUSTELLEN-AUFGABEN & MÄNGEL
 // ==========================================
 app.post('/projects/:id/tasks/add', upload.single('photo'), async (req, res) => {
@@ -1623,48 +1654,6 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
     await dbQuery('DELETE FROM users WHERE id = ?', [id]);
     res.redirect('/admin/users');
   } catch (err) {
-    res.status(500).send('Fehler beim Löschen');
-  }
-});
-
-// ==========================================
-// TICKER / INFOBRET-ROUTEN
-// ==========================================
-app.get('/ticker', async (req, res) => {
-  try {
-    const result = await dbQuery(`SELECT * FROM tickers ORDER BY created_at DESC`);
-    res.render('ticker', { tickers: result.rows || [] });
-  } catch (err) {
-    console.error('Fehler beim Laden des Tickers:', err.message);
-    res.status(500).send('Datenbankfehler');
-  }
-});
-
-app.post('/ticker/add', async (req, res) => {
-  const { message } = req.body;
-  const author = req.user ? req.user.username : 'Unbekannt';
-
-  if (!message || message.trim() === '') {
-    return res.redirect('/ticker');
-  }
-
-  try {
-    const sql = `INSERT INTO tickers (message, author) VALUES (?, ?)`;
-    await dbQuery(sql, [message.trim(), author]);
-    res.redirect('/ticker');
-  } catch (err) {
-    console.error('Fehler beim Hinzufügen der Ticker-Meldung:', err.message);
-    res.status(500).send('Fehler beim Speichern');
-  }
-});
-
-app.post('/ticker/delete', verifyToken, requireAdmin, async (req, res) => {
-  const { id } = req.body;
-  try {
-    await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
-    res.redirect('/ticker');
-  } catch (err) {
-    console.error('Fehler beim Löschen der Ticker-Meldung:', err.message);
     res.status(500).send('Fehler beim Löschen');
   }
 });

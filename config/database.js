@@ -244,6 +244,9 @@ if (process.env.DATABASE_URL) {
           description TEXT,
           status TEXT DEFAULT 'In Planung',
           total_price REAL DEFAULT 0,
+          site_lat REAL,
+          site_lng REAL,
+          site_radius INTEGER DEFAULT 200,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);

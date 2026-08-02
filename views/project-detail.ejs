@@ -34,6 +34,47 @@
             <span class="text-xs text-slate-400 block">Beschreibung</span>
             <p class="text-sm text-slate-600"><%= project.description || 'Keine Beschreibung hinterlegt.' %></p>
           </div>
+
+          <!-- Baustellenkoordinaten (Geo-Fencing) — nur Admin -->
+          <% if (currentUser.role === 'ADMIN') { %>
+            <div class="border-t pt-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">📍 Geo-Fencing Standort</span>
+                <% if (project.site_lat && project.site_lng) { %>
+                  <span class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Aktiv</span>
+                <% } else { %>
+                  <span class="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-full">Nicht gesetzt</span>
+                <% } %>
+              </div>
+              <% if (project.site_lat && project.site_lng) { %>
+                <p class="text-xs text-slate-500">
+                  Lat: <strong><%= project.site_lat %></strong> · Lng: <strong><%= project.site_lng %></strong> · Radius: <strong><%= project.site_radius || 200 %> m</strong>
+                </p>
+              <% } %>
+              <form action="/projects/<%= project.id %>/set-location" method="POST" class="space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Breitengrad (Lat)</label>
+                    <input type="number" step="0.0000001" name="site_lat" value="<%= project.site_lat || '' %>" placeholder="z.B. 51.3069" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5 bg-white">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Längengrad (Lng)</label>
+                    <input type="number" step="0.0000001" name="site_lng" value="<%= project.site_lng || '' %>" placeholder="z.B. 6.9483" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5 bg-white">
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Erkennungsradius (Meter)</label>
+                  <input type="number" name="site_radius" value="<%= project.site_radius || 200 %>" min="50" max="2000" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5 bg-white">
+                </div>
+                <div class="flex gap-2">
+                  <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded transition">Koordinaten speichern</button>
+                  <button type="button" onclick="useMyLocationForProject()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium py-1.5 rounded transition">📍 Meinen Standort nutzen</button>
+                </div>
+                <input type="hidden" id="proj_lat_input" name="">
+                <input type="hidden" id="proj_lng_input" name="">
+              </form>
+            </div>
+          <% } %>
         </div>
 
         <!-- Technische Zeichnungen & Dateien -->
@@ -341,8 +382,33 @@
           <p class="text-sm text-slate-400">Keine spezifischen Termine für diesen Kunden im Kalender gefunden.</p>
         <% } %>
       </div>
+</div>
 
-    </div>
-  </main>
+</main>
+
+<script>
+function useMyLocationForProject() {
+if (!navigator.geolocation) {
+alert('Geolocation wird von diesem Browser nicht unterstützt.');
+return;
+}
+navigator.geolocation.getCurrentPosition(
+(pos) => {
+  const lat = pos.coords.latitude.toFixed(7);
+  const lng = pos.coords.longitude.toFixed(7);
+  // Felder im Formular füllen
+  const form = document.querySelector('form[action$="/set-location"]');
+  if (form) {
+    form.querySelector('[name="site_lat"]').value = lat;
+    form.querySelector('[name="site_lng"]').value = lng;
+  }
+  alert(`📍 Standort übernommen:\nLat: ${lat}\nLng: ${lng}\n\nBitte jetzt "Koordinaten speichern" klicken.`);
+},
+() => { alert('GPS-Standort konnte nicht ermittelt werden.'); },
+{ timeout: 10000, enableHighAccuracy: true }
+);
+}
+</script>
+
 </body>
 </html>

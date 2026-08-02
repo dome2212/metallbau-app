@@ -1,9 +1,15 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
+
+<!-- Geo-Fencing Projekt-Daten als JSON für clientseitiges JS -->
+<script>
+const GEO_PROJECTS = <%- JSON.stringify(typeof geoProjects !== 'undefined' ? geoProjects : []) %>;
+const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
+</script>
+
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
 <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
 <div class="flex items-center gap-3">
-<!-- ZURÜCK-BUTTON -->
 <button onclick="history.back()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-full transition flex items-center justify-center" title="Zurück">
 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -13,7 +19,36 @@
 </div>
 <div class="text-xs md:text-sm text-slate-600" id="live-clock">Aktuelle Uhrzeit: --:--:--</div>
 </header>
-<div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-6">
+
+<div class="p-4 md:p-6 max-w-5xl mx-auto w-full space-y-4">
+
+<!-- ================================================ -->
+<!-- GEO-FENCING BANNER (wird per JS ein-/ausgeblendet) -->
+<!-- ================================================ -->
+<div id="geofence-banner" class="hidden rounded-xl border-2 border-indigo-400 bg-indigo-50 p-4 shadow-sm">
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    <div class="space-y-1">
+      <p class="text-sm font-bold text-indigo-800">
+        📍 Du befindest dich auf einer Baustelle!
+      </p>
+      <p class="text-xs text-indigo-700" id="geofence-project-name">Projekt wird erkannt...</p>
+      <p class="text-xs text-indigo-500" id="geofence-distance"></p>
+    </div>
+    <% if (!isStampedIn) { %>
+    <button
+      id="geofence-stamp-btn"
+      onclick="stampInFromGeofence()"
+      class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow transition flex items-center gap-2">
+      🟢 Für dieses Projekt einstempeln
+    </button>
+    <% } else { %>
+    <span class="shrink-0 text-xs bg-green-100 text-green-700 font-semibold px-3 py-1.5 rounded-lg">
+      ✅ Bereits eingestempelt
+    </span>
+    <% } %>
+  </div>
+</div>
+
 <!-- STAMPEL-KARTE -->
 <div class="bg-white rounded-lg shadow p-4 md:p-6 border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -37,15 +72,15 @@ Ausgestempelt
 <span class="text-xl md:text-2xl font-bold text-slate-700"><%= todayTotalHours %> Std.</span>
 </div>
 </div>
+
 <!-- Formular zum Stempeln -->
 <form action="/timetracking/stamp" method="POST" id="stamp-form" class="space-y-4">
 <input type="hidden" name="latitude" id="latitude">
 <input type="hidden" name="longitude" id="longitude">
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-<!-- Projekt- oder Kundenbezug -->
 <div>
 <label class="block text-sm font-medium text-slate-700 mb-1">Projekt / Kunde / Baustelle</label>
-<select name="customer_id" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+<select name="customer_id" id="customer-select" class="w-full border border-slate-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
 <option value="">-- Allgemein / Werkstatt --</option>
 <% if (typeof customers !== 'undefined') { %>
 <% customers.forEach(cust => { %>
@@ -54,10 +89,9 @@ Ausgestempelt
 <% } %>
 </select>
 </div>
-<!-- Notiz / Beschreibung -->
 <div>
 <label class="block text-sm font-medium text-slate-700 mb-1">Tätigkeit / Notiz (optional)</label>
-<input type="text" name="note" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
+<input type="text" name="note" id="note-input" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 rounded p-2 text-sm">
 </div>
 </div>
 <div class="flex items-center space-x-4 pt-2">
@@ -74,6 +108,7 @@ Ausgestempelt
 <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
 </form>
 </div>
+
 <!-- HEUTIGE HISTORIE -->
 <div class="bg-white rounded-lg shadow p-4 md:p-6">
 <h3 class="text-lg font-semibold text-slate-800 mb-4">Heutige Stempel-Einträge</h3>
@@ -131,32 +166,150 @@ Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
 <p class="text-sm text-slate-500">Heute wurden noch keine Stempelzeiten erfasst.</p>
 <% } %>
 </div>
-</div>
+
+</div><!-- end max-w container -->
 </main>
+
 <script>
-// Live Uhrzeit oben rechts
+// ================================================
+// LIVE-UHR
+// ================================================
 setInterval(() => {
-const now = new Date();
-document.getElementById('live-clock').innerText = 'Aktuelle Uhrzeit: ' + now.toLocaleTimeString('de-DE');
+  document.getElementById('live-clock').innerText =
+    'Aktuelle Uhrzeit: ' + new Date().toLocaleTimeString('de-DE');
 }, 1000);
-// Optional: GPS-Standort beim Absenden ermitteln
-if (navigator.geolocation) {
-navigator.geolocation.getCurrentPosition(
-(position) => {
-document.getElementById('latitude').value = position.coords.latitude;
-document.getElementById('longitude').value = position.coords.longitude;
-document.getElementById('gps-status').innerText = '📍 GPS-Standort erfolgreich erfasst.';
-document.getElementById('gps-status').classList.remove('text-slate-400');
-document.getElementById('gps-status').classList.add('text-green-600');
-},
-(error) => {
-document.getElementById('gps-status').innerText = '⚠️ GPS-Standort konnte nicht ermittelt werden (optional).';
-},
-{ timeout: 10000 }
-);
-} else {
-document.getElementById('gps-status').innerText = 'Geolocation wird von diesem Browser nicht unterstützt.';
+
+// ================================================
+// HAVERSINE-DISTANZ (Meter) — clientseitig
+// ================================================
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+    * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+// ================================================
+// GEO-FENCING LOGIK
+// ================================================
+let detectedProject = null; // Projekt das gerade erkannt wurde
+
+function checkGeofence(lat, lng) {
+  let nearest = null;
+  let nearestDist = Infinity;
+
+  for (const proj of GEO_PROJECTS) {
+    if (!proj.site_lat || !proj.site_lng) continue;
+    const d = distanceMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
+    const radius = proj.site_radius || 200;
+    if (d <= radius && d < nearestDist) {
+      nearestDist = d;
+      nearest = proj;
+    }
+  }
+
+  const banner = document.getElementById('geofence-banner');
+  if (nearest) {
+    detectedProject = nearest;
+    const name = nearest.company_name || nearest.contact_person || nearest.title;
+    document.getElementById('geofence-project-name').textContent =
+      '🏗️ ' + nearest.title + (name !== nearest.title ? '  (' + name + ')' : '');
+    document.getElementById('geofence-distance').textContent =
+      'Entfernung: ca. ' + Math.round(nearestDist) + ' m · Radius: ' + (nearest.site_radius || 200) + ' m';
+
+    // Kunden-Dropdown vorausfüllen (falls noch nicht eingestempelt)
+    if (!IS_STAMPED_IN) {
+      const sel = document.getElementById('customer-select');
+      if (sel && nearest.customer_id) {
+        sel.value = String(nearest.customer_id);
+      }
+    }
+
+    banner.classList.remove('hidden');
+  } else {
+    detectedProject = null;
+    banner.classList.add('hidden');
+  }
+}
+
+// ================================================
+// GPS WATCHPOSITION — kontinuierliche Überwachung
+// ================================================
+let watchId = null;
+
+if (navigator.geolocation) {
+  // Einmalig für das Stempel-Formular
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('latitude').value = pos.coords.latitude;
+      document.getElementById('longitude').value = pos.coords.longitude;
+      const statusEl = document.getElementById('gps-status');
+      statusEl.textContent = '📍 GPS-Standort erfolgreich erfasst.';
+      statusEl.className = 'text-xs text-green-600 italic';
+      // Sofort Geo-Fencing prüfen
+      checkGeofence(pos.coords.latitude, pos.coords.longitude);
+    },
+    () => {
+      const statusEl = document.getElementById('gps-status');
+      statusEl.textContent = '⚠️ GPS-Standort konnte nicht ermittelt werden (optional).';
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+
+  // Laufende Überwachung für Geo-Fencing (alle ~5 Sek. neues Signal)
+  if (GEO_PROJECTS.length > 0) {
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        // Koordinaten im Formular aktuell halten
+        document.getElementById('latitude').value = pos.coords.latitude;
+        document.getElementById('longitude').value = pos.coords.longitude;
+        checkGeofence(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  }
+} else {
+  document.getElementById('gps-status').textContent =
+    'Geolocation wird von diesem Browser nicht unterstützt.';
+}
+
+// ================================================
+// EINSTEMPELN PER GEO-FENCING BANNER
+// ================================================
+function stampInFromGeofence() {
+  if (!detectedProject) return;
+  const form = document.getElementById('stamp-form');
+  if (!form) return;
+
+  // Kunden-ID setzen
+  const sel = document.getElementById('customer-select');
+  if (sel && detectedProject.customer_id) {
+    sel.value = String(detectedProject.customer_id);
+  }
+
+  // Notiz automatisch befüllen
+  const noteInput = document.getElementById('note-input');
+  if (noteInput && noteInput.value === '') {
+    noteInput.value = 'Baustelle: ' + detectedProject.title;
+  }
+
+  // type=IN setzen und absenden
+  const typeInput = document.createElement('input');
+  typeInput.type = 'hidden';
+  typeInput.name = 'type';
+  typeInput.value = 'IN';
+  form.appendChild(typeInput);
+  form.submit();
+}
+
+// Seite verlassen → Watch stoppen
+window.addEventListener('beforeunload', () => {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+});
 </script>
 </body>
 </html>
