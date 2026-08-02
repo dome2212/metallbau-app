@@ -1,32 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const dbQuery = require('../utils/dbQuery');
 const { requireAdmin } = require('../middleware/auth');
-let PDFKit; try { PDFKit = require('pdfkit'); } catch (e) {}
 
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2)**2;
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
-
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
 
 router.get('/', async (req, res) => {
   try {
     const sqlToday = `
       SELECT time_logs.*, customers.company_name, customers.contact_person,
-             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp 
+             TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
       FROM time_logs LEFT JOIN customers ON time_logs.customer_id = customers.id
       WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
       ORDER BY time_logs.timestamp ASC
@@ -68,12 +56,14 @@ router.post('/stamp', async (req, res) => {
     }
   }
 
+  const assignedCustomerId = customer_id && customer_id !== '' ? customer_id : null;
+
   try {
     await dbQuery(`INSERT INTO time_logs (user_id, type, note, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`,
-      [req.user.id, type, note || null, customer_id || null, latitude || null, longitude || null]);
+      [req.user.id, type, note || null, assignedCustomerId, latitude || null, longitude || null]);
   } catch (e) {
     await dbQuery(`INSERT INTO time_logs (user_id, type, note, customer_id, timestamp) VALUES (?, ?, ?, ?, (NOW() AT TIME ZONE 'Europe/Berlin'))`,
-      [req.user.id, type, note || null, customer_id || null]);
+      [req.user.id, type, note || null, assignedCustomerId]);
   }
   res.redirect('/timetracking');
 });
@@ -87,20 +77,20 @@ router.get('/admin/monthly', async (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
   const targetUserId = req.query.user_id || req.user.id;
   const users = req.user.role === 'ADMIN' ? (await dbQuery('SELECT id, username FROM users')).rows : [];
-  const entries = (await dbQuery(`SELECT time_logs.*, TO_CHAR(time_logs.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp, 'YYYY-MM') = ? ORDER BY time_logs.timestamp ASC`, [targetUserId, month])).rows;
-  
+  const entries = (await dbQuery(`SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? ORDER BY time_logs.timestamp ASC`, [targetUserId, month])).rows;
+
   res.render('time-monthly', { currentUser: req.user, users, entries, selectedMonth: month, selectedUserId: targetUserId });
 });
 
 router.get('/admin/export-csv', async (req, res) => {
   const targetUserId = req.query.user_id || req.user.id;
   const month = req.query.month || new Date().toISOString().slice(0, 7);
-  const entries = (await dbQuery(`SELECT t.*, u.username, TO_CHAR(t.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp FROM time_logs t JOIN users u ON t.user_id = u.id WHERE t.user_id = ? AND to_char(t.timestamp, 'YYYY-MM') = ? ORDER BY t.timestamp ASC`, [targetUserId, month])).rows;
-  
+  const entries = (await dbQuery(`SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp FROM time_logs t JOIN users u ON t.user_id = u.id WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ? ORDER BY t.timestamp ASC`, [targetUserId, month])).rows;
+
   let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt\n';
   entries.forEach(e => {
     const d = new Date(e.local_timestamp || e.timestamp);
-    csv += `"${e.username}","${d.toLocaleDateString('de-DE')}","${e.type === 'IN' ? 'Kommen' : 'Gehen'}","${e.note || ''}","${d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}"\n`;
+    csv += `"${e.username}","${d.toLocaleDateString('de-DE')}","${e.type === 'IN' ? 'Kommen' : 'Gehen'}","${e.note || ''}","${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}"\n`;
   });
   res.header('Content-Type', 'text/csv; charset=utf-8').attachment(`Zeiterfassung_${month}.csv`).send(csv);
 });
