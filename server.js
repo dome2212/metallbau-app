@@ -21,19 +21,21 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
-// Grok KI (xAI) — OpenAI-kompatible REST API, kein extra npm-Paket nötig
-async function callGrok(prompt) {
-  const apiKey = process.env.GROK_API_KEY;
-  if (!apiKey) throw new Error('GROK_API_KEY nicht konfiguriert.');
+// KI via OpenRouter (kostenlose Modelle, OpenAI-kompatibler Endpunkt)
+async function callAI(prompt) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
 
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+      'X-Title': 'Metallbau App'
     },
     body: JSON.stringify({
-      model: 'grok-3-mini',
+      model: 'meta-llama/llama-3.1-8b-instruct:free',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7
     })
@@ -2424,8 +2426,8 @@ app.get('/projects/:id', async (req, res) => {
 // KI-ANGEBOTS-ASSISTENT (Gemini Chat)
 // ==========================================
 app.post('/api/ai/offer-assistant', verifyToken, async (req, res) => {
-  if (!process.env.GROK_API_KEY) {
-    return res.status(500).json({ error: 'GROK_API_KEY nicht konfiguriert.' });
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
   }
 
   const { message, context } = req.body;
@@ -2457,7 +2459,7 @@ ${context ? 'Bisheriger Kontext:\n' + context + '\n' : ''}
 Benutzer: ${message}`;
 
   try {
-    const text = await callGrok(fullPrompt);
+    const text = await callAI(fullPrompt);
     return res.json({ reply: text });
   } catch (err) {
     console.error('Grok Fehler (offer-assistant):', err);
@@ -2469,8 +2471,8 @@ Benutzer: ${message}`;
 // KI-ANGEBOT GENERIEREN (Google Gemini)
 // ==========================================
 app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {
-  if (!process.env.GROK_API_KEY) {
-    return res.status(500).json({ error: 'GROK_API_KEY ist nicht konfiguriert.' });
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY ist nicht konfiguriert.' });
   }
 
   const { id } = req.params;
@@ -2537,7 +2539,7 @@ ${notizenText}
 Erstelle jetzt das Angebot:
 `.trim();
 
-    const text = await callGrok(prompt);
+    const text = await callAI(prompt);
     return res.json({ quote: text });
   } catch (err) {
     console.error('Grok Fehler:', err);
