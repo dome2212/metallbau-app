@@ -35,7 +35,7 @@ async function callAI(prompt) {
       'X-Title': 'Metallbau App'
     },
     body: JSON.stringify({
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7
     })
