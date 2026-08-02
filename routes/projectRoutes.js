@@ -54,7 +54,7 @@ async function callAI(prompt) {
   return data.choices[0].message.content;
 }
 
-// Vision-fähige KI (Bilder + Text) – nutzt google/gemma-4-27b-it:free über OpenRouter
+// Vision-fähige KI (Bilder + Text) – nutzt google/gemma-4-31b-it:free über OpenRouter
 async function callAIWithImages(prompt, imageBuffers) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
@@ -74,7 +74,7 @@ async function callAIWithImages(prompt, imageBuffers) {
       'X-Title': 'Metallbau App'
     },
     body: JSON.stringify({
-      model: 'google/gemma-4-27b-it:free',
+      model: 'google/gemma-4-31b-it:free',
       messages: [{
         role: 'user',
         content: [
