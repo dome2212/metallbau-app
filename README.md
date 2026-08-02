@@ -12,6 +12,7 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 - [Installation (Lokal)](#-installation-lokal)
 - [Deployment (Render / Cloud)](#-deployment-render--cloud)
 - [Umgebungsvariablen](#-umgebungsvariablen)
+- [Firmendaten anpassen](#-firmendaten-anpassen)
 - [Nutzerrollen](#-nutzerrollen)
 - [Projektstruktur](#-projektstruktur)
 - [Seiten & Routen](#-seiten--routen)
@@ -25,38 +26,38 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 
 | Bereich | Beschreibung |
 |---|---|
-| 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht konfigurierbare KPI-Kacheln (6 Widgets, DB-gespeichert) & offene Vorgänge |
-| 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter, Monteure lesen sie auf ihrer Startseite |
-| 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf (In Planung → Abgeschlossen), Schnellstatus-Änderung ohne Seitenreload, Suche & Statusfilter, Auftragssumme (nur Chef) |
-| 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) für jeden Termin |
-| ⏱️ **Zeiterfassung** | Stempeluhr (Ein-/Ausstempeln), GPS-Standortprüfung, Geofencing je Baustelle, Kunden-Zuordnung |
-| 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, Tagesfilter – zusammengeführt in einer Ansicht |
-| 🌴 **Urlaub & Abwesenheit** | Urlaubsanträge, Krankmeldungen, Schulungen, Datei-Upload, Jahresübersicht mit Fortschrittsbalken |
-| 🔍 **Globale Suche** | Tastenkürzel `/` öffnet eine Overlay-Suche über Aufträge, Kunden, Termine und Notizen mit Tastaturnavigation |
+| 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht konfigurierbare KPI-Kacheln & offene Vorgänge |
+| 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter |
+| 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf, Schnellstatus ohne Reload, Suche & Filter |
+| 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) pro Termin |
+| ⏱️ **Zeiterfassung** | Stempeluhr mit GPS-Prüfung, Geo-Fencing je Baustelle, Baustelle wechseln ohne Ausstempeln |
+| 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, PDF-Export, Tagesfilter |
+| 🌴 **Urlaub & Abwesenheit** | Urlaubsanträge, Krankmeldungen, Schulungen, Datei-Upload, Jahresübersicht |
+| 🔍 **Globale Suche** | Tastenkürzel `/` – Suche über Aufträge, Kunden, Termine und Notizen |
 
 ### Nur für Chef (ADMIN)
 
 | Bereich | Beschreibung |
 |---|---|
-| ⚙️ **Dashboard-Widgets** | 6 KPI-Kacheln (Angebote, Rechnungen, Kunden, Aufträge, Fällige Rechnungen, Offene Mängel) – individuell ein-/ausblendbar, Einstellung in DB gespeichert (geräteübergreifend) |
-| 👥 **Mitarbeiter-Logins** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten |
+| ⚙️ **Dashboard-Widgets** | 6 KPI-Kacheln individuell ein-/ausblendbar, Einstellung geräteübergreifend gespeichert |
+| 👥 **Mitarbeiterverwaltung** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten |
 | 📋 **Arbeitszeiten-Übersicht** | Alle Stempelzeiten aller Mitarbeiter, manuelle Einträge, Löschen, PDF-Export |
-| 👤 **Kunden** | Kundenverwaltung mit Kontaktdaten, Dateien, verknüpfte Projekte |
-| 📋 **Angebote** | Angebote erstellen, Positionen hinterlegen, direkt in Rechnung umwandeln |
-| 🧾 **Rechnungen** | Rechnungen verwalten, Mahnstatus, PDF-Download |
+| 👤 **Kunden** | Kundenverwaltung mit Kontaktdaten und verknüpften Projekten |
+| 📋 **Angebote** | Angebote erstellen, Positionen hinterlegen, in Rechnung umwandeln, PDF-Download |
+| 🧾 **Rechnungen** | Rechnungen verwalten, Mahnstatus, Rechnungsnummer ändern, PDF-Download & Druckansicht |
 | 📦 **Artikelstamm** | Standardartikel und Leistungen für Angebote & Rechnungen |
 
 ### Je Auftrag (Projektdetailseite)
 
 - 📐 Digitales Aufmaß (Bauteilmaße mobil erfassen)
-- ✏️ Handskizzen auf Canvas (Stift, Linie, Rechteck, Radierer, Farb- & Stärkenauswahl)
-- 🛠️ Aufgaben & Mängel mit Foto-Nachweis
-- 📝 Baustellen-Notizbuch
+- 🛠️ Aufgaben & Mängel mit Foto-Nachweis und Status-Toggle
+- 📝 Baustellen-Notizbuch (Text + Sprachnotizen)
 - 📸 Abschlussfotos (Upload via Cloudinary)
 - 📁 Zeichnungen & Dokumente hochladen
-- 📍 Geo-Fencing Standort mit Adresssuche (Nominatim)
+- 📍 Geo-Fencing Standort mit Adresssuche (OpenStreetMap Nominatim)
 - 📅 Verknüpfte Termine mit Wettervorhersage
-- 📄 **Lieferschein/Stundennachweis-PDF** (Stunden, Aufmaß, Aufgaben, Notizen auf Knopfdruck)
+- 📄 **Lieferschein/Stundennachweis-PDF** (Stunden, Aufmaß, Aufgaben, Notizen)
+- 🧾 **Rechnung direkt aus Auftrag erstellen** (Stunden & Auftragssumme werden automatisch übernommen)
 
 ---
 
@@ -70,9 +71,10 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | **Datenbank** | PostgreSQL (Produktion) · SQLite (lokal) |
 | **Auth** | JWT (Cookie-basiert) · bcryptjs |
 | **Datei-Upload** | Multer · Cloudinary |
-| **PDF-Generierung** | PDFKit |
+| **PDF-Generierung** | PDFKit (Angebote, Rechnungen, Lieferscheine, Zeiterfassung) |
 | **Kalender** | FullCalendar |
-| **Wetter** | Open-Meteo API (kostenlos, kein API-Key) |
+| **Wetter** | Open-Meteo API (kostenlos, kein API-Key nötig) |
+| **Geocoding** | OpenStreetMap Nominatim (kostenlos, kein API-Key nötig) |
 
 ---
 
@@ -89,7 +91,7 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 
 ```bash
 # 1. Repository klonen
-git clone https://github.com/dein-nutzername/metallbau-app.git
+git clone https://github.com/dome2212/metallbau-app.git
 cd metallbau-app
 
 # 2. Abhängigkeiten installieren
@@ -100,12 +102,10 @@ cp .env.example .env
 # → .env mit einem Texteditor öffnen und die Werte eintragen
 
 # 4. App starten (SQLite wird automatisch angelegt)
-npm run start:force
+node server.js
 
 # App läuft unter: http://localhost:3000
 ```
-
-> **Hinweis:** `npm start` führt vor dem Start einen Security-Audit durch. Bei Warnungen die Abhängigkeiten mit `npm audit fix` bereinigen oder direkt `npm run start:force` verwenden.
 
 ---
 
@@ -124,21 +124,49 @@ Die App erkennt automatisch ob `DATABASE_URL` gesetzt ist und wechselt zwischen 
 
 ## 🔑 Umgebungsvariablen
 
-Alle Variablen sind in [`.env.example`](.env.example) dokumentiert. Pflichtfelder für den Produktionsbetrieb:
+Alle Variablen sind in [`.env.example`](.env.example) dokumentiert.
 
 | Variable | Beschreibung | Pflicht |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL Connection-String (Render stellt ihn bereit) | Prod |
+| `DATABASE_URL` | PostgreSQL Connection-String | Prod |
 | `JWT_SECRET` | Zufälliger langer String für Token-Signierung | ✅ |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary Cloud-Name | Upload |
 | `CLOUDINARY_API_KEY` | Cloudinary API-Key | Upload |
 | `CLOUDINARY_API_SECRET` | Cloudinary API-Secret | Upload |
-| `FIRM_LAT` | GPS-Breitengrad des Firmensitzes | Stempeluhr |
-| `FIRM_LNG` | GPS-Längengrad des Firmensitzes | Stempeluhr |
-| `FIRM_RADIUS_METERS` | Radius in Metern für Stempeluhr-Prüfung | Stempeluhr |
+| `FIRM_LAT` | GPS-Breitengrad des Firmensitzes (für Stempeluhr) | Stempeluhr |
+| `FIRM_LNG` | GPS-Längengrad des Firmensitzes (für Stempeluhr) | Stempeluhr |
+| `FIRM_RADIUS_METERS` | Erlaubter Radius in Metern (Standard: 300) | Stempeluhr |
 | `PORT` | Server-Port (Standard: 3000) | Optional |
 
 > ⚠️ `.env` niemals in Git committen – sie ist in `.gitignore` ausgeschlossen.
+
+---
+
+## 🏢 Firmendaten anpassen
+
+Alle Firmendaten (Name, Adresse, Bankverbindung, USt-Nr. usw.) sind **zentral an einer einzigen Stelle** in `server.js` hinterlegt:
+
+```js
+// server.js – Zeile ~35
+const FIRMA = {
+  name:            'Frank Gehrmann Stahl- und Metallbau GmbH',
+  nameKurz:        'Metallbau-Gehrmann',
+  slogan:          'Hochwertige Handwerksarbeit zum fairen Preis.',
+  strasse:         'Ratingerstr. 85',
+  plzOrt:          '42279 Heiligenhaus',
+  tel:             '02102 85610',
+  email:           'info@metallbau-gehrmann.de',
+  web:             'www.metallbau-gehrmann.de',
+  iban:            'DE12 3456 7890 1234 5678 90',  // ← anpassen
+  bic:             'MUBADE12',                      // ← anpassen
+  bank:            'Musterbank DE',                 // ← anpassen
+  steuernr:        'USt-IdNr.: DE123456789',        // ← anpassen
+  zahlungsfrist:   14,   // Tage
+  angebotsgueltig: 30,   // Tage
+};
+```
+
+Diese Werte werden automatisch in **alle PDFs** (Angebote, Rechnungen, Lieferscheine) und die **Browser-Druckansicht** übernommen.
 
 ---
 
@@ -146,8 +174,8 @@ Alle Variablen sind in [`.env.example`](.env.example) dokumentiert. Pflichtfelde
 
 | Rolle | Beschreibung |
 |---|---|
-| `ADMIN` | Vollzugriff – Chef, sieht alle Bereiche inkl. Finanzen, Mitarbeiterverwaltung |
-| `EMPLOYEE` | Monteur – sieht Aufträge, Kalender, eigene Zeiterfassung, Schwarzes Brett, Tools |
+| `ADMIN` | Vollzugriff – Chef, sieht alle Bereiche inkl. Finanzen & Mitarbeiterverwaltung |
+| `EMPLOYEE` | Monteur – sieht Aufträge, Kalender, eigene Zeiterfassung, Schwarzes Brett |
 
 ---
 
@@ -155,48 +183,49 @@ Alle Variablen sind in [`.env.example`](.env.example) dokumentiert. Pflichtfelde
 
 ```
 metallbau-app/
-├── server.js              # Haupt-Anwendungsdatei (alle Routen & Middleware)
+├── server.js                    # Haupt-Anwendung (alle Routen, Middleware, PDF-Generierung)
 ├── config/
-│   └── database.js        # Datenbankverbindung (PostgreSQL / SQLite, Tabellen-Setup)
+│   └── database.js              # DB-Verbindung (PostgreSQL / SQLite), Tabellen-Setup
 ├── middleware/
-│   └── auth.js            # JWT-Verifikation, requireAdmin-Guard
+│   └── auth.js                  # JWT-Verifikation, requireAdmin-Guard
 ├── routes/
-│   ├── authRoutes.js      # Login / Logout
-│   ├── adminRoutes.js     # Admin-Bereich (Nutzer, Arbeitszeiten)
-│   ├── projectRoutes.js   # Aufträge (teilweise in server.js)
-│   ├── timetrackingRoutes.js # Stempeluhr, Monatsexport
-│   ├── calendarRoutes.js  # Termine
-│   ├── vacationRoutes.js  # Urlaub & Abwesenheit
-│   ├── documentRoutes.js  # Angebote & Rechnungen
-│   ├── customerRoutes.js  # Kunden
-│   ├── articleRoutes.js   # Artikelstamm
-│   └── dashboardRoutes.js # Dashboard
+│   ├── authRoutes.js            # Login / Logout / Standard-Admin anlegen
+│   └── documentRoutes.js        # Angebot → Projekt, Angebot → Rechnung (alte Dokumente-API)
 ├── utils/
-│   └── notifier.js        # E-Mail & WhatsApp Benachrichtigungen (optional)
+│   └── notifier.js              # E-Mail & WhatsApp Benachrichtigungen (optional)
 ├── views/
 │   ├── partials/
-│   │   ├── header.ejs     # HTML-Head, Body-Start
-│   │   └── sidebar.ejs    # Navigation, Suchoverlay
-│   ├── dashboard.ejs          # Chef-Dashboard
-│   ├── dashboard-employee.ejs # Mitarbeiter-Dashboard (Überstunden-Ampel)
-│   ├── projects.ejs           # Auftragsliste
-│   ├── project-detail.ejs     # Auftragsdetail (Aufmaß, Skizzen, Fotos, …)
-│   ├── calendar.ejs           # Kalender (FullCalendar + Wetter)
-│   ├── timetracking.ejs       # Stempeluhr
-│   ├── admin-timetracking.ejs # Arbeitszeiten-Übersicht (zusammengeführt)
-│   ├── vacations.ejs          # Urlaub & Abwesenheit
-│   ├── customers.ejs          # Kundenliste
-│   ├── admin-users.ejs        # Mitarbeiterverwaltung
-│   ├── invoices.ejs           # Rechnungen
-│   ├── offers.ejs             # Angebote
-│   └── articles.ejs           # Artikelstamm
+│   │   ├── header.ejs           # HTML-Head, Body-Start
+│   │   └── sidebar.ejs          # Navigation, Suchoverlay, Dark Mode
+│   ├── dashboard.ejs            # Chef-Dashboard (KPI-Widgets, Schwarzes Brett)
+│   ├── dashboard-employee.ejs   # Mitarbeiter-Dashboard (Überstunden-Ampel)
+│   ├── projects.ejs             # Auftragsliste mit Filter & Schnellstatus
+│   ├── project-detail.ejs       # Auftragsdetail (Aufmaß, Aufgaben, Fotos, Notizen, …)
+│   ├── project-invoice-create.ejs # Rechnung aus Auftrag erstellen
+│   ├── calendar.ejs             # Kalender (FullCalendar + Wetter-Frühwarnung)
+│   ├── timetracking.ejs         # Stempeluhr (GPS, Geo-Fencing, Baustelle wechseln)
+│   ├── admin-timetracking.ejs   # Arbeitszeiten-Übersicht (alle Mitarbeiter)
+│   ├── time-monthly.ejs         # Monatliche Stundenübersicht (Mitarbeiter)
+│   ├── vacations.ejs            # Urlaub & Abwesenheit
+│   ├── customers.ejs            # Kundenliste
+│   ├── customer-projects.ejs    # Projekte je Kunde
+│   ├── admin-users.ejs          # Mitarbeiterverwaltung
+│   ├── invoices.ejs             # Rechnungsliste
+│   ├── invoice-detail.ejs       # Rechnungsdetail (Positionen, Rechnungsnr. ändern)
+│   ├── invoice-pdf.ejs          # Browser-Druckansicht Rechnung
+│   ├── offers.ejs               # Angebotsliste
+│   ├── documents.ejs            # Dokumentenübersicht (ältere API)
+│   ├── articles.ejs             # Artikelstamm
+│   └── login.ejs                # Login-Seite
 ├── Public/
-│   └── manifest.json      # PWA-Manifest
-├── .env.example           # Umgebungsvariablen-Vorlage
+│   └── (statische Dateien)
+├── .env.example                 # Vorlage für Umgebungsvariablen
 ├── .gitignore
 ├── package.json
 └── README.md
 ```
+
+> **Hinweis:** Die meisten Routen sind direkt in `server.js` implementiert. `routes/authRoutes.js` und `routes/documentRoutes.js` werden als Express-Router eingebunden.
 
 ---
 
@@ -210,17 +239,22 @@ metallbau-app/
 | `/projects` | GET | Alle | Auftragsliste |
 | `/projects/:id` | GET | Alle | Auftragsdetail |
 | `/projects/:id/pdf` | GET | Admin | Lieferschein-PDF |
+| `/projects/:id/create-invoice` | GET | Admin | Rechnungsvorschau aus Auftrag |
+| `/projects/:id/create-invoice` | POST | Admin | Rechnung aus Auftrag speichern |
 | `/calendar` | GET | Alle | Terminkalender |
 | `/timetracking` | GET | Alle | Stempeluhr |
+| `/timetracking/stamp` | POST | Alle | Stempeln (IN / OUT / SWITCH) |
 | `/admin/timetracking` | GET | Admin | Arbeitszeiten-Übersicht |
 | `/admin/timetracking/pdf` | GET | Admin | Arbeitszeitennachweis-PDF |
 | `/vacations` | GET | Alle | Urlaub & Abwesenheit |
 | `/customers` | GET | Admin | Kundenverwaltung |
 | `/documents/offers` | GET | Admin | Angebote |
 | `/documents/invoices` | GET | Admin | Rechnungen |
+| `/documents/invoices/:id` | GET | Admin | Rechnungsdetail |
+| `/documents/invoices/:id/pdf` | GET | Admin | Rechnung Druckansicht |
+| `/documents/invoices/:id/pdf-download` | GET | Admin | Rechnung PDF-Download |
 | `/articles` | GET | Admin | Artikelstamm |
 | `/admin/users` | GET | Admin | Mitarbeiterverwaltung |
-| `/api/user-settings` | POST | Admin | Widget-Einstellungen speichern (JSON) |
 | `/api/search` | GET | Alle | Globale Suche (JSON) |
 | `/api/appointments` | GET | Alle | Termine (JSON, für Kalender) |
 | `/api/weather` | GET | Alle | Wettervorhersage (JSON) |

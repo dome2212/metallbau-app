@@ -2667,7 +2667,7 @@ app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
 // ==========================================
 // AUFTRAG → RECHNUNG
 // ==========================================
-app.get('/projects/:id/create-invoice', requireAdmin, async (req, res) => {
+app.get('/projects/:id/create-invoice', verifyToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     // Projektdaten inkl. Kundendaten
@@ -2722,7 +2722,7 @@ app.get('/projects/:id/create-invoice', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/projects/:id/create-invoice', requireAdmin, async (req, res) => {
+app.post('/projects/:id/create-invoice', verifyToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { invoice_number, due_days, description, quantity, unit, price } = req.body;
 
