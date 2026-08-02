@@ -2447,7 +2447,7 @@ Benutzer: ${message}`;
   try {
     const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const result = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: fullPrompt,
     });
     const text = result.text;
@@ -2535,7 +2535,7 @@ Erstelle jetzt das Angebot:
 
     const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const result = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
     });
 
