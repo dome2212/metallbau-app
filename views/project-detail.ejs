@@ -34,6 +34,10 @@
             class="px-3 py-1 bg-violet-600 hover:bg-violet-700 text-white border border-violet-700 rounded text-xs font-semibold transition flex items-center gap-1">
             🤖 KI-Angebot erstellen
           </button>
+          <button onclick="openKiSummaryModal()"
+            class="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white border border-teal-700 rounded text-xs font-semibold transition flex items-center gap-1">
+            📋 KI-Statusbericht
+          </button>
           <button onclick="document.getElementById('editProjectModal').classList.remove('hidden')"
             class="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-xs font-semibold transition">
             ✏️ Bearbeiten
@@ -280,6 +284,7 @@
             <input type="file" name="photo" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
           </div>
           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded transition">Aufgabe hinzufügen</button>
+          <button type="button" onclick="openKiChecklistModal()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium px-4 py-2 rounded transition">✨ KI-Checkliste vorschlagen</button>
         </form>
 
         <!-- Liste der Aufgaben & Mängel -->
@@ -480,6 +485,92 @@
 </div>
 
 </main>
+
+<!-- ================================================ -->
+<!-- KI-STATUSBERICHT MODAL                            -->
+<!-- ================================================ -->
+<% if (currentUser.role === 'ADMIN') { %>
+<div id="kiSummaryModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full p-5 md:p-7 max-h-[90vh] flex flex-col gap-4">
+    <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
+      <h3 class="text-lg font-bold text-slate-800 dark:text-gray-100">📋 KI-Statusbericht</h3>
+      <button onclick="document.getElementById('kiSummaryModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400">Die KI liest Notizen, Aufgaben und Aufmaß dieses Auftrags und schreibt einen kompakten Statusbericht.</p>
+    <div id="kiSummaryLoading" class="hidden flex items-center gap-3 text-sm text-teal-600 font-medium py-4">
+      <svg class="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      KI erstellt Statusbericht…
+    </div>
+    <div id="kiSummaryError" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2"></div>
+    <textarea id="kiSummaryText" rows="10"
+      class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y"
+      placeholder="Hier erscheint der Statusbericht…"></textarea>
+    <div class="flex justify-between items-center gap-3 pt-2 border-t dark:border-slate-700">
+      <button id="kiSummaryGenerateBtn" onclick="generateKiSummary()"
+        class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2">
+        📋 Jetzt generieren
+      </button>
+      <div class="flex gap-2">
+        <button onclick="navigator.clipboard.writeText(document.getElementById('kiSummaryText').value)"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium transition">
+          📋 Kopieren
+        </button>
+        <button onclick="saveKiSummaryAsNote()"
+          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition">
+          💾 Als Notiz speichern
+        </button>
+        <button onclick="document.getElementById('kiSummaryModal').classList.add('hidden')"
+          class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+          Schließen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<!-- ================================================ -->
+<!-- KI-CHECKLISTE MODAL                               -->
+<!-- ================================================ -->
+<% if (currentUser.role === 'ADMIN') { %>
+<div id="kiChecklistModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-lg w-full p-5 md:p-7 max-h-[90vh] flex flex-col gap-4">
+    <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
+      <h3 class="text-lg font-bold text-slate-800 dark:text-gray-100">✨ KI-Checkliste vorschlagen</h3>
+      <button onclick="document.getElementById('kiChecklistModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400">Die KI schlägt typische Aufgaben für diesen Metallbau-Auftrag vor. Wähle aus welche du übernehmen möchtest.</p>
+    <div id="kiChecklistLoading" class="hidden flex items-center gap-3 text-sm text-violet-600 font-medium py-4">
+      <svg class="animate-spin h-5 w-5 text-violet-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      KI erstellt Checkliste…
+    </div>
+    <div id="kiChecklistError" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2"></div>
+    <div id="kiChecklistResults" class="hidden space-y-2 max-h-64 overflow-y-auto"></div>
+    <div id="kiChecklistEmpty" class="hidden text-xs text-slate-400 italic text-center py-4">Noch keine Vorschläge geladen.</div>
+    <div class="flex justify-between items-center gap-3 pt-2 border-t dark:border-slate-700">
+      <button id="kiChecklistGenerateBtn" onclick="generateKiChecklist()"
+        class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition">
+        ✨ Vorschläge laden
+      </button>
+      <div class="flex gap-2">
+        <button id="kiChecklistAcceptBtn" onclick="acceptKiChecklist()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition">
+          ✅ Ausgewählte übernehmen
+        </button>
+        <button onclick="document.getElementById('kiChecklistModal').classList.add('hidden')"
+          class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+          Schließen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
 
 <!-- ================================================ -->
 <!-- KI-ANGEBOT MODAL                                  -->
@@ -746,6 +837,146 @@ async function saveKiQuoteAsNote() {
     }
   } catch (err) {
     alert('Netzwerkfehler: ' + err.message);
+  }
+}
+</script>
+<% } %>
+
+<% if (currentUser.role === 'ADMIN') { %>
+<script>
+// ================================================
+// KI-STATUSBERICHT
+// ================================================
+function openKiSummaryModal() {
+  document.getElementById('kiSummaryModal').classList.remove('hidden');
+  document.getElementById('kiSummaryError').classList.add('hidden');
+  document.getElementById('kiSummaryLoading').classList.add('hidden');
+}
+
+async function generateKiSummary() {
+  const btn     = document.getElementById('kiSummaryGenerateBtn');
+  const loading = document.getElementById('kiSummaryLoading');
+  const errorBox= document.getElementById('kiSummaryError');
+  const textarea= document.getElementById('kiSummaryText');
+
+  btn.disabled = true; btn.textContent = '⏳ Generiert…';
+  loading.classList.remove('hidden');
+  errorBox.classList.add('hidden');
+  textarea.value = '';
+
+  try {
+    const res  = await fetch('/projects/<%= project.id %>/ai-summary', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Unbekannter Fehler');
+    textarea.value = data.summary;
+  } catch (err) {
+    errorBox.textContent = '❌ ' + err.message;
+    errorBox.classList.remove('hidden');
+  } finally {
+    loading.classList.add('hidden');
+    btn.disabled = false; btn.textContent = '📋 Neu generieren';
+  }
+}
+
+async function saveKiSummaryAsNote() {
+  const text = document.getElementById('kiSummaryText').value.trim();
+  if (!text) { alert('Bitte zuerst einen Statusbericht generieren.'); return; }
+  const body = new URLSearchParams();
+  body.append('note_text', '📋 KI-Statusbericht:\n\n' + text);
+  try {
+    const res = await fetch('/projects/<%= project.id %>/notes/add', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'same-origin', body: body.toString()
+    });
+    if (res.ok || res.redirected) {
+      document.getElementById('kiSummaryModal').classList.add('hidden');
+      window.location.reload();
+    } else { alert('Fehler beim Speichern.'); }
+  } catch (err) { alert('Netzwerkfehler: ' + err.message); }
+}
+
+// ================================================
+// KI-CHECKLISTE
+// ================================================
+let _kiChecklistTasks = [];
+
+function openKiChecklistModal() {
+  document.getElementById('kiChecklistModal').classList.remove('hidden');
+  document.getElementById('kiChecklistError').classList.add('hidden');
+  document.getElementById('kiChecklistLoading').classList.add('hidden');
+  document.getElementById('kiChecklistResults').classList.add('hidden');
+  document.getElementById('kiChecklistAcceptBtn').classList.add('hidden');
+}
+
+async function generateKiChecklist() {
+  const btn     = document.getElementById('kiChecklistGenerateBtn');
+  const loading = document.getElementById('kiChecklistLoading');
+  const errorBox= document.getElementById('kiChecklistError');
+  const results = document.getElementById('kiChecklistResults');
+  const acceptBtn= document.getElementById('kiChecklistAcceptBtn');
+
+  btn.disabled = true; btn.textContent = '⏳ Lädt…';
+  loading.classList.remove('hidden');
+  errorBox.classList.add('hidden');
+  results.classList.add('hidden');
+  acceptBtn.classList.add('hidden');
+
+  try {
+    const res  = await fetch('/projects/<%= project.id %>/ai-checklist', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin'
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Unbekannter Fehler');
+
+    _kiChecklistTasks = data.tasks || [];
+    const catColors = { 'Restarbeit': 'bg-blue-100 text-blue-800', 'Mangel': 'bg-red-100 text-red-800', 'Bestellung': 'bg-purple-100 text-purple-800' };
+
+    results.innerHTML = _kiChecklistTasks.map((t, i) => `
+      <label class="flex items-center gap-3 bg-slate-50 dark:bg-slate-700 border dark:border-slate-600 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-600 transition">
+        <input type="checkbox" class="ki-task-cb w-4 h-4 accent-violet-600" data-idx="${i}" checked>
+        <span class="flex-1 text-sm text-slate-800 dark:text-gray-100">${t.title || ''}</span>
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded ${catColors[t.category] || 'bg-slate-100 text-slate-600'}">${t.category || 'Restarbeit'}</span>
+      </label>`).join('');
+
+    results.classList.remove('hidden');
+    acceptBtn.classList.remove('hidden');
+  } catch (err) {
+    errorBox.textContent = '❌ ' + err.message;
+    errorBox.classList.remove('hidden');
+  } finally {
+    loading.classList.add('hidden');
+    btn.disabled = false; btn.textContent = '✨ Neu laden';
+  }
+}
+
+async function acceptKiChecklist() {
+  const checked = Array.from(document.querySelectorAll('.ki-task-cb:checked'))
+    .map(cb => _kiChecklistTasks[parseInt(cb.dataset.idx)])
+    .filter(Boolean);
+
+  if (!checked.length) { alert('Keine Aufgaben ausgewählt.'); return; }
+
+  const acceptBtn = document.getElementById('kiChecklistAcceptBtn');
+  acceptBtn.disabled = true; acceptBtn.textContent = '⏳ Speichert…';
+
+  try {
+    for (const task of checked) {
+      const body = new URLSearchParams();
+      body.append('title', task.title || '');
+      body.append('category', task.category || 'Restarbeit');
+      body.append('description', '');
+      await fetch('/projects/<%= project.id %>/tasks/add', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'same-origin', body: body.toString()
+      });
+    }
+    document.getElementById('kiChecklistModal').classList.add('hidden');
+    window.location.reload();
+  } catch (err) {
+    alert('Fehler beim Speichern: ' + err.message);
+    acceptBtn.disabled = false; acceptBtn.textContent = '✅ Ausgewählte übernehmen';
   }
 }
 </script>

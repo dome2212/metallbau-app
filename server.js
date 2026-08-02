@@ -2504,6 +2504,147 @@ Benutzereingabe: ${message}`;
 });
 
 // ==========================================
+// KI-PROJEKTBESCHREIBUNG AUS STICHWORTEN
+// ==========================================
+app.post('/api/ai/project-description', verifyToken, async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY)
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+  const { keywords } = req.body;
+  if (!keywords) return res.status(400).json({ error: 'Keine Stichworte übermittelt.' });
+
+  const prompt = `Du bist ein Assistent für einen Metallbaubetrieb. Schreibe eine kurze, sachliche Auftragsbeschreibung (1-2 Sätze, max. 150 Zeichen) auf Deutsch basierend auf folgenden Stichworten. Antworte NUR mit der Beschreibung, ohne Anführungszeichen.
+
+Stichworte: ${keywords}`;
+
+  try {
+    const text = await callAI(prompt);
+    return res.json({ description: text.trim().replace(/^["']|["']$/g, '') });
+  } catch (err) {
+    console.error('KI Fehler (project-description):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
+// KI-AUFTRAGS-ZUSAMMENFASSUNG
+// ==========================================
+app.post('/projects/:id/ai-summary', verifyToken, async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY)
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+
+  const { id } = req.params;
+  try {
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).json({ error: 'Auftrag nicht gefunden.' });
+
+    const [notesRes, tasksRes, measRes] = await Promise.all([
+      dbQuery('SELECT note_text FROM project_notes WHERE project_id = ? ORDER BY created_at ASC', [id]),
+      dbQuery('SELECT title, category, status FROM project_tasks WHERE project_id = ? ORDER BY created_at ASC', [id]),
+      dbQuery('SELECT component_name, width, height, quantity FROM project_measurements WHERE project_id = ? ORDER BY created_at ASC', [id])
+    ]);
+
+    const notes    = (notesRes.rows || []).map(n => `- ${n.note_text}`).join('\n') || 'Keine Notizen.';
+    const tasks    = (tasksRes.rows || []).map(t => `- [${t.status}] ${t.category}: ${t.title}`).join('\n') || 'Keine Aufgaben.';
+    const measures = (measRes.rows || []).map(m => `- ${m.component_name}: ${m.width||'–'}×${m.height||'–'} mm, Anzahl ${m.quantity||1}`).join('\n') || 'Kein Aufmaß.';
+
+    const prompt = `Du bist ein Assistent eines Metallbaubetriebs. Erstelle einen knappen deutschen Statusbericht (max. 8 Sätze) für den folgenden Auftrag. Fasse zusammen was gemacht wurde, was noch offen ist und ob es Probleme gibt.
+
+Auftrag: ${project.title}
+Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}
+Status: ${project.status}
+Beschreibung: ${project.description || 'Keine.'}
+
+Notizen:
+${notes}
+
+Aufgaben / Mängel:
+${tasks}
+
+Aufmaß:
+${measures}
+
+Schreibe jetzt den Statusbericht:`;
+
+    const text = await callAI(prompt);
+    return res.json({ summary: text });
+  } catch (err) {
+    console.error('KI Fehler (ai-summary):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
+// KI-CHECKLISTE FÜR AUFTRAG
+// ==========================================
+app.post('/projects/:id/ai-checklist', verifyToken, async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY)
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+
+  const { id } = req.params;
+  try {
+    const projRes = await dbQuery(`
+      SELECT title, description, status FROM projects WHERE id = ?`, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).json({ error: 'Auftrag nicht gefunden.' });
+
+    const prompt = `Du bist ein erfahrener Metallbaumeister. Erstelle eine praxisnahe Aufgaben-Checkliste für den folgenden Metallbau-Auftrag.
+Antworte NUR mit einem gültigen JSON-Array (kein Text davor oder danach), maximal 8 Einträge:
+[
+  {"title": "Aufgabe 1", "category": "Restarbeit"},
+  ...
+]
+Erlaubte Kategorien: Restarbeit, Mangel, Bestellung
+
+Auftrag: ${project.title}
+Beschreibung: ${project.description || 'Keine.'}
+Status: ${project.status}`;
+
+    const text = await callAI(prompt);
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return res.status(500).json({ error: 'KI konnte keine Checkliste erstellen.' });
+    const tasks = JSON.parse(match[0]);
+    return res.json({ tasks });
+  } catch (err) {
+    console.error('KI Fehler (ai-checklist):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
+// KI-ZAHLUNGSERINNERUNG
+// ==========================================
+app.post('/api/ai/payment-reminder', verifyToken, async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY)
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+
+  const { invoice_number, customer_name, total_amount, due_date, dunning_level } = req.body;
+  if (!invoice_number) return res.status(400).json({ error: 'Rechnungsnummer fehlt.' });
+
+  const levelText = dunning_level > 1 ? `(${dunning_level}. Mahnung)` : '(1. Zahlungserinnerung)';
+  const prompt = `Du bist der Inhaber des Metallbaubetriebs "${FIRMA.name}". Schreibe einen höflichen aber bestimmten deutschen Mahnungstext ${levelText} für die folgende überfällige Rechnung. Nur den Brieftext, keine Betreffzeile, keine Grußformel am Anfang.
+
+Rechnungsnummer: ${invoice_number}
+Kunde: ${customer_name || 'Kunde'}
+Betrag: ${total_amount ? Number(total_amount).toLocaleString('de-DE', {minimumFractionDigits:2}) + ' €' : 'offen'}
+Fällig seit: ${due_date ? new Date(due_date).toLocaleDateString('de-DE') : 'überfällig'}
+Mahnstufe: ${dunning_level || 1}
+
+Schreibe jetzt den Mahnungstext (3-5 Sätze):`;
+
+  try {
+    const text = await callAI(prompt);
+    return res.json({ reminder: text });
+  } catch (err) {
+    console.error('KI Fehler (payment-reminder):', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// ==========================================
 // KI-ANGEBOT GENERIEREN (Google Gemini)
 // ==========================================
 app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {
