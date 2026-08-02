@@ -144,6 +144,15 @@ const dbQuery = (sql, params = []) => {
 };
 
 // ==========================================
+// SERVER STARTEN & PORT FÜR RENDER FREIGEBEN
+// ==========================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server läuft erfolgreich auf Port ${PORT}`);
+});
+
+
+// ==========================================
 // AUTOMATISCHE TABELLEN-ERSTELLUNG BEIM START
 // ==========================================
 // Rest of server.js remains unchanged — routes and logic already present on the branch.
