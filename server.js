@@ -238,8 +238,9 @@ dbQuery(`
 // Feature: Urlaubskonto – Jahrestage pro Mitarbeiter
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
 
-// Feature: WhatsApp-Telefonnummer & Benachrichtigungs-Toggle pro Mitarbeiter
+// Feature: WhatsApp (CallMeBot) pro Mitarbeiter
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
 
 // ==========================================
@@ -2344,7 +2345,7 @@ app.post('/projects/add', async (req, res) => {
 
     // ── WhatsApp: Neuer Auftrag ──────────────────────────────────────────────
     const usersRes = await dbQuery(
-      "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_notify = true"
+      "SELECT username, whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_api_key IS NOT NULL AND whatsapp_api_key != '' AND whatsapp_notify = true"
     );
     if (usersRes.rows.length > 0) {
       const message =
@@ -2354,7 +2355,7 @@ app.post('/projects/add', async (req, res) => {
         `Status: ${status || 'In Planung'}\n\n` +
         `Bitte in der App ansehen.`;
       for (const user of usersRes.rows) {
-        sendWhatsApp(user.whatsapp_phone, message).catch(e =>
+        sendWhatsApp(user.whatsapp_phone, message, user.whatsapp_api_key).catch(e =>
           console.error(`WhatsApp (neuer Auftrag) an ${user.username}:`, e.message)
         );
       }
@@ -2379,7 +2380,7 @@ app.post('/projects/update-status', async (req, res) => {
       const projRes = await dbQuery('SELECT title FROM projects WHERE id = ?', [id]);
       const projTitle = projRes.rows[0]?.title || `Auftrag #${id}`;
       const usersRes = await dbQuery(
-        "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND role = 'EMPLOYEE' AND whatsapp_notify = true"
+        "SELECT username, whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_api_key IS NOT NULL AND whatsapp_api_key != '' AND role = 'EMPLOYEE' AND whatsapp_notify = true"
       );
 
       const statusEmoji = {
@@ -2395,7 +2396,7 @@ app.post('/projects/update-status', async (req, res) => {
         `Bitte prüfe deine Aufgaben in der App.`;
 
       for (const user of (usersRes.rows || [])) {
-        sendWhatsApp(user.whatsapp_phone, message).catch(e =>
+        sendWhatsApp(user.whatsapp_phone, message, user.whatsapp_api_key).catch(e =>
           console.error(`WhatsApp an ${user.username} fehlgeschlagen:`, e.message)
         );
       }
@@ -3257,7 +3258,7 @@ app.post('/projects/delete', async (req, res) => {
 // ==========================================
 app.get('/admin/users', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const result = await dbQuery('SELECT id, username, role, whatsapp_phone, whatsapp_notify, created_at FROM users ORDER BY created_at DESC');
+    const result = await dbQuery('SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, created_at FROM users ORDER BY created_at DESC');
     res.render('admin-users', { users: result.rows || [] });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -3284,13 +3285,14 @@ app.post('/admin/users/add', verifyToken, requireAdmin, async (req, res) => {
 });
 
 app.post('/admin/users/set-whatsapp', verifyToken, requireAdmin, async (req, res) => {
-  const { user_id, whatsapp_phone } = req.body;
-  const phone = (whatsapp_phone || '').trim() || null;
+  const { user_id, whatsapp_phone, whatsapp_api_key } = req.body;
+  const phone  = (whatsapp_phone   || '').trim() || null;
+  const apiKey = (whatsapp_api_key || '').trim() || null;
   try {
-    await dbQuery('UPDATE users SET whatsapp_phone = ? WHERE id = ?', [phone, user_id]);
+    await dbQuery('UPDATE users SET whatsapp_phone = ?, whatsapp_api_key = ? WHERE id = ?', [phone, apiKey, user_id]);
     res.redirect('/admin/users');
   } catch (err) {
-    res.status(500).send('Fehler beim Speichern der Telefonnummer.');
+    res.status(500).send('Fehler beim Speichern der WhatsApp-Daten.');
   }
 });
 
@@ -3348,7 +3350,7 @@ app.post('/ticker/add', verifyToken, requireAdmin, async (req, res) => {
 
     // ── WhatsApp: Schwarzes Brett ────────────────────────────────────────────
     const usersRes = await dbQuery(
-      "SELECT username, whatsapp_phone FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_notify = true"
+      "SELECT username, whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND whatsapp_api_key IS NOT NULL AND whatsapp_api_key != '' AND whatsapp_notify = true"
     );
     if (usersRes.rows.length > 0) {
       const wa =
@@ -3356,7 +3358,7 @@ app.post('/ticker/add', verifyToken, requireAdmin, async (req, res) => {
         `${message.trim()}\n\n` +
         `— ${req.user.username}`;
       for (const user of usersRes.rows) {
-        sendWhatsApp(user.whatsapp_phone, wa).catch(e =>
+        sendWhatsApp(user.whatsapp_phone, wa, user.whatsapp_api_key).catch(e =>
           console.error(`WhatsApp (Ticker) an ${user.username}:`, e.message)
         );
       }

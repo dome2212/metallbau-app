@@ -92,15 +92,21 @@
                       <% } %>
                     </td>
                     <td class="p-4">
-                      <!-- Nummer eingeben & speichern -->
-                      <form action="/admin/users/set-whatsapp" method="POST" class="flex items-center gap-2">
+                      <!-- Nummer + API-Key eingeben & speichern -->
+                      <form action="/admin/users/set-whatsapp" method="POST" class="space-y-1.5">
                         <input type="hidden" name="user_id" value="<%= u.id %>">
-                        <input type="tel" name="whatsapp_phone" value="<%= u.whatsapp_phone || '' %>"
-                          placeholder="z.B. 01701234567"
-                          class="w-36 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-green-400 focus:outline-none">
-                        <button type="submit"
-                          class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold transition"
-                          title="Nummer speichern">✓</button>
+                        <div class="flex items-center gap-2">
+                          <input type="tel" name="whatsapp_phone" value="<%= u.whatsapp_phone || '' %>"
+                            placeholder="Nummer z.B. 01701234567"
+                            class="w-36 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-green-400 focus:outline-none">
+                          <input type="text" name="whatsapp_api_key" value="<%= u.whatsapp_api_key || '' %>"
+                            placeholder="CallMeBot API-Key"
+                            class="w-28 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-green-400 focus:outline-none">
+                          <button type="submit"
+                            class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold transition"
+                            title="Speichern">✓</button>
+                        </div>
+                        <p class="text-[10px] text-slate-400">API-Key: WhatsApp an <strong>+34 644 52 74 21</strong> → <em>I allow callmebot to send me messages</em></p>
                       </form>
                       <!-- Benachrichtigungen an/aus -->
                       <% if (u.whatsapp_phone) { %>
