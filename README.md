@@ -1,125 +1,255 @@
-# 🔒 Metallbau-App - Sichere Version
+# 🔩 Metallbau-App – Betriebssoftware für Metallbau Gehrmann
 
-Eine vollständige Metallbau-Management-Lösung mit integrierten Sicherheitsfeatures.
+Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetrieb. Entwickelt als Node.js-Webanwendung mit EJS-Templates und Tailwind CSS. Läuft lokal (SQLite) oder in der Cloud (PostgreSQL auf Render).
 
-## ✨ Neue Sicherheitsfeatures
+---
 
-### 🛡️ Automatische Sicherheitsprüfungen
-- **npm audit** läuft automatisch beim Serverstart
-- Blockiert Start bei kritischen Sicherheitsproblemen
-- Wöchentliche automatische Dependency-Updates via Dependabot
+## 📋 Inhaltsverzeichnis
 
-### 🔐 Geschützte Credentials
-- `.env` Dateien sind vollständig im `.gitignore`
-- `.env.example` enthält Template für alle notwendigen Variablen
-- Keine Secrets werden jemals im Repository gelagert
+- [Features](#-features)
+- [Tech-Stack](#-tech-stack)
+- [Voraussetzungen](#-voraussetzungen)
+- [Installation (Lokal)](#-installation-lokal)
+- [Deployment (Render / Cloud)](#-deployment-render--cloud)
+- [Umgebungsvariablen](#-umgebungsvariablen)
+- [Nutzerrollen](#-nutzerrollen)
+- [Projektstruktur](#-projektstruktur)
+- [Seiten & Routen](#-seiten--routen)
+- [Standard-Login](#-standard-login)
 
-### 🔑 Authentifizierung & Verschlüsselung
-- Passwörter mit **bcryptjs** gehasht (10 Runden)
-- JWT-Tokens für sichere Sessions
-- Cookie-Parser für sichere Cookie-Verwaltung
+---
 
-### 📦 Dependency-Management
-- Automatische Sicherheitsupdates
-- npm audit auf jedes Start
-- Regelmäßige Überprüfung auf Vulnerabilities
+## ✨ Features
 
-## 🚀 Installation
+### Für alle Nutzer (Chef & Monteure)
+
+| Bereich | Beschreibung |
+|---|---|
+| 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht KPI-Kacheln & offene Vorgänge |
+| 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter, Monteure lesen sie auf ihrer Startseite |
+| 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf (In Planung → Abgeschlossen), Auftragssumme (nur Chef) |
+| 🗂️ **Kanban-Board** | Alle Aufträge als Drag-lose Statusansicht in Spalten |
+| 🗺️ **Baustellenkarte** | Alle laufenden Aufträge auf einer interaktiven Leaflet/OpenStreetMap-Karte mit Farbmarkern je Status |
+| 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) für jeden Termin |
+| ⏱️ **Zeiterfassung** | Stempeluhr (Ein-/Ausstempeln), GPS-Standortprüfung, Geofencing je Baustelle, Kunden-Zuordnung |
+| 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, Tagesfilter – zusammengeführt in einer Ansicht |
+| 🌴 **Urlaub & Abwesenheit** | Urlaubsanträge, Krankmeldungen, Schulungen, Datei-Upload, Jahresübersicht mit Fortschrittsbalken |
+| ⚖️ **Profilgewicht-Rechner** | Gewichtsberechnung für IPE, HEB, HEA, HEM, UPN, UPE, Winkel, Rund-/Rechteckrohr, Blech, Flachstahl, Rundstahl – mit Stückliste und Druckfunktion |
+| 🔍 **Globale Suche** | Tastenkürzel `/` öffnet eine Overlay-Suche über Aufträge, Kunden, Termine und Notizen mit Tastaturnavigation |
+
+### Nur für Chef (ADMIN)
+
+| Bereich | Beschreibung |
+|---|---|
+| 👥 **Mitarbeiter-Logins** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten |
+| 📋 **Arbeitszeiten-Übersicht** | Alle Stempelzeiten aller Mitarbeiter, manuelle Einträge, Löschen, PDF-Export |
+| 👤 **Kunden** | Kundenverwaltung mit Kontaktdaten, Dateien, verknüpfte Projekte |
+| 📋 **Angebote** | Angebote erstellen, Positionen hinterlegen, direkt in Rechnung umwandeln |
+| 🧾 **Rechnungen** | Rechnungen verwalten, Mahnstatus, PDF-Download |
+| 📦 **Artikelstamm** | Standardartikel und Leistungen für Angebote & Rechnungen |
+
+### Je Auftrag (Projektdetailseite)
+
+- 📐 Digitales Aufmaß (Bauteilmaße mobil erfassen)
+- ✏️ Handskizzen auf Canvas (Stift, Linie, Rechteck, Radierer, Farb- & Stärkenauswahl)
+- 🛠️ Aufgaben & Mängel mit Foto-Nachweis
+- 📝 Baustellen-Notizbuch
+- 📸 Abschlussfotos (Upload via Cloudinary)
+- 📁 Zeichnungen & Dokumente hochladen
+- 📍 Geo-Fencing Standort mit Adresssuche (Nominatim)
+- 📅 Verknüpfte Termine mit Wettervorhersage
+- 📄 **Lieferschein/Stundennachweis-PDF** (Stunden, Aufmaß, Aufgaben, Notizen auf Knopfdruck)
+
+---
+
+## 🛠 Tech-Stack
+
+| Kategorie | Technologie |
+|---|---|
+| **Backend** | Node.js · Express.js |
+| **Templates** | EJS (Embedded JavaScript) |
+| **Styling** | Tailwind CSS (via CDN) |
+| **Datenbank** | PostgreSQL (Produktion) · SQLite (lokal) |
+| **Auth** | JWT (Cookie-basiert) · bcryptjs |
+| **Datei-Upload** | Multer · Cloudinary |
+| **PDF-Generierung** | PDFKit |
+| **Karte** | Leaflet.js · OpenStreetMap |
+| **Kalender** | FullCalendar |
+| **Wetter** | Open-Meteo API (kostenlos, kein API-Key) |
+
+---
+
+## ✅ Voraussetzungen
+
+- **Node.js** ≥ 18
+- **npm** ≥ 9
+- Für die Cloud: PostgreSQL-Datenbank (z. B. auf [Render](https://render.com))
+- Für Datei-Uploads: [Cloudinary](https://cloudinary.com)-Account (kostenloser Plan reicht)
+
+---
+
+## 🚀 Installation (Lokal)
 
 ```bash
-# Dependencies installieren
+# 1. Repository klonen
+git clone https://github.com/dein-nutzername/metallbau-app.git
+cd metallbau-app
+
+# 2. Abhängigkeiten installieren
 npm install
 
-# .env Datei erstellen (von .env.example kopieren)
+# 3. Umgebungsvariablen anlegen
 cp .env.example .env
-# Jetzt .env mit echten Werten ausfüllen!
+# → .env mit einem Texteditor öffnen und die Werte eintragen
 
-# Server mit Sicherheitsprüfung starten
-npm start
-
-# Oder ohne Prüfung starten (falls notwendig)
+# 4. App starten (SQLite wird automatisch angelegt)
 npm run start:force
+
+# App läuft unter: http://localhost:3000
 ```
 
-## 📋 Verfügbare Commands
+> **Hinweis:** `npm start` führt vor dem Start einen Security-Audit durch. Bei Warnungen die Abhängigkeiten mit `npm audit fix` bereinigen oder direkt `npm run start:force` verwenden.
 
-| Befehl | Beschreibung |
-|--------|-------------|
-| `npm start` | Startet Server mit npm audit Prüfung |
-| `npm run start:force` | Startet Server ohne Audit |
-| `npm run audit` | Zeigt Sicherheitsprobleme |
-| `npm run audit:fix` | Versucht automatische Fixes |
+---
+
+## ☁️ Deployment (Render / Cloud)
+
+1. Repository auf GitHub pushen
+2. Neuen **Web Service** auf [Render](https://render.com) erstellen
+3. Build-Befehl: `npm install`
+4. Start-Befehl: `node server.js`
+5. Alle [Umgebungsvariablen](#-umgebungsvariablen) in den Render-Einstellungen hinterlegen
+6. Separate **PostgreSQL-Datenbank** auf Render anlegen und `DATABASE_URL` eintragen
+
+Die App erkennt automatisch ob `DATABASE_URL` gesetzt ist und wechselt zwischen PostgreSQL und SQLite.
+
+---
+
+## 🔑 Umgebungsvariablen
+
+Alle Variablen sind in [`.env.example`](.env.example) dokumentiert. Pflichtfelder für den Produktionsbetrieb:
+
+| Variable | Beschreibung | Pflicht |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL Connection-String (Render stellt ihn bereit) | Prod |
+| `JWT_SECRET` | Zufälliger langer String für Token-Signierung | ✅ |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Cloud-Name | Upload |
+| `CLOUDINARY_API_KEY` | Cloudinary API-Key | Upload |
+| `CLOUDINARY_API_SECRET` | Cloudinary API-Secret | Upload |
+| `FIRM_LAT` | GPS-Breitengrad des Firmensitzes | Stempeluhr |
+| `FIRM_LNG` | GPS-Längengrad des Firmensitzes | Stempeluhr |
+| `FIRM_RADIUS_METERS` | Radius in Metern für Stempeluhr-Prüfung | Stempeluhr |
+| `PORT` | Server-Port (Standard: 3000) | Optional |
+
+> ⚠️ `.env` niemals in Git committen – sie ist in `.gitignore` ausgeschlossen.
+
+---
+
+## 👤 Nutzerrollen
+
+| Rolle | Beschreibung |
+|---|---|
+| `ADMIN` | Vollzugriff – Chef, sieht alle Bereiche inkl. Finanzen, Mitarbeiterverwaltung |
+| `EMPLOYEE` | Monteur – sieht Aufträge, Kalender, eigene Zeiterfassung, Schwarzes Brett, Tools |
+
+---
 
 ## 📁 Projektstruktur
 
 ```
 metallbau-app/
-├── .env.example          # Template für Umgebungsvariablen
-├── .gitignore            # Verbessert mit Security Best Practices
-├── SECURITY.md           # Sicherheitsrichtlinien
-├── package.json          # Mit npm audit beim Start
-├── server.js             # Express Server
-├── .github/
-│   └── dependabot.yml    # Automatische Dependency-Updates
-├── scripts/
-│   └── audit.sh          # Audit-Skript
-└── docs/
-    └── SCRIPTS.md        # Dokumentation
+├── server.js              # Haupt-Anwendungsdatei (alle Routen & Middleware)
+├── config/
+│   └── database.js        # Datenbankverbindung (PostgreSQL / SQLite, Tabellen-Setup)
+├── middleware/
+│   └── auth.js            # JWT-Verifikation, requireAdmin-Guard
+├── routes/
+│   ├── authRoutes.js      # Login / Logout
+│   ├── adminRoutes.js     # Admin-Bereich (Nutzer, Arbeitszeiten)
+│   ├── projectRoutes.js   # Aufträge (teilweise in server.js)
+│   ├── timetrackingRoutes.js # Stempeluhr, Monatsexport
+│   ├── calendarRoutes.js  # Termine
+│   ├── vacationRoutes.js  # Urlaub & Abwesenheit
+│   ├── documentRoutes.js  # Angebote & Rechnungen
+│   ├── customerRoutes.js  # Kunden
+│   ├── articleRoutes.js   # Artikelstamm
+│   └── dashboardRoutes.js # Dashboard
+├── utils/
+│   └── notifier.js        # E-Mail & WhatsApp Benachrichtigungen (optional)
+├── views/
+│   ├── partials/
+│   │   ├── header.ejs     # HTML-Head, Body-Start
+│   │   └── sidebar.ejs    # Navigation, Suchoverlay
+│   ├── dashboard.ejs          # Chef-Dashboard
+│   ├── dashboard-employee.ejs # Mitarbeiter-Dashboard (Überstunden-Ampel)
+│   ├── projects.ejs           # Auftragsliste
+│   ├── project-detail.ejs     # Auftragsdetail (Aufmaß, Skizzen, Fotos, …)
+│   ├── project-board.ejs      # Kanban-Board
+│   ├── map.ejs                # Baustellenkarte (Leaflet)
+│   ├── calendar.ejs           # Kalender (FullCalendar + Wetter)
+│   ├── timetracking.ejs       # Stempeluhr
+│   ├── admin-timetracking.ejs # Arbeitszeiten-Übersicht (zusammengeführt)
+│   ├── steel-calculator.ejs   # Profilgewicht-Rechner
+│   ├── vacations.ejs          # Urlaub & Abwesenheit
+│   ├── customers.ejs          # Kundenliste
+│   ├── admin-users.ejs        # Mitarbeiterverwaltung
+│   ├── invoices.ejs           # Rechnungen
+│   ├── offers.ejs             # Angebote
+│   └── articles.ejs           # Artikelstamm
+├── Public/
+│   └── manifest.json      # PWA-Manifest
+├── .env.example           # Umgebungsvariablen-Vorlage
+├── .gitignore
+├── package.json
+└── README.md
 ```
-
-## 🔒 Umgebungsvariablen
-
-Alle erforderlichen Umgebungsvariablen finden sich in `.env.example`:
-
-```env
-# Server
-PORT=3000
-NODE_ENV=production
-
-# Database
-DB_HOST=localhost
-DB_NAME=metallbau_db
-DB_USER=your_user
-DB_PASSWORD=your_password
-
-# JWT (Mindestens 32 Zeichen!)
-JWT_SECRET=your_super_secret_jwt_key_change_this
-
-# Cloudinary (für Bild-Uploads)
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
-```
-
-## 🛡️ Sicherheitschecklist
-
-- ✅ `.env` im `.gitignore`
-- ✅ npm audit beim Start
-- ✅ Dependabot aktiviert
-- ✅ Passwörter mit bcryptjs gehasht
-- ✅ JWT-Tokens verschlüsselt
-- ✅ HTTPS bereit (in Production)
-- ✅ Cookie-Secure in Production
-
-## 📝 Sicherheitsrichtlinien
-
-Siehe `SECURITY.md` für:
-- Vulnerability Reporting
-- Best Practices für Entwickler
-- Abhängigkeitssicherheit
-- Deployment-Checkliste
-
-## 🚀 Deployment
-
-1. `.env` mit echten Secrets konfigurieren
-2. `npm install` ausführen
-3. `npm start` startet Server mit Security Checks
-4. Logs prüfen auf Audit-Ergebnisse
-
-## 📞 Support
-
-Bei Sicherheitsfragen siehe `SECURITY.md` für Kontaktinformationen.
 
 ---
 
-**Zuletzt aktualisiert:** 2026-08-02
+## 🗺 Seiten & Routen
+
+| Route | Methode | Zugriff | Beschreibung |
+|---|---|---|---|
+| `/` | GET | Alle | Dashboard (rollenabhängig) |
+| `/login` | GET/POST | Öffentlich | Login |
+| `/logout` | GET | Alle | Abmelden |
+| `/projects` | GET | Alle | Auftragsliste |
+| `/projects/:id` | GET | Alle | Auftragsdetail |
+| `/projects/:id/pdf` | GET | Admin | Lieferschein-PDF |
+| `/projects/board` | GET | Alle | Kanban-Board |
+| `/map` | GET | Alle | Baustellenkarte |
+| `/calendar` | GET | Alle | Terminkalender |
+| `/timetracking` | GET | Alle | Stempeluhr |
+| `/admin/timetracking` | GET | Admin | Arbeitszeiten-Übersicht |
+| `/admin/timetracking/pdf` | GET | Admin | Arbeitszeitennachweis-PDF |
+| `/steel-calculator` | GET | Alle | Profilgewicht-Rechner |
+| `/vacations` | GET | Alle | Urlaub & Abwesenheit |
+| `/customers` | GET | Admin | Kundenverwaltung |
+| `/documents/offers` | GET | Admin | Angebote |
+| `/documents/invoices` | GET | Admin | Rechnungen |
+| `/articles` | GET | Admin | Artikelstamm |
+| `/admin/users` | GET | Admin | Mitarbeiterverwaltung |
+| `/api/search` | GET | Alle | Globale Suche (JSON) |
+| `/api/appointments` | GET | Alle | Termine (JSON, für Kalender) |
+| `/api/weather` | GET | Alle | Wettervorhersage (JSON) |
+
+---
+
+## 🔐 Standard-Login
+
+Nach dem ersten Start wird automatisch ein Admin-Nutzer angelegt:
+
+| Feld | Wert |
+|---|---|
+| Benutzername | `chef` |
+| Passwort | `chef123` |
+
+> ⚠️ **Passwort nach dem ersten Login unbedingt ändern!**  
+> In der Mitarbeiterverwaltung unter `/admin/users`.
+
+---
+
+## 📝 Lizenz
+
+Privates Projekt – alle Rechte vorbehalten.  
+Entwickelt von **Domenic Rosic**.
