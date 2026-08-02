@@ -78,6 +78,13 @@ dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INT DEFAULT 2
 dbQuery(`CREATE TABLE IF NOT EXISTS project_sketches (id SERIAL PRIMARY KEY, project_id INT NOT NULL, title TEXT, image_data TEXT NOT NULL, created_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS tickers (id SERIAL PRIMARY KEY, message TEXT NOT NULL, author TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS appointment_users (appointment_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (appointment_id, user_id))`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) DEFAULT 19`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(12,2) DEFAULT 0`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS due_date TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status_note TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS dunning_level INT DEFAULT 0`).catch(() => {});
+dbQuery(`CREATE TABLE IF NOT EXISTS document_items (id SERIAL PRIMARY KEY, document_id INT NOT NULL, description TEXT, quantity NUMERIC(10,3) DEFAULT 1, unit TEXT DEFAULT 'Stk', price NUMERIC(12,2) DEFAULT 0)`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catch(() => {});
