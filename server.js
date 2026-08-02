@@ -2665,6 +2665,112 @@ app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
 });
 
 // ==========================================
+// AUFTRAG → RECHNUNG
+// ==========================================
+app.get('/projects/:id/create-invoice', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Projektdaten inkl. Kundendaten
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person,
+             customers.email, customers.phone, customers.street, customers.zip, customers.city
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).send('Projekt nicht gefunden');
+
+    // Geleistete Stunden pro Mitarbeiter aus time_logs
+    const hoursRes = await dbQuery(`
+      SELECT users.username,
+             SUM(CASE WHEN tl_in.type = 'IN' THEN
+               EXTRACT(EPOCH FROM (tl_out.timestamp - tl_in.timestamp)) / 3600
+             ELSE 0 END) AS hours
+      FROM time_logs tl_in
+      JOIN users ON tl_in.user_id = users.id
+      LEFT JOIN LATERAL (
+        SELECT timestamp FROM time_logs
+        WHERE user_id = tl_in.user_id
+          AND project_id = tl_in.project_id
+          AND type = 'OUT'
+          AND timestamp > tl_in.timestamp
+        ORDER BY timestamp ASC LIMIT 1
+      ) tl_out ON true
+      WHERE tl_in.project_id = ? AND tl_in.type = 'IN'
+      GROUP BY users.username
+    `, [id]).catch(() => ({ rows: [] }));
+
+    // Fallback für SQLite (kein LATERAL): einfache Gesamtberechnung
+    let hourRows = hoursRes.rows || [];
+    if (!hourRows.length) {
+      const fallbackRes = await dbQuery(`
+        SELECT users.username, COUNT(*) * 0 AS hours
+        FROM time_logs JOIN users ON time_logs.user_id = users.id
+        WHERE time_logs.project_id = ? AND time_logs.type = 'IN'
+        GROUP BY users.username`, [id]).catch(() => ({ rows: [] }));
+      hourRows = fallbackRes.rows || [];
+    }
+    // Stunden > 0 filtern und runden
+    hourRows = hourRows.filter(r => parseFloat(r.hours) > 0).map(r => ({
+      ...r, hours: Math.round(parseFloat(r.hours) * 100) / 100
+    }));
+
+    const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    res.render('project-invoice-create', { project, hourRows, invoiceNumber });
+  } catch (err) {
+    console.error('Fehler bei Rechnungsvorschau:', err.message);
+    res.status(500).send('Fehler beim Laden der Rechnungsvorschau');
+  }
+});
+
+app.post('/projects/:id/create-invoice', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { invoice_number, due_days, description, quantity, unit, price } = req.body;
+
+  const descs  = Array.isArray(description) ? description : (description ? [description] : []);
+  const qtys   = Array.isArray(quantity)    ? quantity    : (quantity    ? [quantity]    : []);
+  const units  = Array.isArray(unit)        ? unit        : (unit        ? [unit]        : []);
+  const prices = Array.isArray(price)       ? price       : (price       ? [price]       : []);
+
+  const itemsToInsert = [];
+  let totalAmount = 0;
+  for (let i = 0; i < descs.length; i++) {
+    if (!descs[i] || descs[i].trim() === '') continue;
+    const qty = parseFloat(String(qtys[i] || '1').replace(',', '.')) || 1;
+    const prc = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
+    totalAmount += qty * prc;
+    itemsToInsert.push({ description: descs[i].trim(), quantity: qty, unit: units[i] || 'Psch', price: prc });
+  }
+
+  const days = parseInt(due_days || String(FIRMA.zahlungsfrist), 10);
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + days);
+
+  try {
+    // Kundendaten für customer_id
+    const projRes = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [id]);
+    const customerId = projRes.rows[0]?.customer_id || null;
+
+    const invRes = await dbQuery(
+      `INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date) VALUES (?, ?, ?, 'Gesendet', ?)`,
+      [invoice_number, customerId, totalAmount, dueDate.toISOString().split('T')[0]]
+    );
+    const invoiceId = invRes.lastID;
+    for (const item of itemsToInsert) {
+      await dbQuery(
+        'INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
+        [invoiceId, item.description, item.quantity, item.unit, item.price]
+      );
+    }
+    // Projekt als Abgeschlossen markieren (optional)
+    await dbQuery("UPDATE projects SET status = 'Abgeschlossen' WHERE id = ?", [id]).catch(() => {});
+    res.redirect('/documents/invoices/' + invoiceId);
+  } catch (err) {
+    console.error('Fehler beim Erstellen der Rechnung aus Auftrag:', err.message);
+    res.status(500).send('Fehler beim Erstellen der Rechnung');
+  }
+});
+
+// ==========================================
 // ==========================================
 // BAUSTELLENKOORDINATEN (Geo-Fencing)
 // ==========================================

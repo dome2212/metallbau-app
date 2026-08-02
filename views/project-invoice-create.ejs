@@ -1,0 +1,203 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+  <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex items-center gap-3">
+    <a href="/projects/<%= project.id %>" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 p-2 rounded-full transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-xl font-bold text-slate-800 dark:text-gray-100">🧾 Rechnung erstellen</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Auftrag: <strong><%= project.title %></strong> · Kunde: <strong><%= project.company_name || project.contact_person %></strong></p>
+    </div>
+  </header>
+
+  <div class="p-4 md:p-6 max-w-4xl mx-auto w-full">
+    <form action="/projects/<%= project.id %>/create-invoice" method="POST" id="inv-form">
+
+      <!-- ── Rechnungskopf ─────────────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 mb-5 space-y-4">
+        <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b dark:border-slate-700 pb-2">Rechnungsdaten</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Rechnungsnummer</label>
+            <input type="text" name="invoice_number" value="<%= invoiceNumber %>" required
+              class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Zahlungsziel (Tage)</label>
+            <input type="number" name="due_days" value="14" min="1" max="90"
+              class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div class="flex items-end">
+            <div class="bg-slate-50 dark:bg-slate-700 rounded-lg px-4 py-2 text-sm w-full">
+              <span class="text-xs text-slate-400 block">Empfänger</span>
+              <strong class="text-slate-800 dark:text-gray-100"><%= project.company_name || project.contact_person %></strong>
+              <% if (project.street) { %><span class="text-xs text-slate-500 block"><%= project.street %>, <%= project.zip %> <%= project.city %></span><% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Positionen ────────────────────────────────────────────── -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 mb-5">
+        <div class="flex justify-between items-center border-b dark:border-slate-700 pb-2 mb-4">
+          <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Positionen</h2>
+          <button type="button" onclick="addRow()"
+            class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+            + Position hinzufügen
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[600px]" id="positions-table">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-700 text-xs uppercase text-slate-500 dark:text-slate-400">
+                <th class="p-2 text-left">Beschreibung</th>
+                <th class="p-2 text-center w-20">Menge</th>
+                <th class="p-2 text-center w-20">Einheit</th>
+                <th class="p-2 text-right w-28">Einzelpreis €</th>
+                <th class="p-2 text-right w-28">Gesamt €</th>
+                <th class="p-2 w-10"></th>
+              </tr>
+            </thead>
+            <tbody id="positions-body">
+
+              <!-- Auftragsposition aus dem Projekttitel -->
+              <tr class="pos-row border-b dark:border-slate-700">
+                <td class="p-2"><input type="text" name="description" value="<%= project.title %>"
+                  class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none" required></td>
+                <td class="p-2"><input type="number" name="quantity" value="1" min="0.01" step="0.01" onchange="recalc(this)"
+                  class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                <td class="p-2"><input type="text" name="unit" value="Psch"
+                  class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                <td class="p-2"><input type="number" name="price" value="<%= (project.total_price || 0).toFixed(2) %>" min="0" step="0.01" onchange="recalc(this)"
+                  class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                <td class="p-2 text-right font-semibold text-slate-700 dark:text-slate-200 row-total">
+                  <%= (project.total_price || 0).toFixed(2) %> €
+                </td>
+                <td class="p-2"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button></td>
+              </tr>
+
+              <!-- Stunden-Positionen automatisch vorbelegen -->
+              <% if (hourRows && hourRows.length > 0) { %>
+                <% hourRows.forEach(row => { %>
+                  <tr class="pos-row border-b dark:border-slate-700">
+                    <td class="p-2"><input type="text" name="description" value="Arbeitsstunden – <%= row.username %>"
+                      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                    <td class="p-2"><input type="number" name="quantity" value="<%= row.hours %>" min="0.01" step="0.01" onchange="recalc(this)"
+                      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                    <td class="p-2"><input type="text" name="unit" value="Std."
+                      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+                    <td class="p-2"><input type="number" name="price" value="0.00" min="0" step="0.01" onchange="recalc(this)"
+                      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                      placeholder="Stundensatz"></td>
+                    <td class="p-2 text-right font-semibold text-slate-700 dark:text-slate-200 row-total">0.00 €</td>
+                    <td class="p-2"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button></td>
+                  </tr>
+                <% }) %>
+              <% } %>
+
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Summenblock -->
+        <div class="flex justify-end mt-6">
+          <div class="w-72 space-y-2 text-sm">
+            <div class="flex justify-between text-slate-500 dark:text-slate-400">
+              <span>Zwischensumme (Netto):</span>
+              <span id="subtotal-display">0,00 €</span>
+            </div>
+            <div class="flex justify-between text-slate-500 dark:text-slate-400">
+              <span>19 % MwSt.:</span>
+              <span id="tax-display">0,00 €</span>
+            </div>
+            <div class="flex justify-between text-base font-bold text-slate-800 dark:text-gray-100 border-t dark:border-slate-600 pt-2">
+              <span>Gesamtbetrag (Brutto):</span>
+              <span id="total-display">0,00 €</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Hinweis & Speichern ────────────────────────────────────── -->
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5 text-sm text-blue-800 dark:text-blue-300">
+        ℹ️ Nach dem Speichern wird der Auftragsstatus auf <strong>Abgeschlossen</strong> gesetzt und die Rechnung im Bereich <strong>Rechnungen</strong> abgelegt.
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl shadow transition flex-1 text-center">
+          🧾 Rechnung jetzt erstellen & speichern
+        </button>
+        <a href="/projects/<%= project.id %>"
+          class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold px-6 py-3 rounded-xl transition text-center">
+          Abbrechen
+        </a>
+      </div>
+
+    </form>
+  </div>
+</main>
+
+<script>
+// ── Zeilengesamt neu berechnen ──────────────────────────────────────────────
+function recalc(input) {
+  const row = input.closest('tr');
+  const qty   = parseFloat(row.querySelector('[name="quantity"]').value) || 0;
+  const price = parseFloat(row.querySelector('[name="price"]').value)    || 0;
+  const total = qty * price;
+  row.querySelector('.row-total').textContent = total.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+  updateSums();
+}
+
+// ── Gesamtsumme aktualisieren ───────────────────────────────────────────────
+function updateSums() {
+  let subtotal = 0;
+  document.querySelectorAll('.pos-row').forEach(row => {
+    const qty   = parseFloat(row.querySelector('[name="quantity"]')?.value) || 0;
+    const price = parseFloat(row.querySelector('[name="price"]')?.value)    || 0;
+    subtotal += qty * price;
+  });
+  const tax   = subtotal * 0.19;
+  const total = subtotal + tax;
+  const fmt = v => v.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+  document.getElementById('subtotal-display').textContent = fmt(subtotal);
+  document.getElementById('tax-display').textContent      = fmt(tax);
+  document.getElementById('total-display').textContent    = fmt(total);
+}
+
+// ── Zeile hinzufügen ────────────────────────────────────────────────────────
+function addRow() {
+  const tbody = document.getElementById('positions-body');
+  const tr = document.createElement('tr');
+  tr.className = 'pos-row border-b dark:border-slate-700';
+  tr.innerHTML = `
+    <td class="p-2"><input type="text" name="description" placeholder="Beschreibung"
+      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+    <td class="p-2"><input type="number" name="quantity" value="1" min="0.01" step="0.01" onchange="recalc(this)"
+      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+    <td class="p-2"><input type="text" name="unit" value="Stk"
+      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+    <td class="p-2"><input type="number" name="price" value="0.00" min="0" step="0.01" onchange="recalc(this)"
+      class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
+    <td class="p-2 text-right font-semibold text-slate-700 dark:text-slate-200 row-total">0,00 €</td>
+    <td class="p-2"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('[name="description"]').focus();
+}
+
+// ── Zeile entfernen ─────────────────────────────────────────────────────────
+function removeRow(btn) {
+  btn.closest('tr').remove();
+  updateSums();
+}
+
+// Initialen Summenstand berechnen
+updateSums();
+</script>
+
+</body>
+</html>
