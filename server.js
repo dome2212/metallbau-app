@@ -175,9 +175,7 @@ app.use('/projects', projectRoutes);
 app.use('/customers', customerRoutes);
 
 // Kalender & Termine & Wetter-API
-app.use('/calendar',      calendarRoutes);
-app.use('/api/weather',   calendarRoutes);
-app.use('/api/appointments', calendarRoutes);
+app.use('/',              calendarRoutes);
 
 // Zeiterfassung
 app.use('/timetracking', timetrackingRoutes);

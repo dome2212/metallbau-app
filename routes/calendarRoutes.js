@@ -67,7 +67,7 @@ function fetchWeather(lat, lng, dateStr) {
 // KALENDER-ANSICHT
 // Admin sieht alle Mitarbeiter für Zuweisung
 // ==========================================
-router.get('/', async (req, res) => {
+router.get('/calendar', async (req, res) => {
   try {
     const [customersRes, usersRes] = await Promise.all([
       dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC'),
