@@ -513,7 +513,7 @@ async function sendKiMessage() {
 
     // JSON-Positionen herausparsen
     const positions = parsePositionsFromReply(reply);
-    const textOnly  = reply.replace(/POSITIONEN_JSON:[\s\S]*?(\])/g, '').trim();
+    const textOnly  = reply.replace(/POSITIONEN_JSON[:\s]*\[[\s\S]*?\]/g, '').replace(/```[\s\S]*?```/g, '').trim();
 
     appendChatBubble('bot', textOnly || reply);
 
@@ -532,10 +532,25 @@ async function sendKiMessage() {
 
 function parsePositionsFromReply(text) {
   try {
-    const match = text.match(/POSITIONEN_JSON:\s*(\[[\s\S]*?\])/);
-    if (!match) return [];
-    const arr = JSON.parse(match[1]);
-    return Array.isArray(arr) ? arr : [];
+    // Variante 1: POSITIONEN_JSON: [...] oder POSITIONEN_JSON [...] (mit/ohne Doppelpunkt)
+    const m1 = text.match(/POSITIONEN_JSON[^[]*(\[[\s\S]*?\])/);
+    if (m1) {
+      const arr = JSON.parse(m1[1]);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+    // Variante 2: JSON-Array in Codeblock ```json [...] ``` oder ``` [...] ```
+    const m2 = text.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+    if (m2) {
+      const arr = JSON.parse(m2[1]);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+    // Variante 3: Erstes JSON-Array irgendwo im Text (Fallback)
+    const m3 = text.match(/(\[\s*\{[\s\S]*?\}\s*\])/);
+    if (m3) {
+      const arr = JSON.parse(m3[1]);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+    return [];
   } catch (e) {
     return [];
   }
