@@ -35,7 +35,7 @@ async function callAI(prompt) {
       'X-Title': 'Metallbau App'
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      model: 'deepseek/deepseek-r1-0528:free',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7
     })
