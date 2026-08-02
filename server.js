@@ -1983,7 +1983,7 @@ app.get('/documents/invoices/:id/pdf', async (req, res) => {
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden');
 
     const itemsRes = await dbQuery('SELECT * FROM invoice_items WHERE invoice_id = ?', [id]);
-    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [] });
+    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma: FIRMA });
   } catch (err) {
     res.status(500).send('Fehler beim Laden der PDF-Ansicht');
   }
