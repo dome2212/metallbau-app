@@ -7,9 +7,41 @@ const bcrypt = require('bcryptjs');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
+const { execSync } = require('child_process');
 
 // Load .env (optional)
 try { require('dotenv').config(); } catch (e) {}
+
+// If running in an environment without shell access (e.g., Render), optionally try to
+// install missing npm packages at startup. You can disable this behavior by setting
+// AUTO_NPM_INSTALL=false in the environment.
+(function ensureDependencies() {
+  const autoInstall = process.env.AUTO_NPM_INSTALL !== 'false';
+  const needed = ['@google/genai', 'dotenv'];
+  const missing = [];
+  for (const pkg of needed) {
+    try {
+      require.resolve(pkg);
+    } catch (e) {
+      missing.push(pkg);
+    }
+  }
+  if (missing.length > 0) {
+    if (!autoInstall) {
+      console.warn('Missing packages:', missing.join(', '), '- AUTO_NPM_INSTALL=false, skipping auto-install.');
+      return;
+    }
+    try {
+      console.log('🔧 Fehlende Pakete erkannt — versuche automatisch zu installieren:', missing.join(' '));
+      // Use --no-audit and --no-fund to keep the install quieter on some platforms
+      execSync(`npm install --no-audit --no-fund ${missing.join(' ')}`, { stdio: 'inherit' });
+      console.log('✅ Installation fehlender Pakete abgeschlossen');
+    } catch (err) {
+      console.error('❌ Automatische Installation fehlgeschlagen:', err.message);
+      console.warn('Bitte führe lokal oder in deiner Umgebung aus: npm install', missing.join(' '));
+    }
+  }
+})();
 
 // === Google Gemini (GenAI) Client ===
 let genaiClient = null;
@@ -114,4 +146,4 @@ const dbQuery = (sql, params = []) => {
 // ==========================================
 // AUTOMATISCHE TABELLEN-ERSTELLUNG BEIM START
 // ==========================================
-// ... (rest of the original server.js remains unchanged) ...
+// Rest of server.js remains unchanged — routes and logic already present on the branch.
