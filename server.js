@@ -880,12 +880,14 @@ app.post('/vacations/delete', verifyToken, requireAdmin, async (req, res) => {
 // ==========================================
 app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
   try {
-    const selectedDate = req.query.date;
-    const selectedUserId = req.query.user_id;
+    const activeTab    = req.query.tab || 'daily';
+    const selectedDate = req.query.date || '';
+    const selectedUserId = req.query.user_id || '';
 
     const usersRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
     const users = usersRes.rows || [];
 
+    // ── Tab 1: Tagesansicht (alle Einträge, filterbar) ──────────────────────
     const tsCol = isPg
       ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
       : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
@@ -893,45 +895,91 @@ app.get('/admin/timetracking', verifyToken, requireAdmin, async (req, res) => {
       ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
       : `date(time_logs.timestamp)`;
 
-    let query = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp
+    let logsQuery = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp
       FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
-    let queryParams = [];
+    const logsParams = [];
 
     if (selectedDate) {
-      query += ` AND ${dateFilter} = ?`;
-      queryParams.push(selectedDate);
+      logsQuery += ` AND ${dateFilter} = ?`;
+      logsParams.push(selectedDate);
     }
-
     if (selectedUserId) {
-      query += ` AND time_logs.user_id = ? `;
-      queryParams.push(selectedUserId);
+      logsQuery += ` AND time_logs.user_id = ?`;
+      logsParams.push(selectedUserId);
     }
+    logsQuery += ` ORDER BY time_logs.timestamp DESC`;
 
-    query += ` ORDER BY time_logs.timestamp DESC`;
+    const logsResult = await dbQuery(logsQuery, logsParams);
+    const logs = (logsResult.rows || []).map(log => ({
+      ...log,
+      timestamp: log.local_timestamp || log.timestamp
+    }));
 
-    const result = await dbQuery(query, queryParams);
-    
-    const logs = (result.rows || []).map(log => {
-      let formattedTimestamp = log.timestamp;
-      if (log.local_timestamp) {
-        formattedTimestamp = log.local_timestamp;
+    // ── Tab 2: Monatsauswertung (KPIs + Einträge für gewählten MA/Monat) ────
+    const month = req.query.month || new Date().toISOString().slice(0, 7);
+    const monthUserId = req.query.month_user_id || (users.length > 0 ? users[0].id : req.user.id);
+    const dailyHours = parseFloat(req.query.daily_hours || '8');
+
+    const monthlyEntriesRes = await dbQuery(
+      isPg
+        ? `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY time_logs.timestamp ASC`
+        : `SELECT time_logs.*, strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+           FROM time_logs WHERE user_id = ? AND strftime('%Y-%m', timestamp) = ?
+           ORDER BY time_logs.timestamp ASC`,
+      [monthUserId, month]
+    );
+    const monthlyEntries = (monthlyEntriesRes.rows || []).map(e => ({
+      ...e,
+      timestamp: e.local_timestamp || e.timestamp
+    }));
+
+    // Gearbeitete Stunden aus IN/OUT-Paaren
+    let workedMs = 0;
+    for (let i = 0; i < monthlyEntries.length; i++) {
+      if (monthlyEntries[i].type !== 'IN') continue;
+      const start = new Date(monthlyEntries[i].timestamp).getTime();
+      const next  = monthlyEntries[i + 1];
+      if (next && next.type === 'OUT') {
+        const end = new Date(next.timestamp).getTime();
+        if (end > start) workedMs += (end - start);
       }
-      return {
-        ...log,
-        timestamp: formattedTimestamp
-      };
-    });
-    
-    res.render('admin-timetracking', { 
-      logs, 
+    }
+    const workedHours = workedMs / 3600000;
+
+    // Werktage im Monat (Mo–Fr)
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const targetHours   = workdaysInMonth * dailyHours;
+    const overtimeHours = workedHours - targetHours;
+
+    res.render('admin-timetracking', {
+      // Gemeinsam
       users,
-      selectedDate: selectedDate || '',
-      selectedUserId: selectedUserId || '',
-      user: req.user
+      user: req.user,
+      activeTab,
+      // Tab 1 – Tagesansicht
+      logs,
+      selectedDate,
+      selectedUserId,
+      // Tab 2 – Monatsauswertung
+      month,
+      monthUserId,
+      monthlyEntries,
+      dailyHours,
+      workedHours:   workedHours.toFixed(2),
+      targetHours:   targetHours.toFixed(2),
+      overtimeHours: overtimeHours.toFixed(2)
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err);
-    res.status(500).send("Fehler beim Laden der Zeiterfassung");
+    res.status(500).send('Fehler beim Laden der Zeiterfassung');
   }
 });
 

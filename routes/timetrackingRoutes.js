@@ -83,13 +83,10 @@ router.post('/admin/delete', requireAdmin, async (req, res) => {
   res.redirect('back');
 });
 
-router.get('/admin/monthly', async (req, res) => {
-  const month = req.query.month || new Date().toISOString().slice(0, 7);
-  const targetUserId = req.query.user_id || req.user.id;
-  const users = req.user.role === 'ADMIN' ? (await dbQuery('SELECT id, username FROM users')).rows : [];
-  const entries = (await dbQuery(`SELECT time_logs.*, TO_CHAR(time_logs.timestamp, 'YYYY-MM-DD HH24:MI:SS') as local_timestamp FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp, 'YYYY-MM') = ? ORDER BY time_logs.timestamp ASC`, [targetUserId, month])).rows;
-  
-  res.render('time-monthly', { currentUser: req.user, users, entries, selectedMonth: month, selectedUserId: targetUserId });
+router.get('/admin/monthly', (req, res) => {
+  // Merged into /admin/timetracking — forward with same query params
+  const qs = new URLSearchParams(req.query).toString();
+  res.redirect('/admin/timetracking' + (qs ? '?' + qs : ''));
 });
 
 router.get('/admin/export-csv', async (req, res) => {

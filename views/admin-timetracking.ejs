@@ -4,22 +4,113 @@
   <%- include('partials/sidebar') %>
 
   <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
       <h1 class="text-xl md:text-2xl font-bold text-slate-800">📋 Arbeitszeiten-Übersicht</h1>
+      <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+        Monat Gesamt: <strong id="total-display">wird berechnet…</strong>
+      </span>
     </header>
 
-    <div class="px-4 md:px-6 max-w-6xl mx-auto w-full space-y-6 pb-6">
-      
-      <!-- Neuer Bereich: Manueller Zeiteintrag durch Admin -->
-      <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
+    <div class="px-4 md:px-6 max-w-7xl mx-auto w-full space-y-6 pb-6">
+
+      <!-- ============================================================ -->
+      <!-- MONATSAUSWERTUNG & FILTER                                    -->
+      <!-- ============================================================ -->
+      <div class="bg-white p-4 rounded-xl shadow">
+        <h2 class="text-base font-semibold text-slate-700 mb-3">📊 Monatsauswertung</h2>
+        <form method="GET" action="/admin/timetracking" class="flex flex-wrap gap-4 items-end">
+          <!-- Mitarbeiter -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Mitarbeiter</label>
+            <select name="user_id" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <option value="">Alle Mitarbeiter</option>
+              <% if (typeof users !== 'undefined') { %>
+                <% users.forEach(u => { %>
+                  <option value="<%= u.id %>" <%= typeof selectedUserId !== 'undefined' && String(selectedUserId) === String(u.id) ? 'selected' : '' %>><%= u.username %></option>
+                <% }) %>
+              <% } %>
+            </select>
+          </div>
+          <!-- Monat -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Monat</label>
+            <input type="month" name="month" value="<%= typeof selectedMonth !== 'undefined' ? selectedMonth : '' %>" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          </div>
+          <!-- Soll-Stunden -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Soll-Std./Tag</label>
+            <input type="number" name="daily_hours" value="<%= typeof dailyHours !== 'undefined' ? dailyHours : 8 %>" min="1" max="12" step="0.5"
+              class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-24">
+          </div>
+          <!-- Datum (Tagesfilter) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Einzeltag (optional)</label>
+            <input type="date" name="date" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          </div>
+          <!-- Buttons -->
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Filtern</button>
+            <a href="/admin/timetracking" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition">Zurücksetzen</a>
+            <a href="/admin/timetracking/pdf?user_id=<%= typeof selectedUserId !== 'undefined' ? selectedUserId : '' %>&date=<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>"
+               target="_blank"
+               class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1">
+              📄 PDF Export
+            </a>
+            <a href="/timetracking/admin/export-csv?month=<%= typeof selectedMonth !== 'undefined' ? selectedMonth : '' %>&user_id=<%= typeof selectedUserId !== 'undefined' ? selectedUserId : '' %>"
+               class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1">
+              📥 CSV Export
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- KPI-KARTEN (Ist / Soll / Über-Minusstunden)                 -->
+      <!-- ============================================================ -->
+      <% if (typeof workedHours !== 'undefined' && typeof selectedUserId !== 'undefined' && selectedUserId !== '') { %>
+        <%
+          const ot = parseFloat(overtimeHours);
+          const isOver = ot >= 0;
+          const otAbs = Math.abs(ot);
+          const otH = Math.floor(otAbs);
+          const otM = Math.round((otAbs - otH) * 60);
+          const otLabel = (isOver ? '+' : '-') + otH + ' Std. ' + otM + ' Min.';
+        %>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Gearbeitete Stunden</p>
+            <p class="text-2xl font-bold text-slate-800 mt-1"><%= workedHours %> Std.</p>
+            <p class="text-xs text-slate-400 mt-0.5">im Monat <%= selectedMonth %></p>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4 border-l-4 border-slate-400">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
+            <p class="text-2xl font-bold text-slate-800 mt-1"><%= targetHours %> Std.</p>
+            <p class="text-xs text-slate-400 mt-0.5">Werktage (Mo–Fr) im Monat</p>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              <%= isOver ? 'Überstunden' : 'Minusstunden' %>
+            </p>
+            <p class="text-2xl font-bold mt-1 <%= isOver ? 'text-green-600' : 'text-red-600' %>">
+              <%= otLabel %>
+            </p>
+            <p class="text-xs text-slate-400 mt-0.5">Ist − Soll</p>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- ============================================================ -->
+      <!-- MANUELLEN ZEITEINTRAG ERFASSEN                               -->
+      <!-- ============================================================ -->
+      <div class="bg-white rounded-xl shadow p-4 md:p-6">
         <h2 class="text-base md:text-lg font-semibold text-slate-800 mb-4">➕ Arbeitszeit manuell erfassen</h2>
         <form method="POST" action="/admin/timetracking/add" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end">
-          
+
           <!-- Mitarbeiter -->
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Mitarbeiter</label>
             <select name="user_id" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
-              <option value="">Bitte wählen...</option>
+              <option value="">Bitte wählen…</option>
               <% if (typeof users !== 'undefined' && users.length > 0) { %>
                 <% users.forEach(u => { %>
                   <option value="<%= u.id %>"><%= u.username %></option>
@@ -28,7 +119,7 @@
             </select>
           </div>
 
-          <!-- Typ (Kommen / Gehen) -->
+          <!-- Typ -->
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Typ</label>
             <select name="type" required class="w-full border rounded-lg p-2.5 text-sm bg-white">
@@ -65,49 +156,13 @@
         </form>
       </div>
 
-      <!-- Filter-Bereich nach Datum & Mitarbeiter -->
-      <div class="bg-white rounded-xl shadow p-4 md:p-6">
-        <form method="GET" action="/admin/timetracking" class="flex flex-col sm:flex-row items-end gap-4">
-          
-          <!-- Mitarbeiter-Filter -->
-          <div class="w-full sm:w-auto flex-1">
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Mitarbeiter auswählen</label>
-            <select name="user_id" class="w-full border rounded-lg p-2.5 text-sm bg-white">
-              <option value="">Alle Mitarbeiter</option>
-              <% if (typeof users !== 'undefined' && users.length > 0) { %>
-                <% users.forEach(u => { %>
-                  <option value="<%= u.id %>" <%= typeof selectedUserId !== 'undefined' && selectedUserId == u.id ? 'selected' : '' %>>
-                    <%= u.username %>
-                  </option>
-                <% }) %>
-              <% } %>
-            </select>
-          </div>
-
-          <!-- Datum-Filter -->
-          <div class="w-full sm:w-auto flex-1">
-            <label class="block text-xs md:text-sm font-medium text-slate-700 mb-1">Datum auswählen</label>
-            <input type="date" name="date" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" class="w-full border rounded-lg p-2.5 text-sm bg-white">
-          </div>
-
-          <!-- Buttons -->
-          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition flex-1 sm:flex-none">Filtern</button>
-            <a href="/admin/timetracking" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none">Zurücksetzen</a>
-            
-            <!-- PDF Download Button -->
-            <a href="/admin/timetracking/pdf?user_id=<%= typeof selectedUserId !== 'undefined' ? selectedUserId : '' %>&date=<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg text-sm transition text-center flex-1 sm:flex-none flex items-center justify-center gap-1.5">
-              <span>📄 PDF Export</span>
-            </a>
-          </div>
-        </form>
-      </div>
-
-      <!-- Tabelle aller Stempel-Einträge -->
+      <!-- ============================================================ -->
+      <!-- TABELLE DER EINTRÄGE                                         -->
+      <!-- ============================================================ -->
       <div class="bg-white rounded-xl shadow overflow-hidden">
         <div class="px-4 md:px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 class="text-base md:text-lg font-semibold text-slate-800">Erfasste Einträge</h2>
-          <span class="text-xs text-slate-500">Datum & Uhrzeit (Lokal)</span>
+          <span class="text-xs text-slate-500">Datum &amp; Uhrzeit (Lokal)</span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-600 min-w-[700px]">
@@ -116,17 +171,15 @@
                 <th class="p-4">Datum</th>
                 <th class="p-4">Uhrzeit</th>
                 <th class="p-4">Mitarbeiter</th>
-                <th class="p-4">Aktion</th>
+                <th class="p-4">Typ</th>
                 <th class="p-4">Notiz</th>
                 <th class="p-4 text-right">Löschen</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200">
+            <tbody class="divide-y divide-slate-200" id="entries-body">
               <% if (typeof logs !== 'undefined' && logs.length > 0) { %>
                 <% logs.forEach(log => { %>
                   <%
-                    // timestamp ist bereits lokale Berliner Zeit als String "YYYY-MM-DD HH:MM:SS"
-                    // Kein new Date() verwenden — das würde UTC annehmen und 1-2 Std. falsch liegen
                     const tsParts = String(log.timestamp).replace('T', ' ').split(' ');
                     const dateParts = tsParts[0] ? tsParts[0].split('-') : [];
                     const timeParts = tsParts[1] ? tsParts[1].split(':') : [];
@@ -172,6 +225,31 @@
     </div>
   </main>
 </div>
+
+<script>
+// Gesamtstunden clientseitig aus IN/OUT Paaren berechnen (für den Header-Badge)
+(function () {
+  const entries = <%- JSON.stringify(typeof logs !== 'undefined' ? logs : []) %>;
+  let totalMs = 0;
+
+  // Sortiere nach Timestamp aufsteigend (logs kommen DESC aus DB)
+  const sorted = entries.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].type !== 'IN') continue;
+    const start = new Date(sorted[i].timestamp).getTime();
+    const next = sorted[i + 1];
+    if (next && next.type === 'OUT') {
+      const end = new Date(next.timestamp).getTime();
+      if (end > start) totalMs += (end - start);
+    }
+  }
+
+  const h = Math.floor(totalMs / 3600000);
+  const m = Math.floor((totalMs % 3600000) / 60000);
+  document.getElementById('total-display').textContent = h + ' Std. ' + m + ' Min.';
+})();
+</script>
 
 </body>
 </html>
