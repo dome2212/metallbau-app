@@ -12,10 +12,13 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Twilio Client initialisieren (optional, falls Zugangsdaten vorhanden)
-const twilioClient = process.env.TWILIO_SID && process.env.TWILIO_AUTH 
-  ? twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH) 
-  : null;
+// Twilio Client lazy initialisieren – erst beim ersten Aufruf, nicht beim Start
+function getTwilioClient() {
+  const sid  = process.env.TWILIO_SID;
+  const auth = process.env.TWILIO_AUTH;
+  if (!sid || !auth || !sid.startsWith('AC')) return null;
+  return twilio(sid, auth);
+}
 
 // 1. E-Mail senden
 async function sendEmail(to, subject, htmlContent) {
@@ -36,6 +39,7 @@ async function sendEmail(to, subject, htmlContent) {
 // 2. WhatsApp Nachricht senden
 async function sendWhatsApp(toPhone, message) {
   try {
+    const twilioClient = getTwilioClient();
     if (!twilioClient || !toPhone) return;
     // Formatierung anpassen (z.B. Leerzeichen entfernen)
     let formattedPhone = toPhone.replace(/\s+/g, '');
