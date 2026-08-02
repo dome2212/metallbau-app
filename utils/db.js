@@ -9,8 +9,14 @@ const dbQuery = (sql, params = []) => {
     if (process.env.DATABASE_URL) {
       let i = 0;
       let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-        pgSql += ' RETURNING id';
+      // RETURNING id nur anhängen wenn die Tabelle eine id-Spalte hat
+      // (appointment_users hat keine id-Spalte → kein RETURNING)
+      const trimmed = pgSql.trim().toUpperCase();
+      if (trimmed.startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
+        // appointment_users hat keine id-Spalte – kein RETURNING anhängen
+        if (!pgSql.toLowerCase().includes('appointment_users')) {
+          pgSql += ' RETURNING id';
+        }
       }
 
       db.query(pgSql, params, (err, res) => {
@@ -20,10 +26,20 @@ const dbQuery = (sql, params = []) => {
         resolve({ rows, lastID });
       });
     } else {
-      db.all(sql, params, function(err, rows) {
-        if (err) return reject(err);
-        resolve({ rows: rows || [], lastID: this?.lastID });
-      });
+      const trimmed = sql.trim().toUpperCase();
+      if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
+        // SELECT: db.all() liefert Zeilen
+        db.all(sql, params, function(err, rows) {
+          if (err) return reject(err);
+          resolve({ rows: rows || [], lastID: null });
+        });
+      } else {
+        // INSERT / UPDATE / DELETE: db.run() liefert lastID über this.lastID
+        db.run(sql, params, function(err) {
+          if (err) return reject(err);
+          resolve({ rows: [], lastID: this.lastID });
+        });
+      }
     }
   });
 };
