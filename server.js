@@ -188,18 +188,6 @@ dbQuery(`
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
 
 // ==========================================
-// WEB-PUSH: SUBSCRIPTION-TABELLE
-// ==========================================
-dbQuery(`CREATE TABLE IF NOT EXISTS push_subscriptions (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER,
-  endpoint TEXT UNIQUE NOT NULL,
-  p256dh TEXT NOT NULL,
-  auth TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)`).catch(() => {});
-
-// ==========================================
 // CLOUDINARY & MULTER KONFIGURATION
 // ==========================================
 cloudinary.config({
@@ -323,7 +311,6 @@ function fetchWeather(lat, lng, dateStr) {
 const { verifyToken, requireAdmin } = require('./middleware/auth');
 const authRoutes = require('./routes/authRoutes');
 const documentRoutes = require('./routes/documentRoutes');
-const pushRoutes = require('./routes/pushRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -336,22 +323,12 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'Public')));
 
-// Service Worker – muss mit Content-Type text/javascript ausgeliefert werden
-app.get('/sw.js', (req, res) => {
-  res.setHeader('Content-Type', 'application/javascript');
-  res.setHeader('Service-Worker-Allowed', '/');
-  res.sendFile(path.join(__dirname, 'Public', 'sw.js'));
-});
-
 // Öffentliche Routen (Login / Logout)
 app.use('/', authRoutes);
 
 // ALLE DARAUFFOLGENDEN ROUTEN SCHÜTZEN
 app.use(verifyToken);
 app.use('/documents', documentRoutes);
-
-// Push-Benachrichtigungs-Endpunkte (vapid-key ist öffentlich, subscribe/unsubscribe brauchen Auth)
-app.use('/push', pushRoutes);
 
 // ==========================================
 // DASHBOARD (Rollenspezifisch: Chef vs. Mitarbeiter)
@@ -1683,6 +1660,13 @@ app.post('/articles/delete', async (req, res) => {
 });
 
 // ==========================================
+// PROFILGEWICHT-RECHNER
+// ==========================================
+app.get('/steel-calculator', (req, res) => {
+  res.render('steel-calculator');
+});
+
+// ==========================================
 // KALENDER & TERMINE
 // ==========================================
 app.get('/calendar', async (req, res) => {
@@ -1774,22 +1758,6 @@ app.post('/api/appointments/add', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `;
     await dbQuery(sql, [title, customer_id || null, start_date, end_date || null, description]);
-
-    // ── Web-Push: alle Monteure benachrichtigen ──────────────────────────────
-    try {
-      const { sendPush } = require('./utils/webpush');
-      const dateStr = start_date
-        ? new Date(start_date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        : '';
-      await sendPush({
-        title: '📅 Neuer Termin eingetragen',
-        body:  `${title}${dateStr ? ' – ' + dateStr : ''}${description ? '\n' + description : ''}`,
-        url:   '/calendar'
-      });
-    } catch (pushErr) {
-      console.error('Push-Fehler (Termin):', pushErr.message);
-    }
-
     res.redirect('/calendar');
   } catch (err) {
     res.status(500).send('Fehler beim Speichern');
@@ -1837,19 +1805,6 @@ app.post('/projects/add', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `;
     await dbQuery(sql, [customer_id || null, title, description || null, parsedPrice, status || 'In Planung']);
-
-    // ── Web-Push: alle Monteure benachrichtigen ──────────────────────────────
-    try {
-      const { sendPush } = require('./utils/webpush');
-      await sendPush({
-        title: '🏗️ Neuer Auftrag angelegt',
-        body:  `${title}${description ? ' – ' + description.slice(0, 80) : ''}`,
-        url:   '/projects'
-      });
-    } catch (pushErr) {
-      console.error('Push-Fehler (Projekt):', pushErr.message);
-    }
-
     res.redirect('/projects');
   } catch (err) {
     res.status(500).send('Fehler beim Erstellen des Auftrags');
@@ -2143,18 +2098,6 @@ app.post('/ticker/add', verifyToken, requireAdmin, async (req, res) => {
       'INSERT INTO tickers (message, author) VALUES (?, ?)',
       [message.trim(), req.user.username]
     );
-
-    // ── Web-Push: alle Monteure über neuen Schwarzes-Brett-Eintrag informieren
-    try {
-      const { sendPush } = require('./utils/webpush');
-      await sendPush({
-        title: '📌 Schwarzes Brett – neue Nachricht',
-        body:  message.trim().slice(0, 120),
-        url:   '/'
-      });
-    } catch (pushErr) {
-      console.error('Push-Fehler (Ticker):', pushErr.message);
-    }
   } catch (err) {
     console.error('Fehler beim Speichern des Tickers:', err.message);
   }

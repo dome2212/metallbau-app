@@ -1,0 +1,697 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-slate-100 overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800">⚖️ Stahl- & Profilgewicht-Rechner</h1>
+        <p class="text-sm text-slate-500 mt-0.5">Schnell-Berechnung vor Ort – IPE, HEB, HEA, Rohr, Blech, Flachstahl, Winkel und mehr</p>
+      </div>
+      <button onclick="clearAll()" class="text-xs text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
+        🗑️ Liste leeren
+      </button>
+    </header>
+
+    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-5 pb-8">
+
+      <!-- ════════════════════════════════════════════════
+           EINGABE-KARTE
+           ════════════════════════════════════════════════ -->
+      <div class="bg-white rounded-xl shadow p-4 md:p-6 space-y-4">
+
+        <!-- Zeile 1: Profilgruppe + Profilgröße -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Profilgruppe</label>
+            <select id="profile-group" onchange="onGroupChange()"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+              <option value="ipe">IPE – I-Träger (europäisch)</option>
+              <option value="heb">HEB – Breitflanschträger B</option>
+              <option value="hea">HEA – Breitflanschträger A</option>
+              <option value="hem">HEM – Breitflanschträger M</option>
+              <option value="upe">UPE – U-Profil schmal</option>
+              <option value="upn">UPN – U-Profil normal</option>
+              <option value="lgleich">L-Gleichschenkliger Winkel</option>
+              <option value="lungleich">L-Ungleichschenkliger Winkel</option>
+              <option value="rohr_rund">Rundrohr</option>
+              <option value="rohr_recht">Rechteckrohr / Vierkantrohr</option>
+              <option value="flach">Flachstahl</option>
+              <option value="blech">Blech / Platte</option>
+              <option value="rundstahl">Rundstahl (Vollmaterial)</option>
+              <option value="vierkantstahl">Vierkantstahl (Vollmaterial)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Profilgröße / Abmessung</label>
+            <select id="profile-size" onchange="onSizeChange()"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+            </select>
+          </div>
+        </div>
+
+        <!-- Zeile 2: Freie Maße (nur für Blech, Flach, Rohr, Rundstahl, etc.) -->
+        <div id="custom-dims" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div id="dim-b-wrap">
+            <label id="dim-b-label" class="block text-xs font-semibold text-slate-700 mb-1">Breite b (mm)</label>
+            <input type="number" id="dim-b" min="0.1" step="0.1" placeholder="z. B. 100"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncCustomDims()">
+          </div>
+          <div id="dim-h-wrap">
+            <label id="dim-h-label" class="block text-xs font-semibold text-slate-700 mb-1">Höhe h (mm)</label>
+            <input type="number" id="dim-h" min="0.1" step="0.1" placeholder="z. B. 100"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncCustomDims()">
+          </div>
+          <div id="dim-t-wrap">
+            <label id="dim-t-label" class="block text-xs font-semibold text-slate-700 mb-1">Wandstärke t (mm)</label>
+            <input type="number" id="dim-t" min="0.1" step="0.1" placeholder="z. B. 5"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncCustomDims()">
+          </div>
+          <div id="dim-d-wrap" class="hidden">
+            <label id="dim-d-label" class="block text-xs font-semibold text-slate-700 mb-1">Durchmesser d (mm)</label>
+            <input type="number" id="dim-d" min="0.1" step="0.1" placeholder="z. B. 60.3"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncCustomDims()">
+          </div>
+        </div>
+
+        <!-- Zeile 3: Material + Länge + Anzahl -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Material</label>
+            <select id="material" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+              <option value="7.85">Stahl (7,85 kg/dm³)</option>
+              <option value="7.90">Edelstahl (7,90 kg/dm³)</option>
+              <option value="2.70">Aluminium (2,70 kg/dm³)</option>
+              <option value="8.96">Kupfer (8,96 kg/dm³)</option>
+              <option value="7.25">Gusseisen (7,25 kg/dm³)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Länge (mm)</label>
+            <input type="number" id="length-mm" min="1" step="1" placeholder="z. B. 6000"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncLength('mm')">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Länge (m)</label>
+            <input type="number" id="length-m" min="0.001" step="0.001" placeholder="z. B. 6"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500" oninput="syncLength('m')">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Anzahl (Stk)</label>
+            <input type="number" id="qty" min="1" step="1" value="1"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Ergebnis-Vorschau + Hinzufügen -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1 border-t border-slate-100">
+          <div id="result-preview" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-500 italic">
+            Maße eingeben um Gewicht zu berechnen…
+          </div>
+          <button onclick="addToList()"
+            class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-3 rounded-xl shadow transition">
+            ➕ Zur Liste hinzufügen
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ════════════════════════════════════════════════
+           POSITIONSLISTE
+           ════════════════════════════════════════════════ -->
+      <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-4 md:px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 class="text-base font-semibold text-slate-800">📋 Positionsliste</h2>
+          <span id="total-badge" class="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full">Gesamt: 0,00 kg</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left min-w-[560px]">
+            <thead class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+              <tr>
+                <th class="p-3">Pos.</th>
+                <th class="p-3">Profil / Abmessung</th>
+                <th class="p-3">Material</th>
+                <th class="p-3">Länge</th>
+                <th class="p-3">Stk</th>
+                <th class="p-3 text-right">kg/m</th>
+                <th class="p-3 text-right">Gesamt kg</th>
+                <th class="p-3 text-right">Löschen</th>
+              </tr>
+            </thead>
+            <tbody id="list-body" class="divide-y divide-slate-100">
+              <tr id="empty-row">
+                <td colspan="8" class="p-6 text-center text-slate-400 italic text-sm">Noch keine Positionen. Oben Maße eingeben und hinzufügen.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Gesamtgewicht-Footer -->
+        <div id="total-footer" class="hidden border-t border-slate-200 px-4 md:px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div class="space-y-0.5">
+            <p class="text-xs text-slate-500">Gesamtgewicht aller Positionen</p>
+            <p id="total-kg" class="text-2xl font-bold text-slate-800">0,00 kg</p>
+            <p id="total-t"  class="text-sm text-slate-500">= 0,000 t</p>
+          </div>
+          <button onclick="printList()" class="text-xs text-slate-600 hover:text-blue-700 border border-slate-200 hover:border-blue-400 px-4 py-2 rounded-lg transition flex items-center gap-1.5">
+            🖨️ Drucken / PDF
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILDATENBANK  — kg/m Werte nach Norm EN 10034 / EN 10279 / EN 10210
+// Format: { label, kgm }   kgm = Eigengewicht in kg/m (bei Stahl 7,85 kg/dm³)
+// ═══════════════════════════════════════════════════════════════════════════
+const PROFILES = {
+  ipe: [
+    {label:'IPE 80',  kgm:6.00},  {label:'IPE 100', kgm:8.10},
+    {label:'IPE 120', kgm:10.40}, {label:'IPE 140', kgm:12.90},
+    {label:'IPE 160', kgm:15.80}, {label:'IPE 180', kgm:18.80},
+    {label:'IPE 200', kgm:22.40}, {label:'IPE 220', kgm:26.20},
+    {label:'IPE 240', kgm:30.70}, {label:'IPE 270', kgm:36.10},
+    {label:'IPE 300', kgm:42.20}, {label:'IPE 330', kgm:49.10},
+    {label:'IPE 360', kgm:57.10}, {label:'IPE 400', kgm:66.30},
+    {label:'IPE 450', kgm:77.60}, {label:'IPE 500', kgm:90.70},
+    {label:'IPE 550', kgm:106.0}, {label:'IPE 600', kgm:122.0},
+  ],
+  heb: [
+    {label:'HEB 100', kgm:20.40}, {label:'HEB 120', kgm:26.70},
+    {label:'HEB 140', kgm:33.70}, {label:'HEB 160', kgm:42.60},
+    {label:'HEB 180', kgm:51.20}, {label:'HEB 200', kgm:61.30},
+    {label:'HEB 220', kgm:71.50}, {label:'HEB 240', kgm:83.20},
+    {label:'HEB 260', kgm:93.00}, {label:'HEB 280', kgm:103.0},
+    {label:'HEB 300', kgm:117.0}, {label:'HEB 320', kgm:127.0},
+    {label:'HEB 340', kgm:134.0}, {label:'HEB 360', kgm:142.0},
+    {label:'HEB 400', kgm:155.0}, {label:'HEB 450', kgm:171.0},
+    {label:'HEB 500', kgm:187.0}, {label:'HEB 550', kgm:199.0},
+    {label:'HEB 600', kgm:212.0},
+  ],
+  hea: [
+    {label:'HEA 100', kgm:16.70}, {label:'HEA 120', kgm:19.90},
+    {label:'HEA 140', kgm:24.70}, {label:'HEA 160', kgm:30.40},
+    {label:'HEA 180', kgm:35.50}, {label:'HEA 200', kgm:42.30},
+    {label:'HEA 220', kgm:50.50}, {label:'HEA 240', kgm:60.30},
+    {label:'HEA 260', kgm:68.20}, {label:'HEA 280', kgm:76.40},
+    {label:'HEA 300', kgm:88.30}, {label:'HEA 320', kgm:97.60},
+    {label:'HEA 340', kgm:105.0}, {label:'HEA 360', kgm:112.0},
+    {label:'HEA 400', kgm:125.0}, {label:'HEA 450', kgm:140.0},
+    {label:'HEA 500', kgm:155.0}, {label:'HEA 550', kgm:166.0},
+    {label:'HEA 600', kgm:178.0},
+  ],
+  hem: [
+    {label:'HEM 100', kgm:41.80}, {label:'HEM 120', kgm:52.10},
+    {label:'HEM 140', kgm:63.20}, {label:'HEM 160', kgm:76.20},
+    {label:'HEM 180', kgm:88.90}, {label:'HEM 200', kgm:103.0},
+    {label:'HEM 220', kgm:117.0}, {label:'HEM 240', kgm:157.0},
+    {label:'HEM 260', kgm:172.0}, {label:'HEM 280', kgm:189.0},
+    {label:'HEM 300', kgm:238.0}, {label:'HEM 320', kgm:245.0},
+    {label:'HEM 340', kgm:248.0}, {label:'HEM 360', kgm:250.0},
+    {label:'HEM 400', kgm:256.0}, {label:'HEM 450', kgm:263.0},
+    {label:'HEM 500', kgm:270.0}, {label:'HEM 600', kgm:285.0},
+  ],
+  upe: [
+    {label:'UPE 80',  kgm:7.60},  {label:'UPE 100', kgm:9.10},
+    {label:'UPE 120', kgm:10.80}, {label:'UPE 140', kgm:12.40},
+    {label:'UPE 160', kgm:15.00}, {label:'UPE 180', kgm:18.80},
+    {label:'UPE 200', kgm:22.90}, {label:'UPE 220', kgm:26.80},
+    {label:'UPE 240', kgm:30.90}, {label:'UPE 270', kgm:36.00},
+    {label:'UPE 300', kgm:42.20}, {label:'UPE 330', kgm:49.10},
+    {label:'UPE 360', kgm:57.10}, {label:'UPE 400', kgm:66.40},
+  ],
+  upn: [
+    {label:'UPN 30',  kgm:1.80},  {label:'UPN 40',  kgm:2.87},
+    {label:'UPN 50',  kgm:3.86},  {label:'UPN 60',  kgm:5.07},
+    {label:'UPN 80',  kgm:8.64},  {label:'UPN 100', kgm:10.60},
+    {label:'UPN 120', kgm:13.40}, {label:'UPN 140', kgm:16.00},
+    {label:'UPN 160', kgm:18.80}, {label:'UPN 180', kgm:22.00},
+    {label:'UPN 200', kgm:25.30}, {label:'UPN 220', kgm:29.40},
+    {label:'UPN 240', kgm:33.20}, {label:'UPN 260', kgm:37.90},
+    {label:'UPN 280', kgm:41.80}, {label:'UPN 300', kgm:46.20},
+    {label:'UPN 320', kgm:59.50}, {label:'UPN 350', kgm:60.60},
+    {label:'UPN 380', kgm:63.10}, {label:'UPN 400', kgm:71.80},
+  ],
+  lgleich: [
+    {label:'L 20×20×3',  kgm:0.88},  {label:'L 25×25×3',  kgm:1.12},
+    {label:'L 30×30×3',  kgm:1.36},  {label:'L 35×35×4',  kgm:2.01},
+    {label:'L 40×40×4',  kgm:2.42},  {label:'L 45×45×4',  kgm:2.74},
+    {label:'L 50×50×5',  kgm:3.77},  {label:'L 60×60×5',  kgm:4.57},
+    {label:'L 60×60×6',  kgm:5.42},  {label:'L 65×65×6',  kgm:5.91},
+    {label:'L 70×70×7',  kgm:7.34},  {label:'L 75×75×6',  kgm:6.85},
+    {label:'L 80×80×8',  kgm:9.63},  {label:'L 90×90×9',  kgm:12.20},
+    {label:'L 100×100×10',kgm:15.10},{label:'L 100×100×12',kgm:17.80},
+    {label:'L 120×120×10',kgm:18.20},{label:'L 120×120×12',kgm:21.60},
+    {label:'L 150×150×12',kgm:27.30},{label:'L 150×150×15',kgm:33.80},
+    {label:'L 200×200×16',kgm:48.70},{label:'L 200×200×20',kgm:60.40},
+  ],
+  lungleich: [
+    {label:'L 40×25×4',  kgm:1.93},  {label:'L 50×30×4',  kgm:2.42},
+    {label:'L 60×30×5',  kgm:3.37},  {label:'L 60×40×5',  kgm:3.77},
+    {label:'L 65×50×5',  kgm:4.35},  {label:'L 75×50×6',  kgm:5.65},
+    {label:'L 80×40×6',  kgm:5.41},  {label:'L 80×60×7',  kgm:7.36},
+    {label:'L 90×60×6',  kgm:6.85},  {label:'L 100×65×7', kgm:8.77},
+    {label:'L 100×75×8', kgm:10.60}, {label:'L 120×80×8', kgm:12.20},
+    {label:'L 130×65×8', kgm:11.80}, {label:'L 150×90×10',kgm:18.20},
+    {label:'L 150×100×10',kgm:19.20},{label:'L 200×100×10',kgm:23.00},
+  ],
+  // Für Rohr/Blech/Flach: Standardmaße + CUSTOM-Option oben
+  rohr_rund: [
+    {label:'Benutzerdefiniert (Ø + t eingeben)', kgm:null, custom:'rohr_rund'},
+    {label:'Ø 21.3 × 2.0',  kgm:0.912}, {label:'Ø 26.9 × 2.0',  kgm:1.18},
+    {label:'Ø 33.7 × 2.6',  kgm:1.99},  {label:'Ø 42.4 × 2.6',  kgm:2.55},
+    {label:'Ø 48.3 × 3.2',  kgm:3.56},  {label:'Ø 60.3 × 3.2',  kgm:4.51},
+    {label:'Ø 76.1 × 3.2',  kgm:5.75},  {label:'Ø 88.9 × 3.2',  kgm:6.76},
+    {label:'Ø 101.6 × 3.6', kgm:8.70},  {label:'Ø 114.3 × 4.0', kgm:10.90},
+    {label:'Ø 139.7 × 4.0', kgm:13.40}, {label:'Ø 168.3 × 5.0', kgm:20.10},
+    {label:'Ø 193.7 × 5.0', kgm:23.30}, {label:'Ø 219.1 × 6.3', kgm:33.10},
+    {label:'Ø 273.0 × 6.3', kgm:41.40}, {label:'Ø 323.9 × 8.0', kgm:62.30},
+  ],
+  rohr_recht: [
+    {label:'Benutzerdefiniert (B × H × t eingeben)', kgm:null, custom:'rohr_recht'},
+    {label:'20×20×2',   kgm:1.08},  {label:'25×25×2',   kgm:1.39},
+    {label:'30×30×2',   kgm:1.70},  {label:'40×40×2',   kgm:2.31},
+    {label:'40×40×3',   kgm:3.30},  {label:'50×50×2',   kgm:2.93},
+    {label:'50×50×3',   kgm:4.25},  {label:'60×60×3',   kgm:5.17},
+    {label:'60×40×3',   kgm:4.50},  {label:'80×40×3',   kgm:5.50},
+    {label:'80×60×3',   kgm:6.13},  {label:'100×50×4',  kgm:9.03},
+    {label:'100×60×4',  kgm:9.64},  {label:'100×80×4',  kgm:10.90},
+    {label:'120×60×4',  kgm:11.20}, {label:'120×80×5',  kgm:14.60},
+    {label:'140×80×5',  kgm:16.40}, {label:'150×100×5', kgm:18.50},
+    {label:'160×80×5',  kgm:17.80}, {label:'200×100×6', kgm:27.40},
+    {label:'200×120×6', kgm:29.50}, {label:'250×150×8', kgm:49.10},
+  ],
+  flach: [
+    {label:'Benutzerdefiniert (B × t eingeben)', kgm:null, custom:'flach'},
+    {label:'20×3',  kgm:0.471}, {label:'25×3',  kgm:0.589}, {label:'30×3',  kgm:0.707},
+    {label:'30×4',  kgm:0.942}, {label:'40×4',  kgm:1.26},  {label:'40×5',  kgm:1.57},
+    {label:'50×5',  kgm:1.96},  {label:'50×6',  kgm:2.36},  {label:'60×6',  kgm:2.83},
+    {label:'60×8',  kgm:3.77},  {label:'80×6',  kgm:3.77},  {label:'80×8',  kgm:5.03},
+    {label:'80×10', kgm:6.28},  {label:'100×8', kgm:6.28},  {label:'100×10',kgm:7.85},
+    {label:'100×12',kgm:9.42},  {label:'120×10',kgm:9.42},  {label:'120×12',kgm:11.30},
+    {label:'150×10',kgm:11.80}, {label:'150×12',kgm:14.10}, {label:'200×12',kgm:18.80},
+  ],
+  blech: [
+    {label:'Benutzerdefiniert (B × L × t eingeben)', kgm:null, custom:'blech'},
+    {label:'1 mm',  kgm:null, t:1},   {label:'1.5 mm', kgm:null, t:1.5},
+    {label:'2 mm',  kgm:null, t:2},   {label:'2.5 mm', kgm:null, t:2.5},
+    {label:'3 mm',  kgm:null, t:3},   {label:'4 mm',   kgm:null, t:4},
+    {label:'5 mm',  kgm:null, t:5},   {label:'6 mm',   kgm:null, t:6},
+    {label:'8 mm',  kgm:null, t:8},   {label:'10 mm',  kgm:null, t:10},
+    {label:'12 mm', kgm:null, t:12},  {label:'15 mm',  kgm:null, t:15},
+    {label:'20 mm', kgm:null, t:20},  {label:'25 mm',  kgm:null, t:25},
+    {label:'30 mm', kgm:null, t:30},  {label:'40 mm',  kgm:null, t:40},
+  ],
+  rundstahl: [
+    {label:'Benutzerdefiniert (Ø eingeben)', kgm:null, custom:'rundstahl'},
+    {label:'Ø 6',   kgm:0.222}, {label:'Ø 8',   kgm:0.395}, {label:'Ø 10',  kgm:0.617},
+    {label:'Ø 12',  kgm:0.888}, {label:'Ø 14',  kgm:1.21},  {label:'Ø 16',  kgm:1.58},
+    {label:'Ø 18',  kgm:2.00},  {label:'Ø 20',  kgm:2.47},  {label:'Ø 22',  kgm:2.98},
+    {label:'Ø 25',  kgm:3.85},  {label:'Ø 28',  kgm:4.83},  {label:'Ø 30',  kgm:5.55},
+    {label:'Ø 35',  kgm:7.55},  {label:'Ø 40',  kgm:9.86},  {label:'Ø 45',  kgm:12.50},
+    {label:'Ø 50',  kgm:15.40}, {label:'Ø 60',  kgm:22.20}, {label:'Ø 70',  kgm:30.20},
+    {label:'Ø 80',  kgm:39.50}, {label:'Ø 100', kgm:61.70},
+  ],
+  vierkantstahl: [
+    {label:'Benutzerdefiniert (a eingeben)', kgm:null, custom:'vierkantstahl'},
+    {label:'10×10',  kgm:0.785}, {label:'12×12',  kgm:1.13},  {label:'15×15',  kgm:1.77},
+    {label:'16×16',  kgm:2.01},  {label:'20×20',  kgm:3.14},  {label:'25×25',  kgm:4.91},
+    {label:'30×30',  kgm:7.07},  {label:'35×35',  kgm:9.62},  {label:'40×40',  kgm:12.60},
+    {label:'45×45',  kgm:15.90}, {label:'50×50',  kgm:19.60}, {label:'60×60',  kgm:28.30},
+    {label:'70×70',  kgm:38.50}, {label:'80×80',  kgm:50.20}, {label:'100×100',kgm:78.50},
+  ],
+};
+
+// Welche Gruppen benötigen benutzerdefinierte Dimensionen?
+const CUSTOM_GROUPS = new Set(['rohr_rund','rohr_recht','flach','blech','rundstahl','vierkantstahl']);
+
+// Aktuell berechnetes kgm (für Listenübertrag)
+let currentKgm = null;
+let currentLabel = '';
+
+// Positionsliste
+let positions = [];
+let posCounter = 0;
+
+// ─── Dropdown für Gruppe befüllen ────────────────────────────────────────────
+function onGroupChange() {
+  const group = document.getElementById('profile-group').value;
+  const sizeEl = document.getElementById('profile-size');
+  sizeEl.innerHTML = '';
+  (PROFILES[group] || []).forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = p.label;
+    sizeEl.appendChild(opt);
+  });
+  onSizeChange();
+}
+
+function onSizeChange() {
+  const group = document.getElementById('profile-group').value;
+  const idx   = parseInt(document.getElementById('profile-size').value, 10);
+  const prof  = (PROFILES[group] || [])[idx];
+  if (!prof) return;
+
+  const dimDiv = document.getElementById('custom-dims');
+  const isBlech = group === 'blech';
+  const isRohrRund = group === 'rohr_rund';
+  const isRohrRecht = group === 'rohr_recht';
+  const isFlach = group === 'flach';
+  const isRund = group === 'rundstahl';
+  const isVierkant = group === 'vierkantstahl';
+
+  // Zeige Custom-Dims wenn nötig
+  const needCustom = CUSTOM_GROUPS.has(group) && (prof.kgm === null);
+  dimDiv.classList.toggle('hidden', !needCustom);
+
+  if (needCustom) {
+    // Beschriftungen + Sichtbarkeit der Felder anpassen
+    document.getElementById('dim-b-wrap').classList.toggle('hidden', isRohrRund || isRund || isVierkant);
+    document.getElementById('dim-h-wrap').classList.toggle('hidden', isRohrRund || isFlach || isRund || isVierkant);
+    document.getElementById('dim-t-wrap').classList.toggle('hidden', isRund || isVierkant || isBlech);
+    document.getElementById('dim-d-wrap').classList.toggle('hidden', !(isRohrRund || isRund || isVierkant));
+
+    if (isBlech) {
+      document.getElementById('dim-b-label').textContent = 'Breite b (mm)';
+      document.getElementById('dim-h-label').textContent = 'Länge l (mm)';
+      // Für Blech: t ist festes Maß aus Dropdown, wir zeigen t-Feld trotzdem
+      document.getElementById('dim-t-wrap').classList.remove('hidden');
+      document.getElementById('dim-t-label').textContent = 'Dicke t (mm)';
+      document.getElementById('dim-h-wrap').classList.remove('hidden');
+    }
+    if (isRohrRund) {
+      document.getElementById('dim-d-label').textContent = 'Außen-Ø d (mm)';
+      document.getElementById('dim-t-wrap').classList.remove('hidden');
+      document.getElementById('dim-t-label').textContent = 'Wandstärke t (mm)';
+    }
+    if (isRohrRecht) {
+      document.getElementById('dim-b-label').textContent = 'Breite b (mm)';
+      document.getElementById('dim-h-label').textContent = 'Höhe h (mm)';
+      document.getElementById('dim-t-label').textContent = 'Wandstärke t (mm)';
+    }
+    if (isFlach) {
+      document.getElementById('dim-b-label').textContent = 'Breite b (mm)';
+      document.getElementById('dim-t-label').textContent = 'Dicke t (mm)';
+    }
+    if (isRund) {
+      document.getElementById('dim-d-label').textContent = 'Durchmesser d (mm)';
+    }
+    if (isVierkant) {
+      document.getElementById('dim-d-label').textContent = 'Kantenlänge a (mm)';
+    }
+  } else if (isBlech && prof.t) {
+    // Blech mit fester Dicke: Bemaßungs-Felder für b und l anzeigen
+    dimDiv.classList.remove('hidden');
+    document.getElementById('dim-b-wrap').classList.remove('hidden');
+    document.getElementById('dim-b-label').textContent = 'Breite b (mm)';
+    document.getElementById('dim-h-wrap').classList.remove('hidden');
+    document.getElementById('dim-h-label').textContent = 'Länge l (mm)';
+    document.getElementById('dim-t-wrap').classList.add('hidden');
+    document.getElementById('dim-d-wrap').classList.add('hidden');
+  }
+
+  currentKgm = null;
+  currentLabel = prof.label;
+  recalc();
+}
+
+function syncCustomDims() { recalc(); }
+
+function syncLength(from) {
+  const mm = document.getElementById('length-mm');
+  const m  = document.getElementById('length-m');
+  if (from === 'mm' && mm.value) m.value = (parseFloat(mm.value) / 1000).toFixed(3);
+  else if (from === 'm' && m.value) mm.value = Math.round(parseFloat(m.value) * 1000);
+  recalc();
+}
+
+// ─── Kernberechnung ──────────────────────────────────────────────────────────
+function calcKgm() {
+  const group = document.getElementById('profile-group').value;
+  const idx   = parseInt(document.getElementById('profile-size').value, 10);
+  const prof  = (PROFILES[group] || [])[idx];
+  if (!prof) return null;
+
+  const rho = parseFloat(document.getElementById('material').value); // kg/dm³
+  const rhoMm3 = rho / 1e6; // kg/mm³
+
+  // Normiertes kgm – für Träger/Winkel/UPN/UPE sind Werte für Stahl 7,85
+  // Bei anderem Material skalieren wir proportional
+  const scaleFactor = rho / 7.85;
+
+  if (prof.kgm !== null) {
+    return prof.kgm * scaleFactor;
+  }
+
+  // Benutzerdefiniert berechnen
+  const b = parseFloat(document.getElementById('dim-b').value) || 0;
+  const h = parseFloat(document.getElementById('dim-h').value) || 0;
+  const t = parseFloat(document.getElementById('dim-t').value) || 0;
+  const d = parseFloat(document.getElementById('dim-d').value) || 0;
+
+  let A = 0; // Querschnittsfläche in mm²
+
+  if (group === 'rohr_rund') {
+    if (d <= 0 || t <= 0 || t >= d/2) return null;
+    const ri = d/2 - t;
+    A = Math.PI * ((d/2)**2 - ri**2);
+  } else if (group === 'rohr_recht') {
+    if (b <= 0 || h <= 0 || t <= 0) return null;
+    A = b*h - (b - 2*t)*(h - 2*t);
+  } else if (group === 'flach') {
+    if (b <= 0 || t <= 0) return null;
+    A = b * t;
+  } else if (group === 'blech') {
+    // Für Blech: kgm hat keinen Sinn – wir berechnen Gesamtgewicht direkt
+    // Verwende t aus Dropdown oder Eingabefeld, b und h = Breite×Länge der Platte
+    const thick = prof.t || t;
+    if (b <= 0 || h <= 0 || thick <= 0) return null;
+    // Gewicht in kg pro 1000 mm "Länge" (Platte: A = b × thick, Länge = h)
+    // Wir geben hier A = b * thick zurück, Länge = h mm → Gesamtkg = A*h*rhoMm3
+    // Um in kgm (kg pro 1000 mm) umzurechnen: kgm = A * rhoMm3 * 1000
+    // Aber hier liefern wir nur kg/m zurück; die eigentliche Länge steckt in h
+    // → Sonderfall: kgm = Gesamtkg direkt (Länge = h), Längenfeld wird ignoriert
+    return { directKg: b * h * thick * rhoMm3 };
+  } else if (group === 'rundstahl') {
+    if (d <= 0) return null;
+    A = Math.PI * (d/2)**2;
+  } else if (group === 'vierkantstahl') {
+    if (d <= 0) return null;
+    A = d * d;
+  }
+
+  if (A <= 0) return null;
+  return A * rhoMm3 * 1000; // kg pro 1000 mm = kg/m
+}
+
+// Wenn Blech mit fester t aus Dropdown: Sonderberechnung über b×l
+function getDirectKgForBlechPreset() {
+  const group = document.getElementById('profile-group').value;
+  if (group !== 'blech') return null;
+  const idx  = parseInt(document.getElementById('profile-size').value, 10);
+  const prof = (PROFILES['blech'] || [])[idx];
+  if (!prof || !prof.t) return null;
+
+  const rho   = parseFloat(document.getElementById('material').value);
+  const rhoMm3= rho / 1e6;
+  const b = parseFloat(document.getElementById('dim-b').value) || 0;
+  const h = parseFloat(document.getElementById('dim-h').value) || 0;
+  if (b <= 0 || h <= 0) return null;
+  return b * h * prof.t * rhoMm3;
+}
+
+function recalc() {
+  const preview = document.getElementById('result-preview');
+  const lenMm   = parseFloat(document.getElementById('length-mm').value) || 0;
+  const qty      = parseInt(document.getElementById('qty').value, 10) || 1;
+  const group    = document.getElementById('profile-group').value;
+
+  // Blech-Preset: Gewicht ohne Längenfeld
+  const directBlech = getDirectKgForBlechPreset();
+  if (directBlech !== null) {
+    const total = directBlech * qty;
+    currentKgm = null;
+    preview.innerHTML = `<span class="not-italic text-slate-800 font-semibold">
+      ${fmt(directBlech)} kg/Stk &nbsp;·&nbsp; <strong>${fmt(total)} kg</strong> für ${qty} Stk
+    </span>`;
+    return;
+  }
+
+  const result = calcKgm();
+  if (!result) {
+    currentKgm = null;
+    preview.innerHTML = 'Maße eingeben um Gewicht zu berechnen…';
+    return;
+  }
+
+  // Blech benutzerdefiniert gibt {directKg}
+  if (typeof result === 'object' && result.directKg !== undefined) {
+    const total = result.directKg * qty;
+    currentKgm = null;
+    preview.innerHTML = `<span class="not-italic text-slate-800 font-semibold">
+      ${fmt(result.directKg)} kg/Stk &nbsp;·&nbsp; <strong>${fmt(total)} kg</strong> für ${qty} Stk
+    </span>`;
+    return;
+  }
+
+  currentKgm = result;
+  if (lenMm <= 0) {
+    preview.innerHTML = `<span class="not-italic text-slate-800">
+      <strong>${fmt(result)} kg/m</strong> &nbsp;·&nbsp; Länge eingeben für Gesamtgewicht
+    </span>`;
+    return;
+  }
+
+  const kgPiece = result * lenMm / 1000;
+  const kgTotal = kgPiece * qty;
+  preview.innerHTML = `<span class="not-italic text-slate-800 font-semibold">
+    ${fmt(result)} kg/m &nbsp;·&nbsp; ${fmt(kgPiece)} kg/Stk &nbsp;·&nbsp;
+    <strong class="text-blue-700">${fmt(kgTotal)} kg</strong> gesamt (${qty} Stk × ${(lenMm/1000).toFixed(3)} m)
+  </span>`;
+}
+
+// ─── Liste ───────────────────────────────────────────────────────────────────
+function addToList() {
+  const group = document.getElementById('profile-group').value;
+  const idx   = parseInt(document.getElementById('profile-size').value, 10);
+  const prof  = (PROFILES[group] || [])[idx];
+  const matEl = document.getElementById('material');
+  const matName = matEl.options[matEl.selectedIndex].text.split(' ')[0];
+  const lenMm = parseFloat(document.getElementById('length-mm').value) || 0;
+  const qty   = parseInt(document.getElementById('qty').value, 10) || 1;
+
+  // Blech-Preset
+  const directBlech = getDirectKgForBlechPreset();
+  if (directBlech !== null) {
+    push({ label: prof.label, matName, lenMm: 0, qty, kgm: null, kgPiece: directBlech, kgTotal: directBlech * qty, isBlechPreset: true });
+    return;
+  }
+
+  const result = calcKgm();
+  if (!result) { alert('Bitte alle erforderlichen Maße ausfüllen.'); return; }
+
+  if (typeof result === 'object' && result.directKg !== undefined) {
+    push({ label: buildLabel(), matName, lenMm: 0, qty, kgm: null, kgPiece: result.directKg, kgTotal: result.directKg * qty, isBlechPreset: true });
+    return;
+  }
+
+  if (lenMm <= 0) { alert('Bitte eine Länge eingeben.'); return; }
+  const kgPiece = result * lenMm / 1000;
+  push({ label: buildLabel(), matName, lenMm, qty, kgm: result, kgPiece, kgTotal: kgPiece * qty });
+}
+
+function buildLabel() {
+  const group = document.getElementById('profile-group').value;
+  const idx   = parseInt(document.getElementById('profile-size').value, 10);
+  const prof  = (PROFILES[group] || [])[idx];
+  if (prof.kgm !== null) return prof.label;
+  // Custom: baue Label aus Eingaben
+  const b = document.getElementById('dim-b').value;
+  const h = document.getElementById('dim-h').value;
+  const t = document.getElementById('dim-t').value;
+  const d = document.getElementById('dim-d').value;
+  if (group === 'rohr_rund') return `Rohr Ø${d}×${t}`;
+  if (group === 'rohr_recht') return `Rohr ${b}×${h}×${t}`;
+  if (group === 'flach')  return `Flach ${b}×${t}`;
+  if (group === 'blech')  return `Blech ${b}×${h}×${t}`;
+  if (group === 'rundstahl') return `Rund Ø${d}`;
+  if (group === 'vierkantstahl') return `Vierkant ${d}×${d}`;
+  return prof.label;
+}
+
+function push(item) {
+  posCounter++;
+  item.pos = posCounter;
+  positions.push(item);
+  renderList();
+}
+
+function deletePos(pos) {
+  positions = positions.filter(p => p.pos !== pos);
+  renderList();
+}
+
+function renderList() {
+  const tbody = document.getElementById('list-body');
+  const empty = document.getElementById('empty-row');
+  const footer= document.getElementById('total-footer');
+  const badge = document.getElementById('total-badge');
+
+  if (positions.length === 0) {
+    tbody.innerHTML = '';
+    tbody.appendChild(empty);
+    empty.classList.remove('hidden');
+    footer.classList.add('hidden');
+    badge.textContent = 'Gesamt: 0,00 kg';
+    return;
+  }
+
+  empty.classList.add('hidden');
+  footer.classList.remove('hidden');
+
+  let totalKg = 0;
+  tbody.innerHTML = '';
+  positions.forEach(p => {
+    totalKg += p.kgTotal;
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50';
+    tr.innerHTML = `
+      <td class="p-3 text-slate-400 text-xs font-mono">${p.pos}</td>
+      <td class="p-3 font-semibold text-slate-800">${p.label}</td>
+      <td class="p-3 text-slate-500 text-xs">${p.matName}</td>
+      <td class="p-3 text-slate-600 text-xs">${p.lenMm > 0 ? (p.lenMm/1000).toFixed(3)+' m' : '–'}</td>
+      <td class="p-3 text-slate-600">${p.qty}</td>
+      <td class="p-3 text-right text-slate-500 text-xs">${p.kgm !== null ? fmt(p.kgm) : '–'}</td>
+      <td class="p-3 text-right font-bold text-slate-800">${fmt(p.kgTotal)}</td>
+      <td class="p-3 text-right">
+        <button onclick="deletePos(${p.pos})"
+          class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50 transition">🗑️</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('total-kg').textContent = fmt(totalKg) + ' kg';
+  document.getElementById('total-t').textContent  = '= ' + (totalKg/1000).toFixed(3) + ' t';
+  badge.textContent = 'Gesamt: ' + fmt(totalKg) + ' kg';
+}
+
+function clearAll() {
+  if (positions.length === 0) return;
+  if (!confirm('Alle Positionen löschen?')) return;
+  positions = [];
+  posCounter = 0;
+  renderList();
+}
+
+function printList() {
+  window.print();
+}
+
+// Zahlenformatierung DE
+function fmt(n) {
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+document.getElementById('material').addEventListener('change', recalc);
+
+onGroupChange(); // Erstes Dropdown-Befüllen
+</script>
+
+<style>
+@media print {
+  aside, header, #push-banner, .no-print { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+  .bg-white { box-shadow: none !important; }
+}
+</style>
+
+</body>
+</html>

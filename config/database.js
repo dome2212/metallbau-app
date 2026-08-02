@@ -355,17 +355,6 @@ if (process.env.DATABASE_URL) {
       `);
 
       db.run(`
-        CREATE TABLE IF NOT EXISTS push_subscriptions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_id INTEGER,
-          endpoint TEXT UNIQUE NOT NULL,
-          p256dh TEXT NOT NULL,
-          auth TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      db.run(`
         CREATE TABLE IF NOT EXISTS customer_files (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           customer_id INTEGER,
