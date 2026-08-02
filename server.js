@@ -8,6 +8,9 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const db = require('./config/database');
 const { execSync } = require('child_process');
+const express = require('express');
+const app = express(); // <--- DAS MUSS HIER STEHEN!
+
 
 // Load .env (optional)
 try { require('dotenv').config(); } catch (e) {}
