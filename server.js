@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const https = require('https');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
@@ -219,6 +220,92 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
+}
+
+// ==========================================
+// WETTER-FRÜHWARNSYSTEM (Open-Meteo, kostenlos, kein API-Key)
+// ==========================================
+
+// WMO-Wettercodes → deutschen Kurztext
+function wmoCodeToText(code) {
+  if (code === 0) return 'Klar';
+  if (code <= 3) return 'Bewölkt';
+  if (code <= 9) return 'Nebelfelder';
+  if (code <= 19) return 'Niederschlag';
+  if (code <= 29) return 'Gewitter (Nähe)';
+  if (code <= 39) return 'Staubnebel';
+  if (code <= 49) return 'Nebel';
+  if (code <= 59) return 'Nieselregen';
+  if (code <= 69) return 'Regen';
+  if (code <= 79) return 'Schnee / Graupel';
+  if (code <= 84) return 'Schauer';
+  if (code <= 94) return 'Gewitter';
+  return 'Heftiger Sturm';
+}
+
+/**
+ * Ruft Open-Meteo Daily-Wetterdaten ab.
+ * @param {number} lat
+ * @param {number} lng
+ * @param {string} dateStr  ISO-Datum "YYYY-MM-DD"
+ * @returns {Promise<object|null>}  Wetterdaten oder null bei Fehler / Datum > 16 Tage
+ */
+function fetchWeather(lat, lng, dateStr) {
+  return new Promise((resolve) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    const diffDays = Math.round((target - today) / 86400000);
+    // Open-Meteo liefert max. 16 Tage voraus; vergangene Daten ebenfalls abrufbar
+    if (diffDays > 16) return resolve(null);
+
+    const params = new URLSearchParams({
+      latitude: lat,
+      longitude: lng,
+      daily: 'weathercode,windspeed_10m_max,windgusts_10m_max,precipitation_sum',
+      timezone: 'Europe/Berlin',
+      start_date: dateStr,
+      end_date: dateStr,
+      wind_speed_unit: 'kmh'
+    });
+
+    const url = `https://api.open-meteo.com/v1/forecast?${params}`;
+    https.get(url, (resp) => {
+      let data = '';
+      resp.on('data', chunk => { data += chunk; });
+      resp.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const d = json.daily;
+          if (!d || !d.time || d.time.length === 0) return resolve(null);
+
+          const windspeed   = d.windspeed_10m_max[0]   || 0;
+          const windgusts   = d.windgusts_10m_max[0]   || 0;
+          const precip      = d.precipitation_sum[0]   || 0;
+          const wcode       = d.weathercode[0]         || 0;
+
+          // Warnstufen für Kranarbeiten / Montage
+          // Rot:  Böen ≥ 55 km/h ODER Dauerregen ≥ 10 mm ODER Gewitter
+          // Gelb: Böen ≥ 40 km/h ODER Niederschlag ≥ 5 mm ODER starker Regen
+          let warningLevel = 'ok'; // 'ok' | 'warn' | 'danger'
+          if (windgusts >= 55 || precip >= 10 || wcode >= 80) warningLevel = 'danger';
+          else if (windgusts >= 40 || precip >= 5 || wcode >= 61) warningLevel = 'warn';
+
+          resolve({
+            windspeed: Math.round(windspeed),
+            windgusts: Math.round(windgusts),
+            precipitation: Math.round(precip * 10) / 10,
+            weathercode: wcode,
+            weatherText: wmoCodeToText(wcode),
+            warningLevel
+          });
+        } catch (e) {
+          resolve(null);
+        }
+      });
+      resp.on('error', () => resolve(null));
+    }).on('error', () => resolve(null));
+  });
 }
 
 const { verifyToken, requireAdmin } = require('./middleware/auth');
@@ -1536,23 +1623,72 @@ app.get('/calendar', async (req, res) => {
   }
 });
 
+// GET /api/weather?lat=&lng=&date=YYYY-MM-DD
+app.get('/api/weather', async (req, res) => {
+  const { lat, lng, date } = req.query;
+  if (!lat || !lng || !date) return res.status(400).json({ error: 'lat, lng und date erforderlich' });
+  try {
+    const weather = await fetchWeather(parseFloat(lat), parseFloat(lng), date);
+    if (!weather) return res.json({ available: false });
+    res.json({ available: true, ...weather });
+  } catch (e) {
+    res.status(500).json({ error: 'Wetterdaten nicht abrufbar' });
+  }
+});
+
 app.get('/api/appointments', async (req, res) => {
   try {
+    // Koordinaten des Termins: Firmenstandort des Projekts (falls vorhanden), sonst Firmensitz aus Env
+    const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
+    const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
+
     const query = `
-      SELECT appointments.id, appointments.title, appointments.start_date as start, 
+      SELECT appointments.id, appointments.title, appointments.start_date as start,
              appointments.end_date as end, appointments.description,
-             customers.company_name, customers.contact_person
+             customers.company_name, customers.contact_person,
+             projects.site_lat, projects.site_lng
       FROM appointments
       LEFT JOIN customers ON appointments.customer_id = customers.id
+      LEFT JOIN projects ON projects.customer_id = appointments.customer_id
+        AND projects.site_lat IS NOT NULL AND projects.site_lng IS NOT NULL
     `;
     const result = await dbQuery(query);
-    const events = (result.rows || []).map(app => ({
-      id: app.id,
-      title: `${app.title} (${app.company_name || app.contact_person || 'Privat'})`,
-      start: app.start,
-      end: app.end,
-      description: app.description
-    }));
+    const rows = result.rows || [];
+
+    // Wetter parallel für alle Termine mit bekanntem Datum abrufen
+    const weatherPromises = rows.map(app => {
+      if (!app.start) return Promise.resolve(null);
+      const dateStr = app.start.split('T')[0];
+      const lat = app.site_lat || FIRM_LAT;
+      const lng = app.site_lng || FIRM_LNG;
+      return fetchWeather(lat, lng, dateStr);
+    });
+    const weatherResults = await Promise.all(weatherPromises);
+
+    const events = rows.map((app, i) => {
+      const w = weatherResults[i];
+      // FullCalendar Ereignisfarbe je Warnstufe
+      let backgroundColor, borderColor, textColor;
+      if (w && w.warningLevel === 'danger') {
+        backgroundColor = '#fee2e2'; borderColor = '#dc2626'; textColor = '#7f1d1d';
+      } else if (w && w.warningLevel === 'warn') {
+        backgroundColor = '#fef9c3'; borderColor = '#ca8a04'; textColor = '#713f12';
+      } else {
+        backgroundColor = '#dbeafe'; borderColor = '#2563eb'; textColor = '#1e3a5f';
+      }
+
+      return {
+        id: app.id,
+        title: `${app.title} (${app.company_name || app.contact_person || 'Privat'})`,
+        start: app.start,
+        end: app.end,
+        description: app.description,
+        backgroundColor,
+        borderColor,
+        textColor,
+        extendedProps: { weather: w || null }
+      };
+    });
     res.json(events);
   } catch (err) {
     res.status(500).json([]);
@@ -1672,10 +1808,24 @@ app.get('/projects/:id', async (req, res) => {
     const tasksRes = await dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id]);
     const sketchesRes = await dbQuery('SELECT id, title, image_data, created_by, created_at FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id]);
 
+    // Wetterdaten für die Termine dieses Projekts anreichern
+    const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
+    const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
+    const appointmentsWithWeather = await Promise.all(
+      (appRes.rows || []).map(async (app) => {
+        if (!app.start_date) return { ...app, weather: null };
+        const dateStr = app.start_date.split('T')[0];
+        const lat = project.site_lat || FIRM_LAT;
+        const lng = project.site_lng || FIRM_LNG;
+        const weather = await fetchWeather(lat, lng, dateStr);
+        return { ...app, weather };
+      })
+    );
+
     res.render('project-detail', {
       project,
       files: filesRes.rows || [],
-      appointments: appRes.rows || [],
+      appointments: appointmentsWithWeather,
       photos: photosRes.rows || [],
       measurements: measurementsRes.rows || [],
       notes: notesRes.rows || [],

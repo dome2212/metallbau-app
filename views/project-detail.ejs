@@ -537,18 +537,53 @@
         </div>
       </div>
 
-      <!-- Verknüpfte Termine -->
+      <!-- Verknüpfte Termine mit Wetter-Frühwarnung -->
       <div class="bg-white rounded-lg shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4">📅 Verknüpfte Termine (Aufmaß, Montage etc.)</h2>
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">📅 Verknüpfte Termine – Wetter-Frühwarnung</h2>
         <% if (appointments && appointments.length > 0) { %>
           <ul class="divide-y divide-slate-200">
             <% appointments.forEach(app => { %>
-              <li class="py-3 flex justify-between items-center text-sm">
-                <div>
-                  <strong class="text-slate-800"><%= app.title %></strong>
-                  <p class="text-xs text-slate-500"><%= new Date(app.start_date).toLocaleString('de-DE') %></p>
+              <%
+                const w = app.weather;
+                let wBg = '', wBorder = '', wIcon = '', wLabel = '', wText = '';
+                if (w && w.warningLevel === 'danger') {
+                  wBg = 'bg-red-50'; wBorder = 'border-l-4 border-red-500';
+                  wIcon = '🔴'; wLabel = 'GEFAHR – Montage prüfen!';
+                  wText = `text-red-700`;
+                } else if (w && w.warningLevel === 'warn') {
+                  wBg = 'bg-yellow-50'; wBorder = 'border-l-4 border-yellow-400';
+                  wIcon = '🟡'; wLabel = 'Wetterwarnung';
+                  wText = `text-yellow-700`;
+                } else if (w) {
+                  wBg = 'bg-emerald-50'; wBorder = 'border-l-4 border-emerald-400';
+                  wIcon = '🟢'; wLabel = 'Kein Wetterrisiko';
+                  wText = `text-emerald-700`;
+                } else {
+                  wBg = 'bg-slate-50'; wBorder = 'border-l-4 border-slate-200';
+                  wIcon = '–'; wLabel = 'Keine Vorhersage verfügbar';
+                  wText = 'text-slate-400';
+                }
+              %>
+              <li class="py-3 pl-3 <%= wBg %> <%= wBorder %> rounded mb-2 text-sm">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                  <div class="flex-1">
+                    <strong class="text-slate-800"><%= app.title %></strong>
+                    <p class="text-xs text-slate-500 mt-0.5"><%= new Date(app.start_date).toLocaleString('de-DE') %></p>
+                    <% if (app.description) { %><p class="text-xs text-slate-400 mt-0.5"><%= app.description %></p><% } %>
+                  </div>
+                  <!-- Wetter-Box -->
+                  <div class="text-xs rounded-lg px-3 py-2 min-w-[170px] <%= w ? (w.warningLevel === 'danger' ? 'bg-red-100' : w.warningLevel === 'warn' ? 'bg-yellow-100' : 'bg-emerald-100') : 'bg-slate-100' %>">
+                    <p class="font-bold <%= wText %>"><%= wIcon %> <%= wLabel %></p>
+                    <% if (w) { %>
+                      <p class="text-slate-600 mt-1"><%= w.weatherText %></p>
+                      <p class="text-slate-500">💨 Wind: <strong><%= w.windspeed %> km/h</strong></p>
+                      <p class="text-slate-500">🌬 Böen: <strong><%= w.windgusts %> km/h</strong></p>
+                      <p class="text-slate-500">🌧 Regen: <strong><%= w.precipitation %> mm</strong></p>
+                    <% } else { %>
+                      <p class="text-slate-400 mt-1">Termin liegt außerhalb des 16-Tage-Fensters.</p>
+                    <% } %>
+                  </div>
                 </div>
-                <span class="text-xs text-slate-600"><%= app.description || '' %></span>
               </li>
             <% }) %>
           </ul>
