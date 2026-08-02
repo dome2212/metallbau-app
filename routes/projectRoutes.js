@@ -26,6 +26,12 @@ const audioUpload = multer({
   fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/'))
 });
 
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/'))
+});
+
 async function callAI(prompt) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
@@ -40,6 +46,42 @@ async function callAI(prompt) {
     body: JSON.stringify({
       model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
       messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(JSON.stringify(data));
+  return data.choices[0].message.content;
+}
+
+// Vision-fähige KI (Bilder + Text) – nutzt google/gemini-flash-1.5 über OpenRouter
+async function callAIWithImages(prompt, imageBuffers) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
+
+  // Bilder als base64 data-URLs verpacken (OpenAI vision format)
+  const imageParts = imageBuffers.map(({ buffer, mimetype }) => ({
+    type: 'image_url',
+    image_url: { url: `data:${mimetype};base64,${buffer.toString('base64')}` }
+  }));
+
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+      'X-Title': 'Metallbau App'
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-flash-1.5',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          ...imageParts
+        ]
+      }],
       temperature: 0.7
     })
   });
@@ -700,6 +742,48 @@ router.post('/:id/generate-quote', async (req, res) => {
     res.json({ quote: text });
   } catch (err) {
     console.error('KI Fehler (generate-quote):', err);
+    res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+// Route: KI-Angebot mit Bildanalyse (Vision)
+router.post('/:id/generate-quote-with-images', imageUpload.array('images', 3), async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+  const { id } = req.params;
+  try {
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person,
+             customers.email, customers.phone, customers.street, customers.zip, customers.city
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id WHERE projects.id = ?`, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
+
+    const [measurementsRes, notesRes] = await Promise.all([
+      dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at ASC', [id]),
+      dbQuery('SELECT note_text FROM project_notes WHERE project_id = ? ORDER BY created_at ASC', [id])
+    ]);
+    const massText    = (measurementsRes.rows || []).length > 0
+      ? measurementsRes.rows.map(m => `- ${m.component_name}: Breite ${m.width || '–'} mm, Höhe/Länge ${m.height || '–'} mm${m.angle ? ', Winkel ' + m.angle + '°' : ''}, Anzahl: ${m.quantity || 1}${m.note ? ', Bemerkung: ' + m.note : ''}`).join('\n')
+      : 'Keine Maße erfasst.';
+    const notizenText = (notesRes.rows || []).length > 0
+      ? notesRes.rows.map(n => `- ${n.note_text}`).join('\n')
+      : 'Keine Notizen vorhanden.';
+
+    const imageBuffers = (req.files || []).map(f => ({ buffer: f.buffer, mimetype: f.mimetype }));
+
+    const bildHinweis = imageBuffers.length > 0
+      ? `\n\nZusätzlich wurden ${imageBuffers.length} Foto(s) hochgeladen. Analysiere diese Bilder und extrahiere daraus relevante Informationen (z.B. sichtbare Maße, Materialien, Bauzustand, Beschädigungen, Konstruktionsdetails) und fließe diese Erkenntnisse in das Angebot ein.`
+      : '';
+
+    const prompt = `Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${FIRMA.name}", ${FIRMA.strasse}, ${FIRMA.plzOrt}.\n\nErstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.\n\n**Projektdaten:**\n- Projekttitel: ${project.title}\n- Beschreibung: ${project.description || 'Keine.'}\n- Status: ${project.status}\n- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}\n\n**Erfasste Maße:**\n${massText}\n\n**Projektnotizen:**\n${notizenText}${bildHinweis}\n\nErstelle jetzt das Angebot:`.trim();
+
+    const text = imageBuffers.length > 0
+      ? await callAIWithImages(prompt, imageBuffers)
+      : await callAI(prompt);
+
+    res.json({ quote: text });
+  } catch (err) {
+    console.error('KI Fehler (generate-quote-with-images):', err);
     res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }
 });

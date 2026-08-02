@@ -586,8 +586,17 @@
     <!-- Status-Hinweis -->
     <p class="text-xs text-slate-500 dark:text-slate-400">
       Die KI liest automatisch alle erfassten Maße und Notizen dieses Projekts und formuliert daraus einen professionellen Angebotstext.
-      Du kannst den Text vor dem Speichern noch anpassen.
+      Optional kannst du bis zu <strong>3 Fotos</strong> hochladen — die KI analysiert sie und bezieht Materialien, Maße und Zustand daraus ein.
     </p>
+
+    <!-- Bild-Upload -->
+    <div class="border border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-3">
+      <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">📷 Fotos hochladen (optional, max. 3 × 10 MB)</label>
+      <input type="file" id="kiQuoteImages" accept="image/*" multiple
+        class="block w-full text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer"
+        onchange="previewKiImages(this)">
+      <div id="kiImagePreviews" class="flex gap-2 flex-wrap mt-2"></div>
+    </div>
 
     <!-- Generierungsbereich -->
     <div id="kiQuoteLoading" class="hidden flex items-center gap-3 text-sm text-violet-600 font-medium py-4">
@@ -760,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <% if (currentUser.role === 'ADMIN') { %>
 <script>
 // ================================================
-// KI-ANGEBOT: GEMINI INTEGRATION
+// KI-ANGEBOT: GEMINI VISION INTEGRATION
 // ================================================
 
 function openKiQuoteModal() {
@@ -769,11 +778,35 @@ function openKiQuoteModal() {
   document.getElementById('kiQuoteLoading').classList.add('hidden');
 }
 
+function previewKiImages(input) {
+  const previewBox = document.getElementById('kiImagePreviews');
+  previewBox.innerHTML = '';
+  const files = Array.from(input.files).slice(0, 3);
+  // Überschuss abschneiden
+  if (input.files.length > 3) {
+    const dt = new DataTransfer();
+    files.forEach(f => dt.items.add(f));
+    input.files = dt.files;
+  }
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.className = 'h-16 w-16 object-cover rounded border border-slate-200 dark:border-slate-600';
+      img.title = file.name;
+      previewBox.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function generateKiQuote() {
-  const btn = document.getElementById('kiQuoteGenerateBtn');
-  const loading = document.getElementById('kiQuoteLoading');
+  const btn      = document.getElementById('kiQuoteGenerateBtn');
+  const loading  = document.getElementById('kiQuoteLoading');
   const errorBox = document.getElementById('kiQuoteError');
   const textarea = document.getElementById('kiQuoteText');
+  const fileInput = document.getElementById('kiQuoteImages');
 
   btn.disabled = true;
   btn.textContent = '⏳ Generiert …';
@@ -782,15 +815,19 @@ async function generateKiQuote() {
   textarea.value = '';
 
   try {
-    const res = await fetch('/projects/<%= project.id %>/generate-quote', {
+    // FormData verwenden damit Bilder mitsgesendet werden können
+    const formData = new FormData();
+    if (fileInput && fileInput.files.length > 0) {
+      Array.from(fileInput.files).slice(0, 3).forEach(f => formData.append('images', f));
+    }
+
+    const res = await fetch('/projects/<%= project.id %>/generate-quote-with-images', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      body: formData
     });
     const data = await res.json();
-    if (!res.ok || data.error) {
-      throw new Error(data.error || 'Unbekannter Fehler');
-    }
+    if (!res.ok || data.error) throw new Error(data.error || 'Unbekannter Fehler');
     textarea.value = data.quote;
   } catch (err) {
     errorBox.textContent = '❌ Fehler: ' + err.message;
