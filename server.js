@@ -21,6 +21,14 @@ try {
   console.log('Hinweis: pdfkit Modul wird geladen...');
 }
 
+// Google Gemini KI SDK
+let GoogleGenAI;
+try {
+  GoogleGenAI = require('@google/genai').GoogleGenAI;
+} catch (e) {
+  console.log('Hinweis: @google/genai nicht verfügbar:', e.message);
+}
+
 // PostgreSQL-Verbindung auf UTC halten (Timestamps werden als UTC gespeichert,
 // Anzeige-Konvertierung erfolgt per AT TIME ZONE 'Europe/Berlin' in den Abfragen)
 if (process.env.DATABASE_URL) {
@@ -2394,6 +2402,95 @@ app.get('/projects/:id', async (req, res) => {
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
+// KI-ANGEBOT GENERIEREN (Google Gemini)
+// ==========================================
+app.post('/projects/:id/generate-quote', verifyToken, async (req, res) => {
+  if (!GoogleGenAI) {
+    return res.status(500).json({ error: 'Google Gemini SDK ist nicht verfügbar. Bitte @google/genai installieren.' });
+  }
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY ist nicht konfiguriert.' });
+  }
+
+  const { id } = req.params;
+  try {
+    // Projektdaten laden
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person,
+             customers.email, customers.phone, customers.street, customers.zip, customers.city
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?
+    `, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).json({ error: 'Projekt nicht gefunden.' });
+
+    // Maße und Notizen laden
+    const measurementsRes = await dbQuery(
+      'SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at ASC', [id]
+    );
+    const notesRes = await dbQuery(
+      'SELECT note_text FROM project_notes WHERE project_id = ? ORDER BY created_at ASC', [id]
+    );
+
+    const measurements = measurementsRes.rows || [];
+    const notes = notesRes.rows || [];
+
+    // Maße als lesbarer Text
+    const massText = measurements.length > 0
+      ? measurements.map(m =>
+          `- ${m.component_name}: Breite ${m.width || '–'} mm, Höhe/Länge ${m.height || '–'} mm` +
+          `${m.angle ? ', Winkel ' + m.angle + '°' : ''}` +
+          `, Anzahl: ${m.quantity || 1}` +
+          `${m.note ? ', Bemerkung: ' + m.note : ''}`
+        ).join('\n')
+      : 'Keine Maße erfasst.';
+
+    const notizenText = notes.length > 0
+      ? notes.map(n => `- ${n.note_text}`).join('\n')
+      : 'Keine Notizen vorhanden.';
+
+    // Prompt für Gemini
+    const prompt = `
+Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${FIRMA.name}", ${FIRMA.strasse}, ${FIRMA.plzOrt}.
+
+Erstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.
+Das Angebot soll höflich, klar strukturiert und für den Kunden verständlich sein.
+Verwende eine realistische Angebotsstruktur mit Einleitung, Leistungsbeschreibung, Hinweisen und einer Abschlussformulierung.
+Schreibe das Angebot in Fließtext, keine Preise hinzufügen (da diese noch festgelegt werden müssen),
+aber beschreibe die Leistungen präzise auf Basis der Maße.
+
+**Projektdaten:**
+- Projekttitel: ${project.title}
+- Beschreibung: ${project.description || 'Keine Beschreibung hinterlegt.'}
+- Status: ${project.status}
+- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}
+- Adresse: ${project.street || ''}, ${project.zip || ''} ${project.city || ''}
+
+**Erfasste Maße (Digitales Aufmaß):**
+${massText}
+
+**Projektnotizen / Absprachen:**
+${notizenText}
+
+Erstelle jetzt das Angebot:
+`.trim();
+
+    const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const result = await genai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+    });
+
+    const text = result.text;
+    return res.json({ quote: text });
+  } catch (err) {
+    console.error('Gemini Fehler:', err);
+    return res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }
 });
 
