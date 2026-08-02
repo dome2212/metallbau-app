@@ -1,12 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../config/database');
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary } = require('cloudinary');
-const dbQuery = require('../utils/dbQuery');
 
 const storage = new CloudinaryStorage({ cloudinary, params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] } });
 const upload = multer({ storage });
+
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+    db.query(pgSql, params, (err, res) => {
+      if (err) return reject(err);
+      resolve({ rows: res.rows || [] });
+    });
+  });
+};
 
 router.get('/', async (req, res) => {
   const result = await dbQuery('SELECT * FROM customers ORDER BY created_at DESC');

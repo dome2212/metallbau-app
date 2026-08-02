@@ -1,15 +1,40 @@
-
 const express = require('express');
 const router = express.Router();
-const dbQuery = require('../utils/dbQuery');
+const db = require('../config/database');
 
-// WICHTIG: Diese Datei enthält jetzt NUR NOCH die Kalender-Seite selbst.
-// Die /api/appointments-Routen wurden nach appointmentRoutes.js ausgelagert,
-// weil sie unter einem eigenen Pfad (/api/appointments) laufen müssen und
-// nicht unter /calendar/api/appointments gelandet wären.
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+    db.query(pgSql, params, (err, res) => {
+      if (err) return reject(err);
+      resolve({ rows: res.rows || [] });
+    });
+  });
+};
+
 router.get('/', async (req, res) => {
-  const result = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
+  const result = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC');
   res.render('calendar', { customers: result.rows });
+});
+
+router.get('/api/appointments', async (req, res) => {
+  const result = await dbQuery(`SELECT appointments.id, appointments.title, appointments.start_date as start, appointments.end_date as end, appointments.description, customers.company_name, customers.contact_person FROM appointments LEFT JOIN customers ON appointments.customer_id = customers.id`);
+  res.json((result.rows).map(app => ({
+    id: app.id, title: `${app.title} (${app.company_name || app.contact_person || 'Privat'})`, start: app.start, end: app.end, description: app.description
+  })));
+});
+
+router.post('/api/appointments/add', async (req, res) => {
+  const { title, customer_id, start_date, end_date, description } = req.body;
+  await dbQuery('INSERT INTO appointments (title, customer_id, start_date, end_date, description) VALUES (?, ?, ?, ?, ?)',
+    [title, customer_id || null, start_date, end_date || null, description]);
+  res.redirect('/calendar');
+});
+
+router.post('/api/appointments/delete/:id', async (req, res) => {
+  await dbQuery('DELETE FROM appointments WHERE id = ?', [req.params.id]);
+  res.redirect('/calendar');
 });
 
 module.exports = router;

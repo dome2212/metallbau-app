@@ -1,6 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const dbQuery = require('../utils/dbQuery');
+const db = require('../config/database');
+
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+    db.query(pgSql, params, (err, res) => {
+      if (err) return reject(err);
+      resolve({ rows: res.rows || [] });
+    });
+  });
+};
 
 router.get('/', async (req, res) => {
   const result = await dbQuery('SELECT * FROM articles ORDER BY title ASC');

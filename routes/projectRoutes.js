@@ -1,16 +1,27 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../config/database');
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary } = require('cloudinary');
-const dbQuery = require('../utils/dbQuery');
-const { sendEmail, sendWhatsApp } = require('../utils/notifier'); // Benachrichtigungs-Service
+const { sendEmail, sendWhatsApp } = require('../utils/notifier'); // Benachrichtigungs-Service importieren
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
 });
 const upload = multer({ storage: storage, limits: { fileSize: 15 * 1024 * 1024 } });
+
+const dbQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
+    db.query(pgSql, params, (err, res) => {
+      if (err) return reject(err);
+      resolve({ rows: res.rows || [], lastID: res.rows?.[0]?.id });
+    });
+  });
+};
 
 router.get('/', async (req, res) => {
   try {
@@ -58,17 +69,19 @@ router.post('/add', async (req, res) => {
   }
 });
 
-// Status-Änderung MIT automatischen Benachrichtigungen (E-Mail + optional WhatsApp)
+// ERWEITERTE STATUS-ROUTE MIT AUTOMATISCHEN BENACHRICHTIGUNGEN
 router.post('/update-status', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { id, status } = req.body;
   try {
+    // 1. Status in der Datenbank aktualisieren
     await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
 
+    // 2. Projektdaten und Kundendaten (E-Mail & Telefon) für die Benachrichtigung abrufen
     const projRes = await dbQuery(`
-      SELECT projects.title, customers.email, customers.phone, customers.company_name, customers.contact_person
-      FROM projects
-      LEFT JOIN customers ON projects.customer_id = customers.id
+      SELECT projects.title, customers.email, customers.phone, customers.company_name, customers.contact_person 
+      FROM projects 
+      LEFT JOIN customers ON projects.customer_id = customers.id 
       WHERE projects.id = ?
     `, [id]);
 
@@ -76,7 +89,8 @@ router.post('/update-status', async (req, res) => {
 
     if (project && project.email) {
       const recipientName = project.company_name || project.contact_person || 'Sehr geehrter Kunde';
-
+      
+      // E-Mail senden
       await sendEmail(
         project.email,
         `Status-Update zu Ihrem Projekt: ${project.title}`,
@@ -86,6 +100,7 @@ router.post('/update-status', async (req, res) => {
          <p>Mit freundlichen Grüßen<br>Ihr Metallbau-Team</p>`
       );
 
+      // Optional: WhatsApp senden, falls Telefonnummer vorhanden
       if (project.phone) {
         await sendWhatsApp(
           project.phone,
