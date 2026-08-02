@@ -1,39 +1,39 @@
 <%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100 overflow-hidden">
+<div class="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 min-h-screen pt-16 md:pt-6">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
     <div class="p-4 md:p-6 max-w-4xl mx-auto w-full space-y-6">
       
-      <div class="bg-white rounded-xl shadow p-4 md:p-6 space-y-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-6">
         <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b dark:border-slate-700 pb-4">
           <div>
-            <h2 class="text-xl md:text-2xl font-bold text-gray-800">Rechnung: <%= invoice.invoice_number %></h2>
-            <p class="text-xs text-gray-500">Erstellt am: <%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></p>
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Rechnung: <%= invoice.invoice_number %></h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Erstellt am: <%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></p>
           </div>
           <div class="flex items-center gap-2">
             <span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= invoice.status %></span>
-            <a href="/documents/invoices" class="px-3 py-1.5 border rounded-lg text-xs text-gray-600 hover:bg-gray-50">Zurück</a>
+            <a href="/documents/invoices" class="px-3 py-1.5 border dark:border-slate-600 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Zurück</a>
           </div>
         </div>
 
         <!-- Kunden-Details -->
-        <div class="bg-gray-50 rounded-lg p-4 border space-y-1 text-sm">
-          <div class="text-xs font-bold text-gray-500 uppercase mb-1">Empfänger / Kunde</div>
-          <p class="font-semibold text-gray-800"><%= invoice.company_name || invoice.contact_person %></p>
-          <p class="text-gray-600"><%= invoice.street %></p>
-          <p class="text-gray-600"><%= invoice.zip %> <%= invoice.city %></p>
-          <p class="text-xs text-gray-400 pt-1"><%= invoice.email || '' %> <%= invoice.phone ? '| ' + invoice.phone : '' %></p>
+        <div class="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border dark:border-slate-600 space-y-1 text-sm">
+          <div class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">Empfänger / Kunde</div>
+          <p class="font-semibold text-gray-800 dark:text-gray-100"><%= invoice.company_name || invoice.contact_person %></p>
+          <p class="text-gray-600 dark:text-gray-300"><%= invoice.street %></p>
+          <p class="text-gray-600 dark:text-gray-300"><%= invoice.zip %> <%= invoice.city %></p>
+          <p class="text-xs text-gray-400 dark:text-slate-500 pt-1"><%= invoice.email || '' %> <%= invoice.phone ? '| ' + invoice.phone : '' %></p>
         </div>
 
         <!-- Positionen (Material & Arbeitsstunden) -->
         <div>
-          <h4 class="text-sm font-bold text-gray-800 mb-3">Verbautes Material & Leistungen</h4>
-          <div class="overflow-x-auto border rounded-lg">
+          <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-3">Verbautes Material & Leistungen</h4>
+          <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
             <table class="w-full text-left text-sm border-collapse min-w-[600px]">
-              <thead class="bg-gray-50 text-gray-700 uppercase text-xs border-b">
+              <thead class="bg-gray-50 dark:bg-slate-700 text-gray-700 dark:text-slate-300 uppercase text-xs border-b dark:border-slate-600">
                 <tr>
                   <th class="p-3">Beschreibung (Material / Arbeitszeit)</th>
                   <th class="p-3 text-center w-24">Menge</th>
@@ -42,26 +42,26 @@
                   <th class="p-3 text-end w-28">Gesamt</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200">
+              <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
                 <% if (items.length === 0) { %>
                   <tr>
-                    <td colspan="5" class="text-center text-gray-400 py-6 text-xs">Keine Positionen hinterlegt.</td>
+                    <td colspan="5" class="text-center text-gray-400 dark:text-slate-500 py-6 text-xs">Keine Positionen hinterlegt.</td>
                   </tr>
                 <% } else { %>
                   <% items.forEach(item => { %>
-                    <tr class="hover:bg-gray-50">
-                      <td class="p-3 text-gray-800"><%= item.description %></td>
-                      <td class="p-3 text-center text-gray-600"><%= item.quantity %></td>
-                      <td class="p-3 text-center text-gray-600"><%= item.unit %></td>
-                      <td class="p-3 text-end text-gray-600"><%= (item.price || 0).toFixed(2) %> €</td>
-                      <td class="p-3 text-end font-semibold text-gray-800"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
+                      <td class="p-3 text-gray-800 dark:text-gray-100"><%= item.description %></td>
+                      <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.quantity %></td>
+                      <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.unit %></td>
+                      <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= (item.price || 0).toFixed(2) %> €</td>
+                      <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
                     </tr>
                   <% }) %>
                 <% } %>
               </tbody>
-              <tfoot class="bg-gray-50 border-t">
+              <tfoot class="bg-gray-50 dark:bg-slate-700 border-t dark:border-slate-600">
                 <tr>
-                  <td colspan="4" class="p-3 text-end font-bold text-gray-800 text-sm">Gesamtbetrag (Brutto):</td>
+                  <td colspan="4" class="p-3 text-end font-bold text-gray-800 dark:text-gray-100 text-sm">Gesamtbetrag (Brutto):</td>
                   <td class="p-3 text-end font-bold text-emerald-600 text-base"><%= (invoice.total_amount || 0).toFixed(2) %> €</td>
                 </tr>
               </tfoot>

@@ -1,12 +1,12 @@
 <%- include('partials/header') %>
 
-<div class="flex h-screen bg-slate-100 overflow-hidden">
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
   <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">📊 Monatsauswertung Stempeluhr</h1>
-      <span class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📊 Monatsauswertung Stempeluhr</h1>
+      <span class="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-lg">
         Gesamt: <strong id="total-display">wird berechnet...</strong>
       </span>
     </header>
@@ -14,12 +14,12 @@
     <div class="px-4 md:px-6 max-w-7xl mx-auto w-full space-y-6 pb-6">
 
       <!-- Filter-Leiste -->
-      <div class="bg-white p-4 rounded-xl shadow">
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow">
         <form method="GET" action="/timetracking/admin/monthly" class="flex flex-wrap gap-4 items-end">
           <% if (currentUser.role === 'ADMIN') { %>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1">Mitarbeiter</label>
-              <select name="user_id" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Mitarbeiter</label>
+              <select name="user_id" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
                 <% users.forEach(u => { %>
                   <option value="<%= u.id %>" <%= Number(selectedUserId) === Number(u.id) ? 'selected' : '' %>><%= u.username %></option>
                 <% }) %>
@@ -27,13 +27,13 @@
             </div>
           <% } %>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Monat wählen</label>
-            <input type="month" name="month" value="<%= selectedMonth %>" class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monat wählen</label>
+            <input type="month" name="month" value="<%= selectedMonth %>" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Soll-Std./Tag</label>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Soll-Std./Tag</label>
             <input type="number" name="daily_hours" value="<%= dailyHours %>" min="1" max="12" step="0.5"
-              class="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white w-24" title="Tägliche Sollarbeitszeit in Stunden">
+              class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white w-24" title="Tägliche Sollarbeitszeit in Stunden">
           </div>
           <div class="flex gap-2">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Filtern</button>
@@ -59,22 +59,22 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
         <!-- Gearbeitete Stunden -->
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
-          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Gearbeitete Stunden</p>
-          <p class="text-2xl font-bold text-slate-800 mt-1"><%= workedHours %> Std.</p>
-          <p class="text-xs text-slate-400 mt-0.5">im Monat <%= selectedMonth %></p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 border-blue-500">
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Gearbeitete Stunden</p>
+          <p class="text-2xl font-bold text-slate-800 dark:text-gray-100 mt-1"><%= workedHours %> Std.</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">im Monat <%= selectedMonth %></p>
         </div>
 
         <!-- Soll-Stunden -->
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-slate-400">
-          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
-          <p class="text-2xl font-bold text-slate-800 mt-1"><%= targetHours %> Std.</p>
-          <p class="text-xs text-slate-400 mt-0.5">Werktage (Mo–Fr) im Monat</p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 border-slate-400">
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
+          <p class="text-2xl font-bold text-slate-800 dark:text-gray-100 mt-1"><%= targetHours %> Std.</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Werktage (Mo–Fr) im Monat</p>
         </div>
 
         <!-- Über-/Minusstunden -->
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
-          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             <%= isOver ? 'Überstunden' : 'Minusstunden' %>
           </p>
           <p class="text-2xl font-bold mt-1 <%= isOver ? 'text-green-600' : 'text-red-600' %>">
@@ -86,10 +86,10 @@
       </div>
 
       <!-- Tabelle der Zeiteinträge -->
-      <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm min-w-[500px]">
-            <thead class="bg-slate-50 text-slate-600 text-xs uppercase border-b">
+            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs uppercase border-b dark:border-slate-600">
               <tr>
                 <th class="p-4">Datum</th>
                 <th class="p-4">Uhrzeit</th>
@@ -97,13 +97,13 @@
                 <th class="p-4">Notiz</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200" id="entries-body">
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700" id="entries-body">
               <% if (entries && entries.length > 0) { %>
                 <% entries.forEach(entry => { %>
                   <% const ts = new Date(entry.timestamp); %>
-                  <tr class="hover:bg-slate-50">
-                    <td class="p-4 font-medium text-slate-800"><%= ts.toLocaleDateString('de-DE') %></td>
-                    <td class="p-4 text-slate-600"><%= ts.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %> Uhr</td>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <td class="p-4 font-medium text-slate-800 dark:text-gray-100"><%= ts.toLocaleDateString('de-DE') %></td>
+                    <td class="p-4 text-slate-600 dark:text-slate-300"><%= ts.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) %> Uhr</td>
                     <td class="p-4">
                       <% if (entry.type === 'IN') { %>
                         <span class="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-md">Eingestempelt (IN)</span>
@@ -111,12 +111,12 @@
                         <span class="bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-md">Ausgestempelt (OUT)</span>
                       <% } %>
                     </td>
-                    <td class="p-4 text-slate-500"><%= entry.note || '-' %></td>
+                    <td class="p-4 text-slate-500 dark:text-slate-400"><%= entry.note || '-' %></td>
                   </tr>
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="4" class="p-6 text-center text-slate-400 italic text-sm">Keine Einträge für diesen Monat gefunden.</td>
+                  <td colspan="4" class="p-6 text-center text-slate-400 dark:text-slate-500 italic text-sm">Keine Einträge für diesen Monat gefunden.</td>
                 </tr>
               <% } %>
             </tbody>
