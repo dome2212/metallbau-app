@@ -1632,13 +1632,8 @@ app.post('/admin/users/delete', verifyToken, requireAdmin, async (req, res) => {
 // ==========================================
 app.get('/ticker', async (req, res) => {
   try {
-    const result = await dbQuery(`
-      SELECT tickers.*, 
-             TO_CHAR(tickers.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'DD.MM.YYYY HH24:MI') as formatted_date 
-      FROM tickers 
-      ORDER BY created_at DESC
-    `);
-    res.render('ticker', { tickers: result.rows || [], user: req.user });
+    const result = await dbQuery(`SELECT * FROM tickers ORDER BY created_at DESC`);
+    res.render('ticker', { tickers: result.rows || [] });
   } catch (err) {
     console.error('Fehler beim Laden des Tickers:', err.message);
     res.status(500).send('Datenbankfehler');
