@@ -1,0 +1,260 @@
+<%- include('partials/header') %>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+<div class="flex h-screen bg-slate-100 overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-hidden md:ml-72 min-h-screen pt-16 md:pt-0">
+
+    <!-- Header -->
+    <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shrink-0">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800">🗺️ Baustellenkarte</h1>
+        <p class="text-xs text-slate-400 mt-0.5">Alle laufenden Aufträge mit hinterlegtem Standort auf einen Blick</p>
+      </div>
+      <!-- Legende -->
+      <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+        <% const legendItems = [
+          ['In Planung',          '#94a3b8'],
+          ['Avor / Vorbereitung', '#60a5fa'],
+          ['In Produktion',       '#fbbf24'],
+          ['Oberfläche',          '#a78bfa'],
+          ['Montagebereit',       '#34d399'],
+          ['Montage läuft',       '#f97316']
+        ]; %>
+        <% legendItems.forEach(([label, color]) => { %>
+          <span class="flex items-center gap-1">
+            <span class="w-3 h-3 rounded-full inline-block border border-white/50 shadow-sm" style="background:<%= color %>"></span>
+            <%= label %>
+          </span>
+        <% }) %>
+        <span class="flex items-center gap-1 text-slate-300">
+          <span class="w-3 h-3 rounded-full inline-block bg-slate-300 border border-white/50"></span>
+          Kein Standort
+        </span>
+      </div>
+    </header>
+
+    <!-- Layout: Karte + Seitenpanel -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+      <!-- ══════════ KARTE ══════════ -->
+      <div id="map" class="flex-1 min-h-[320px] z-0"></div>
+
+      <!-- ══════════ SEITENPANEL ══════════ -->
+      <div class="w-full md:w-80 bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden shrink-0">
+
+        <!-- Zähler + Filter -->
+        <div class="px-4 py-3 border-b border-slate-100">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-semibold text-slate-600 uppercase tracking-wider">Aufträge</span>
+            <span id="count-badge" class="text-xs bg-blue-600 text-white font-bold px-2 py-0.5 rounded-full">–</span>
+          </div>
+          <input id="panel-filter" type="text" placeholder="Liste filtern…"
+            class="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            oninput="filterPanel(this.value)">
+        </div>
+
+        <!-- Auftragsliste -->
+        <div id="project-list" class="flex-1 overflow-y-auto divide-y divide-slate-50 text-sm">
+          <!-- wird per JS befüllt -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLcE=" crossorigin=""></script>
+
+<script>
+// ── Projektdaten vom Server ───────────────────────────────────────────────
+const PROJECTS = <%- JSON.stringify(projects) %>;
+const FIRM_LAT = 51.3069467;
+const FIRM_LNG = 6.9483845;
+
+// Farbe je Status
+const STATUS_COLOR = {
+  'In Planung':          '#94a3b8',
+  'Avor / Vorbereitung': '#60a5fa',
+  'In Produktion':       '#fbbf24',
+  'Oberfläche':          '#a78bfa',
+  'Montagebereit':       '#34d399',
+  'Montage läuft':       '#f97316',
+  'Abgeschlossen':       '#86efac'
+};
+
+function colorFor(status) {
+  return STATUS_COLOR[status] || '#94a3b8';
+}
+
+// ── Leaflet initialisieren ────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true });
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 19
+}).addTo(map);
+
+// ── Firmen-Marker ─────────────────────────────────────────────────────────
+const firmIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:20px;height:20px;border-radius:50%;
+    background:#1e293b;border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.4);
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:#fff;line-height:1">🔩</div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
+L.marker([FIRM_LAT, FIRM_LNG], { icon: firmIcon })
+  .addTo(map)
+  .bindPopup('<strong>🔩 Metallbau-Gehrmann</strong><br>Firmensitz');
+
+// ── Projekt-Marker ────────────────────────────────────────────────────────
+const markers = {};   // id → marker
+const bounds  = [[FIRM_LAT, FIRM_LNG]];
+
+PROJECTS.forEach(p => {
+  if (!p.site_lat || !p.site_lng) return;
+
+  const color = colorFor(p.status);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:24px;height:24px;border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      background:${color};border:2px solid #fff;
+      box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,
+    iconSize:   [24, 24],
+    iconAnchor: [12, 24],
+    popupAnchor:[0, -26]
+  });
+
+  const customer = p.company_name || p.contact_person || 'Kein Kunde';
+  const addr     = [p.street, p.city].filter(Boolean).join(', ');
+
+  const popup = L.popup({ maxWidth: 260 }).setContent(`
+    <div style="font-family:system-ui,sans-serif;line-height:1.5">
+      <p style="font-weight:700;font-size:14px;margin:0 0 4px">${escHtml(p.title)}</p>
+      <p style="font-size:11px;color:#64748b;margin:0 0 2px">👤 ${escHtml(customer)}</p>
+      ${addr ? `<p style="font-size:11px;color:#64748b;margin:0 0 6px">📍 ${escHtml(addr)}</p>` : ''}
+      <span style="display:inline-block;font-size:11px;font-weight:600;
+        padding:2px 8px;border-radius:99px;background:${color}22;color:${color};
+        border:1px solid ${color}55">${escHtml(p.status)}</span>
+      ${p.description ? `<p style="font-size:11px;color:#475569;margin:6px 0 0">${escHtml(p.description.slice(0,100))}${p.description.length>100?'…':''}</p>` : ''}
+      <div style="margin-top:8px">
+        <a href="/projects/${p.id}" style="font-size:12px;color:#2563eb;font-weight:600;text-decoration:none">
+          Auftrag öffnen →
+        </a>
+      </div>
+    </div>`);
+
+  const marker = L.marker([p.site_lat, p.site_lng], { icon }).addTo(map).bindPopup(popup);
+  markers[p.id] = marker;
+  bounds.push([p.site_lat, p.site_lng]);
+});
+
+// Karte auf alle Marker einpassen
+if (bounds.length > 1) {
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+} else {
+  map.setView([FIRM_LAT, FIRM_LNG], 11);
+}
+
+// ── Seitenpanel rendern ───────────────────────────────────────────────────
+let allProjects = PROJECTS.slice(); // Kopie für Filter
+
+function renderPanel(list) {
+  const el     = document.getElementById('project-list');
+  const badge  = document.getElementById('count-badge');
+  const withGeo   = list.filter(p => p.site_lat && p.site_lng);
+  const withoutGeo = list.filter(p => !p.site_lat || !p.site_lng);
+
+  badge.textContent = list.length;
+
+  if (!list.length) {
+    el.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-8">Keine Aufträge gefunden.</p>';
+    return;
+  }
+
+  function card(p, hasGeo) {
+    const color = colorFor(p.status);
+    const customer = p.company_name || p.contact_person || '–';
+    return `
+      <div class="px-4 py-3 hover:bg-slate-50 cursor-pointer transition"
+        onclick="focusProject(${p.id}, ${p.site_lat || 'null'}, ${p.site_lng || 'null'})">
+        <div class="flex items-start gap-2">
+          <span class="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style="background:${color}"></span>
+          <div class="min-w-0 flex-1">
+            <p class="font-semibold text-slate-800 text-sm truncate">${escHtml(p.title)}</p>
+            <p class="text-xs text-slate-400 truncate">${escHtml(customer)}</p>
+          </div>
+          <span class="text-[10px] font-bold shrink-0 mt-0.5 px-1.5 py-0.5 rounded"
+            style="background:${color}22;color:${color}">${escHtml(p.status)}</span>
+        </div>
+        ${!hasGeo ? `<p class="text-[10px] text-slate-300 mt-1 ml-4">Kein Standort hinterlegt</p>` : ''}
+      </div>`;
+  }
+
+  let html = '';
+  if (withGeo.length) {
+    html += `<p class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50">Mit Standort (${withGeo.length})</p>`;
+    html += withGeo.map(p => card(p, true)).join('');
+  }
+  if (withoutGeo.length) {
+    html += `<p class="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50">Ohne Standort (${withoutGeo.length})</p>`;
+    html += withoutGeo.map(p => card(p, false)).join('');
+  }
+  el.innerHTML = html;
+}
+
+function filterPanel(val) {
+  const q = val.trim().toLowerCase();
+  const filtered = q
+    ? allProjects.filter(p =>
+        (p.title || '').toLowerCase().includes(q) ||
+        (p.company_name || '').toLowerCase().includes(q) ||
+        (p.contact_person || '').toLowerCase().includes(q) ||
+        (p.status || '').toLowerCase().includes(q))
+    : allProjects;
+  renderPanel(filtered);
+}
+
+function focusProject(id, lat, lng) {
+  if (lat && lng) {
+    map.flyTo([lat, lng], 16, { duration: 0.8 });
+    if (markers[id]) {
+      setTimeout(() => markers[id].openPopup(), 850);
+    }
+  }
+  // Auf Mobil: Karte nach oben scrollen
+  document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+renderPanel(allProjects);
+</script>
+
+<style>
+/* Leaflet-Popups im App-Stil */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  padding: 0;
+}
+.leaflet-popup-content { margin: 12px 14px; }
+.leaflet-popup-tip-container { margin-top: -1px; }
+/* Karte nimmt restliche Höhe ein */
+#map { min-height: 0; }
+</style>
+
+</body>
+</html>

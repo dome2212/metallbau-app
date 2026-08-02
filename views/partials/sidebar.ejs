@@ -22,12 +22,25 @@
       </button>
     </div>
 
+    <!-- Suchfeld -->
+    <div class="mb-4">
+      <button onclick="openSearch()"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition group">
+        <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <span class="flex-1 text-left text-slate-400 text-xs">Suchen…</span>
+        <kbd class="hidden md:inline text-[10px] font-mono bg-slate-600 group-hover:bg-slate-500 text-slate-300 px-1.5 py-0.5 rounded">/</kbd>
+      </button>
+    </div>
+
     <nav class="space-y-1.5">
       <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏠 Dashboard</a>
       
       <!-- Für Alle sichtbar -->
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
       <a href="/projects/board" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗂️ Kanban-Board</a>
+      <a href="/map" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗺️ Baustellenkarte</a>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
       <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Profilgewicht-Rechner</a>
@@ -63,11 +76,163 @@
 <!-- Abstandhalter oben für Mobil -->
 <div class="md:hidden h-14"></div>
 
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- GLOBALE SUCHE – Overlay                                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="search-overlay" class="hidden fixed inset-0 z-[999] bg-black/60 flex items-start justify-center pt-16 px-4" onclick="closeSearch(event)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onclick="event.stopPropagation()">
+
+    <!-- Eingabe -->
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+      <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input id="search-input" type="text" placeholder="Auftrag, Kunde, Termin oder Notiz suchen…"
+        class="flex-1 text-sm text-slate-800 placeholder-slate-400 outline-none bg-transparent"
+        oninput="onSearchInput(this.value)"
+        onkeydown="onSearchKey(event)">
+      <kbd class="text-[10px] font-mono bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded cursor-pointer" onclick="closeSearch()">Esc</kbd>
+    </div>
+
+    <!-- Ergebnisse -->
+    <div id="search-results" class="max-h-[420px] overflow-y-auto divide-y divide-slate-50">
+      <p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center gap-4 text-[10px] text-slate-400">
+      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">↑↓</kbd> Navigieren</span>
+      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">↵</kbd> Öffnen</span>
+      <span><kbd class="font-mono bg-white border border-slate-200 rounded px-1">Esc</kbd> Schließen</span>
+    </div>
+  </div>
+</div>
+
 <script>
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     sidebar.classList.toggle('-translate-x-full');
     backdrop.classList.toggle('hidden');
+  }
+
+  // ── Suche öffnen/schließen ────────────────────────────────────────────────
+  function openSearch() {
+    document.getElementById('search-overlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('search-input').focus(), 50);
+  }
+  function closeSearch(e) {
+    if (e && e.target !== document.getElementById('search-overlay')) return;
+    document.getElementById('search-overlay').classList.add('hidden');
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').innerHTML =
+      '<p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>';
+    activeIdx = -1;
+  }
+
+  // Tastenkürzel /
+  document.addEventListener('keydown', function (e) {
+    const tag = document.activeElement.tagName;
+    if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+      e.preventDefault();
+      openSearch();
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('search-overlay').classList.add('hidden');
+      document.getElementById('search-input').value = '';
+      activeIdx = -1;
+    }
+  });
+
+  // ── Debounced fetch ───────────────────────────────────────────────────────
+  let searchTimer = null;
+  let activeIdx   = -1;
+  let lastResults = [];
+
+  function onSearchInput(val) {
+    clearTimeout(searchTimer);
+    activeIdx = -1;
+    if (val.trim().length < 2) {
+      document.getElementById('search-results').innerHTML =
+        '<p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>';
+      return;
+    }
+    document.getElementById('search-results').innerHTML =
+      '<p class="text-xs text-slate-400 text-center py-6">Suche…</p>';
+    searchTimer = setTimeout(() => doSearch(val.trim()), 260);
+  }
+
+  async function doSearch(q) {
+    try {
+      const res  = await fetch('/api/search?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      lastResults = data.results || [];
+      renderResults(lastResults, q);
+    } catch (_) {
+      document.getElementById('search-results').innerHTML =
+        '<p class="text-xs text-red-400 text-center py-6">Fehler beim Laden der Ergebnisse.</p>';
+    }
+  }
+
+  function renderResults(results, q) {
+    const box = document.getElementById('search-results');
+    if (!results.length) {
+      box.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">Keine Ergebnisse gefunden.</p>';
+      return;
+    }
+
+    // Treffer im Text hervorheben
+    function highlight(text, term) {
+      if (!term) return esc(text);
+      const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      return esc(text).replace(re, '<mark class="bg-yellow-100 text-yellow-900 rounded px-0.5 not-italic">$1</mark>');
+    }
+    function esc(t) {
+      return String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    const typeLabel = { project:'Auftrag', customer:'Kunde', appointment:'Termin', note:'Notiz' };
+    const typeBg    = { project:'bg-blue-50 text-blue-700', customer:'bg-purple-50 text-purple-700',
+                        appointment:'bg-amber-50 text-amber-700', note:'bg-slate-100 text-slate-600' };
+
+    box.innerHTML = results.map((r, i) => `
+      <a href="${r.url}" id="sr-${i}"
+        class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition cursor-pointer search-result-item"
+        data-idx="${i}">
+        <span class="text-xl leading-none mt-0.5 shrink-0">${r.icon}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-slate-800 truncate">${highlight(r.label, q)}</p>
+          ${r.sub ? `<p class="text-xs text-slate-400 truncate mt-0.5">${esc(r.sub)}</p>` : ''}
+        </div>
+        <span class="text-[10px] font-semibold shrink-0 mt-1 px-1.5 py-0.5 rounded ${typeBg[r.type] || 'bg-slate-100 text-slate-500'}">
+          ${typeLabel[r.type] || r.type}
+        </span>
+      </a>`).join('');
+  }
+
+  // ── Tastaturnavigation ────────────────────────────────────────────────────
+  function onSearchKey(e) {
+    const items = document.querySelectorAll('.search-result-item');
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      items[activeIdx].click();
+      return;
+    } else {
+      return;
+    }
+
+    items.forEach((el, i) => {
+      el.classList.toggle('bg-slate-100', i === activeIdx);
+      el.classList.toggle('hover:bg-slate-50', i !== activeIdx);
+    });
+    items[activeIdx]?.scrollIntoView({ block: 'nearest' });
   }
 </script>

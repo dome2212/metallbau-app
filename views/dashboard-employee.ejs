@@ -8,10 +8,48 @@
     
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
       <h1 class="text-xl md:text-2xl font-bold text-slate-800">⏱️ Mein Monatsüberblick</h1>
+      <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
     </header>
 
     <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-6">
-      
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- ÜBERSTUNDEN-AMPEL  (volle Breite)                  -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 <%= stats.trafficBorder %>">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+          <!-- Linke Seite: Ampel + Text -->
+          <div class="flex items-center gap-4">
+            <span class="text-5xl leading-none"><%= stats.trafficLight %></span>
+            <div>
+              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Monats-Bilanz <%= stats.monthLabel %></p>
+              <p class="text-lg font-bold <%= stats.trafficColor %>"><%= stats.trafficText %></p>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Ist: <strong class="text-slate-600"><%= stats.monthTotalHours %> Std.</strong>
+                &nbsp;·&nbsp;
+                Soll: <strong class="text-slate-600"><%= stats.targetHours %> Std.</strong>
+                <span class="text-slate-300 ml-1">(8 h × Werktage bis heute)</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Rechte Seite: Fortschrittsbalken -->
+          <div class="w-full sm:w-56 shrink-0">
+            <div class="flex justify-between text-xs text-slate-400 mb-1">
+              <span>0 %</span>
+              <span class="font-semibold text-slate-600"><%= stats.progressPct %> %</span>
+              <span>100 %</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+              <div class="h-3 rounded-full transition-all duration-500"
+                style="width:<%= Math.min(100, stats.progressPct) %>%; background-color:<%= stats.progressColor %>;"></div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1 text-right">Soll-Erfüllungsgrad</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Statistik-Karten -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
 
@@ -24,8 +62,9 @@
 
         <!-- Arbeitsstunden diesen Monat -->
         <div class="bg-white rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
-          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Arbeitsstunden (Aktueller Monat)</p>
+          <p class="text-xs md:text-sm font-medium text-slate-500 uppercase tracking-wider">Stunden diesen Monat</p>
           <p class="text-2xl md:text-3xl font-bold text-slate-800 mt-2"><%= stats.monthTotalHours %> Std.</p>
+          <p class="text-xs text-slate-400 mt-1">Soll: <%= stats.targetHours %> Std.</p>
         </div>
 
         <!-- Aktueller Stempelstatus -->

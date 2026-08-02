@@ -339,22 +339,39 @@ app.get('/', async (req, res) => {
 
   try {
     if (userRole !== 'ADMIN') {
+      const now = new Date();
+
+      // Aktueller Monat – Grenzen berechnen
+      const curYear  = now.getFullYear();
+      const curMonth = now.getMonth(); // 0-based
+      const monthStart = new Date(curYear, curMonth, 1);
+      const monthEnd   = new Date(curYear, curMonth + 1, 0); // letzter Tag
+
       const sqlMonthLogs = isPg
         ? `SELECT time_logs.*,
                   TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
-           FROM time_logs WHERE user_id = ? ORDER BY timestamp ASC`
+           FROM time_logs WHERE user_id = ?
+           AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')
+               BETWEEN ? AND ?
+           ORDER BY timestamp ASC`
         : `SELECT time_logs.*, strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
-           FROM time_logs WHERE user_id = ? ORDER BY timestamp ASC`;
-      const result = await dbQuery(sqlMonthLogs, [userId]);
+           FROM time_logs WHERE user_id = ?
+           AND date(timestamp) BETWEEN ? AND ?
+           ORDER BY timestamp ASC`;
+      const monthStr = `${curYear}-${String(curMonth + 1).padStart(2, '0')}`;
+      const monthStartStr = `${monthStr}-01`;
+      const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
+      const monthEndStr  = `${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+
+      const result = await dbQuery(sqlMonthLogs, [userId, monthStartStr, monthEndStr]);
       const logs = result.rows;
 
       let totalMilliseconds = 0;
       let isStampedIn = false;
-      const now = new Date();
 
       if (logs && logs.length > 0) {
         for (let i = 0; i < logs.length; i++) {
-          const currentLogTime = new Date(logs[i].local_timestamp || logs[i].timestamp);
+          const currentLogTime = new Date((logs[i].local_timestamp || logs[i].timestamp).replace(' ', 'T'));
           if (logs[i].type === 'IN') {
             isStampedIn = true;
             const nextLog = logs[i + 1];
@@ -363,7 +380,7 @@ app.get('/', async (req, res) => {
 
             if (nextLog && nextLog.type === 'OUT') {
               isStampedIn = false;
-              endTime = new Date(nextLog.local_timestamp || nextLog.timestamp).getTime();
+              endTime = new Date((nextLog.local_timestamp || nextLog.timestamp).replace(' ', 'T')).getTime();
             } else if (i === logs.length - 1) {
               endTime = now.getTime();
             } else {
@@ -379,26 +396,69 @@ app.get('/', async (req, res) => {
         }
       }
 
-      const monthTotalHours = (totalMilliseconds / (1000 * 60 * 60)).toFixed(2);
+      const monthTotalHours = (totalMilliseconds / 3600000).toFixed(2);
+
+      // ── Soll-Stunden: Werktage (Mo–Fr) im laufenden Monat bis heute ──────
+      const dailyHours = 8; // Standard-Arbeitstag
+      let workdaysSoFar = 0;
+      const todayDate = new Date(curYear, curMonth, now.getDate());
+      for (let d = 1; d <= now.getDate(); d++) {
+        const dow = new Date(curYear, curMonth, d).getDay();
+        if (dow !== 0 && dow !== 6) workdaysSoFar++;
+      }
+      const targetHours    = workdaysSoFar * dailyHours;
+      const overtimeHours  = parseFloat(monthTotalHours) - targetHours; // positiv = Über, negativ = Minus
+      const overtimeAbs    = Math.abs(overtimeHours);
+      const overtimeH      = Math.floor(overtimeAbs);
+      const overtimeM      = Math.round((overtimeAbs - overtimeH) * 60);
+
+      // Ampel-Logik: grün = ±2h, gelb = -2 bis -6h, rot = < -6h
+      let trafficLight, trafficColor, trafficBorder, trafficBg, trafficText;
+      if (overtimeHours >= -2) {
+        trafficLight  = '🟢';
+        trafficColor  = 'text-emerald-700';
+        trafficBorder = 'border-emerald-500';
+        trafficBg     = 'bg-emerald-50';
+        trafficText   = overtimeHours >= 0
+          ? `+${overtimeH} Std. ${overtimeM} Min. Überstunden`
+          : `${overtimeH} Std. ${overtimeM} Min. unter Soll (OK)`;
+      } else if (overtimeHours >= -6) {
+        trafficLight  = '🟡';
+        trafficColor  = 'text-amber-700';
+        trafficBorder = 'border-amber-400';
+        trafficBg     = 'bg-amber-50';
+        trafficText   = `−${overtimeH} Std. ${overtimeM} Min. unter Soll`;
+      } else {
+        trafficLight  = '🔴';
+        trafficColor  = 'text-red-700';
+        trafficBorder = 'border-red-500';
+        trafficBg     = 'bg-red-50';
+        trafficText   = `−${overtimeH} Std. ${overtimeM} Min. unter Soll`;
+      }
+
+      // Fortschrittsbalken: wie viel % der Soll-Zeit ist erreicht?
+      const progressPct = targetHours > 0
+        ? Math.min(120, Math.round((parseFloat(monthTotalHours) / targetHours) * 100))
+        : 0;
+      const progressColor = overtimeHours >= -2 ? '#10b981' : overtimeHours >= -6 ? '#f59e0b' : '#ef4444';
 
       // Wochenstunden berechnen (ab Montag dieser Woche)
-      const today = new Date();
-      const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1; // 0=Mo
-      const mondayStart = new Date(today);
+      const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // 0=Mo
+      const mondayStart = new Date(now);
       mondayStart.setHours(0, 0, 0, 0);
       mondayStart.setDate(mondayStart.getDate() - dayOfWeek);
 
       let weekMs = 0;
       if (logs && logs.length > 0) {
         for (let i = 0; i < logs.length; i++) {
-          const t = new Date(logs[i].local_timestamp || logs[i].timestamp);
+          const t = new Date((logs[i].local_timestamp || logs[i].timestamp).replace(' ', 'T'));
           if (t < mondayStart) continue;
           if (logs[i].type !== 'IN') continue;
           const start = t.getTime();
           const next = logs[i + 1];
           let end;
           if (next && next.type === 'OUT') {
-            end = new Date(next.local_timestamp || next.timestamp).getTime();
+            end = new Date((next.local_timestamp || next.timestamp).replace(' ', 'T')).getTime();
           } else if (i === logs.length - 1) {
             end = now.getTime();
           } else {
@@ -407,9 +467,15 @@ app.get('/', async (req, res) => {
           if (end > start) weekMs += (end - start);
         }
       }
-      const weekTotalHours = (weekMs / (1000 * 60 * 60)).toFixed(2);
+      const weekTotalHours = (weekMs / 3600000).toFixed(2);
 
-      const stats = { monthTotalHours, weekTotalHours, isStampedIn };
+      const stats = {
+        monthTotalHours, weekTotalHours, isStampedIn,
+        targetHours, overtimeHours: overtimeHours.toFixed(2),
+        trafficLight, trafficColor, trafficBorder, trafficBg, trafficText,
+        progressPct, progressColor,
+        monthLabel: now.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+      };
       const recentLogs = [...logs].reverse().slice(0, 5);
 
       // Ticker für Mitarbeiter laden
@@ -1777,6 +1843,23 @@ app.post('/api/appointments/delete/:id', async (req, res) => {
 // ==========================================
 // AUFTRÄGE & BAUSTELLEN
 // ==========================================
+app.get('/map', verifyToken, async (req, res) => {
+  try {
+    const projRes = await dbQuery(`
+      SELECT p.id, p.title, p.status, p.description,
+             p.site_lat, p.site_lng,
+             c.company_name, c.contact_person, c.street, c.city
+      FROM projects p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE p.status != 'Abgeschlossen'
+      ORDER BY p.created_at DESC
+    `);
+    res.render('map', { projects: projRes.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
 app.get('/projects', async (req, res) => {
   try {
     const sql = `
@@ -1889,6 +1972,273 @@ app.get('/projects/:id', async (req, res) => {
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
+// LIEFERSCHEIN / STUNDENNACHWEIS PDF
+// ==========================================
+app.get('/projects/:id/pdf', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!PDFKit) return res.status(500).send('PDFKit nicht geladen.');
+
+    // ── Projektdaten ────────────────────────────────────────────────────────
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person,
+             customers.street, customers.zip, customers.city, customers.phone, customers.email
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).send('Auftrag nicht gefunden');
+
+    // ── Arbeitsstunden des Projekts (time_logs mit customer_id des Projekts) ─
+    // Fallback: alle Logs im Projekt-Zeitraum (angelegt bis heute)
+    const logsRes = await dbQuery(`
+      SELECT tl.*, u.username,
+        TO_CHAR(tl.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_ts
+      FROM time_logs tl
+      JOIN users u ON tl.user_id = u.id
+      WHERE tl.customer_id = ?
+      ORDER BY tl.timestamp ASC`, [project.customer_id || -1]);
+    const logs = logsRes.rows;
+
+    // ── Aufmaße ─────────────────────────────────────────────────────────────
+    const measRes = await dbQuery(
+      'SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at ASC', [id]);
+
+    // ── Aufgaben / Mängel ────────────────────────────────────────────────────
+    const tasksRes = await dbQuery(
+      'SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at ASC', [id]);
+
+    // ── Notizen ──────────────────────────────────────────────────────────────
+    const notesRes = await dbQuery(
+      'SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at ASC', [id]);
+
+    // ── Geleistete Stunden (IN/OUT Paare) ────────────────────────────────────
+    let totalWorkedMs = 0;
+    const logRows = logs.map(l => ({ ...l, ts: l.local_ts || String(l.timestamp) }));
+    for (let i = 0; i < logRows.length; i++) {
+      if (logRows[i].type !== 'IN') continue;
+      const next = logRows[i + 1];
+      if (next && next.type === 'OUT') {
+        const s = new Date(logRows[i].ts.replace(' ', 'T')).getTime();
+        const e = new Date(next.ts.replace(' ', 'T')).getTime();
+        if (e > s) totalWorkedMs += (e - s);
+      }
+    }
+    const totalHours = (totalWorkedMs / 3600000).toFixed(2);
+
+    // ────────────────────────────────────────────────────────────────────────
+    // PDF aufbauen
+    // ────────────────────────────────────────────────────────────────────────
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    const safeTitle = project.title.replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_').slice(0, 60);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=Lieferschein_${safeTitle}.pdf`);
+    doc.pipe(res);
+
+    const L = 50;   // left margin
+    const W = 495;  // usable width
+    const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    // ── Kopfzeile ────────────────────────────────────────────────────────────
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b')
+       .text('Metallbau-Gehrmann', L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b')
+       .text('Auftragsdokumentation · Stundennachweis · Lieferschein', L, 74);
+
+    // Trennlinie
+    doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
+
+    // ── Auftrag-Box (oben rechts) ────────────────────────────────────────────
+    doc.rect(360, 50, 185, 60).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#64748b')
+       .text('AUFTRAGS-NR.', 368, 56);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#1e293b')
+       .text(`#${project.id}`, 368, 67);
+    doc.fontSize(8).font('Helvetica').fillColor('#64748b')
+       .text(`Erstellt: ${today}`, 368, 84);
+    doc.text(`Status: ${project.status}`, 368, 94);
+
+    // ── Projektdetails ────────────────────────────────────────────────────────
+    doc.moveDown(0.5);
+    let y = 110;
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b')
+       .text(project.title, L, y);
+    y += 20;
+
+    const customer = project.company_name || project.contact_person || '–';
+    const addr = [project.street, [project.zip, project.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+
+    doc.fontSize(9).font('Helvetica').fillColor('#475569');
+    doc.text(`Kunde:  ${customer}`, L, y);
+    if (addr) { y += 13; doc.text(`Adresse:  ${addr}`, L, y); }
+    if (project.description) { y += 13; doc.text(`Beschreibung:  ${project.description}`, L, y, { width: W }); }
+    y += 20;
+
+    // ── Stundenübersicht kompakt ──────────────────────────────────────────────
+    const boxW = 140;
+    doc.rect(L, y, boxW, 38).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#f0fdf4', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica').fillColor('#166534').text('Geleistete Stunden', L + 8, y + 6);
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#166534').text(`${totalHours} Std.`, L + 8, y + 17);
+
+    doc.rect(L + boxW + 10, y, boxW, 38).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#eff6ff', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica').fillColor('#1d4ed8').text('Aufmaß-Positionen', L + boxW + 18, y + 6);
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1d4ed8').text(`${measRes.rows.length}`, L + boxW + 18, y + 17);
+
+    doc.rect(L + (boxW + 10) * 2, y, boxW, 38).lineWidth(0.5).strokeColor('#cbd5e1').fillAndStroke('#fefce8', '#cbd5e1');
+    doc.fontSize(8).font('Helvetica').fillColor('#854d0e').text('Aufgaben / Mängel', L + (boxW + 10) * 2 + 8, y + 6);
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#854d0e').text(`${tasksRes.rows.length}`, L + (boxW + 10) * 2 + 8, y + 17);
+
+    y += 55;
+
+    // ── Hilfsfunktionen ───────────────────────────────────────────────────────
+    function sectionHeader(title, yPos) {
+      doc.rect(L, yPos, W, 16).fillColor('#1e293b').fill();
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+         .text(title.toUpperCase(), L + 6, yPos + 4);
+      return yPos + 20;
+    }
+
+    function checkPage(neededHeight) {
+      if (doc.y + neededHeight > 780) { doc.addPage(); return 50; }
+      return doc.y;
+    }
+
+    function tableRow(cols, widths, startY, isHeader) {
+      let x = L;
+      doc.fontSize(8).font(isHeader ? 'Helvetica-Bold' : 'Helvetica')
+         .fillColor(isHeader ? '#475569' : '#1e293b');
+      cols.forEach((text, i) => {
+        doc.text(String(text ?? '–'), x + 3, startY + 3, { width: widths[i] - 6, lineBreak: false });
+        x += widths[i];
+      });
+      // underline
+      doc.moveTo(L, startY + 14).lineTo(L + W, startY + 14)
+         .lineWidth(0.3).strokeColor(isHeader ? '#94a3b8' : '#e2e8f0').stroke();
+      return startY + 16;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // ABSCHNITT 1: ARBEITSSTUNDEN DETAIL
+    // ────────────────────────────────────────────────────────────────────────
+    doc.y = y;
+    y = checkPage(60);
+    y = sectionHeader('1. Arbeitsstunden-Nachweis', y);
+
+    const colW1 = [110, 90, 90, 85, 120];
+    y = tableRow(['Datum', 'Uhrzeit', 'Typ', 'Mitarbeiter', 'Notiz'], colW1, y, true);
+
+    if (logRows.length === 0) {
+      doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+         .text('Keine Stempelzeiten für diesen Kunden erfasst.', L + 3, y + 3);
+      y += 20;
+    } else {
+      logRows.forEach(log => {
+        y = checkPage(20);
+        const ts = log.ts || '';
+        const datePart = ts.substring(0, 10).split('-').reverse().join('.');
+        const timePart = ts.substring(11, 16);
+        const typeLabel = log.type === 'IN' ? '▶ Kommen' : '◀ Gehen';
+        y = tableRow([datePart, timePart + ' Uhr', typeLabel, log.username || '–', log.note || '–'], colW1, y, false);
+      });
+    }
+
+    // Stundensumme
+    y = checkPage(24);
+    doc.rect(L, y, W, 18).fillColor('#f8fafc').fill();
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#1e293b')
+       .text(`Gesamt geleistete Stunden (alle IN/OUT-Paare): ${totalHours} Std.`, L + 6, y + 5);
+    y += 24;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // ABSCHNITT 2: AUFMASS
+    // ────────────────────────────────────────────────────────────────────────
+    y = checkPage(40);
+    y += 8;
+    y = sectionHeader('2. Digitales Aufmaß', y);
+
+    const colW2 = [150, 70, 80, 55, 55, 85];
+    y = tableRow(['Bauteil / Element', 'Breite (mm)', 'Höhe / Länge (mm)', 'Winkel', 'Anz.', 'Bemerkung'], colW2, y, true);
+
+    if (measRes.rows.length === 0) {
+      doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+         .text('Keine Aufmaße erfasst.', L + 3, y + 3);
+      y += 20;
+    } else {
+      measRes.rows.forEach(m => {
+        y = checkPage(20);
+        y = tableRow([
+          m.component_name,
+          m.width  ? m.width + ' mm'  : '–',
+          m.height ? m.height + ' mm' : '–',
+          m.angle  ? m.angle + '°'    : '–',
+          m.quantity || 1,
+          m.note || '–'
+        ], colW2, y, false);
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // ABSCHNITT 3: AUFGABEN & MÄNGEL
+    // ────────────────────────────────────────────────────────────────────────
+    y = checkPage(40);
+    y += 8;
+    y = sectionHeader('3. Aufgaben & Mängel', y);
+
+    const colW3 = [155, 80, 65, W - 155 - 80 - 65];
+    y = tableRow(['Titel', 'Kategorie', 'Status', 'Beschreibung'], colW3, y, true);
+
+    if (tasksRes.rows.length === 0) {
+      doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+         .text('Keine Aufgaben oder Mängel erfasst.', L + 3, y + 3);
+      y += 20;
+    } else {
+      tasksRes.rows.forEach(t => {
+        y = checkPage(20);
+        y = tableRow([t.title, t.category || '–', t.status || '–', t.description || '–'], colW3, y, false);
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // ABSCHNITT 4: NOTIZEN
+    // ────────────────────────────────────────────────────────────────────────
+    if (notesRes.rows.length > 0) {
+      y = checkPage(40);
+      y += 8;
+      y = sectionHeader('4. Baustellen-Notizen', y);
+      notesRes.rows.forEach(n => {
+        y = checkPage(30);
+        doc.fontSize(8).font('Helvetica').fillColor('#475569')
+           .text(new Date(n.created_at).toLocaleDateString('de-DE') + '  ', L + 3, y + 2,
+             { continued: true, width: 60 });
+        doc.font('Helvetica').fillColor('#1e293b')
+           .text(n.note_text, { width: W - 70 });
+        y = doc.y + 4;
+        doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.3).strokeColor('#e2e8f0').stroke();
+        y += 4;
+      });
+    }
+
+    // ── Fußzeile auf jeder Seite ──────────────────────────────────────────────
+    const pageCount = doc.bufferedPageRange ? doc.bufferedPageRange().count : 1;
+    const range = doc.bufferedPageRange ? doc.bufferedPageRange() : null;
+    if (range) {
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(range.start + i);
+        doc.moveTo(L, 820).lineTo(L + W, 820).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
+        doc.fontSize(7).font('Helvetica').fillColor('#94a3b8')
+           .text(`Metallbau-Gehrmann · Auftrag #${project.id} · ${project.title} · Seite ${i + 1} von ${range.count} · Erstellt: ${today}`,
+             L, 826, { width: W, align: 'center' });
+      }
+    }
+
+    doc.end();
+
+  } catch (err) {
+    console.error('Fehler beim Erzeugen des Lieferschein-PDF:', err.message);
+    res.status(500).send('Fehler beim Erstellen des PDF.');
   }
 });
 
@@ -2126,6 +2476,85 @@ app.post('/admin/users/set-vacation-allowance', verifyToken, requireAdmin, async
     console.error('Fehler beim Setzen des Urlaubsanspruchs:', err.message);
   }
   res.redirect('/vacations');
+});
+
+// ==========================================
+// GLOBALE SUCHE
+// ==========================================
+app.get('/api/search', verifyToken, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) return res.json({ results: [] });
+
+  const like = `%${q}%`;
+  const isAdmin = req.user.role === 'ADMIN';
+
+  try {
+    // Aufträge
+    const projRes = await dbQuery(`
+      SELECT p.id, p.title, p.status, p.description,
+             c.company_name, c.contact_person
+      FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE p.title ILIKE ? OR p.description ILIKE ?
+         OR c.company_name ILIKE ? OR c.contact_person ILIKE ?
+      ORDER BY p.created_at DESC LIMIT 6`, [like, like, like, like]);
+
+    // Kunden (nur Admin)
+    const custRes = isAdmin ? await dbQuery(`
+      SELECT id, company_name, contact_person, city, phone
+      FROM customers
+      WHERE company_name ILIKE ? OR contact_person ILIKE ? OR city ILIKE ?
+      ORDER BY company_name ASC LIMIT 5`, [like, like, like])
+      : { rows: [] };
+
+    // Termine
+    const appRes = await dbQuery(`
+      SELECT a.id, a.title, a.start_date, a.description,
+             c.company_name, c.contact_person
+      FROM appointments a LEFT JOIN customers c ON a.customer_id = c.id
+      WHERE a.title ILIKE ? OR a.description ILIKE ?
+         OR c.company_name ILIKE ? OR c.contact_person ILIKE ?
+      ORDER BY a.start_date DESC LIMIT 4`, [like, like, like, like]);
+
+    // Notizen
+    const notesRes = await dbQuery(`
+      SELECT n.id, n.note_text, n.project_id, p.title as project_title
+      FROM project_notes n LEFT JOIN projects p ON n.project_id = p.id
+      WHERE n.note_text ILIKE ?
+      ORDER BY n.created_at DESC LIMIT 4`, [like]);
+
+    const results = [
+      ...projRes.rows.map(r => ({
+        type: 'project', icon: '🏗️',
+        label: r.title,
+        sub: [r.company_name || r.contact_person, r.status].filter(Boolean).join(' · '),
+        url: `/projects/${r.id}`
+      })),
+      ...custRes.rows.map(r => ({
+        type: 'customer', icon: '👤',
+        label: r.company_name || r.contact_person,
+        sub: [r.contact_person, r.city].filter(Boolean).join(' · '),
+        url: `/customers`
+      })),
+      ...appRes.rows.map(r => ({
+        type: 'appointment', icon: '📅',
+        label: r.title,
+        sub: [r.company_name || r.contact_person,
+              r.start_date ? new Date(r.start_date).toLocaleDateString('de-DE') : ''].filter(Boolean).join(' · '),
+        url: `/calendar`
+      })),
+      ...notesRes.rows.map(r => ({
+        type: 'note', icon: '📝',
+        label: r.note_text.length > 70 ? r.note_text.slice(0, 70) + '…' : r.note_text,
+        sub: r.project_title ? `Auftrag: ${r.project_title}` : '',
+        url: r.project_id ? `/projects/${r.project_id}` : `/projects`
+      }))
+    ];
+
+    res.json({ results });
+  } catch (err) {
+    console.error('Suche Fehler:', err.message);
+    res.json({ results: [] });
+  }
 });
 
 // ==========================================
