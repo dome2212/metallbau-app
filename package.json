@@ -22,6 +22,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "pdfkit": "^0.13.0",
     "pg": "^8.11.3",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "web-push": "^3.6.7"
   }
 }
