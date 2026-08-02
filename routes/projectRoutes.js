@@ -54,7 +54,7 @@ async function callAI(prompt) {
   return data.choices[0].message.content;
 }
 
-// Vision-fähige KI (Bilder + Text) – nutzt google/gemini-flash-1.5 über OpenRouter
+// Vision-fähige KI (Bilder + Text) – nutzt google/gemma-4-27b-it:free über OpenRouter
 async function callAIWithImages(prompt, imageBuffers) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
@@ -74,7 +74,7 @@ async function callAIWithImages(prompt, imageBuffers) {
       'X-Title': 'Metallbau App'
     },
     body: JSON.stringify({
-      model: 'google/gemini-flash-1.5',
+      model: 'google/gemma-4-27b-it:free',
       messages: [{
         role: 'user',
         content: [
@@ -249,8 +249,14 @@ router.post('/delete', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { id } = req.body;
   try {
-    await dbQuery('DELETE FROM project_files WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM projects WHERE id = ?', [id]);
+    // Alle abhängigen Daten zuerst löschen
+    await dbQuery('DELETE FROM project_tasks        WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_notes        WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_photos       WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_measurements WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_sketches     WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_files        WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM projects             WHERE id = ?',         [id]);
     res.redirect('/projects');
   } catch (err) {
     res.status(500).send('Fehler beim Löschen');

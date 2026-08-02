@@ -138,23 +138,19 @@ router.get('/', async (req, res) => {
     } else {
       // ── Chef-Dashboard ────────────────────────────────────────────────────
       const sqlOverdueInvoices = isPg
-        ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM invoices WHERE status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date::date <= CURRENT_DATE`
-        : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM invoices WHERE status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date <= date('now')`;
+        ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date::date <= CURRENT_DATE`
+        : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date <= date('now')`;
 
       const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes] = await Promise.all([
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'`),
-        dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM invoices WHERE status != 'Bezahlt'`),
+        dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt'`),
         dbQuery(`SELECT COUNT(*) as count FROM customers`),
         dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen')`),
         dbQuery(sqlOverdueInvoices),
         dbQuery(`SELECT COUNT(*) as count FROM project_tasks WHERE status = 'Offen'`),
-        dbQuery(`SELECT * FROM (
-          SELECT documents.id, documents.doc_number, 'OFFER' as doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
+        dbQuery(`SELECT documents.id, documents.doc_number, documents.doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
           FROM documents LEFT JOIN customers ON documents.customer_id = customers.id
-          UNION ALL
-          SELECT invoices.id, invoices.invoice_number as doc_number, 'INVOICE' as doc_type, invoices.total_amount, invoices.status, customers.company_name, customers.contact_person
-          FROM invoices LEFT JOIN customers ON invoices.customer_id = customers.id
-        ) combined ORDER BY id DESC LIMIT 5`),
+          ORDER BY documents.id DESC LIMIT 5`),
         dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10'),
         dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId])
       ]);
