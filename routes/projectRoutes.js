@@ -37,25 +37,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/board', async (req, res) => {
-  try {
-    const sql = `SELECT projects.*, customers.company_name, customers.contact_person FROM projects LEFT JOIN customers ON projects.customer_id = customers.id ORDER BY projects.created_at DESC`;
-    const projRes = await dbQuery(sql);
-    const projects = projRes.rows || [];
-    const columns = {
-      'In Planung': projects.filter(p => p.status === 'In Planung' || !p.status),
-      'Avor / Vorbereitung': projects.filter(p => p.status === 'Avor / Vorbereitung'),
-      'In Produktion': projects.filter(p => p.status === 'In Produktion'),
-      'Oberfläche': projects.filter(p => p.status === 'Oberfläche'),
-      'Montagebereit': projects.filter(p => p.status === 'Montagebereit'),
-      'Abgeschlossen': projects.filter(p => p.status === 'Abgeschlossen')
-    };
-    res.render('project-board', { columns });
-  } catch (err) {
-    res.status(500).send('Datenbankfehler');
-  }
-});
-
 router.post('/add', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { customer_id, title, description, total_price, status } = req.body;

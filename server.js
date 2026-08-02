@@ -1502,34 +1502,6 @@ app.post('/documents/offers/convert-to-invoice', async (req, res) => {
 // ==========================================
 // KANBAN-BOARD FÜR DIE WERKSTATT
 // ==========================================
-app.get('/projects/board', async (req, res) => {
-  try {
-    const sql = `
-      SELECT projects.*, customers.company_name, customers.contact_person
-      FROM projects
-      LEFT JOIN customers ON projects.customer_id = customers.id
-      ORDER BY projects.created_at DESC
-    `;
-    const projRes = await dbQuery(sql);
-    const projects = projRes.rows || [];
-
-    const columns = {
-      'In Planung': projects.filter(p => p.status === 'In Planung' || !p.status),
-      'Avor / Vorbereitung': projects.filter(p => p.status === 'Avor / Vorbereitung'),
-      'In Produktion': projects.filter(p => p.status === 'In Produktion'),
-      'Oberfläche': projects.filter(p => p.status === 'Oberfläche'),
-      'Montagebereit': projects.filter(p => p.status === 'Montagebereit'),
-      'Montage läuft': projects.filter(p => p.status === 'Montage läuft'),
-      'Abgeschlossen': projects.filter(p => p.status === 'Abgeschlossen')
-    };
-
-    res.render('project-board', { columns });
-  } catch (err) {
-    console.error('Fehler beim Laden des Kanban-Boards:', err.message);
-    res.status(500).send('Datenbankfehler');
-  }
-});
-
 // ==========================================
 // RECHNUNGSVERWALTUNG & MAHNWESEN
 // ==========================================
@@ -1726,13 +1698,6 @@ app.post('/articles/delete', async (req, res) => {
 });
 
 // ==========================================
-// PROFILGEWICHT-RECHNER
-// ==========================================
-app.get('/steel-calculator', (req, res) => {
-  res.render('steel-calculator');
-});
-
-// ==========================================
 // KALENDER & TERMINE
 // ==========================================
 app.get('/calendar', async (req, res) => {
@@ -1843,23 +1808,6 @@ app.post('/api/appointments/delete/:id', async (req, res) => {
 // ==========================================
 // AUFTRÄGE & BAUSTELLEN
 // ==========================================
-app.get('/map', verifyToken, async (req, res) => {
-  try {
-    const projRes = await dbQuery(`
-      SELECT p.id, p.title, p.status, p.description,
-             p.site_lat, p.site_lng,
-             c.company_name, c.contact_person, c.street, c.city
-      FROM projects p
-      LEFT JOIN customers c ON p.customer_id = c.id
-      WHERE p.status != 'Abgeschlossen'
-      ORDER BY p.created_at DESC
-    `);
-    res.render('map', { projects: projRes.rows || [] });
-  } catch (err) {
-    res.status(500).send('Datenbankfehler');
-  }
-});
-
 app.get('/projects', async (req, res) => {
   try {
     const sql = `

@@ -28,13 +28,10 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht KPI-Kacheln & offene Vorgänge |
 | 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter, Monteure lesen sie auf ihrer Startseite |
 | 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf (In Planung → Abgeschlossen), Auftragssumme (nur Chef) |
-| 🗂️ **Kanban-Board** | Alle Aufträge als Drag-lose Statusansicht in Spalten |
-| 🗺️ **Baustellenkarte** | Alle laufenden Aufträge auf einer interaktiven Leaflet/OpenStreetMap-Karte mit Farbmarkern je Status |
 | 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) für jeden Termin |
 | ⏱️ **Zeiterfassung** | Stempeluhr (Ein-/Ausstempeln), GPS-Standortprüfung, Geofencing je Baustelle, Kunden-Zuordnung |
 | 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, Tagesfilter – zusammengeführt in einer Ansicht |
 | 🌴 **Urlaub & Abwesenheit** | Urlaubsanträge, Krankmeldungen, Schulungen, Datei-Upload, Jahresübersicht mit Fortschrittsbalken |
-| ⚖️ **Profilgewicht-Rechner** | Gewichtsberechnung für IPE, HEB, HEA, HEM, UPN, UPE, Winkel, Rund-/Rechteckrohr, Blech, Flachstahl, Rundstahl – mit Stückliste und Druckfunktion |
 | 🔍 **Globale Suche** | Tastenkürzel `/` öffnet eine Overlay-Suche über Aufträge, Kunden, Termine und Notizen mit Tastaturnavigation |
 
 ### Nur für Chef (ADMIN)
@@ -73,7 +70,6 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | **Auth** | JWT (Cookie-basiert) · bcryptjs |
 | **Datei-Upload** | Multer · Cloudinary |
 | **PDF-Generierung** | PDFKit |
-| **Karte** | Leaflet.js · OpenStreetMap |
 | **Kalender** | FullCalendar |
 | **Wetter** | Open-Meteo API (kostenlos, kein API-Key) |
 
@@ -184,12 +180,9 @@ metallbau-app/
 │   ├── dashboard-employee.ejs # Mitarbeiter-Dashboard (Überstunden-Ampel)
 │   ├── projects.ejs           # Auftragsliste
 │   ├── project-detail.ejs     # Auftragsdetail (Aufmaß, Skizzen, Fotos, …)
-│   ├── project-board.ejs      # Kanban-Board
-│   ├── map.ejs                # Baustellenkarte (Leaflet)
 │   ├── calendar.ejs           # Kalender (FullCalendar + Wetter)
 │   ├── timetracking.ejs       # Stempeluhr
 │   ├── admin-timetracking.ejs # Arbeitszeiten-Übersicht (zusammengeführt)
-│   ├── steel-calculator.ejs   # Profilgewicht-Rechner
 │   ├── vacations.ejs          # Urlaub & Abwesenheit
 │   ├── customers.ejs          # Kundenliste
 │   ├── admin-users.ejs        # Mitarbeiterverwaltung
@@ -216,13 +209,10 @@ metallbau-app/
 | `/projects` | GET | Alle | Auftragsliste |
 | `/projects/:id` | GET | Alle | Auftragsdetail |
 | `/projects/:id/pdf` | GET | Admin | Lieferschein-PDF |
-| `/projects/board` | GET | Alle | Kanban-Board |
-| `/map` | GET | Alle | Baustellenkarte |
 | `/calendar` | GET | Alle | Terminkalender |
 | `/timetracking` | GET | Alle | Stempeluhr |
 | `/admin/timetracking` | GET | Admin | Arbeitszeiten-Übersicht |
 | `/admin/timetracking/pdf` | GET | Admin | Arbeitszeitennachweis-PDF |
-| `/steel-calculator` | GET | Alle | Profilgewicht-Rechner |
 | `/vacations` | GET | Alle | Urlaub & Abwesenheit |
 | `/customers` | GET | Admin | Kundenverwaltung |
 | `/documents/offers` | GET | Admin | Angebote |
