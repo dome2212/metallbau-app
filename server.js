@@ -2,6 +2,7 @@ const express      = require('express');
 const path         = require('path');
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
+const cors         = require('cors');
 const db           = require('./config/database');
 
 // ==========================================
@@ -129,6 +130,16 @@ const PORT = process.env.PORT || 3000;
 // express-rate-limit can read the real client IP from X-Forwarded-For.
 app.set('trust proxy', 1);
 
+// ==========================================
+// CORS (für React Native Android-App)
+// ==========================================
+app.use(cors({
+  origin: true,           // Alle Origins erlaubt (App sendet keine Origin)
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
@@ -208,6 +219,12 @@ app.use('/ticker',  adminRoutes);
 
 // Artikel-Stamm
 app.use('/articles', articleRoutes);
+
+// ==========================================
+// MOBILE API (JSON – React Native App)
+// ==========================================
+const apiRoutes = require('./routes/apiRoutes');
+app.use('/api/v2', apiRoutes);
 
 // Admin: Backup manuell auslösen (zum Testen)
 app.post('/admin/backup/run', require('./middleware/auth').requireAdmin, async (req, res) => {
