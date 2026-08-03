@@ -213,10 +213,17 @@
         right: 'dayGridMonth,timeGridWeek,listWeek'
       },
       buttonText: { today: 'Heute', month: 'Monat', week: 'Woche', list: 'Liste' },
-      events: '/api/appointments',
+      eventSources: [
+        { url: '/api/appointments' },
+        { url: '/api/holidays', color: '#fde68a', textColor: '#92400e' }
+      ],
 
       // Titel im Kalender: Wetter-Icon + Titel
       eventDidMount: function(info) {
+        if (info.event.display === 'background') {
+          info.el.title = info.event.title; // Tooltip beim Hover: Name des Feiertags
+          return;
+        }
         const w = info.event.extendedProps.weather;
         const icon = !w ? '' : w.warningLevel === 'danger' ? '🔴 ' : w.warningLevel === 'warn' ? '🟡 ' : '🟢 ';
         const assigned = info.event.extendedProps.assignedUsers || [];
