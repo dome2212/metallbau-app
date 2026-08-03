@@ -1,22 +1,12 @@
 const PDFDocument = require('pdfkit');
+const { getFirma } = require('./companySettings');
 
 /**
  * Erzeugt ein einfaches Dokument-PDF (Angebot / Rechnung).
- * firmaInfo ist optional – wird kein Objekt übergeben, greifen die Fallback-Werte.
- * In server.js steht die zentrale FIRMA-Konstante; beim Aufruf einfach { firmaInfo: FIRMA } übergeben.
+ * Firmendaten werden automatisch aus der Datenbank geladen.
  */
-function generateDocumentPDF(docData, customerData, items, res, firmaInfo = {}) {
-  const firma = {
-    name:          firmaInfo.name          || 'Metallbau Gehrmann',
-    slogan:        firmaInfo.slogan        || 'Stahlbau · Edelstahlverarbeitung · Geländer & Tore',
-    strasse:       firmaInfo.strasse       || 'Musterstraße 1',
-    plzOrt:        firmaInfo.plzOrt        || '45000 Musterstadt',
-    tel:           firmaInfo.tel           || '+49 123 456789',
-    iban:          firmaInfo.iban          || 'DE12 3456 7890 1234 5678 90',
-    bic:           firmaInfo.bic           || 'MUBADE12',
-    bank:          firmaInfo.bank          || 'Musterbank DE',
-    zahlungsfrist: firmaInfo.zahlungsfrist || 14,
-  };
+async function generateDocumentPDF(docData, customerData, items, res) {
+  const firma = await getFirma();
 
   const doc = new PDFDocument({ margin: 50 });
 

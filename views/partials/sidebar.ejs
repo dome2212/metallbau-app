@@ -5,7 +5,7 @@
   </button>
   <% const _f = typeof firma !== 'undefined' ? firma : {}; %>
   <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
-    <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>" class="h-8 max-w-[150px] object-contain">
+    <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>" class="max-h-10 w-auto object-contain">
   <% } else { %>
     <span class="font-bold text-blue-400 text-sm truncate"><%= _f.nameKurz || 'Metallbau' %></span>
   <% } %>
@@ -20,13 +20,16 @@
     <!-- Kopfbereich mit Schließen-Button für Mobil -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
       <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
-        <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>" class="h-10 max-w-[190px] object-contain">
+        <div class="flex-1 pr-2">
+          <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>"
+               style="width:100%; max-height:60px; object-fit:contain; object-position:left;">
+        </div>
       <% } else { %>
         <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">
           🔩 <%= _f.nameKurz || 'Metallbau' %>
         </h2>
       <% } %>
-      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1 font-bold">
+      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1 font-bold shrink-0">
         ✕
       </button>
     </div>

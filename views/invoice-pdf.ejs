@@ -2,217 +2,267 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Rechnung <%= invoice.invoice_number %></title>
+  <title><%= invoice.doc_type === 'OFFER' ? 'Angebot' : 'Rechnung' %> <%= invoice.invoice_number %></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media print {
       .no-print { display: none !important; }
-      body { background-color: #fff !important; padding: 0 !important; }
-      .page { box-shadow: none !important; border-radius: 0 !important; }
+      body  { background: #fff !important; padding: 0 !important; }
+      .page { box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; }
+      @page { margin: 0; }
     }
     body { font-family: 'Segoe UI', Arial, sans-serif; }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen py-10 px-4">
 
-  <!-- Aktionsleiste (wird beim Drucken ausgeblendet) -->
+<%
+  /* ── Einheitliche Hilfsvariablen ──────────────────────────────── */
+  const isOffer    = invoice.doc_type === 'OFFER';
+  const isDunning  = (invoice.dunning_level || 0) > 0;
+  const docLabel   = isOffer ? 'Angebot' : (isDunning ? 'Mahnung' : 'Rechnung');
+  const docNr      = invoice.invoice_number || invoice.doc_number || '';
+  const f          = firma || {};
+  const subtotal   = items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.price) || 0), 0);
+  const taxRate    = parseFloat(invoice.tax_rate || 19);
+  const tax        = subtotal * (taxRate / 100);
+  const total      = subtotal + tax;
+  const fmt        = n => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDate    = d => { try { return new Date(d).toLocaleDateString('de-DE'); } catch(_){ return ''; } };
+  const isOverdue  = invoice.due_date && new Date(invoice.due_date) < new Date() && invoice.status !== 'Bezahlt';
+%>
+
+  <!-- ══ AKTIONSLEISTE (kein Druck) ════════════════════════════════════════ -->
   <div class="max-w-4xl mx-auto mb-6 flex justify-between items-center no-print">
-    <a href="/documents/invoices" class="text-sm font-medium text-gray-500 hover:text-gray-900">← Zurück zur Übersicht</a>
-    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow flex items-center gap-2 text-sm">
+    <a href="<%= isOffer ? '/documents/offers' : '/documents/invoices' %>"
+       class="text-sm font-medium text-gray-500 hover:text-gray-900">← Zurück zur Übersicht</a>
+    <button onclick="window.print()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow flex items-center gap-2 text-sm">
       🖨️ Als PDF drucken / speichern
     </button>
   </div>
 
-  <!-- DIN-A4 Rechnungsblatt -->
+  <!-- ══ DIN-A4 SEITE ══════════════════════════════════════════════════════ -->
   <div class="page max-w-4xl mx-auto bg-white rounded-xl shadow-md text-gray-800" style="padding: 48px 56px;">
 
-    <!-- ══ BRIEFKOPF ══════════════════════════════════════════════════════ -->
-    <div class="flex justify-between items-start pb-8 mb-8 border-b-2 border-blue-500">
-      <!-- Links: Logo oder Firmenname + Slogan -->
+    <!-- ── BRIEFKOPF ──────────────────────────────────────────────────────── -->
+    <div class="flex justify-between items-start pb-7 mb-7 border-b-2 border-blue-600">
+
+      <!-- Links: Logo oder Firmenname -->
       <div class="flex-1 pr-8">
-        <% if (firma && firma.logo_url) { %>
-          <img src="<%= firma.logo_url %>" alt="<%= firma.name %>" style="max-height:80px; max-width:280px; object-fit:contain;">
-          <p class="text-xs text-gray-400 mt-2"><%= firma.slogan || '' %></p>
+        <% if (f.logo_url) { %>
+          <img src="<%= f.logo_url %>" alt="<%= f.name %>"
+               style="max-height:80px; max-width:260px; object-fit:contain; display:block;">
+          <% if (f.slogan) { %>
+            <p class="text-xs text-gray-400 mt-2"><%= f.slogan %></p>
+          <% } %>
         <% } else { %>
           <h1 class="text-2xl font-extrabold text-slate-900 uppercase tracking-wide leading-tight">
-            <%= firma ? firma.name : 'Metallbau' %>
+            <%= f.name || 'Ihre Firma' %>
           </h1>
-          <p class="text-xs text-gray-400 mt-2"><%= firma ? firma.slogan : '' %></p>
+          <% if (f.slogan) { %>
+            <p class="text-xs text-gray-400 mt-1.5"><%= f.slogan %></p>
+          <% } %>
         <% } %>
       </div>
+
       <!-- Rechts: Kontaktdaten -->
-      <div class="text-right text-xs text-gray-500 space-y-1 shrink-0">
-        <p class="font-bold text-gray-800 text-sm"><%= firma ? firma.name : '' %></p>
-        <p><%= firma ? firma.strasse : '' %></p>
-        <p><%= firma ? firma.plzOrt : '' %></p>
-        <p>Tel: <%= firma ? firma.tel : '' %></p>
-        <p>E-Mail: <%= firma ? firma.email : '' %></p>
-        <% if (firma && firma.steuernr) { %><p><%= firma.steuernr %></p><% } %>
+      <div class="text-right text-xs text-gray-500 leading-relaxed shrink-0">
+        <p class="font-bold text-gray-800 text-sm mb-1"><%= f.name || '' %></p>
+        <% if (f.strasse) { %><p><%= f.strasse %></p><% } %>
+        <% if (f.plzOrt)  { %><p><%= f.plzOrt %></p><% } %>
+        <% if (f.tel)     { %><p>Tel: <%= f.tel %></p><% } %>
+        <% if (f.email)   { %><p><%= f.email %></p><% } %>
+        <% if (f.web)     { %><p><%= f.web %></p><% } %>
+        <% if (f.steuernr){ %><p class="mt-1"><%= f.steuernr %></p><% } %>
       </div>
     </div>
 
-    <!-- ══ EMPFÄNGER + RECHNUNGS-INFO ════════════════════════════════════ -->
+    <!-- ── EMPFÄNGER + DOKUMENTEN-INFO ────────────────────────────────────── -->
     <div class="grid grid-cols-2 gap-10 mb-10">
 
-      <!-- Empfängeranschrift (DIN-Format) -->
+      <!-- Empfängeranschrift im DIN-Fenster-Format -->
       <div>
-        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-3">
-          <%= firma ? firma.name + ' · ' + firma.strasse + ' · ' + firma.plzOrt : '' %>
+        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-medium mb-3">
+          <%= [f.name, f.strasse, f.plzOrt].filter(Boolean).join(' · ') %>
         </p>
         <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-2">Empfänger</p>
         <p class="font-bold text-lg text-gray-900 leading-snug">
-          <%= invoice.company_name || invoice.contact_person %>
+          <%= invoice.company_name || invoice.contact_person || '–' %>
         </p>
         <% if (invoice.company_name && invoice.contact_person) { %>
-          <p class="text-sm text-gray-600 mt-1">z. Hd. <%= invoice.contact_person %></p>
+          <p class="text-sm text-gray-600 mt-0.5">z. Hd. <%= invoice.contact_person %></p>
         <% } %>
         <% if (invoice.street) { %>
-          <p class="text-sm text-gray-600 mt-1"><%= invoice.street %></p>
+          <p class="text-sm text-gray-600 mt-0.5"><%= invoice.street %></p>
         <% } %>
-        <p class="text-sm text-gray-600">
-          <%= [invoice.zip, invoice.city].filter(Boolean).join(' ') %>
-        </p>
+        <% if (invoice.zip || invoice.city) { %>
+          <p class="text-sm text-gray-600"><%= [invoice.zip, invoice.city].filter(Boolean).join(' ') %></p>
+        <% } %>
       </div>
 
-      <!-- Rechnungs-Metadaten -->
-      <div class="bg-gray-50 rounded-xl p-5 text-sm space-y-2 self-start">
-        <% if (invoice.dunning_level > 0) { %>
-          <div class="bg-red-100 text-red-800 font-bold p-2 rounded-lg text-center text-xs uppercase mb-3">
-            <%= invoice.dunning_level === 1 ? '1. Zahlungserinnerung' : invoice.dunning_level === 2 ? '2. Mahnung' : '3. Letzte Mahnung!' %>
+      <!-- Dokument-Metadaten -->
+      <div class="bg-gray-50 rounded-xl p-5 text-sm space-y-2 self-start border border-gray-100">
+        <% if (isDunning) { %>
+          <div class="bg-red-100 text-red-800 font-bold p-2 rounded-lg text-center text-xs uppercase mb-3 tracking-wide">
+            <%= invoice.dunning_level === 1 ? '1. Zahlungserinnerung'
+              : invoice.dunning_level === 2 ? '2. Mahnung'
+              : '3. Letzte Mahnung' %>
           </div>
         <% } %>
         <div class="flex justify-between gap-4">
-          <span class="text-gray-500">Dokument:</span>
-          <span class="font-bold text-right"><%= invoice.dunning_level > 0 ? 'Mahnung zu ' + invoice.invoice_number : 'Rechnung' %></span>
+          <span class="text-gray-400">Dokument:</span>
+          <span class="font-semibold text-right"><%= docLabel %></span>
         </div>
         <div class="flex justify-between gap-4">
-          <span class="text-gray-500">Rechnungs-Nr.:</span>
-          <span class="font-mono font-bold text-right"><%= invoice.invoice_number %></span>
+          <span class="text-gray-400"><%= isOffer ? 'Angebots-Nr.:' : 'Rechnungs-Nr.:' %></span>
+          <span class="font-mono font-bold text-right"><%= docNr %></span>
         </div>
         <div class="flex justify-between gap-4">
-          <span class="text-gray-500">Datum:</span>
-          <span class="text-right"><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></span>
+          <span class="text-gray-400">Datum:</span>
+          <span class="text-right"><%= fmtDate(invoice.created_at) %></span>
         </div>
-        <div class="flex justify-between gap-4">
-          <span class="text-gray-500">Fällig am:</span>
-          <span class="text-right <%= new Date(invoice.due_date) < new Date() && invoice.status !== 'Bezahlt' ? 'text-red-600 font-bold' : '' %>">
-            <%= invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('de-DE') : 'sofort' %>
-          </span>
-        </div>
+        <% if (isOffer && f.angebotsgueltig) { %>
+          <div class="flex justify-between gap-4">
+            <span class="text-gray-400">Gültig bis:</span>
+            <span class="text-right">
+              <%
+                const gueltigBis = new Date(invoice.created_at);
+                gueltigBis.setDate(gueltigBis.getDate() + parseInt(f.angebotsgueltig || 30));
+              %>
+              <%= fmtDate(gueltigBis) %>
+            </span>
+          </div>
+        <% } %>
+        <% if (!isOffer && invoice.due_date) { %>
+          <div class="flex justify-between gap-4">
+            <span class="text-gray-400">Fällig am:</span>
+            <span class="text-right font-semibold <%= isOverdue ? 'text-red-600' : '' %>">
+              <%= fmtDate(invoice.due_date) %><%= isOverdue ? ' ⚠️' : '' %>
+            </span>
+          </div>
+        <% } %>
       </div>
     </div>
 
-    <!-- ══ BETREFF ════════════════════════════════════════════════════════ -->
-    <h2 class="text-xl font-bold text-gray-900 mb-3">
-      <%= invoice.dunning_level > 0
-        ? 'Mahnung bezüglich Rechnung ' + invoice.invoice_number
-        : 'Rechnung Nr. ' + invoice.invoice_number %>
+    <!-- ── BETREFF ─────────────────────────────────────────────────────────── -->
+    <h2 class="text-xl font-bold text-gray-900 mb-2">
+      <% if (isDunning) { %>
+        Mahnung zu Rechnung <%= docNr %>
+      <% } else { %>
+        <%= docLabel %> Nr. <%= docNr %>
+      <% } %>
     </h2>
-    <% if (!invoice.dunning_level || invoice.dunning_level === 0) { %>
-      <p class="text-sm text-gray-500 mb-6">
+    <p class="text-sm text-gray-500 mb-7">
+      <% if (isDunning) { %>
+        Sehr geehrte Damen und Herren,<br>
+        trotz unserer Rechnung haben wir bisher keinen Zahlungseingang feststellen können.
+        Wir bitten Sie, den ausstehenden Betrag umgehend zu begleichen.
+      <% } else if (isOffer) { %>
+        Sehr geehrte Damen und Herren,<br>
+        vielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:
+      <% } else { %>
         Sehr geehrte Damen und Herren,<br>
         wir erlauben uns, folgende Leistungen in Rechnung zu stellen:
-      </p>
-    <% } else { %>
-      <p class="text-sm text-red-600 font-medium mb-6">
-        Trotz unserer Rechnung haben wir bisher keinen Zahlungseingang verzeichnen können.<br>
-        Wir bitten um umgehende Zahlung des ausstehenden Betrags.
-      </p>
-    <% } %>
+      <% } %>
+    </p>
 
-    <!-- ══ POSITIONSTABELLE ═══════════════════════════════════════════════ -->
-    <table class="w-full text-left mb-8 border-collapse">
+    <!-- ── POSITIONSTABELLE ────────────────────────────────────────────────── -->
+    <table class="w-full text-left mb-8 border-collapse text-sm">
       <thead>
         <tr class="bg-slate-800 text-white text-xs uppercase">
-          <th class="py-3 px-3 rounded-tl-lg" style="width:40px">Pos.</th>
+          <th class="py-3 px-3 rounded-tl-lg w-9">Pos.</th>
           <th class="py-3 px-3">Bezeichnung</th>
-          <th class="py-3 px-3 text-right" style="width:80px">Menge</th>
-          <th class="py-3 px-3 text-right" style="width:100px">Einzelpreis</th>
-          <th class="py-3 px-3 text-right rounded-tr-lg" style="width:100px">Gesamt</th>
+          <th class="py-3 px-3 text-right w-20">Menge</th>
+          <th class="py-3 px-3 text-right w-24">Einzelpreis</th>
+          <th class="py-3 px-3 text-right rounded-tr-lg w-24">Gesamt</th>
         </tr>
       </thead>
-      <tbody class="text-sm">
+      <tbody>
         <% if (items && items.length > 0) { %>
           <% items.forEach((item, index) => { %>
             <tr class="<%= index % 2 === 0 ? 'bg-gray-50' : 'bg-white' %> border-b border-gray-100">
-              <td class="py-3 px-3 text-gray-400"><%= index + 1 %></td>
+              <td class="py-3 px-3 text-gray-400 text-center"><%= index + 1 %></td>
               <td class="py-3 px-3 font-medium text-gray-800"><%= item.description %></td>
-              <td class="py-3 px-3 text-right text-gray-600"><%= item.quantity %> <%= item.unit %></td>
               <td class="py-3 px-3 text-right text-gray-600">
-                <%= (item.price || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
+                <%= fmt(item.quantity) %> <span class="text-gray-400"><%= item.unit || '' %></span>
               </td>
+              <td class="py-3 px-3 text-right text-gray-600"><%= fmt(item.price) %> €</td>
               <td class="py-3 px-3 text-right font-semibold text-gray-900">
-                <%= ((item.quantity || 0) * (item.price || 0)).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
+                <%= fmt((parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0)) %> €
               </td>
             </tr>
           <% }); %>
         <% } else { %>
-          <tr><td colspan="5" class="py-6 text-center text-gray-400 text-sm">Keine Positionen vorhanden.</td></tr>
+          <tr>
+            <td colspan="5" class="py-8 text-center text-gray-400 italic">Keine Positionen vorhanden.</td>
+          </tr>
         <% } %>
       </tbody>
     </table>
 
-    <!-- ══ SUMMENBLOCK ════════════════════════════════════════════════════ -->
-    <%
-      const subtotal = items.reduce((s, i) => s + (i.quantity || 0) * (i.price || 0), 0);
-      const tax      = subtotal * 0.19;
-      const total    = subtotal + tax;
-    %>
+    <!-- ── SUMMENBLOCK ─────────────────────────────────────────────────────── -->
     <div class="flex justify-end mb-12">
-      <div class="w-72 space-y-2 text-sm">
+      <div class="w-72 space-y-1.5 text-sm">
         <div class="flex justify-between text-gray-500 py-1">
           <span>Zwischensumme (Netto):</span>
-          <span><%= subtotal.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+          <span><%= fmt(subtotal) %> €</span>
         </div>
         <div class="flex justify-between text-gray-500 py-1">
-          <span>19 % MwSt.:</span>
-          <span><%= tax.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+          <span><%= taxRate %> % MwSt.:</span>
+          <span><%= fmt(tax) %> €</span>
         </div>
         <div class="flex justify-between text-base font-bold text-gray-900 border-t-2 border-gray-300 pt-3 mt-1">
           <span>Gesamtbetrag (Brutto):</span>
-          <span><%= total.toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+          <span><%= fmt(total) %> €</span>
         </div>
       </div>
     </div>
 
-    <!-- ══ FUSSNOTE / BANKDATEN ═══════════════════════════════════════════ -->
-    <div class="border-t pt-6 text-xs text-gray-500 space-y-4">
+    <!-- ── FUSSZEILE / BANKDATEN ───────────────────────────────────────────── -->
+    <div class="border-t border-gray-200 pt-6 text-xs text-gray-500 space-y-4">
 
-      <% if (invoice.dunning_level > 0) { %>
-        <p class="font-bold text-red-700 text-sm">
-          Bitte überweisen Sie den ausstehenden Betrag umgehend auf das unten stehende Konto,
-          um weitere Mahngebühren zu vermeiden.
+      <% if (isDunning) { %>
+        <p class="text-red-700 font-semibold text-sm">
+          Bitte überweisen Sie den ausstehenden Betrag von <strong><%= fmt(total) %> €</strong>
+          umgehend auf das unten stehende Konto, um weitere Mahnkosten zu vermeiden.
+        </p>
+      <% } else if (isOffer) { %>
+        <p>
+          Dieses Angebot ist gültig für <%= f.angebotsgueltig || 30 %> Tage ab Ausstellungsdatum.
+          Bei Auftragserteilung bitten wir um schriftliche Bestätigung.
         </p>
       <% } else { %>
         <p>
-          Zahlbar innerhalb von <%= firma ? firma.zahlungsfrist : 14 %> Tagen ohne Abzug.
+          Zahlbar innerhalb von <strong><%= f.zahlungsfrist || 14 %> Tagen</strong> ohne Abzug.
           Bitte geben Sie bei der Überweisung die Rechnungsnummer
-          <strong><%= invoice.invoice_number %></strong> als Verwendungszweck an.
+          <strong><%= docNr %></strong> als Verwendungszweck an.
         </p>
       <% } %>
 
-      <!-- Bankdaten-Box -->
-      <div class="bg-gray-50 rounded-xl p-5 grid grid-cols-3 gap-6 text-[11px]">
+      <!-- Bankdaten / Kontakt / Steuer -->
+      <div class="bg-gray-50 rounded-xl p-5 grid grid-cols-3 gap-6 text-[11px] border border-gray-100">
         <div>
-          <p class="font-bold text-gray-700 mb-1">Bankverbindung</p>
-          <p><%= firma ? firma.bank : '' %></p>
-          <p>IBAN: <%= firma ? firma.iban : '' %></p>
-          <p>BIC: <%= firma ? firma.bic : '' %></p>
+          <p class="font-bold text-gray-700 mb-1.5">Bankverbindung</p>
+          <% if (f.bank) { %><p><%= f.bank %></p><% } %>
+          <% if (f.iban) { %><p>IBAN: <%= f.iban %></p><% } %>
+          <% if (f.bic)  { %><p>BIC: <%= f.bic %></p><% } %>
         </div>
         <div>
-          <p class="font-bold text-gray-700 mb-1">Kontakt</p>
-          <p><%= firma ? firma.tel : '' %></p>
-          <p><%= firma ? firma.email : '' %></p>
-          <p><%= firma ? firma.web : '' %></p>
+          <p class="font-bold text-gray-700 mb-1.5">Kontakt</p>
+          <% if (f.tel)   { %><p><%= f.tel %></p><% } %>
+          <% if (f.email) { %><p><%= f.email %></p><% } %>
+          <% if (f.web)   { %><p><%= f.web %></p><% } %>
         </div>
         <div>
-          <p class="font-bold text-gray-700 mb-1">Steuer</p>
-          <p><%= firma ? firma.steuernr : '' %></p>
+          <p class="font-bold text-gray-700 mb-1.5">Steuer</p>
+          <% if (f.steuernr) { %><p><%= f.steuernr %></p><% } %>
+          <% if (f.name)     { %><p class="mt-1 text-gray-400"><%= f.name %></p><% } %>
         </div>
       </div>
 
     </div>
-  </div>
+  </div><!-- Ende .page -->
 
 </body>
 </html>

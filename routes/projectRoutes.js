@@ -5,7 +5,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { requireAdmin }      = require('../middleware/auth');
-const { FIRMA }             = require('../utils/firma');
+const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 
 const isPg = !!process.env.DATABASE_URL;
@@ -673,7 +673,8 @@ router.post('/:id/create-invoice', requireAdmin, async (req, res) => {
     itemsToInsert.push({ description: descs[i].trim(), quantity: qty, unit: units[i] || 'Psch', price: prc });
   }
 
-  const days    = parseInt(due_days || String(FIRMA.zahlungsfrist), 10);
+  const _firma  = await getFirma();
+  const days    = parseInt(due_days || String(_firma.zahlungsfrist), 10);
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + days);
 
