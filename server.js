@@ -222,6 +222,13 @@ app.use('/ticker',  adminRoutes);
 app.use('/articles', articleRoutes);
 
 // ==========================================
+// STAHLRECHNER
+// ==========================================
+app.get('/steel-calculator', (req, res) => {
+  res.render('steel-calculator', { currentUser: req.user });
+});
+
+// ==========================================
 // WERKSTATT-LEXIKON
 // ==========================================
 app.get('/lexikon', (req, res) => {

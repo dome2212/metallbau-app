@@ -234,15 +234,24 @@
   ];
 
   function getSidebarHidden() {
-    try { return JSON.parse(localStorage.getItem('sidebar_hidden_keys') || '[]'); } catch(e) { return []; }
+    // Aus dem Cookie lesen (gleiche Quelle wie EJS auf dem Server)
+    try {
+      const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('sidebar_hidden='));
+      if (match) {
+        const val = decodeURIComponent(match.split('=').slice(1).join('='));
+        // Cookie-Format: ["hide_lexikon","hide_treppe"]  → raw keys ohne "hide_"-Präfix
+        const arr = JSON.parse(val);
+        return arr.map((k) => k.replace(/^hide_/, ''));
+      }
+    } catch(e) {}
+    return [];
   }
   function saveSidebarHidden(arr) {
-    try { localStorage.setItem('sidebar_hidden_keys', JSON.stringify(arr)); } catch(e) {}
-    // Auch als Cookie setzen, damit EJS es beim nächsten Laden lesen kann
-    const expires = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
-    document.cookie = 'sidebar_hidden=' + encodeURIComponent(JSON.stringify(
-      arr.map(k => 'hide_' + k)
-    )) + ';path=/;expires=' + expires;
+    // Cookie im Format ["hide_x","hide_y"] setzen – ohne encodeURIComponent,
+    // damit JSON.parse auf dem Server direkt funktioniert
+    const cookieVal = JSON.stringify(arr.map(k => 'hide_' + k));
+    const expires   = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = 'sidebar_hidden=' + cookieVal + ';path=/;expires=' + expires + ';SameSite=Lax';
   }
 
   function openSidebarSettings() {
