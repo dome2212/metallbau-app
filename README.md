@@ -12,6 +12,8 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 - [Installation (Lokal)](#-installation-lokal)
 - [Deployment (Render / Cloud)](#-deployment-render--cloud)
 - [Umgebungsvariablen](#-umgebungsvariablen)
+- [WhatsApp-Benachrichtigungen](#-whatsapp-benachrichtigungen-callmebot)
+- [KI-Assistent](#-ki-assistent-openrouter)
 - [Firmendaten anpassen](#-firmendaten-anpassen)
 - [Nutzerrollen](#-nutzerrollen)
 - [Projektstruktur](#-projektstruktur)
@@ -27,9 +29,9 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | Bereich | Beschreibung |
 |---|---|
 | 🏠 **Dashboard** | Rollenspezifische Startseite – Monteur sieht Monatsübersicht & Überstunden-Ampel, Chef sieht konfigurierbare KPI-Kacheln & offene Vorgänge |
-| 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter |
+| 📢 **Schwarzes Brett** | Chef postet Nachrichten an alle Mitarbeiter – optional mit WhatsApp-Push |
 | 🏗️ **Aufträge & Baustellen** | Aufträge anlegen, bearbeiten, Statusverlauf, Schnellstatus ohne Reload, Suche & Filter |
-| 📅 **Kalender** | Termine eintragen & löschen, Wetter-Frühwarnung (Wind, Böen, Regen) pro Termin |
+| 📅 **Kalender** | Termine eintragen & löschen, Mitarbeiter zuweisen, Wetter-Frühwarnung (Wind, Böen, Regen) pro Termin |
 | ⏱️ **Zeiterfassung** | Stempeluhr mit GPS-Prüfung, Geo-Fencing je Baustelle, Baustelle wechseln ohne Ausstempeln |
 | 📊 **Monatsauswertung** | Ist- vs. Soll-Stunden, Über-/Minusstunden, CSV-Export, PDF-Export, Tagesfilter |
 | 🌴 **Urlaub & Abwesenheit** | Urlaubsanträge, Krankmeldungen, Schulungen, Datei-Upload, Jahresübersicht |
@@ -40,12 +42,12 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | Bereich | Beschreibung |
 |---|---|
 | ⚙️ **Dashboard-Widgets** | 6 KPI-Kacheln individuell ein-/ausblendbar, Einstellung geräteübergreifend gespeichert |
-| 👥 **Mitarbeiterverwaltung** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten |
+| 👥 **Mitarbeiterverwaltung** | Nutzer anlegen, Passwort ändern, löschen, Rolle verwalten, WhatsApp & Benachrichtigungen konfigurieren |
 | 📋 **Arbeitszeiten-Übersicht** | Alle Stempelzeiten aller Mitarbeiter, manuelle Einträge, Löschen, PDF-Export |
 | 👤 **Kunden** | Kundenverwaltung mit Kontaktdaten und verknüpften Projekten |
-| 📋 **Angebote** | Angebote erstellen, Positionen hinterlegen, in Rechnung umwandeln, PDF-Download |
-| 🧾 **Rechnungen** | Rechnungen verwalten, Mahnstatus, Rechnungsnummer ändern, PDF-Download & Druckansicht |
-| 📦 **Artikelstamm** | Standardartikel und Leistungen für Angebote & Rechnungen |
+| 📋 **Angebote** | Angebote erstellen, Positionen hinterlegen, KI-Assistent für Positionen & Bildanalyse, in Rechnung umwandeln, PDF-Download |
+| 🧾 **Rechnungen** | Rechnungen verwalten, Mahnstatus, Rechnungsnummer ändern, KI-Mahntext, PDF-Download & Druckansicht |
+| 📦 **Artikelstamm** | Standardartikel und Leistungen für Angebote & Rechnungen, KI-Vorschlag |
 
 ### Je Auftrag (Projektdetailseite)
 
@@ -58,6 +60,28 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 - 📅 Verknüpfte Termine mit Wettervorhersage
 - 📄 **Lieferschein/Stundennachweis-PDF** (Stunden, Aufmaß, Aufgaben, Notizen)
 - 🧾 **Rechnung direkt aus Auftrag erstellen** (Stunden & Auftragssumme werden automatisch übernommen)
+
+### 📱 WhatsApp-Benachrichtigungen
+
+Automatische Push-Nachrichten bei relevanten Ereignissen – kein bezahlter Dienst, kein Account nötig:
+
+| Ereignis | Empfänger |
+|---|---|
+| Neuer Urlaubsantrag gestellt | Alle Admins |
+| Urlaubsstatus genehmigt / abgelehnt | Betroffener Mitarbeiter |
+| Neuer Eintrag auf dem Schwarzen Brett | Alle Mitarbeiter |
+| Neuer Auftrag angelegt | Alle Mitarbeiter |
+| Neuer Termin mit Mitarbeiter-Zuweisung | Nur zugewiesene Mitarbeiter |
+
+### 🤖 KI-Assistent (OpenRouter)
+
+| Funktion | Beschreibung |
+|---|---|
+| **Angebots-Assistent (Text)** | Freitext-Beschreibung → KI schlägt Positionen mit Menge, Einheit & Preis vor |
+| **Angebots-Assistent (Bild)** | Foto hochladen → KI analysiert Metallbau-Leistungen und schlägt Positionen vor |
+| **Artikel-Vorschlag** | Beschreibung → KI schlägt Artikelbezeichnung, Einheit & Preis vor |
+| **Auftragsbeschreibung** | Stichworte → KI formuliert kurze sachliche Beschreibung |
+| **Mahntext** | Rechnungsdaten → KI formuliert höflichen Mahnungstext (1.–n. Mahnung) |
 
 ---
 
@@ -75,6 +99,9 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 | **Kalender** | FullCalendar |
 | **Wetter** | Open-Meteo API (kostenlos, kein API-Key nötig) |
 | **Geocoding** | OpenStreetMap Nominatim (kostenlos, kein API-Key nötig) |
+| **WhatsApp** | CallMeBot API (kostenlos, kein Account nötig) |
+| **KI** | OpenRouter API (kostenlose Modelle verfügbar) |
+| **Rate Limiting** | express-rate-limit (Login: 10/15min · API: 200/min) |
 
 ---
 
@@ -84,6 +111,7 @@ Eine vollständige, mobile-optimierte Betriebssoftware für einen Metallbaubetri
 - **npm** ≥ 9
 - Für die Cloud: PostgreSQL-Datenbank (z. B. auf [Render](https://render.com))
 - Für Datei-Uploads: [Cloudinary](https://cloudinary.com)-Account (kostenloser Plan reicht)
+- Optional: [OpenRouter](https://openrouter.ai)-Account für KI-Features (kostenlose Modelle verfügbar)
 
 ---
 
@@ -103,6 +131,8 @@ cp .env.example .env
 
 # 4. App starten (SQLite wird automatisch angelegt)
 node server.js
+# oder mit Sicherheitsprüfung:
+npm start
 
 # App läuft unter: http://localhost:3000
 ```
@@ -120,6 +150,8 @@ node server.js
 
 Die App erkennt automatisch ob `DATABASE_URL` gesetzt ist und wechselt zwischen PostgreSQL und SQLite.
 
+> **Hinweis Reverse Proxy:** Render und vergleichbare Plattformen setzen den Header `X-Forwarded-For`. Die App setzt daher `app.set('trust proxy', 1)`, damit `express-rate-limit` die echte Client-IP korrekt ausliest.
+
 ---
 
 ## 🔑 Umgebungsvariablen
@@ -136,18 +168,68 @@ Alle Variablen sind in [`.env.example`](.env.example) dokumentiert.
 | `FIRM_LAT` | GPS-Breitengrad des Firmensitzes (für Stempeluhr) | Stempeluhr |
 | `FIRM_LNG` | GPS-Längengrad des Firmensitzes (für Stempeluhr) | Stempeluhr |
 | `FIRM_RADIUS_METERS` | Erlaubter Radius in Metern (Standard: 300) | Stempeluhr |
+| `OPENROUTER_API_KEY` | API-Key für KI-Features (openrouter.ai) | KI |
+| `APP_URL` | Öffentliche URL der App (für KI-Referer-Header) | KI |
 | `PORT` | Server-Port (Standard: 3000) | Optional |
 
 > ⚠️ `.env` niemals in Git committen – sie ist in `.gitignore` ausgeschlossen.
 
 ---
 
+## 📱 WhatsApp-Benachrichtigungen (CallMeBot)
+
+Die App nutzt [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/) – einen kostenlosen Dienst, der WhatsApp-Nachrichten ohne eigenen Account oder bezahlte API sendet.
+
+### Einrichtung pro Mitarbeiter
+
+1. Der Mitarbeiter schickt **einmalig** per WhatsApp eine Nachricht an **+34 644 52 74 21**:
+   ```
+   I allow callmebot to send me messages
+   ```
+2. CallMeBot antwortet mit einem persönlichen **API-Key**
+3. Im Admin-Panel unter **`/admin/users`** eintragen:
+   - **WhatsApp-Nummer** (z. B. `015712345678` oder `+4915712345678`)
+   - **API-Key** (aus Schritt 2)
+   - **Benachrichtigungen aktivieren** (Toggle einschalten)
+
+> Kein Umgebungsvariablen nötig – API-Key und Nummer werden pro Mitarbeiter in der Datenbank gespeichert.
+
+### Benachrichtigungssteuerung
+
+Jeder Mitarbeiter kann im Admin-Panel einzeln aktiviert oder deaktiviert werden (`whatsapp_notify`). Nur Nutzer mit eingetragener Nummer, API-Key **und** aktiviertem Toggle erhalten Nachrichten.
+
+---
+
+## 🤖 KI-Assistent (OpenRouter)
+
+Die KI-Features nutzen [OpenRouter](https://openrouter.ai) als Gateway zu verschiedenen Sprachmodellen. Kostenlose Modelle sind verfügbar.
+
+### Einrichtung
+
+1. Account auf [openrouter.ai](https://openrouter.ai) anlegen (kostenlos)
+2. API-Key unter [openrouter.ai/keys](https://openrouter.ai/keys) erstellen
+3. In der `.env` eintragen:
+   ```env
+   OPENROUTER_API_KEY=sk-or-v1-...
+   APP_URL=https://deine-app.onrender.com
+   ```
+
+### Verwendete Modelle
+
+| Modell | Verwendung |
+|---|---|
+| `nvidia/nemotron-3-ultra-550b-a55b:free` | Text-Assistent (Angebote, Artikel, Beschreibungen, Mahntexte) |
+| `google/gemma-4-26b-a4b-it:free` u. a. | Bild-Analyse (Fallback-Kette bei Rate-Limit) |
+
+> Bei Rate-Limits des Vision-Modells probiert die App automatisch das nächste Modell in der Fallback-Kette.
+
+---
+
 ## 🏢 Firmendaten anpassen
 
-Alle Firmendaten (Name, Adresse, Bankverbindung, USt-Nr. usw.) sind **zentral an einer einzigen Stelle** in `server.js` hinterlegt:
+Alle Firmendaten sind **zentral** in [`utils/firma.js`](utils/firma.js) hinterlegt:
 
 ```js
-// server.js – Zeile ~35
 const FIRMA = {
   name:            'Frank Gehrmann Stahl- und Metallbau GmbH',
   nameKurz:        'Metallbau-Gehrmann',
@@ -183,16 +265,25 @@ Diese Werte werden automatisch in **alle PDFs** (Angebote, Rechnungen, Liefersch
 
 ```
 metallbau-app/
-├── server.js                    # Haupt-Anwendung (alle Routen, Middleware, PDF-Generierung)
+├── server.js                    # Einstiegspunkt: Middleware, Rate-Limiting, KI-Routen, globale Suche
 ├── config/
-│   └── database.js              # DB-Verbindung (PostgreSQL / SQLite), Tabellen-Setup
+│   └── database.js              # DB-Verbindung (PostgreSQL / SQLite)
 ├── middleware/
 │   └── auth.js                  # JWT-Verifikation, requireAdmin-Guard
 ├── routes/
 │   ├── authRoutes.js            # Login / Logout / Standard-Admin anlegen
-│   └── documentRoutes.js        # Angebot → Projekt, Angebot → Rechnung (alte Dokumente-API)
+│   ├── adminRoutes.js           # Mitarbeiterverwaltung, Zeiterfassung-Admin, Ticker, PDF
+│   ├── projectRoutes.js         # Aufträge, Aufmaß, Aufgaben, Notizen, Fotos, Sketches
+│   ├── customerRoutes.js        # Kunden & verknüpfte Dateien
+│   ├── calendarRoutes.js        # Termine, Mitarbeiter-Zuweisung, Wetter-API
+│   ├── timetrackingRoutes.js    # Stempeluhr, GPS, Geo-Fencing, Monatsauswertung
+│   ├── vacationRoutes.js        # Urlaubsanträge, Status, Jahresanspruch
+│   ├── documentRoutes.js        # Angebote → Rechnungen, PDFs
+│   └── articleRoutes.js         # Artikelstamm
 ├── utils/
-│   └── notifier.js              # E-Mail & WhatsApp Benachrichtigungen (optional)
+│   ├── db.js                    # Gemeinsame dbQuery-Hilfsfunktion (SQLite & PostgreSQL)
+│   ├── firma.js                 # Zentrale Firmendaten (für PDFs & KI-Prompts)
+│   └── notifier.js              # E-Mail (Nodemailer) & WhatsApp (CallMeBot)
 ├── views/
 │   ├── partials/
 │   │   ├── header.ejs           # HTML-Head, Body-Start
@@ -209,12 +300,12 @@ metallbau-app/
 │   ├── vacations.ejs            # Urlaub & Abwesenheit
 │   ├── customers.ejs            # Kundenliste
 │   ├── customer-projects.ejs    # Projekte je Kunde
-│   ├── admin-users.ejs          # Mitarbeiterverwaltung
+│   ├── admin-users.ejs          # Mitarbeiterverwaltung (inkl. WhatsApp-Einstellungen)
 │   ├── invoices.ejs             # Rechnungsliste
 │   ├── invoice-detail.ejs       # Rechnungsdetail (Positionen, Rechnungsnr. ändern)
 │   ├── invoice-pdf.ejs          # Browser-Druckansicht Rechnung
 │   ├── offers.ejs               # Angebotsliste
-│   ├── documents.ejs            # Dokumentenübersicht (ältere API)
+│   ├── documents.ejs            # Dokumentenübersicht
 │   ├── articles.ejs             # Artikelstamm
 │   └── login.ejs                # Login-Seite
 ├── Public/
@@ -224,8 +315,6 @@ metallbau-app/
 ├── package.json
 └── README.md
 ```
-
-> **Hinweis:** Die meisten Routen sind direkt in `server.js` implementiert. `routes/authRoutes.js` und `routes/documentRoutes.js` werden als Express-Router eingebunden.
 
 ---
 
@@ -237,16 +326,21 @@ metallbau-app/
 | `/login` | GET/POST | Öffentlich | Login |
 | `/logout` | GET | Alle | Abmelden |
 | `/projects` | GET | Alle | Auftragsliste |
+| `/projects/add` | POST | Admin | Neuen Auftrag anlegen |
 | `/projects/:id` | GET | Alle | Auftragsdetail |
 | `/projects/:id/pdf` | GET | Admin | Lieferschein-PDF |
-| `/projects/:id/create-invoice` | GET | Admin | Rechnungsvorschau aus Auftrag |
-| `/projects/:id/create-invoice` | POST | Admin | Rechnung aus Auftrag speichern |
+| `/projects/:id/create-invoice` | GET/POST | Admin | Rechnung aus Auftrag |
 | `/calendar` | GET | Alle | Terminkalender |
+| `/api/appointments` | GET | Alle | Termine (JSON, für Kalender) |
+| `/api/appointments/add` | POST | Alle | Termin anlegen |
+| `/api/weather` | GET | Alle | Wettervorhersage (JSON) |
 | `/timetracking` | GET | Alle | Stempeluhr |
 | `/timetracking/stamp` | POST | Alle | Stempeln (IN / OUT / SWITCH) |
 | `/admin/timetracking` | GET | Admin | Arbeitszeiten-Übersicht |
 | `/admin/timetracking/pdf` | GET | Admin | Arbeitszeitennachweis-PDF |
 | `/vacations` | GET | Alle | Urlaub & Abwesenheit |
+| `/vacations/add` | POST | Alle | Urlaubsantrag stellen |
+| `/vacations/status` | POST | Admin | Urlaub genehmigen / ablehnen |
 | `/customers` | GET | Admin | Kundenverwaltung |
 | `/documents/offers` | GET | Admin | Angebote |
 | `/documents/invoices` | GET | Admin | Rechnungen |
@@ -255,9 +349,15 @@ metallbau-app/
 | `/documents/invoices/:id/pdf-download` | GET | Admin | Rechnung PDF-Download |
 | `/articles` | GET | Admin | Artikelstamm |
 | `/admin/users` | GET | Admin | Mitarbeiterverwaltung |
+| `/admin/users/set-whatsapp` | POST | Admin | WhatsApp-Daten eines Mitarbeiters setzen |
+| `/admin/users/toggle-whatsapp-notify` | POST | Admin | Benachrichtigungen ein-/ausschalten |
+| `/ticker/add` | POST | Admin | Schwarzes-Brett-Eintrag hinzufügen |
 | `/api/search` | GET | Alle | Globale Suche (JSON) |
-| `/api/appointments` | GET | Alle | Termine (JSON, für Kalender) |
-| `/api/weather` | GET | Alle | Wettervorhersage (JSON) |
+| `/api/ai/offer-assistant` | POST | Alle | KI: Angebotspositionen aus Text |
+| `/api/ai/offer-assistant-image` | POST | Alle | KI: Angebotspositionen aus Foto |
+| `/api/ai/article-suggest` | POST | Alle | KI: Artikel-Vorschlag |
+| `/api/ai/project-description` | POST | Alle | KI: Auftragsbeschreibung |
+| `/api/ai/payment-reminder` | POST | Alle | KI: Mahntext generieren |
 
 ---
 
