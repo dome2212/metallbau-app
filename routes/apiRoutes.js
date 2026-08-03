@@ -390,7 +390,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
   try {
     if (type === 'SWITCH') {
       const tsE = isPg ? 'NOW()' : 'CURRENT_TIMESTAMP';
-      await dbQuery(`INSERT INTO time_logs (user_id,type,note,latitude,longitude,timestamp) VALUES (?,\'OUT\',?,?,?,${tsE})`,
+      await dbQuery(`INSERT INTO time_logs (user_id,type,note,latitude,longitude,timestamp) VALUES (?,'OUT',?,?,?,${tsE})`,
         [userId, 'Baustelle gewechselt', latitude||null, longitude||null]);
       type = 'IN';
     }
@@ -525,6 +525,173 @@ router.patch('/vacations/:id/status', apiAuth, async (req, res) => {
   if (!['Genehmigt', 'Abgelehnt'].includes(status)) return res.status(400).json({ error: 'Ungültiger Status' });
   try {
     await dbQuery('UPDATE vacations SET status=? WHERE id=?', [status, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// FOTO-UPLOAD (Cloudinary) für Projekt-Fotos
+// ═══════════════════════════════════════════════════════════════════════
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+const photoUpload = multer({
+  storage: new CloudinaryStorage({
+    cloudinary,
+    params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'jpeg', 'png', 'webp'] }
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 }
+});
+
+// POST /api/v2/projects/:id/photos
+router.post('/projects/:id/photos', apiAuth, photoUpload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Kein Foto übermittelt.' });
+  try {
+    const r = await dbQuery(
+      `INSERT INTO project_photos (project_id, file_url, original_name) VALUES (?,?,?)`,
+      [req.params.id, req.file.path, req.file.originalname || 'foto.jpg']
+    );
+    res.status(201).json({ id: r.lastID, url: req.file.path, ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Speichern des Fotos' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// KI-ASSISTENT (Text + Bildanalyse)
+// ═══════════════════════════════════════════════════════════════════════
+
+// POST /api/v2/ai/chat  → Text-KI
+router.post('/ai/chat', apiAuth, async (req, res) => {
+  const { message, context } = req.body;
+  if (!message) return res.status(400).json({ error: 'Keine Nachricht.' });
+  if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'KI nicht konfiguriert.' });
+
+  const { getFirma } = require('../utils/companySettings');
+  const firma = await getFirma();
+  const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${firma.name}". Antworte immer auf Deutsch und sei hilfreich bei allen Metallbau-Themen: Aufmaß, Angebote, Materialien, Technik, Planung.`;
+
+  try {
+    const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.APP_URL || 'https://metallbau-gehrmann.onrender.com',
+        'X-Title': 'Metallbau App'
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...(context || []),
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7
+      })
+    });
+    const data = await aiRes.json();
+    if (!aiRes.ok) throw new Error(JSON.stringify(data));
+    res.json({ reply: data.choices[0].message.content });
+  } catch (err) {
+    res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || '') });
+  }
+});
+
+// POST /api/v2/ai/image  → Bildanalyse
+const imageUploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/'))
+});
+
+router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Kein Bild übermittelt.' });
+  if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'KI nicht konfiguriert.' });
+
+  const b64      = req.file.buffer.toString('base64');
+  const mimeType = req.file.mimetype;
+  const { getFirma } = require('../utils/companySettings');
+  const firma = await getFirma();
+
+  const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${firma.name}". Analysiere das Bild und erkenne alle sichtbaren Metallbau-Leistungen, Materialien, Maße oder Bauteile. Antworte auf Deutsch.`;
+  const VISION_MODELS = [
+    'google/gemma-4-26b-a4b-it:free',
+    'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-nano-12b-v2-vl:free'
+  ];
+
+  let lastError;
+  for (const model of VISION_MODELS) {
+    try {
+      const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': process.env.APP_URL || 'https://metallbau-gehrmann.onrender.com',
+          'X-Title': 'Metallbau App'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: systemPrompt },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+          ]}],
+          temperature: 0.7
+        })
+      });
+      const data = await r.json();
+      if (!r.ok) { lastError = data; continue; }
+      return res.json({ reply: data.choices[0].message.content });
+    } catch (err) { lastError = err; }
+  }
+  res.status(500).json({ error: 'KI-Bildanalyse fehlgeschlagen.' });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// DOKUMENTE (Angebote & Rechnungen) – Liste für App
+// ═══════════════════════════════════════════════════════════════════════
+
+// GET /api/v2/documents?type=OFFER|INVOICE
+router.get('/documents', apiAuth, async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Nur für Admins.' });
+  const type = req.query.type;
+  const sql  = type
+    ? `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.doc_type=? ORDER BY d.id DESC LIMIT 50`
+    : `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id ORDER BY d.id DESC LIMIT 50`;
+  try {
+    const result = await dbQuery(sql, type ? [type] : []);
+    res.json(result.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// GET /api/v2/documents/:id  – Detail mit Positionen
+router.get('/documents/:id', apiAuth, async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Nur für Admins.' });
+  try {
+    const docRes   = await dbQuery(`SELECT d.*,c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.id=?`, [req.params.id]);
+    const doc      = docRes.rows[0];
+    if (!doc) return res.status(404).json({ error: 'Dokument nicht gefunden' });
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id=? ORDER BY id ASC`, [req.params.id]);
+    res.json({ ...doc, items: itemsRes.rows || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// PATCH /api/v2/documents/:id/status  (nur ADMIN)
+router.patch('/documents/:id/status', apiAuth, async (req, res) => {
+  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  const { status } = req.body;
+  if (!status) return res.status(400).json({ error: 'Status fehlt' });
+  try {
+    await dbQuery('UPDATE documents SET status=? WHERE id=?', [status, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Fehler' });
