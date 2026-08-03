@@ -4,7 +4,7 @@
  */
 const FIRMA = {
   name:            'Frank Gehrmann Stahl- und Metallbau GmbH',
-  nameKurz:        'Metallbau-Gehrmann',
+  nameKurz:        '2',
   slogan:          'Hochwertige Handwerksarbeit zum fairen Preis.',
   strasse:         'Ratingerstr. 85',
   plzOrt:          '42279 Heiligenhaus',
