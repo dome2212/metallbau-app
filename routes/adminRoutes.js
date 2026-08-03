@@ -272,7 +272,7 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
 // ==========================================
 // SCHWARZES BRETT (TICKER)
 // ==========================================
-router.post('/ticker/add', requireAdmin, async (req, res) => {
+router.post('/add', requireAdmin, async (req, res) => {
   const { message } = req.body;
   if (!message || message.trim() === '') return res.redirect('/');
   try {
@@ -283,7 +283,7 @@ router.post('/ticker/add', requireAdmin, async (req, res) => {
   res.redirect('/');
 });
 
-router.post('/ticker/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireAdmin, async (req, res) => {
   const { id } = req.body;
   try {
     await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
