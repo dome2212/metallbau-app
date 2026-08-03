@@ -13,8 +13,10 @@ const dbQuery = (sql, params = []) => {
       // (appointment_users hat keine id-Spalte → kein RETURNING)
       const trimmed = pgSql.trim().toUpperCase();
       if (trimmed.startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-        // appointment_users hat keine id-Spalte – kein RETURNING anhängen
-        if (!pgSql.toLowerCase().includes('appointment_users')) {
+        // Tabellen ohne id-Spalte: kein RETURNING anhängen
+        const noIdTables = ['appointment_users', 'company_settings'];
+        const hasNoId = noIdTables.some(t => pgSql.toLowerCase().includes(t));
+        if (!hasNoId) {
           pgSql += ' RETURNING id';
         }
       }
