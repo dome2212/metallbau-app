@@ -178,11 +178,25 @@ router.post('/timetracking/add', requireAdmin, async (req, res) => {
     return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
   }
   try {
-    const timestampString = `${date} ${time}:00`;
-    const sql = isPg
-      ? `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, (TO_TIMESTAMP(?, 'YYYY-MM-DD HH24:MI:SS') AT TIME ZONE 'Europe/Berlin') AT TIME ZONE 'UTC')`
-      : `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, ?)`;
-    await dbQuery(sql, [user_id, type, note || null, timestampString]);
+    const timestampString = `${date}T${time}:00`;   // ISO-Format z.B. 2024-01-15T07:30:00
+
+    let sql, params;
+    if (isPg) {
+      // Eingabe ist Berliner Ortszeit → als timestamptz mit Berlin-Zone speichern
+      // PostgreSQL speichert intern immer UTC
+      sql    = `INSERT INTO time_logs (user_id, type, note, timestamp)
+                VALUES (?, ?, ?, (? || ' Europe/Berlin')::timestamptz)`;
+      params = [user_id, type, note || null, timestampString];
+    } else {
+      // SQLite: Eingabe in UTC umrechnen (Berlin = UTC+1 oder UTC+2)
+      // Wir nutzen den Node.js-Prozess der bereits auf Europe/Berlin läuft
+      const localDate = new Date(timestampString);
+      const utcString = localDate.toISOString().replace('T', ' ').slice(0, 19);
+      sql    = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, ?)`;
+      params = [user_id, type, note || null, utcString];
+    }
+
+    await dbQuery(sql, params);
     res.redirect('/admin/timetracking');
   } catch (err) {
     console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
