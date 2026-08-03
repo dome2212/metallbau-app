@@ -161,7 +161,7 @@ router.get('/timetracking', requireAdmin, async (req, res) => {
     res.render('admin-timetracking', {
       users, user: req.user, activeTab,
       logs, selectedDate, selectedUserId,
-      month, monthUserId, monthlyEntries, dailyHours,
+      selectedMonth: month, monthUserId, monthlyEntries, dailyHours,
       workedHours:   workedHours.toFixed(2),
       targetHours:   targetHours.toFixed(2),
       overtimeHours: overtimeHours.toFixed(2)
