@@ -1,7 +1,8 @@
 const express = require('express');
 const router  = express.Router();
 const https   = require('https');
-const { dbQuery } = require('../utils/db');
+const { dbQuery }      = require('../utils/db');
+const { sendWhatsApp } = require('../utils/notifier');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -211,6 +212,21 @@ router.post('/api/appointments/add', async (req, res) => {
           `INSERT INTO appointment_users (appointment_id, user_id) VALUES (?, ?)`,
           [appointmentId, parseInt(uid, 10)]
         ).catch(() => {}); // ignoriere doppelte Einträge
+      }
+
+      // WhatsApp-Benachrichtigung an zugewiesene Mitarbeiter
+      const placeholders = userIds.map(() => '?').join(',');
+      const assignedRes = await dbQuery(
+        `SELECT u.whatsapp_phone, u.whatsapp_api_key FROM users u
+         WHERE u.id IN (${placeholders})
+           AND u.whatsapp_notify = true AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_api_key IS NOT NULL`,
+        userIds.map(id => parseInt(id, 10))
+      ).catch(() => ({ rows: [] }));
+
+      const dateStr = start_date ? new Date(start_date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : start_date;
+      const msg = `📅 Neuer Termin: "${title}" am ${dateStr}${description ? ' – ' + description : ''}`;
+      for (const u of (assignedRes.rows || [])) {
+        sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
       }
     }
 

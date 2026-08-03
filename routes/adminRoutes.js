@@ -277,6 +277,15 @@ router.post('/add', requireAdmin, async (req, res) => {
   if (!message || message.trim() === '') return res.redirect('/');
   try {
     await dbQuery('INSERT INTO tickers (message, author) VALUES (?, ?)', [message.trim(), req.user.username]);
+
+    // WhatsApp-Benachrichtigung an alle Mitarbeiter mit aktivierter Benachrichtigung
+    const usersRes = await dbQuery(
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+    );
+    const msg = `📌 Schwarzes Brett (${req.user.username}): ${message.trim()}`;
+    for (const u of (usersRes.rows || [])) {
+      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+    }
   } catch (err) {
     console.error('Fehler beim Speichern des Tickers:', err.message);
   }

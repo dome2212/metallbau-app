@@ -6,6 +6,7 @@ const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { requireAdmin }      = require('../middleware/auth');
 const { FIRMA }             = require('../utils/firma');
+const { sendWhatsApp }      = require('../utils/notifier');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -163,6 +164,16 @@ router.post('/add', async (req, res) => {
       `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?, ?, ?, ?, ?)`,
       [customer_id || null, title, description || null, parsedPrice, status || 'In Planung']
     );
+
+    // WhatsApp-Benachrichtigung an alle Mitarbeiter
+    const usersRes = await dbQuery(
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+    );
+    const msg = `🏗️ Neuer Auftrag: "${title}"${description ? ' – ' + description : ''}`;
+    for (const u of (usersRes.rows || [])) {
+      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+    }
+
     res.redirect('/projects');
   } catch (err) {
     res.status(500).send('Fehler beim Erstellen des Auftrags');

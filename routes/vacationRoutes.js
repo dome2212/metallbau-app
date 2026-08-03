@@ -5,6 +5,7 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { requireAdmin }      = require('../middleware/auth');
+const { sendWhatsApp }      = require('../utils/notifier');
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -96,6 +97,16 @@ router.post('/add', upload.single('document'), async (req, res) => {
       `INSERT INTO vacations (user_id, type, start_date, end_date, reason, file_url, status) VALUES (?, ?, ?, ?, ?, ?, 'Beantragt')`,
       [userId, type || 'Urlaub', start_date, end_date, reason || null, fileUrl]
     );
+
+    // WhatsApp-Benachrichtigung an alle Admins
+    const adminsRes = await dbQuery(
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role = 'ADMIN' AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+    );
+    const msg = `📅 Neuer ${type || 'Urlaub'}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
+    for (const admin of (adminsRes.rows || [])) {
+      sendWhatsApp(admin.whatsapp_phone, msg, admin.whatsapp_api_key).catch(() => {});
+    }
+
     res.redirect('/vacations');
   } catch (err) {
     console.error('Fehler beim Speichern des Urlaubsantrags:', err.message);
@@ -110,6 +121,19 @@ router.post('/status', requireAdmin, async (req, res) => {
   const { id, status } = req.body;
   try {
     await dbQuery('UPDATE vacations SET status = ? WHERE id = ?', [status, id]);
+
+    // WhatsApp-Benachrichtigung an den Mitarbeiter
+    const vacRes = await dbQuery(
+      `SELECT v.type, v.start_date, v.end_date, u.whatsapp_phone, u.whatsapp_api_key, u.whatsapp_notify
+       FROM vacations v JOIN users u ON v.user_id = u.id WHERE v.id = ?`, [id]
+    );
+    const vac = vacRes.rows && vacRes.rows[0];
+    if (vac && vac.whatsapp_notify && vac.whatsapp_phone && vac.whatsapp_api_key) {
+      const emoji = status === 'Genehmigt' ? '✅' : '❌';
+      const msg   = `${emoji} Dein ${vac.type}-Antrag (${vac.start_date} bis ${vac.end_date}) wurde ${status}.`;
+      sendWhatsApp(vac.whatsapp_phone, msg, vac.whatsapp_api_key).catch(() => {});
+    }
+
     res.redirect('/vacations');
   } catch (err) {
     console.error('Fehler beim Aktualisieren des Urlaubsstatus:', err.message);

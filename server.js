@@ -122,6 +122,10 @@ const articleRoutes      = require('./routes/articleRoutes');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust the first proxy (Render / reverse-proxy environments) so that
+// express-rate-limit can read the real client IP from X-Forwarded-For.
+app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
