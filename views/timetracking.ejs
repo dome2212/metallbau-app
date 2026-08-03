@@ -211,7 +211,7 @@ Lat: <%= log.latitude.toFixed(4) %>, Lon: <%= log.longitude.toFixed(4) %>
 </td>
 <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
 <td class="p-3">
-<form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');">
+<form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');">
 <input type="hidden" name="log_id" value="<%= log.id %>">
 <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition">
 🗑️ Löschen
