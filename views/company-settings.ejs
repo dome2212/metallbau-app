@@ -17,21 +17,21 @@
         <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 5000);</script>
       <% } %>
 
-      <!-- ══ LOGO ══════════════════════════════════════════════════════════ -->
+      <!-- ══ PDF-LOGO ═══════════════════════════════════════════════════════ -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🖼️ Firmen-Logo</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🖼️ Logo für PDFs</h2>
+        <p class="text-xs text-slate-400 mb-4">Erscheint im Briefkopf von Angeboten &amp; Rechnungen.</p>
 
         <div class="flex flex-col md:flex-row gap-6 items-start">
           <!-- Vorschau -->
           <div class="w-48 h-28 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-700 shrink-0 overflow-hidden">
             <% if (firma.logo_url) { %>
-              <img src="<%= firma.logo_url %>" alt="Firmen-Logo" class="max-h-full max-w-full object-contain p-2" id="logoPreview">
+              <img src="<%= firma.logo_url %>" alt="PDF-Logo" class="max-h-full max-w-full object-contain p-2" id="logoPreview">
             <% } else { %>
               <span class="text-slate-400 text-xs text-center px-3">Noch kein Logo hochgeladen</span>
             <% } %>
           </div>
-
-          <!-- Upload-Formular -->
+          <!-- Upload -->
           <div class="flex-1 space-y-3">
             <form action="/admin/company-settings/logo" method="POST" enctype="multipart/form-data">
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -40,21 +40,90 @@
               <div class="flex gap-2 flex-wrap">
                 <input type="file" name="logo" accept="image/*" required
                   class="block text-sm text-slate-600 dark:text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                  onchange="previewLogo(this)">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
-                  Hochladen
-                </button>
+                  onchange="previewLogoImg(this, 'logoPreview', 'logoPlaceholder')">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Hochladen</button>
               </div>
             </form>
-
             <% if (firma.logo_url) { %>
-              <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('Logo wirklich löschen?')">
+              <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('PDF-Logo wirklich löschen?')">
                 <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Logo entfernen</button>
               </form>
             <% } %>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Empfohlen: transparenter Hintergrund (PNG) oder SVG.</p>
+          </div>
+        </div>
+      </div>
 
+      <!-- ══ SIDEBAR-LOGO / TEXT ════════════════════════════════════════════ -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔩 Sidebar-Anzeige</h2>
+        <p class="text-xs text-slate-400 mb-5">Was soll oben in der Seitenleiste angezeigt werden?</p>
+
+        <!-- Schalter: Text oder Logo -->
+        <form action="/admin/company-settings" method="POST" class="mb-6">
+          <!-- versteckte Felder damit nur sidebar_modus gespeichert wird ohne die anderen zu überschreiben -->
+          <% const allKeys = ['name','nameKurz','slogan','strasse','plzOrt','tel','email','web','iban','bic','bank','steuernr','zahlungsfrist','angebotsgueltig']; %>
+          <% for (const k of allKeys) { %>
+            <input type="hidden" name="<%= k %>" value="<%= firma[k] || '' %>">
+          <% } %>
+
+          <div class="flex gap-3 flex-wrap mb-4">
+            <!-- Option: Text -->
+            <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+              <%= firma.sidebar_modus !== 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600 hover:border-slate-300' %>">
+              <input type="radio" name="sidebar_modus" value="text"
+                <%= firma.sidebar_modus !== 'logo' ? 'checked' : '' %>
+                class="accent-blue-600" onchange="this.form.submit()">
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kurzname als Text</p>
+                <p class="text-xs text-slate-400">z.B. &nbsp;<span class="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded">🔩 <%= firma.nameKurz %></span></p>
+              </div>
+            </label>
+
+            <!-- Option: Logo -->
+            <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+              <%= firma.sidebar_modus === 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600 hover:border-slate-300' %>">
+              <input type="radio" name="sidebar_modus" value="logo"
+                <%= firma.sidebar_modus === 'logo' ? 'checked' : '' %>
+                class="accent-blue-600" onchange="this.form.submit()">
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Logo anzeigen</p>
+                <p class="text-xs text-slate-400">Das hochgeladene Sidebar-Logo wird angezeigt.</p>
+              </div>
+            </label>
+          </div>
+        </form>
+
+        <!-- Sidebar-Logo Upload -->
+        <div class="flex flex-col md:flex-row gap-6 items-start border-t dark:border-slate-700 pt-5">
+          <!-- Vorschau -->
+          <div class="w-48 h-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-800 shrink-0 overflow-hidden">
+            <% if (firma.sidebar_logo_url) { %>
+              <img src="<%= firma.sidebar_logo_url %>" alt="Sidebar-Logo" class="max-h-full max-w-full object-contain p-2" id="sidebarLogoPreview">
+            <% } else { %>
+              <span class="text-slate-500 text-xs text-center px-3" id="sidebarLogoPlaceholder">Noch kein Sidebar-Logo</span>
+            <% } %>
+          </div>
+          <!-- Upload -->
+          <div class="flex-1 space-y-3">
+            <form action="/admin/company-settings/sidebar-logo" method="POST" enctype="multipart/form-data">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Sidebar-Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG – max. 5 MB)</span>
+              </label>
+              <div class="flex gap-2 flex-wrap">
+                <input type="file" name="sidebar_logo" accept="image/*" required
+                  class="block text-sm text-slate-600 dark:text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  onchange="previewLogoImg(this, 'sidebarLogoPreview', 'sidebarLogoPlaceholder')">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Hochladen</button>
+              </div>
+            </form>
+            <% if (firma.sidebar_logo_url) { %>
+              <form action="/admin/company-settings/sidebar-logo-delete" method="POST" onsubmit="return confirm('Sidebar-Logo wirklich löschen?')">
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Sidebar-Logo entfernen</button>
+              </form>
+            <% } %>
             <p class="text-xs text-slate-400 dark:text-slate-500">
-              Das Logo erscheint auf allen PDFs (Angebote &amp; Rechnungen). Empfohlen: transparenter Hintergrund (PNG) oder SVG.
+              Empfohlen: weißes oder helles Logo auf transparentem Hintergrund (PNG), da die Sidebar dunkel ist.
             </p>
           </div>
         </div>
@@ -210,17 +279,22 @@
 </div>
 
 <script>
-  function previewLogo(input) {
+  // Generische Logo-Vorschau: previewId = id des <img>, placeholderId = id des <span>
+  function previewLogoImg(input, previewId, placeholderId) {
     if (!input.files || !input.files[0]) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      let preview = document.getElementById('logoPreview');
+      let preview = document.getElementById(previewId);
       if (!preview) {
-        // Platzhalter-Span ersetzen durch <img>
-        const container = input.closest('.flex').querySelector('.w-48');
-        if (container) {
-          container.innerHTML = '<img id="logoPreview" src="" alt="Vorschau" class="max-h-full max-w-full object-contain p-2">';
-          preview = document.getElementById('logoPreview');
+        // Platzhalter durch <img> ersetzen
+        const placeholder = document.getElementById(placeholderId);
+        if (placeholder) {
+          const img = document.createElement('img');
+          img.id = previewId;
+          img.alt = 'Vorschau';
+          img.className = 'max-h-full max-w-full object-contain p-2';
+          placeholder.replaceWith(img);
+          preview = img;
         }
       }
       if (preview) preview.src = e.target.result;

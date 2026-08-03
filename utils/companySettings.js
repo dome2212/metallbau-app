@@ -22,7 +22,9 @@ const DEFAULTS = {
   steuernr:        'USt-IdNr.: DE123456789',
   zahlungsfrist:   14,
   angebotsgueltig: 30,
-  logo_url:        null,   // Cloudinary-URL des Firmen-Logos
+  logo_url:         null,   // Cloudinary-URL des Firmen-Logos (für PDFs)
+  sidebar_logo_url: null,   // Cloudinary-URL des Sidebar-Logos
+  sidebar_modus:    'text', // 'text' = Kurzname anzeigen, 'logo' = Logo anzeigen
 };
 
 // Einfacher In-Memory-Cache (wird bei jeder Änderung geleert)
