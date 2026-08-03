@@ -44,7 +44,8 @@ router.post('/company-settings', requireAdmin, async (req, res) => {
     'tel', 'email', 'web',
     'iban', 'bic', 'bank', 'steuernr',
     'zahlungsfrist', 'angebotsgueltig',
-    'sidebar_modus'  // 'text' oder 'logo'
+    'sidebar_modus',       // 'text' oder 'logo'
+    'sidebar_logo_height'  // px-Wert 40–200
   ];
   try {
     for (const key of felder) {

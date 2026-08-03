@@ -22,7 +22,7 @@
       <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
         <div class="flex-1 pr-2">
           <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>"
-               style="width:100%; max-height:60px; object-fit:contain; object-position:left;">
+               style="width:100%; max-height:<%= _f.sidebar_logo_height || 80 %>px; object-fit:contain; object-position:left;">
         </div>
       <% } else { %>
         <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">

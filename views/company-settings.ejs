@@ -60,14 +60,15 @@
         <p class="text-xs text-slate-400 mb-5">Was soll oben in der Seitenleiste angezeigt werden?</p>
 
         <!-- Schalter: Text oder Logo -->
-        <form action="/admin/company-settings" method="POST" class="mb-6">
-          <!-- versteckte Felder damit nur sidebar_modus gespeichert wird ohne die anderen zu überschreiben -->
+        <form action="/admin/company-settings" method="POST" class="mb-6" id="sidebarModusForm">
+          <!-- versteckte Felder damit nur sidebar_modus + height gespeichert werden -->
           <% const allKeys = ['name','nameKurz','slogan','strasse','plzOrt','tel','email','web','iban','bic','bank','steuernr','zahlungsfrist','angebotsgueltig']; %>
           <% for (const k of allKeys) { %>
             <input type="hidden" name="<%= k %>" value="<%= firma[k] || '' %>">
           <% } %>
+          <input type="hidden" name="sidebar_logo_height" id="heightHidden" value="<%= firma.sidebar_logo_height || 80 %>">
 
-          <div class="flex gap-3 flex-wrap mb-4">
+          <div class="flex gap-3 flex-wrap mb-5">
             <!-- Option: Text -->
             <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
               <%= firma.sidebar_modus !== 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600 hover:border-slate-300' %>">
@@ -91,6 +92,43 @@
                 <p class="text-xs text-slate-400">Das hochgeladene Sidebar-Logo wird angezeigt.</p>
               </div>
             </label>
+          </div>
+
+          <!-- Größen-Regler (nur sichtbar wenn Modus = logo) -->
+          <div id="heightSliderWrap" class="<%= firma.sidebar_modus === 'logo' ? '' : 'hidden' %> bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border dark:border-slate-600">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
+                🔲 Logo-Größe in der Sidebar
+              </label>
+              <span class="text-sm font-bold text-blue-600 dark:text-blue-400" id="heightLabel">
+                <%= firma.sidebar_logo_height || 80 %> px
+              </span>
+            </div>
+            <input type="range" id="heightSlider"
+              min="40" max="200" step="5"
+              value="<%= firma.sidebar_logo_height || 80 %>"
+              class="w-full accent-blue-600 cursor-pointer"
+              oninput="updateHeight(this.value)">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>Klein (40px)</span>
+              <span>Mittel (120px)</span>
+              <span>Groß (200px)</span>
+            </div>
+            <!-- Live-Vorschau -->
+            <% if (firma.sidebar_logo_url) { %>
+              <div class="mt-4 bg-slate-800 rounded-lg p-3 flex items-center">
+                <img src="<%= firma.sidebar_logo_url %>" alt="Vorschau"
+                  id="sizePreviewImg"
+                  style="width:100%; max-height:<%= firma.sidebar_logo_height || 80 %>px; object-fit:contain; object-position:left; transition:max-height 0.2s;">
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1 text-center">Live-Vorschau wie das Logo in der Sidebar aussieht</p>
+            <% } %>
+            <div class="mt-3 flex justify-end">
+              <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                💾 Größe speichern
+              </button>
+            </div>
           </div>
         </form>
 
@@ -128,6 +166,23 @@
           </div>
         </div>
       </div>
+
+<script>
+  function updateHeight(val) {
+    document.getElementById('heightLabel').textContent  = val + ' px';
+    document.getElementById('heightHidden').value       = val;
+    const prev = document.getElementById('sizePreviewImg');
+    if (prev) prev.style.maxHeight = val + 'px';
+  }
+  // Regler einblenden wenn Logo-Modus aktiv
+  document.querySelectorAll('input[name="sidebar_modus"]').forEach(r => {
+    r.addEventListener('change', function() {
+      const wrap = document.getElementById('heightSliderWrap');
+      if (wrap) wrap.classList.toggle('hidden', this.value !== 'logo');
+      if (this.value !== 'logo') this.form.submit();
+    });
+  });
+</script>
 
       <!-- ══ HAUPTFORMULAR ══════════════════════════════════════════════════ -->
       <form action="/admin/company-settings" method="POST" class="space-y-6">
