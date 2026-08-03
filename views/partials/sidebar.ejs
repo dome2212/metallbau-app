@@ -74,12 +74,6 @@
       <% if (_show('vacations')) { %>
       <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
       <% } %>
-      <% if (_show('lexikon')) { %>
-      <a href="/lexikon" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📖 Werkstatt-Lexikon</a>
-      <% } %>
-      <% if (_show('steel_calculator')) { %>
-      <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahlrechner</a>
-      <% } %>
       <% if (_show('treppe')) { %>
       <a href="/treppe" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📐 Treppen-Aufmaß</a>
       <% } %>
@@ -222,8 +216,6 @@
     { key: 'calendar',          label: '📅 Kalender' },
     { key: 'timetracking',      label: '⏱️ Zeiterfassung' },
     { key: 'vacations',         label: '🌴 Urlaub & Abwesenheit' },
-    { key: 'lexikon',           label: '📖 Werkstatt-Lexikon' },
-    { key: 'steel_calculator',  label: '⚖️ Stahlrechner' },
     { key: 'treppe',            label: '📐 Treppen-Aufmaß' },
     { key: 'admin_users',       label: '👥 Mitarbeiter-Logins (Admin)' },
     { key: 'admin_timetracking',label: '📋 Arbeitszeiten-Übersicht (Admin)' },
@@ -246,12 +238,26 @@
     } catch(e) {}
     return [];
   }
-  function saveSidebarHidden(arr) {
-    // Cookie im Format ["hide_x","hide_y"] setzen – ohne encodeURIComponent,
-    // damit JSON.parse auf dem Server direkt funktioniert
-    const cookieVal = JSON.stringify(arr.map(k => 'hide_' + k));
-    const expires   = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = 'sidebar_hidden=' + cookieVal + ';path=/;expires=' + expires + ';SameSite=Lax';
+  function saveSidebarHidden(hiddenKeys) {
+    // Per POST an den Server senden – der setzt den Cookie korrekt
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/sidebar-settings';
+    form.style.display = 'none';
+    // Redirect-Ziel mitschicken
+    const redir = document.createElement('input');
+    redir.name  = '_redirect';
+    redir.value = window.location.pathname + window.location.search;
+    form.appendChild(redir);
+    // Für jeden versteckten Key ein hide_* Feld
+    hiddenKeys.forEach(key => {
+      const inp = document.createElement('input');
+      inp.name  = 'hide_' + key;
+      inp.value = '1';
+      form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
   }
 
   function openSidebarSettings() {
@@ -274,8 +280,8 @@
   function sbToggleHighlight(key, checked) {
     const lbl = document.getElementById('slbl-' + key);
     if (!lbl) return;
-    lbl.style.background   = checked ? '#1e3a5f' : '#0f172a';
-    lbl.style.borderColor  = checked ? '#2563eb' : '#334155';
+    lbl.style.background  = checked ? '#1e3a5f' : '#0f172a';
+    lbl.style.borderColor = checked ? '#2563eb' : '#334155';
   }
 
   function sidebarSelectAll() {
@@ -295,10 +301,8 @@
     document.querySelectorAll('#sidebar-toggle-list input[data-sb-key]').forEach(cb => {
       if (!cb.checked) hidden.push(cb.dataset.sbKey);
     });
+    // Speichern per POST → Server setzt Cookie → Seite lädt neu
     saveSidebarHidden(hidden);
-    document.getElementById('sidebar-settings-overlay').style.display = 'none';
-    // Seite neu laden, damit EJS den neuen Cookie ausliest
-    window.location.reload();
   }
 
   function toggleSidebar() {

@@ -222,20 +222,6 @@ app.use('/ticker',  adminRoutes);
 app.use('/articles', articleRoutes);
 
 // ==========================================
-// STAHLRECHNER
-// ==========================================
-app.get('/steel-calculator', (req, res) => {
-  res.render('steel-calculator', { currentUser: req.user });
-});
-
-// ==========================================
-// WERKSTATT-LEXIKON
-// ==========================================
-app.get('/lexikon', (req, res) => {
-  res.render('lexikon', { currentUser: req.user });
-});
-
-// ==========================================
 // TREPPEN- & GELÄNDER-AUFMASS
 // ==========================================
 app.get('/treppe', (req, res) => {
@@ -246,17 +232,16 @@ app.get('/treppe', (req, res) => {
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)
 // ==========================================
 app.post('/sidebar-settings', (req, res) => {
-  const allowed = ['dashboard','projects','calendar','timetracking','vacations',
-                   'customers','admin_users','admin_timetracking','documents','articles',
-                   'company_settings','lexikon','steel_calculator','treppe'];
   const hidden = Object.keys(req.body).filter(k => k.startsWith('hide_'));
-  // Als JSON-Cookie speichern (30 Tage)
+  // Als JSON-Cookie speichern (30 Tage) – httpOnly:false damit EJS es lesen kann
   res.cookie('sidebar_hidden', JSON.stringify(hidden), {
     maxAge: 30 * 24 * 3600 * 1000,
     httpOnly: false,
-    sameSite: 'lax'
+    sameSite: 'lax',
   });
-  res.redirect('back');
+  // Zurück zur Seite von der der Request kam
+  const redirect = req.body._redirect || req.headers.referer || '/';
+  res.redirect(redirect);
 });
 
 // ==========================================
