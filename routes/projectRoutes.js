@@ -425,14 +425,15 @@ router.post('/files/delete', async (req, res) => {
 router.post('/:id/set-location', async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
-  const { site_lat, site_lng, site_radius } = req.body;
+  const { site_lat, site_lng, site_radius, site_note } = req.body;
   try {
     await dbQuery(
-      'UPDATE projects SET site_lat = ?, site_lng = ?, site_radius = ? WHERE id = ?',
+      'UPDATE projects SET site_lat = ?, site_lng = ?, site_radius = ?, site_note = ? WHERE id = ?',
       [
         site_lat && site_lat !== '' ? parseFloat(site_lat)   : null,
         site_lng && site_lng !== '' ? parseFloat(site_lng)   : null,
         parseInt(site_radius || '200', 10),
+        site_note && site_note.trim() !== '' ? site_note.trim() : null,
         id
       ]
     );

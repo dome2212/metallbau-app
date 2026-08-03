@@ -76,6 +76,7 @@ dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INT`).catch((
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`).catch(() => {});
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng NUMERIC(11,8)`).catch(() => {});
 dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INT DEFAULT 200`).catch(() => {});
+dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_note TEXT`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS project_sketches (id SERIAL PRIMARY KEY, project_id INT NOT NULL, title TEXT, image_data TEXT NOT NULL, created_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS tickers (id SERIAL PRIMARY KEY, message TEXT NOT NULL, author TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS appointment_users (appointment_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (appointment_id, user_id))`).catch(() => {});
