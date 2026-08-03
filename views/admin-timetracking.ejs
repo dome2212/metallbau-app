@@ -203,7 +203,7 @@
                     </td>
                     <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
                     <td class="p-4 text-right">
-                      <form action="/timetracking/admin/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');" style="display:inline;">
+                      <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');" style="display:inline;">
                         <input type="hidden" name="log_id" value="<%= log.id %>">
                         <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
                           🗑️ Löschen
