@@ -6,6 +6,7 @@ const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { requireAdmin }      = require('../middleware/auth');
 const { sendWhatsApp }      = require('../utils/notifier');
+const { isNRWHoliday }      = require('../utils/holidays');
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -60,7 +61,7 @@ router.get('/', async (req, res) => {
         const e = new Date(Math.min(end,   new Date(currentYear, 11, 31)));
         for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
           const dow = d.getDay();
-          if (dow !== 0 && dow !== 6) usedDays++;
+          if (dow !== 0 && dow !== 6 && !isNRWHoliday(d)) usedDays++;
         }
       }
       vacationBalances[u.id] = {
