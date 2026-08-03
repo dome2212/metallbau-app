@@ -1,11 +1,63 @@
 const express = require('express');
 const router  = express.Router();
 const https   = require('https');
-const { dbQuery }      = require('../utils/db');
-const { sendWhatsApp } = require('../utils/notifier');
-const { getNRWHolidays } = require('../utils/holidays');
+const { dbQuery }        = require('../utils/db');
+const { sendWhatsApp }   = require('../utils/notifier');
+const { getNRWHolidays, isNRWHoliday } = require('../utils/holidays');
 
 const isPg = !!process.env.DATABASE_URL;
+
+// ── Urlaubskalender-Daten für Monatsansicht ───────────────────────────────────
+function buildCalendar(yearMonth, vacations, users) {
+  const [yyyy, mm] = yearMonth.split('-').map(Number);
+  const daysInMonth = new Date(yyyy, mm, 0).getDate();
+  const today       = new Date().toISOString().slice(0, 10);
+  const WEEKDAYS    = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+  const calDays = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date    = new Date(yyyy, mm - 1, d);
+    const dateStr = `${yyyy}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    calDays.push({
+      d,
+      dateStr,
+      weekday:   WEEKDAYS[date.getDay()],
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+      isHoliday: isNRWHoliday(date),
+      isToday:   dateStr === today,
+    });
+  }
+
+  const calCells = {};
+  for (const v of vacations) {
+    const start = new Date(v.start_date);
+    const end   = new Date(v.end_date);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const ds = d.toISOString().slice(0, 10);
+      if (ds.slice(0, 7) !== yearMonth) continue;
+      calCells[`${v.user_id}_${ds}`] = { type: v.type, status: v.status };
+    }
+  }
+
+  const todayAbsent = [];
+  for (const v of vacations) {
+    if (v.start_date <= today && v.end_date >= today &&
+        (v.status === 'Genehmigt' || v.status === 'Beantragt')) {
+      const user = users.find(u => u.id === v.user_id);
+      if (user) todayAbsent.push({ username: user.username, type: v.type });
+    }
+  }
+
+  const prevDate     = new Date(yyyy, mm - 2, 1);
+  const nextDate     = new Date(yyyy, mm, 1);
+  const pad          = n => String(n).padStart(2, '0');
+  const calPrevMonth = `${prevDate.getFullYear()}-${pad(prevDate.getMonth() + 1)}`;
+  const calNextMonth = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}`;
+  const calMonthLabel = new Date(yyyy, mm - 1, 1)
+    .toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+  return { calDays, calCells, calPrevMonth, calNextMonth, calMonthLabel, todayAbsent, calUsers: users };
+}
 
 const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
 const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
@@ -71,13 +123,19 @@ function fetchWeather(lat, lng, dateStr) {
 // ==========================================
 router.get('/calendar', async (req, res) => {
   try {
-    const [customersRes, usersRes] = await Promise.all([
+    const [customersRes, usersRes, allVacRes] = await Promise.all([
       dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC'),
-      dbQuery('SELECT id, username FROM users ORDER BY username ASC')
+      dbQuery('SELECT id, username FROM users ORDER BY username ASC'),
+      dbQuery('SELECT id, user_id, type, status, start_date, end_date FROM vacations ORDER BY start_date ASC')
     ]);
+    const calMonth = req.query.cal_month || new Date().toISOString().slice(0, 7);
+    const cal = buildCalendar(calMonth, allVacRes.rows || [], usersRes.rows || []);
+
     res.render('calendar', {
-      customers: customersRes.rows || [],
-      users:     usersRes.rows     || []
+      customers:   customersRes.rows || [],
+      users:       usersRes.rows     || [],
+      currentUser: req.user,
+      ...cal,
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');

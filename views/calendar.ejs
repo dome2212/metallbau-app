@@ -38,6 +38,101 @@
         <div id="calendar"></div>
       </div>
     </div>
+
+    <!-- ===================================================== -->
+    <!-- URLAUBSKALENDER – MONATSÜBERSICHT                      -->
+    <!-- ===================================================== -->
+    <% if (currentUser && currentUser.role === 'ADMIN') { %>
+    <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100">📅 Urlaubskalender – Monatsübersicht</h2>
+          <!-- Monatsnavigation -->
+          <div class="flex items-center gap-2">
+            <a href="/calendar?cal_month=<%= calPrevMonth %>"
+               class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium transition">
+              ‹ Zurück
+            </a>
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200 min-w-[120px] text-center">
+              <%= calMonthLabel %>
+            </span>
+            <a href="/calendar?cal_month=<%= calNextMonth %>"
+               class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium transition">
+              Weiter ›
+            </a>
+          </div>
+        </div>
+
+        <!-- Legende -->
+        <div class="flex flex-wrap gap-3 mb-4 text-xs">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-400 inline-block"></span> Genehmigt</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-300 inline-block"></span> Beantragt</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-blue-300 inline-block"></span> Krank</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-slate-200 dark:bg-slate-600 inline-block"></span> Wochenende / Feiertag</span>
+        </div>
+
+        <!-- Kalender-Grid -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse min-w-[600px]">
+            <thead>
+              <tr>
+                <th class="text-left text-slate-500 dark:text-slate-400 font-semibold py-2 pr-3 w-28 whitespace-nowrap">Mitarbeiter</th>
+                <% calDays.forEach(day => { %>
+                  <th class="text-center py-2 px-0.5 font-medium <%= day.isWeekend || day.isHoliday ? 'text-slate-300 dark:text-slate-600' : 'text-slate-600 dark:text-slate-300' %>"
+                      style="min-width:28px;">
+                    <div class="<%= day.isToday ? 'bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center mx-auto' : '' %>">
+                      <%= day.d %>
+                    </div>
+                    <div class="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5"><%= day.weekday %></div>
+                  </th>
+                <% }); %>
+              </tr>
+            </thead>
+            <tbody>
+              <% calUsers.forEach((u, ui) => { %>
+                <tr class="<%= ui % 2 === 0 ? 'bg-slate-50 dark:bg-slate-700/30' : '' %>">
+                  <td class="py-1.5 pr-3 font-medium text-slate-700 dark:text-slate-200 truncate max-w-[110px]" title="<%= u.username %>">
+                    <%= u.username %>
+                  </td>
+                  <% calDays.forEach(day => {
+                    const cellKey = u.id + '_' + day.dateStr;
+                    const cell    = calCells[cellKey];
+                    let bg = '';
+                    let title = '';
+                    if (day.isWeekend || day.isHoliday) {
+                      bg = 'bg-slate-100 dark:bg-slate-700';
+                    } else if (cell) {
+                      if (cell.status === 'Genehmigt' && cell.type === 'Urlaub')   bg = 'bg-emerald-400';
+                      else if (cell.status === 'Genehmigt' && cell.type === 'Krank') bg = 'bg-blue-300';
+                      else if (cell.status === 'Beantragt')  bg = 'bg-amber-300';
+                      else if (cell.status === 'Abgelehnt')  bg = 'bg-red-200';
+                      title = cell.type + ' – ' + cell.status;
+                    }
+                  %>
+                    <td class="py-1.5 px-0.5 text-center">
+                      <div class="<%= bg %> rounded-sm h-5 w-full mx-auto" title="<%= title %>"></div>
+                    </td>
+                  <% }); %>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Wer fehlt heute? -->
+        <% if (todayAbsent.length > 0) { %>
+          <div class="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <strong>⚠️ Heute abwesend:</strong>
+            <%= todayAbsent.map(u => u.username + ' (' + u.type + ')').join(' · ') %>
+          </div>
+        <% } else { %>
+          <div class="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg px-4 py-2.5 text-xs text-green-800 dark:text-green-300">
+            ✅ Heute ist kein Mitarbeiter abwesend.
+          </div>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
   </main>
 </div>
 
