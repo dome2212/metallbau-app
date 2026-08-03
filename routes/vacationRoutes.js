@@ -8,62 +8,6 @@ const { requireAdmin }      = require('../middleware/auth');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { isNRWHoliday }      = require('../utils/holidays');
 
-// ── Kalenderdaten für Monatsansicht berechnen ─────────────────────────────────
-function buildCalendar(yearMonth, vacations, users) {
-  const [yyyy, mm] = yearMonth.split('-').map(Number);
-  const daysInMonth = new Date(yyyy, mm, 0).getDate();
-  const today       = new Date().toISOString().slice(0, 10);
-  const WEEKDAYS    = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-
-  // Alle Tage des Monats
-  const calDays = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date    = new Date(yyyy, mm - 1, d);
-    const dateStr = `${yyyy}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    calDays.push({
-      d,
-      dateStr,
-      weekday:   WEEKDAYS[date.getDay()],
-      isWeekend: date.getDay() === 0 || date.getDay() === 6,
-      isHoliday: isNRWHoliday(date),
-      isToday:   dateStr === today,
-    });
-  }
-
-  // Zellen: { userId_dateStr → { type, status } }
-  const calCells = {};
-  for (const v of vacations) {
-    const start = new Date(v.start_date);
-    const end   = new Date(v.end_date);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const ds = d.toISOString().slice(0, 10);
-      if (ds.slice(0, 7) !== yearMonth) continue;
-      calCells[`${v.user_id}_${ds}`] = { type: v.type, status: v.status };
-    }
-  }
-
-  // Wer fehlt heute?
-  const todayAbsent = [];
-  for (const v of vacations) {
-    if (v.start_date <= today && v.end_date >= today &&
-        (v.status === 'Genehmigt' || v.status === 'Beantragt')) {
-      const user = users.find(u => u.id === v.user_id);
-      if (user) todayAbsent.push({ username: user.username, type: v.type });
-    }
-  }
-
-  // Prev/Next Monat
-  const prevDate  = new Date(yyyy, mm - 2, 1);
-  const nextDate  = new Date(yyyy, mm,     1);
-  const pad       = n => String(n).padStart(2, '0');
-  const calPrevMonth = `${prevDate.getFullYear()}-${pad(prevDate.getMonth() + 1)}`;
-  const calNextMonth = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}`;
-  const calMonthLabel = new Date(yyyy, mm - 1, 1)
-    .toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-
-  return { calDays, calCells, calPrevMonth, calNextMonth, calMonthLabel, todayAbsent, calUsers: users };
-}
-
 const upload = multer({
   storage: new CloudinaryStorage({
     cloudinary,
@@ -127,11 +71,6 @@ router.get('/', async (req, res) => {
       };
     }
 
-    // Kalenderdaten
-    const calMonth = req.query.cal_month || new Date().toISOString().slice(0, 7);
-    const allVacRes = await dbQuery(`SELECT id, user_id, type, status, start_date, end_date FROM vacations ORDER BY start_date ASC`);
-    const cal = buildCalendar(calMonth, allVacRes.rows || [], usersRes.rows || []);
-
     res.render('vacations', {
       vacations:       vacationsRes.rows || [],
       users:           usersRes.rows || [],
@@ -139,7 +78,6 @@ router.get('/', async (req, res) => {
       currentUser:     req.user,
       vacationBalances,
       currentYear,
-      ...cal,
     });
   } catch (err) {
     console.error('Fehler beim Laden der Urlaubsübersicht:', err.message);

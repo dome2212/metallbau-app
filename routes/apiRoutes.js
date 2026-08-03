@@ -390,7 +390,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
   try {
     if (type === 'SWITCH') {
       const tsE = isPg ? 'NOW()' : 'CURRENT_TIMESTAMP';
-      await dbQuery(`INSERT INTO time_logs (user_id,type,note,latitude,longitude,timestamp) VALUES (?,'OUT',?,?,?,${tsE})`,
+      await dbQuery(`INSERT INTO time_logs (user_id,type,note,latitude,longitude,timestamp) VALUES (?,\'OUT\',?,?,?,${tsE})`,
         [userId, 'Baustelle gewechselt', latitude||null, longitude||null]);
       type = 'IN';
     }
@@ -561,7 +561,7 @@ router.post('/projects/:id/photos', apiAuth, photoUpload.single('photo'), async 
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// KI-ASSISTENT (Text + Bildanalyse)
+// KI-ASSISTENT (Text + Bildanalyse) – leitet an bestehende /api/ai/* weiter
 // ═══════════════════════════════════════════════════════════════════════
 
 // POST /api/v2/ai/chat  → Text-KI
@@ -601,7 +601,7 @@ router.post('/ai/chat', apiAuth, async (req, res) => {
   }
 });
 
-// POST /api/v2/ai/image  → Bildanalyse
+// POST /api/v2/ai/image  → Bildanalyse (Base64)
 const imageUploadMemory = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -659,7 +659,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
 // GET /api/v2/documents?type=OFFER|INVOICE
 router.get('/documents', apiAuth, async (req, res) => {
   if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Nur für Admins.' });
-  const type = req.query.type;
+  const type = req.query.type; // OFFER oder INVOICE
   const sql  = type
     ? `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.doc_type=? ORDER BY d.id DESC LIMIT 50`
     : `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id ORDER BY d.id DESC LIMIT 50`;
