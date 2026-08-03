@@ -46,30 +46,80 @@
       </button>
     </div>
 
-    <nav class="space-y-1.5">
+    <%
+      // Sidebar-Einstellungen aus Cookie lesen
+      let _hidden = [];
+      try {
+        const _raw = (typeof req !== 'undefined' && req.cookies && req.cookies.sidebar_hidden) ||
+                     (typeof locals !== 'undefined' && locals.sidebarHidden) || '[]';
+        _hidden = JSON.parse(_raw);
+      } catch(e) {}
+      const _show = key => !_hidden.includes('hide_' + key);
+    %>
+    <nav class="space-y-1.5" id="sidebar-nav">
+      <% if (_show('dashboard')) { %>
       <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏠 Dashboard</a>
-      
+      <% } %>
+
       <!-- Für Alle sichtbar -->
+      <% if (_show('projects')) { %>
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
+      <% } %>
+      <% if (_show('calendar')) { %>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
+      <% } %>
+      <% if (_show('timetracking')) { %>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
+      <% } %>
+      <% if (_show('vacations')) { %>
       <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
+      <% } %>
+      <% if (_show('lexikon')) { %>
+      <a href="/lexikon" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📖 Werkstatt-Lexikon</a>
+      <% } %>
+      <% if (_show('steel_calculator')) { %>
+      <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahlrechner</a>
+      <% } %>
+      <% if (_show('treppe')) { %>
+      <a href="/treppe" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📐 Treppen-Aufmaß</a>
+      <% } %>
 
       <!-- NUR FÜR CHEFS (ADMIN) -->
       <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Chef-Bereich</div>
+        <% if (_show('admin_users')) { %>
         <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
+        <% } %>
+        <% if (_show('admin_timetracking')) { %>
         <a href="/admin/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Arbeitszeiten-Übersicht</a>
+        <% } %>
+        <% if (_show('customers')) { %>
         <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👤 Kunden</a>
+        <% } %>
+        <% if (_show('documents')) { %>
         <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Angebote</a>
         <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🧾 Rechnungen</a>
+        <% } %>
+        <% if (_show('articles')) { %>
         <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📦 Artikelstamm</a>
+        <% } %>
+        <% if (_show('company_settings')) { %>
         <a href="/admin/company-settings" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏢 Firmendaten</a>
+        <% } %>
       <% } %>
     </nav>
   </div>
   
-  <div class="border-t border-gray-700 pt-3 space-y-2 mt-4">
+  <div class="border-t border-gray-700 pt-3 space-y-2 mt-4" id="sidebar-bottom">
+    <!-- Sidebar-Einstellungen Zahnrad -->
+    <button onclick="openSidebarSettings()"
+      class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium transition">
+      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      Sidebar anpassen
+    </button>
     <div class="text-xs text-gray-400 mb-1">
       Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong> 
       (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
@@ -130,7 +180,118 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     SIDEBAR-EINSTELLUNGEN – Modal (welche Nav-Einträge sichtbar)
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="sidebar-settings-overlay"
+  style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;"
+  onclick="closeSidebarSettings(event)">
+
+  <div id="sidebar-settings-modal"
+    style="background:#1e293b;color:#e2e8f0;border-radius:1rem 1rem 0 0;padding:1.5rem 1.25rem 2rem;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,.4);"
+    onclick="event.stopPropagation()">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">
+      <div>
+        <p style="font-weight:700;font-size:1rem;margin:0;">⚙️ Sidebar anpassen</p>
+        <p style="font-size:.72rem;color:#94a3b8;margin:2px 0 0;">Wähle, welche Menüpunkte sichtbar sein sollen</p>
+      </div>
+      <button onclick="closeSidebarSettings()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.3rem;line-height:1;padding:2px 4px;">✕</button>
+    </div>
+
+    <div id="sidebar-toggle-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.2rem;max-height:60vh;overflow-y:auto;"></div>
+
+    <div style="display:flex;gap:.6rem;">
+      <button onclick="sidebarSelectAll()"
+        style="flex:1;padding:.55rem;border-radius:.5rem;background:#334155;color:#94a3b8;border:1px solid #475569;font-size:.75rem;font-weight:600;cursor:pointer;">
+        Alle einblenden
+      </button>
+      <button onclick="applySidebarSettings()"
+        style="flex:2;padding:.55rem;border-radius:.5rem;background:#1e3a5f;color:#fff;border:none;font-size:.8rem;font-weight:700;cursor:pointer;">
+        ✓ Übernehmen &amp; schließen
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
+  // Sidebar-Einträge (key muss mit _show('key') im EJS übereinstimmen)
+  const SIDEBAR_ITEMS = [
+    { key: 'dashboard',         label: '🏠 Dashboard' },
+    { key: 'projects',          label: '🏗️ Aufträge & Baustellen' },
+    { key: 'calendar',          label: '📅 Kalender' },
+    { key: 'timetracking',      label: '⏱️ Zeiterfassung' },
+    { key: 'vacations',         label: '🌴 Urlaub & Abwesenheit' },
+    { key: 'lexikon',           label: '📖 Werkstatt-Lexikon' },
+    { key: 'steel_calculator',  label: '⚖️ Stahlrechner' },
+    { key: 'treppe',            label: '📐 Treppen-Aufmaß' },
+    { key: 'admin_users',       label: '👥 Mitarbeiter-Logins (Admin)' },
+    { key: 'admin_timetracking',label: '📋 Arbeitszeiten-Übersicht (Admin)' },
+    { key: 'customers',         label: '👤 Kunden (Admin)' },
+    { key: 'documents',         label: '📋 Angebote & Rechnungen (Admin)' },
+    { key: 'articles',          label: '📦 Artikelstamm (Admin)' },
+    { key: 'company_settings',  label: '🏢 Firmendaten (Admin)' },
+  ];
+
+  function getSidebarHidden() {
+    try { return JSON.parse(localStorage.getItem('sidebar_hidden_keys') || '[]'); } catch(e) { return []; }
+  }
+  function saveSidebarHidden(arr) {
+    try { localStorage.setItem('sidebar_hidden_keys', JSON.stringify(arr)); } catch(e) {}
+    // Auch als Cookie setzen, damit EJS es beim nächsten Laden lesen kann
+    const expires = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
+    document.cookie = 'sidebar_hidden=' + encodeURIComponent(JSON.stringify(
+      arr.map(k => 'hide_' + k)
+    )) + ';path=/;expires=' + expires;
+  }
+
+  function openSidebarSettings() {
+    const hidden = getSidebarHidden();
+    const list = document.getElementById('sidebar-toggle-list');
+    list.innerHTML = SIDEBAR_ITEMS.map(item => {
+      const checked = !hidden.includes(item.key);
+      return `
+        <label style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:.5rem;
+          background:${checked?'#1e3a5f':'#0f172a'};border:1px solid ${checked?'#2563eb':'#334155'};cursor:pointer;" id="slbl-${item.key}">
+          <input type="checkbox" data-sb-key="${item.key}" ${checked?'checked':''}
+            onchange="sbToggleHighlight('${item.key}',this.checked)"
+            style="width:1.1rem;height:1.1rem;accent-color:#2563eb;cursor:pointer;flex-shrink:0;">
+          <span style="font-size:.8rem;font-weight:600;">${item.label}</span>
+        </label>`;
+    }).join('');
+    document.getElementById('sidebar-settings-overlay').style.display = 'flex';
+  }
+
+  function sbToggleHighlight(key, checked) {
+    const lbl = document.getElementById('slbl-' + key);
+    if (!lbl) return;
+    lbl.style.background   = checked ? '#1e3a5f' : '#0f172a';
+    lbl.style.borderColor  = checked ? '#2563eb' : '#334155';
+  }
+
+  function sidebarSelectAll() {
+    document.querySelectorAll('#sidebar-toggle-list input[data-sb-key]').forEach(cb => {
+      cb.checked = true;
+      sbToggleHighlight(cb.dataset.sbKey, true);
+    });
+  }
+
+  function closeSidebarSettings(e) {
+    if (e && e.target !== document.getElementById('sidebar-settings-overlay')) return;
+    document.getElementById('sidebar-settings-overlay').style.display = 'none';
+  }
+
+  function applySidebarSettings() {
+    const hidden = [];
+    document.querySelectorAll('#sidebar-toggle-list input[data-sb-key]').forEach(cb => {
+      if (!cb.checked) hidden.push(cb.dataset.sbKey);
+    });
+    saveSidebarHidden(hidden);
+    document.getElementById('sidebar-settings-overlay').style.display = 'none';
+    // Seite neu laden, damit EJS den neuen Cookie ausliest
+    window.location.reload();
+  }
+
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');

@@ -1,0 +1,781 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+
+  <!-- ══ Seitenkopf ══════════════════════════════════════════════════════ -->
+  <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📐 Treppen- & Geländer-Aufmaß</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Steigung · Auftritt · Handlaufneigung · Gesamtlänge – Skizze direkt zum Mitnehmen</p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button onclick="resetAll()" class="text-xs text-slate-500 dark:text-slate-400 hover:text-red-600 border border-slate-200 dark:border-slate-600 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
+        🗑️ Zurücksetzen
+      </button>
+      <button onclick="drucken()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">
+        🖨️ Skizze drucken
+      </button>
+    </div>
+  </header>
+
+  <style>
+    .inp { width:100%; border:1px solid #cbd5e1; border-radius:.5rem; padding:.5rem .75rem; font-size:.875rem; background:#fff; transition:border-color .15s; }
+    .inp:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+    .dark .inp { background:#1e293b; border-color:#475569; color:#e2e8f0; }
+    .dark .inp:focus { border-color:#3b82f6; }
+    .lbl { display:block; font-size:.7rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.04em; margin-bottom:.3rem; }
+    .dark .lbl { color:#94a3b8; }
+    .card { background:#fff; border-radius:.875rem; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:1.25rem 1.5rem; }
+    .dark .card { background:#1e293b; }
+    .res-row { display:flex; justify-content:space-between; align-items:baseline; padding:.45rem 0; border-bottom:1px solid #f1f5f9; font-size:.82rem; }
+    .dark .res-row { border-bottom-color:#334155; }
+    .res-row:last-child { border-bottom:none; }
+    .res-val { font-weight:700; color:#1e3a5f; font-size:.95rem; }
+    .dark .res-val { color:#60a5fa; }
+    .res-lbl { color:#64748b; }
+    .dark .res-lbl { color:#94a3b8; }
+    .badge { display:inline-flex; align-items:center; gap:.35rem; padding:.3rem .75rem; border-radius:9rem; font-size:.7rem; font-weight:700; }
+    .badge-ok  { background:#dcfce7; color:#15803d; }
+    .badge-warn{ background:#fef9c3; color:#854d0e; }
+    .badge-err { background:#fee2e2; color:#991b1b; }
+    .dark .badge-ok  { background:#14532d; color:#86efac; }
+    .dark .badge-warn{ background:#422006; color:#fbbf24; }
+    .dark .badge-err { background:#450a0a; color:#fca5a5; }
+    .hint-box { background:#eff6ff; border:1px solid #bfdbfe; border-radius:.6rem; padding:.65rem .9rem; font-size:.75rem; color:#1e40af; margin-bottom:.9rem; }
+    .dark .hint-box { background:#1e3a5f22; border-color:#1e40af; color:#93c5fd; }
+    .tab-btn2 { padding:.4rem .9rem; border-radius:.5rem; font-size:.75rem; font-weight:600; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; cursor:pointer; transition:all .15s; }
+    .tab-btn2:hover { background:#e2e8f0; }
+    .tab-btn2.act2 { background:#1e3a5f; color:#fff; border-color:#1e3a5f; }
+    .dark .tab-btn2 { background:#334155; color:#94a3b8; border-color:#475569; }
+    .dark .tab-btn2.act2 { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+    .section-lbl { font-size:.7rem; font-weight:700; color:#1e3a5f; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.6rem; }
+    .dark .section-lbl { color:#60a5fa; }
+    @media print {
+      body * { visibility:hidden !important; }
+      #print-area, #print-area * { visibility:visible !important; }
+      #print-area { position:fixed; inset:0; padding:1.5cm; background:#fff; }
+    }
+  </style>
+
+  <div class="px-4 md:px-6 max-w-6xl mx-auto w-full pb-12 space-y-5">
+
+    <!-- ══ Modus-Wahl ═══════════════════════════════════════════════════ -->
+    <div class="card">
+      <div class="section-lbl mb-3">Treppentyp wählen</div>
+      <div class="flex flex-wrap gap-2" id="modus-bar">
+        <button class="tab-btn2 act2" data-modus="gerade"  onclick="setModus('gerade')">📏 Gerade Treppe</button>
+        <button class="tab-btn2"      data-modus="podest"  onclick="setModus('podest')">↩️ Podesttreppe</button>
+        <button class="tab-btn2"      data-modus="wendeltreppe" onclick="setModus('wendeltreppe')">🌀 Wendeltreppe</button>
+        <button class="tab-btn2"      data-modus="gelaender" onclick="setModus('gelaender')">🔧 Nur Geländer / Handlauf</button>
+      </div>
+    </div>
+
+    <!-- ══ Eingabe-Grid ══════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+      <!-- Linke Seite: Eingaben -->
+      <div class="space-y-5">
+
+        <!-- Hauptmaße -->
+        <div class="card">
+          <div class="section-lbl">Rohbaumaße</div>
+          <div class="hint-box" id="hint-rohbau">
+            💡 Miss die <strong>Rohbau-Geschosshöhe</strong> (Oberkante Rohfußboden unten → Oberkante Rohfußboden oben). Belag-Aufbau wird separat abgezogen.
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="lbl" for="inp-hoehe">Geschosshöhe H (mm)</label>
+              <input class="inp" id="inp-hoehe" type="number" min="1000" max="6000" step="5" value="2750" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-belag">Belag-Aufbau gesamt (mm)</label>
+              <input class="inp" id="inp-belag" type="number" min="0" max="300" step="5" value="60" oninput="calc()">
+            </div>
+            <div id="wrap-ausladung">
+              <label class="lbl" for="inp-ausladung">Laufbreite / Ausladung L (mm)</label>
+              <input class="inp" id="inp-ausladung" type="number" min="500" max="15000" step="10" value="4200" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-breite">Treppenbreite B (mm)</label>
+              <input class="inp" id="inp-breite" type="number" min="600" max="4000" step="10" value="1000" oninput="calc()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Stufenoptionen -->
+        <div class="card" id="card-stufen">
+          <div class="section-lbl">Stufenoptionen</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="lbl" for="inp-stufen">Stufenanzahl (0 = autom.)</label>
+              <input class="inp" id="inp-stufen" type="number" min="0" max="50" step="1" value="0" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-stufentiefe">Stufentiefe / Überstand (mm)</label>
+              <input class="inp" id="inp-stufentiefe" type="number" min="0" max="50" step="1" value="20" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-aufbau-stufe">Aufbaudicke Stufe (mm)</label>
+              <input class="inp" id="inp-aufbau-stufe" type="number" min="0" max="100" step="1" value="0" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-norm">Norm / Regelwerk</label>
+              <select class="inp" id="inp-norm" onchange="calc()">
+                <option value="din">DIN 18065 (Deutschland)</option>
+                <option value="oib">OIB RL4 (Österreich)</option>
+                <option value="sia">SIA 358 (Schweiz)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wendeltreppe-Extras -->
+        <div class="card hidden" id="card-wendel">
+          <div class="section-lbl">Wendeltreppe – Zusatzmaße</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="lbl" for="inp-da">Außendurchmesser D_a (mm)</label>
+              <input class="inp" id="inp-da" type="number" min="800" max="5000" step="10" value="2000" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-di">Innendurchmesser D_i (mm)</label>
+              <input class="inp" id="inp-di" type="number" min="200" max="2000" step="10" value="400" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-winkel">Drehwinkel gesamt (°)</label>
+              <input class="inp" id="inp-winkel" type="number" min="90" max="1080" step="15" value="360" oninput="calc()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Geländer-Eingaben -->
+        <div class="card">
+          <div class="section-lbl">Geländer & Handlauf</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="lbl" for="inp-hlhoehe">Handlaufhöhe (mm)</label>
+              <input class="inp" id="inp-hlhoehe" type="number" min="700" max="1200" step="10" value="900" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-pfosten">Pfosten-Abstand max. (mm)</label>
+              <input class="inp" id="inp-pfosten" type="number" min="500" max="2000" step="50" value="1200" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-ueberstand-hl">Handlauf-Überstand je Seite (mm)</label>
+              <input class="inp" id="inp-ueberstand-hl" type="number" min="0" max="500" step="10" value="150" oninput="calc()">
+            </div>
+            <div>
+              <label class="lbl" for="inp-gelaender-seiten">Geländer an</label>
+              <select class="inp" id="inp-gelaender-seiten" onchange="calc()">
+                <option value="1">1 Seite</option>
+                <option value="2">2 Seiten</option>
+                <option value="0">Kein Geländer</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /linke Seite -->
+
+      <!-- Rechte Seite: Ergebnisse + Skizze -->
+      <div class="space-y-5">
+
+        <!-- Ergebnisse -->
+        <div class="card" id="ergebnis-card">
+          <div class="flex justify-between items-center mb-3">
+            <div class="section-lbl mb-0">Berechnungsergebnis</div>
+            <span id="badge-norm" class="badge badge-ok">✓ DIN 18065</span>
+          </div>
+
+          <div id="res-container">
+            <div class="res-row"><span class="res-lbl">Steigungshöhe s (Stufenhöhe)</span>     <span class="res-val" id="r-s">–</span></div>
+            <div class="res-row"><span class="res-lbl">Auftritt a (Stufenlänge)</span>          <span class="res-val" id="r-a">–</span></div>
+            <div class="res-row"><span class="res-lbl">Steigungswinkel α</span>                  <span class="res-val" id="r-alpha">–</span></div>
+            <div class="res-row"><span class="res-lbl">Stufenanzahl n</span>                     <span class="res-val" id="r-n">–</span></div>
+            <div class="res-row"><span class="res-lbl">Schrittmaß (2s + a)</span>               <span class="res-val" id="r-schritt">–</span></div>
+            <div class="res-row"><span class="res-lbl">Bequemlichkeitsmaß (s + a)</span>         <span class="res-val" id="r-beq">–</span></div>
+            <div class="res-row"><span class="res-lbl">Wangenlänge / Treppenlauf</span>          <span class="res-val" id="r-wange">–</span></div>
+            <div class="res-row"><span class="res-lbl">Handlauflänge gesamt (inkl. Überst.)</span><span class="res-val" id="r-hl">–</span></div>
+            <div class="res-row"><span class="res-lbl">Pfostenanzahl je Seite</span>             <span class="res-val" id="r-pfosten">–</span></div>
+            <div class="res-row"><span class="res-lbl">Geländer-Gesamtlänge (alle Seiten)</span> <span class="res-val" id="r-gel-ges">–</span></div>
+            <div id="wendel-extra" class="hidden">
+              <div class="res-row"><span class="res-lbl">Abwicklungslänge Mittellinie</span>     <span class="res-val" id="r-abwicklung">–</span></div>
+              <div class="res-row"><span class="res-lbl">Steigung an Mittellinie</span>          <span class="res-val" id="r-wendel-s">–</span></div>
+            </div>
+          </div>
+
+          <!-- Norm-Prüfung -->
+          <div id="norm-check" class="mt-3 space-y-1.5"></div>
+        </div>
+
+        <!-- Notiz -->
+        <div class="card">
+          <div class="section-lbl">Aufmaß-Notiz (für Werkstatt)</div>
+          <textarea id="inp-notiz" rows="3"
+            class="inp resize-none"
+            placeholder="z. B. Objekt: Müller EFH, Keller → EG, linke Seite Wange frei…"></textarea>
+        </div>
+
+      </div><!-- /rechte Seite -->
+    </div><!-- /grid -->
+
+    <!-- ══ Digitale Skizze ════════════════════════════════════════════ -->
+    <div class="card" id="print-area">
+      <div class="flex justify-between items-center mb-3">
+        <div class="section-lbl mb-0">📐 Digitale Treppenskizze</div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="kopiereWerte()" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition">
+            📋 Werte kopieren
+          </button>
+          <button onclick="drucken()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition">
+            🖨️ Drucken / PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Notiz im Druckbereich -->
+      <div id="print-notiz" class="text-xs text-slate-500 dark:text-slate-400 mb-3 hidden"></div>
+
+      <!-- SVG-Canvas -->
+      <div class="overflow-x-auto">
+        <svg id="treppe-svg" viewBox="0 0 760 340" width="100%" style="min-width:400px;border:1px solid #e2e8f0;border-radius:.5rem;background:#fafbfc;">
+          <!-- wird per JS gezeichnet -->
+          <text x="380" y="175" text-anchor="middle" fill="#94a3b8" font-size="14">← Eingaben vornehmen, Skizze erscheint automatisch →</text>
+        </svg>
+      </div>
+
+      <!-- Maßtabelle unter Skizze -->
+      <div id="mass-tabelle" class="mt-4 hidden">
+        <div class="section-lbl">Maßtabelle für Werkstatt</div>
+        <div class="overflow-x-auto">
+          <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+            <thead>
+              <tr style="background:#1e3a5f;color:#fff;">
+                <th style="padding:6px 10px;text-align:left;">Maß</th>
+                <th style="padding:6px 10px;text-align:left;">Wert</th>
+                <th style="padding:6px 10px;text-align:left;">Norm-Grenzwerte</th>
+                <th style="padding:6px 10px;text-align:left;">Bewertung</th>
+              </tr>
+            </thead>
+            <tbody id="mass-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /print-area -->
+
+  </div><!-- /container -->
+</main>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+//  NORMWERTE
+// ══════════════════════════════════════════════════════════════════════════
+const NORMEN = {
+  din: {
+    name: 'DIN 18065',
+    s_min: 140, s_max: 210,       // Stufenhöhe mm
+    a_min: 230, a_max: 370,       // Auftritt mm (bei Wohngebäuden)
+    schritt_min: 590, schritt_max: 650,  // 2s+a
+    winkel_min: 15, winkel_max: 45,
+    hl_min: 900, hl_max: 1100,
+    pfosten_max: 1200,
+  },
+  oib: {
+    name: 'OIB RL4',
+    s_min: 140, s_max: 200,
+    a_min: 240, a_max: 360,
+    schritt_min: 590, schritt_max: 650,
+    winkel_min: 15, winkel_max: 43,
+    hl_min: 900, hl_max: 1000,
+    pfosten_max: 1200,
+  },
+  sia: {
+    name: 'SIA 358',
+    s_min: 150, s_max: 190,
+    a_min: 250, a_max: 320,
+    schritt_min: 590, schritt_max: 640,
+    winkel_min: 20, winkel_max: 42,
+    hl_min: 900, hl_max: 1000,
+    pfosten_max: 1100,
+  },
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+//  GLOBALER ZUSTAND
+// ══════════════════════════════════════════════════════════════════════════
+let modus = 'gerade';
+
+function setModus(m) {
+  modus = m;
+  document.querySelectorAll('[data-modus]').forEach(b => b.classList.toggle('act2', b.dataset.modus === m));
+  document.getElementById('card-wendel').classList.toggle('hidden', m !== 'wendeltreppe');
+  document.getElementById('card-stufen').classList.toggle('hidden', m === 'gelaender');
+  document.getElementById('wrap-ausladung').closest('.grid').querySelector('[for="inp-ausladung"]')
+    .closest('div').style.display = m === 'wendeltreppe' ? 'none' : '';
+  const hintEl = document.getElementById('hint-rohbau');
+  if (m === 'gelaender') hintEl.textContent = '💡 Nur die Handlauf- und Geländerlängen werden berechnet. Stufenmaße entfallen.';
+  else hintEl.innerHTML = '💡 Miss die <strong>Rohbau-Geschosshöhe</strong> (Oberkante Rohfußboden unten → Oberkante Rohfußboden oben). Belag-Aufbau wird separat abgezogen.';
+  calc();
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HAUPTRECHNUNG
+// ══════════════════════════════════════════════════════════════════════════
+function calc() {
+  const H_roh   = parseFloat(document.getElementById('inp-hoehe').value)    || 0;
+  const belag   = parseFloat(document.getElementById('inp-belag').value)     || 0;
+  const L       = parseFloat(document.getElementById('inp-ausladung').value) || 0;
+  const B       = parseFloat(document.getElementById('inp-breite').value)    || 0;
+  const nEin    = parseInt(document.getElementById('inp-stufen').value)      || 0;
+  const stufenTiefe = parseFloat(document.getElementById('inp-stufentiefe').value) || 0;
+  const aufbauStufe = parseFloat(document.getElementById('inp-aufbau-stufe').value)|| 0;
+  const hlHoehe = parseFloat(document.getElementById('inp-hlhoehe').value)   || 900;
+  const pfAbstand= parseFloat(document.getElementById('inp-pfosten').value)  || 1200;
+  const hlUeberst= parseFloat(document.getElementById('inp-ueberstand-hl').value) || 150;
+  const gelSeiten= parseInt(document.getElementById('inp-gelaender-seiten').value);
+  const normKey = document.getElementById('inp-norm').value;
+  const norm    = NORMEN[normKey];
+
+  // Netto-Geschosshöhe (Belag abziehen)
+  const H = Math.max(H_roh - belag, 100);
+
+  // ── Stufenanzahl bestimmen ──────────────────────────────────────────
+  let n, s, a, alpha, wange, schritt, beqMass, abwicklung, wendel_s_mittel;
+
+  if (modus === 'gelaender') {
+    // Nur Geländer – keine Stufenrechnung
+    n = 0; s = 0; a = 0; alpha = 0;
+    wange = L || H_roh; // Fallback
+    schritt = 0; beqMass = 0;
+  } else if (modus === 'wendeltreppe') {
+    const Da = parseFloat(document.getElementById('inp-da').value) || 2000;
+    const Di = parseFloat(document.getElementById('inp-di').value) || 400;
+    const phi = (parseFloat(document.getElementById('inp-winkel').value) || 360) * Math.PI / 180;
+    const Rm  = (Da + Di) / 4; // Mittellinie-Radius
+    abwicklung = Rm * phi; // Abwicklung Mittellinie
+    n  = nEin > 0 ? nEin : Math.round(H / 175);
+    s  = H / n;
+    a  = (abwicklung / n);
+    alpha = Math.atan2(H, abwicklung) * 180 / Math.PI;
+    schritt = 2 * s + a;
+    beqMass = s + a;
+    wange   = Math.sqrt(H * H + abwicklung * abwicklung);
+    wendel_s_mittel = s; // identisch
+    document.getElementById('wendel-extra').classList.remove('hidden');
+    document.getElementById('r-abwicklung').textContent = fmt(abwicklung) + ' mm';
+    document.getElementById('r-wendel-s').textContent   = fmt(s) + ' mm';
+  } else {
+    // Gerade / Podesttreppe
+    if (nEin > 0) {
+      n = nEin;
+    } else {
+      // Optimum: Schrittmaß 630 mm, also 2s+a = 630 → s = (H/n), a = L/(n-1)
+      // Iterativer Ansatz: n so wählen dass s ∈ [s_min .. s_max]
+      n = Math.round(H / 175); // Startwert
+      // Feinabgleich
+      for (let i = n - 3; i <= n + 3; i++) {
+        if (i < 2) continue;
+        const si = H / i;
+        if (si >= norm.s_min && si <= norm.s_max) { n = i; break; }
+      }
+    }
+    n = Math.max(n, 2);
+    s = H / n;
+    // Auftritt: aus Laufmaß oder aus Schrittformel
+    if (L > 100) {
+      a = L / (n - 1); // n Stufen → n-1 Auftritte im Plan
+    } else {
+      a = 630 - 2 * s; // Schrittformel
+    }
+    alpha   = Math.atan2(H, L > 0 ? L : a * (n - 1)) * 180 / Math.PI;
+    wange   = Math.sqrt(H * H + (L > 0 ? L : a * (n - 1)) * (L > 0 ? L : a * (n - 1)));
+    schritt = 2 * s + a;
+    beqMass = s + a;
+    document.getElementById('wendel-extra').classList.add('hidden');
+  }
+
+  // ── Geländer & Handlauf ─────────────────────────────────────────────
+  const hlLaenge   = wange + 2 * hlUeberst;
+  const pfAnzahl   = wange > 0 ? Math.ceil(wange / pfAbstand) + 1 : 0;
+  const gelGes     = hlLaenge * gelSeiten;
+
+  // ── Ergebnis-Felder befüllen ────────────────────────────────────────
+  if (modus !== 'gelaender') {
+    document.getElementById('r-s').textContent     = fmt(s) + ' mm';
+    document.getElementById('r-a').textContent     = fmt(a) + ' mm';
+    document.getElementById('r-alpha').textContent = alpha.toFixed(1) + '°';
+    document.getElementById('r-n').textContent     = n + ' Stufen';
+    document.getElementById('r-schritt').textContent = fmt(schritt) + ' mm';
+    document.getElementById('r-beq').textContent   = fmt(beqMass) + ' mm';
+  } else {
+    ['r-s','r-a','r-alpha','r-n','r-schritt','r-beq'].forEach(id => {
+      document.getElementById(id).textContent = '–';
+    });
+  }
+  document.getElementById('r-wange').textContent   = fmt(wange) + ' mm';
+  document.getElementById('r-hl').textContent      = fmt(hlLaenge) + ' mm';
+  document.getElementById('r-pfosten').textContent = pfAnzahl + ' Stk.';
+  document.getElementById('r-gel-ges').textContent = gelSeiten > 0 ? fmt(gelGes) + ' mm' : '–';
+
+  // ── Norm-Prüfung ────────────────────────────────────────────────────
+  const checks = [];
+  if (modus !== 'gelaender' && modus !== 'wendeltreppe') {
+    checks.push(check('Stufenhöhe s', s, norm.s_min, norm.s_max, 'mm'));
+    checks.push(check('Auftritt a', a, norm.a_min, norm.a_max, 'mm'));
+    checks.push(check('Schrittmaß 2s+a', schritt, norm.schritt_min, norm.schritt_max, 'mm'));
+    checks.push(check('Steigungswinkel α', alpha, norm.winkel_min, norm.winkel_max, '°'));
+  }
+  checks.push(check('Handlaufhöhe', hlHoehe, norm.hl_min, norm.hl_max, 'mm'));
+  checks.push(check('Pfosten-Abstand', pfAbstand, 0, norm.pfosten_max, 'mm'));
+
+  const allOk  = checks.every(c => c.ok === 'ok');
+  const hasErr = checks.some(c => c.ok === 'err');
+  const badge  = document.getElementById('badge-norm');
+  if (allOk)       { badge.className = 'badge badge-ok';   badge.textContent = '✓ ' + norm.name; }
+  else if (hasErr) { badge.className = 'badge badge-err';  badge.textContent = '✗ ' + norm.name + ' – Fehler'; }
+  else             { badge.className = 'badge badge-warn'; badge.textContent = '⚠ ' + norm.name + ' – Prüfen'; }
+
+  document.getElementById('norm-check').innerHTML = checks.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem .6rem;border-radius:.4rem;background:${c.ok==='ok'?'#f0fdf4':c.ok==='warn'?'#fefce8':'#fef2f2'};font-size:.72rem;gap:.5rem;">
+      <span style="color:#475569;">${c.label}</span>
+      <span style="font-weight:700;color:${c.ok==='ok'?'#15803d':c.ok==='warn'?'#854d0e':'#991b1b'};">
+        ${c.val} ${c.unit} ${c.ok==='ok'?'✓':c.ok==='warn'?'⚠':'✗'}
+      </span>
+    </div>`).join('');
+
+  // ── SVG-Skizze ─────────────────────────────────────────────────────
+  if (modus === 'wendeltreppe') {
+    drawWendeltreppe(n, s, H, parseFloat(document.getElementById('inp-da').value)||2000,
+                     parseFloat(document.getElementById('inp-di').value)||400);
+  } else if (modus === 'gelaender') {
+    drawGelaender(wange || H_roh, hlHoehe, pfAnzahl, pfAbstand);
+  } else {
+    drawGerade(n, s, a, H, L > 0 ? L : a*(n-1), hlHoehe, modus === 'podest');
+  }
+
+  // ── Maßtabelle befüllen ─────────────────────────────────────────────
+  buildMassTabel(n, s, a, alpha, schritt, beqMass, wange, hlLaenge, pfAnzahl, gelGes, norm, gelSeiten, normKey);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  NORM-CHECK HELPER
+// ══════════════════════════════════════════════════════════════════════════
+function check(label, val, min, max, unit) {
+  const v = Math.round(val * 10) / 10;
+  let ok = 'ok';
+  if (v < min || v > max) {
+    ok = Math.abs(v - (v < min ? min : max)) <= 10 ? 'warn' : 'err';
+  }
+  return { label, val: v, unit, ok };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SVG – GERADE TREPPE
+// ══════════════════════════════════════════════════════════════════════════
+function drawGerade(n, s, a, H, L, hlHoehe, hasPodest) {
+  const svg  = document.getElementById('treppe-svg');
+  const VW = 760, VH = 340;
+  const PAD  = 60;
+  const drawW = VW - PAD * 2;
+  const drawH = VH - PAD * 2 - 20;
+
+  const scaleX = drawW / (L || 1);
+  const scaleY = drawH / (H || 1);
+  const sc     = Math.min(scaleX, scaleY) * 0.85;
+  const offX   = PAD + (drawW - L * sc) / 2;
+  const offY   = PAD + drawH - (H * sc < drawH ? (drawH - H * sc) / 2 : 0);
+
+  const tx = x => offX + x * sc;
+  const ty = y => offY - y * sc;
+
+  let path = `M ${tx(0)} ${ty(0)}`;
+  for (let i = 0; i < n; i++) {
+    const x0 = i * a;
+    const y0 = i * s;
+    path += ` L ${tx(x0)} ${ty(y0 + s)}`;
+    if (i < n - 1) path += ` L ${tx(x0 + a)} ${ty(y0 + s)}`;
+  }
+  // letzte Auftrittsline
+  path += ` L ${tx(n * a > L ? L : (n-1)*a + a)} ${ty(H)}`;
+
+  // Wange (diagonale Linie)
+  const wangeD = `M ${tx(0)} ${ty(0)} L ${tx(L)} ${ty(H)}`;
+
+  // Handlauf (parallel zur Wange, nach oben verschoben)
+  const hlOff = hlHoehe * sc;
+  const dx = L, dy = H;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const nx = -dy / len, ny = dx / len; // Normalvektor (nach oben-links)
+  const hlPath = `M ${tx(0) + nx*hlOff} ${ty(0) + ny*hlOff} L ${tx(L) + nx*hlOff} ${ty(H) + ny*hlOff}`;
+
+  // Bemaßungs-Pfeile
+  const dimH  = `M ${tx(-30/sc)} ${ty(0)} L ${tx(-30/sc)} ${ty(H)}`;
+  const dimL  = `M ${tx(0)} ${ty(-30/sc)} L ${tx(L)} ${ty(-30/sc)}`;
+
+  svg.innerHTML = `
+    <defs>
+      <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+      </marker>
+      <marker id="arr2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+      </marker>
+    </defs>
+
+    <!-- Boden & Decke -->
+    <line x1="${tx(-40/sc)}" y1="${ty(0)}" x2="${tx(L+40/sc)}" y2="${ty(0)}" stroke="#cbd5e1" stroke-width="2"/>
+    <line x1="${tx(-40/sc)}" y1="${ty(H)}" x2="${tx(L+40/sc)}" y2="${ty(H)}" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="6,4"/>
+
+    <!-- Wange -->
+    <path d="${wangeD}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="5,3" fill="none"/>
+
+    <!-- Treppenstufen -->
+    <path d="${path}" stroke="#1e3a5f" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+
+    <!-- Handlauf -->
+    <path d="${hlPath}" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="${hasPodest?'8,3':'none'}"/>
+    <circle cx="${tx(0)+nx*hlOff}" cy="${ty(0)+ny*hlOff}" r="4" fill="#ef4444"/>
+    <circle cx="${tx(L)+nx*hlOff}" cy="${ty(H)+ny*hlOff}" r="4" fill="#ef4444"/>
+
+    <!-- Bemaßung H (vertikal) -->
+    <line x1="${tx(0)-38}" y1="${ty(0)}" x2="${tx(0)-38}" y2="${ty(H)}" stroke="#64748b" stroke-width="1" marker-start="url(#arr2)" marker-end="url(#arr)"/>
+    <rect x="${tx(0)-55}" y="${(ty(0)+ty(H))/2-9}" width="14" height="18" fill="white" rx="2"/>
+    <text x="${tx(0)-48}" y="${(ty(0)+ty(H))/2+5}" text-anchor="middle" fill="#475569" font-size="11" font-weight="bold">H</text>
+    <text x="${tx(0)-38}" y="${ty(H)-6}" text-anchor="middle" fill="#475569" font-size="9">${fmt(H)}</text>
+
+    <!-- Bemaßung L (horizontal) -->
+    <line x1="${tx(0)}" y1="${ty(0)+35}" x2="${tx(L)}" y2="${ty(0)+35}" stroke="#64748b" stroke-width="1" marker-start="url(#arr2)" marker-end="url(#arr)"/>
+    <rect x="${(tx(0)+tx(L))/2-8}" y="${ty(0)+27}" width="16" height="16" fill="white" rx="2"/>
+    <text x="${(tx(0)+tx(L))/2}" y="${ty(0)+39}" text-anchor="middle" fill="#475569" font-size="11" font-weight="bold">L</text>
+    <text x="${tx(L/2)}" y="${ty(0)+52}" text-anchor="middle" fill="#475569" font-size="9">${fmt(L)}</text>
+
+    <!-- Steigungswinkel α -->
+    <path d="M ${tx(a*0.8)} ${ty(0)} A ${a*0.8*sc} ${a*0.8*sc} 0 0 0 ${tx(a*0.8*Math.cos(Math.atan2(H,L)))} ${ty(a*0.8*Math.sin(Math.atan2(H,L)))}" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="${tx(a*0.55)}" y="${ty(s*0.25)}" fill="#f59e0b" font-size="11" font-weight="bold">α=${(Math.atan2(H,L)*180/Math.PI).toFixed(1)}°</text>
+
+    <!-- Einzelstufe beschriften (erste Stufe) -->
+    <text x="${tx(a/2)}" y="${ty(s)+16}" text-anchor="middle" fill="#1e3a5f" font-size="9">a=${fmt(a)}</text>
+    <text x="${tx(-12/sc)}" y="${ty(s/2)+4}" text-anchor="end" fill="#1e3a5f" font-size="9">s=${fmt(s)}</text>
+
+    <!-- Handlauf-Label -->
+    <text x="${tx(L*0.5)+nx*hlOff+8}" y="${ty(H*0.5)+ny*hlOff-6}" fill="#ef4444" font-size="9" font-weight="bold">Handlauf</text>
+
+    <!-- Podest-Linie -->
+    ${hasPodest ? `<line x1="${tx(L*0.5)}" y1="${ty(H*0.5)-3}" x2="${tx(L*0.5)}" y2="${ty(H*0.5)+40}" stroke="#7c3aed" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="${tx(L*0.5)+4}" y="${ty(H*0.5)+30}" fill="#7c3aed" font-size="9">Podest</text>` : ''}
+
+    <!-- Legende -->
+    <rect x="10" y="10" width="145" height="60" rx="5" fill="white" fill-opacity="0.85" stroke="#e2e8f0"/>
+    <line x1="18" y1="26" x2="38" y2="26" stroke="#1e3a5f" stroke-width="2.5"/><text x="43" y="30" fill="#475569" font-size="10">Treppenstufen</text>
+    <line x1="18" y1="42" x2="38" y2="42" stroke="#ef4444" stroke-width="2"/><text x="43" y="46" fill="#475569" font-size="10">Handlauf</text>
+    <line x1="18" y1="58" x2="38" y2="58" stroke="#94a3b8" stroke-width="1" stroke-dasharray="5,3"/><text x="43" y="62" fill="#475569" font-size="10">Wangenlinie</text>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SVG – WENDELTREPPE (Draufsicht)
+// ══════════════════════════════════════════════════════════════════════════
+function drawWendeltreppe(n, s, H, Da, Di) {
+  const svg   = document.getElementById('treppe-svg');
+  const cx = 380, cy = 170, Ra = Math.min(Da/2, 200), Ri = (Di/Da)*Ra;
+  const phi_total = (parseFloat(document.getElementById('inp-winkel').value)||360) * Math.PI/180;
+
+  let spokes = '';
+  for (let i = 0; i <= n; i++) {
+    const phi = (i / n) * phi_total;
+    const x1 = cx + Ri * Math.cos(phi - Math.PI/2);
+    const y1 = cy + Ri * Math.sin(phi - Math.PI/2);
+    const x2 = cx + Ra * Math.cos(phi - Math.PI/2);
+    const y2 = cy + Ra * Math.sin(phi - Math.PI/2);
+    spokes += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1e3a5f" stroke-width="${i===0||i===n?2.5:1}" opacity="${i===0||i===n?1:0.4}"/>`;
+  }
+
+  // Äußerer Kreisbogen
+  const startX = cx + Ra * Math.cos(-Math.PI/2);
+  const startY = cy + Ra * Math.sin(-Math.PI/2);
+  const endX   = cx + Ra * Math.cos(phi_total - Math.PI/2);
+  const endY   = cy + Ra * Math.sin(phi_total - Math.PI/2);
+  const lg     = phi_total > Math.PI ? 1 : 0;
+  const innerStartX = cx + Ri * Math.cos(-Math.PI/2);
+  const innerStartY = cy + Ri * Math.sin(-Math.PI/2);
+  const innerEndX   = cx + Ri * Math.cos(phi_total - Math.PI/2);
+  const innerEndY   = cy + Ri * Math.sin(phi_total - Math.PI/2);
+
+  svg.innerHTML = `
+    <!-- Außenring -->
+    <path d="M ${startX} ${startY} A ${Ra} ${Ra} 0 ${lg} 1 ${endX} ${endY}" fill="none" stroke="#1e3a5f" stroke-width="2.5"/>
+    <!-- Innenring -->
+    <path d="M ${innerStartX} ${innerStartY} A ${Ri} ${Ri} 0 ${lg} 1 ${innerEndX} ${innerEndY}" fill="none" stroke="#1e3a5f" stroke-width="2"/>
+    <!-- Stufenlinien -->
+    ${spokes}
+    <!-- Mittellinie (gestrichelt) -->
+    <circle cx="${cx}" cy="${cy}" r="${(Ra+Ri)/2}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <!-- Achse -->
+    <circle cx="${cx}" cy="${cy}" r="5" fill="#1e3a5f"/>
+    <!-- Maße -->
+    <text x="${cx+Ra+8}" y="${cy}" fill="#475569" font-size="10">D_a=${Da} mm</text>
+    <text x="${cx+Ri+4}" y="${cy+14}" fill="#475569" font-size="10">D_i=${Di} mm</text>
+    <line x1="${cx}" y1="${cy}" x2="${cx+Ra}" y2="${cy}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,2"/>
+    <line x1="${cx}" y1="${cy}" x2="${cx+(Ra+Ri)/2}" y2="${cy-20}" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="${cx+Ra/2-10}" y="${cy-8}" fill="#94a3b8" font-size="9">R=${(Da/2).toFixed(0)}</text>
+    <!-- Legende -->
+    <rect x="10" y="10" width="160" height="48" rx="5" fill="white" fill-opacity="0.9" stroke="#e2e8f0"/>
+    <text x="18" y="28" fill="#1e3a5f" font-size="10" font-weight="bold">Draufsicht – Wendeltreppe</text>
+    <line x1="18" y1="42" x2="38" y2="42" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/><text x="43" y="46" fill="#475569" font-size="10">Mittellinie (abgewickelt)</text>
+    <!-- Stufenzahl -->
+    <text x="${cx}" y="${cy+Ra+22}" text-anchor="middle" fill="#1e3a5f" font-size="11" font-weight="bold">n = ${n} Stufen · s = ${fmt(s)} mm</text>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SVG – NUR GELÄNDER (Seitenansicht)
+// ══════════════════════════════════════════════════════════════════════════
+function drawGelaender(L, hlH, pfAnzahl, pfAbstand) {
+  const svg = document.getElementById('treppe-svg');
+  const PAD = 60, VW = 760, VH = 340;
+  const sc  = Math.min((VW - PAD*2) / (L||1), (VH - PAD*2) / (hlH||1)) * 0.8;
+  const ox  = PAD + (VW - PAD*2 - L*sc)/2;
+  const oy  = PAD + VH - PAD - 20;
+
+  let pfosten = '';
+  const nPf = Math.max(pfAnzahl, 2);
+  for (let i = 0; i < nPf; i++) {
+    const x = ox + (i / (nPf - 1)) * L * sc;
+    pfosten += `<line x1="${x}" y1="${oy}" x2="${x}" y2="${oy - hlH * sc}" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>`;
+    pfosten += `<circle cx="${x}" cy="${oy - hlH * sc}" r="4" fill="#1e3a5f"/>`;
+    if (i > 0 && i < nPf - 1) pfosten += `<text x="${x}" y="${oy+14}" text-anchor="middle" fill="#94a3b8" font-size="8">${i}</text>`;
+  }
+
+  svg.innerHTML = `
+    <!-- Boden -->
+    <line x1="${ox-20}" y1="${oy}" x2="${ox+L*sc+20}" y2="${oy}" stroke="#cbd5e1" stroke-width="2"/>
+    <!-- Handlauf -->
+    <line x1="${ox}" y1="${oy-hlH*sc}" x2="${ox+L*sc}" y2="${oy-hlH*sc}" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+    <!-- Pfosten -->
+    ${pfosten}
+    <!-- Bemaßung H -->
+    <line x1="${ox-35}" y1="${oy}" x2="${ox-35}" y2="${oy-hlH*sc}" stroke="#64748b" stroke-width="1" marker-start="url(#arr2)" marker-end="url(#arr)"/>
+    <text x="${ox-38}" y="${oy - hlH*sc/2}" text-anchor="end" fill="#475569" font-size="10">h=${fmt(hlH)} mm</text>
+    <!-- Bemaßung L -->
+    <line x1="${ox}" y1="${oy+30}" x2="${ox+L*sc}" y2="${oy+30}" stroke="#64748b" stroke-width="1"/>
+    <text x="${ox+L*sc/2}" y="${oy+44}" text-anchor="middle" fill="#475569" font-size="10">L=${fmt(L)} mm</text>
+    <!-- Label -->
+    <text x="${ox+L*sc/2}" y="${oy-hlH*sc-12}" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="bold">Handlauf</text>
+    <defs>
+      <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/></marker>
+      <marker id="arr2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/></marker>
+    </defs>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  MAßTABELLE AUFBAUEN
+// ══════════════════════════════════════════════════════════════════════════
+function buildMassTabel(n, s, a, alpha, schritt, beqMass, wange, hlLaenge, pfAnzahl, gelGes, norm, gelSeiten, normKey) {
+  const tab = document.getElementById('mass-tbody');
+  const rows = [];
+
+  function row(label, val, unit, min, max) {
+    const v = Math.round(val * 10) / 10;
+    const ok = (v >= min && v <= max);
+    const warn = !ok && Math.abs(v - (v < min ? min : max)) <= 15;
+    const col = ok ? '#15803d' : warn ? '#854d0e' : '#991b1b';
+    const bg  = ok ? '#f0fdf4' : warn ? '#fefce8' : '#fef2f2';
+    rows.push(`<tr style="background:${bg}">
+      <td style="padding:5px 10px;font-weight:600;">${label}</td>
+      <td style="padding:5px 10px;font-weight:700;color:${col};">${v} ${unit}</td>
+      <td style="padding:5px 10px;color:#64748b;">${min}–${max} ${unit}</td>
+      <td style="padding:5px 10px;font-weight:700;color:${col};">${ok?'✓ OK':warn?'⚠ Prüfen':'✗ Fehler'}</td>
+    </tr>`);
+  }
+  function rowSimple(label, val, unit) {
+    rows.push(`<tr>
+      <td style="padding:5px 10px;font-weight:600;">${label}</td>
+      <td style="padding:5px 10px;font-weight:700;color:#1e3a5f;">${Math.round(val)} ${unit}</td>
+      <td style="padding:5px 10px;color:#94a3b8;">–</td>
+      <td style="padding:5px 10px;color:#94a3b8;">–</td>
+    </tr>`);
+  }
+
+  if (modus !== 'gelaender') {
+    row('Stufenhöhe s', s, 'mm', norm.s_min, norm.s_max);
+    row('Auftritt a', a, 'mm', norm.a_min, norm.a_max);
+    row('Schrittmaß 2s+a', schritt, 'mm', norm.schritt_min, norm.schritt_max);
+    row('Steigungswinkel α', alpha, '°', norm.winkel_min, norm.winkel_max);
+    rowSimple('Bequemlichkeitsmaß s+a', beqMass, 'mm');
+    rowSimple('Stufenanzahl n', n, 'Stufen');
+    rowSimple('Wangenlänge', wange, 'mm');
+  }
+  rowSimple('Handlauflänge gesamt', hlLaenge, 'mm');
+  rowSimple('Pfostenanzahl je Seite', pfAnzahl, 'Stk.');
+  if (gelSeiten > 0) rowSimple('Geländer-Gesamtlänge', gelGes, 'mm');
+
+  tab.innerHTML = rows.join('');
+  document.getElementById('mass-tabelle').classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HILFSFUNKTIONEN
+// ══════════════════════════════════════════════════════════════════════════
+function fmt(v) { return Math.round(v * 10) / 10; }
+
+function resetAll() {
+  document.getElementById('inp-hoehe').value     = 2750;
+  document.getElementById('inp-belag').value     = 60;
+  document.getElementById('inp-ausladung').value = 4200;
+  document.getElementById('inp-breite').value    = 1000;
+  document.getElementById('inp-stufen').value    = 0;
+  document.getElementById('inp-stufentiefe').value = 20;
+  document.getElementById('inp-aufbau-stufe').value= 0;
+  document.getElementById('inp-hlhoehe').value   = 900;
+  document.getElementById('inp-pfosten').value   = 1200;
+  document.getElementById('inp-ueberstand-hl').value = 150;
+  document.getElementById('inp-gelaender-seiten').value = 1;
+  document.getElementById('inp-norm').value      = 'din';
+  document.getElementById('inp-notiz').value     = '';
+  setModus('gerade');
+  calc();
+}
+
+function drucken() {
+  const notiz = document.getElementById('inp-notiz').value;
+  const pn    = document.getElementById('print-notiz');
+  if (notiz) {
+    pn.textContent = '📋 Notiz: ' + notiz;
+    pn.classList.remove('hidden');
+  }
+  window.print();
+  pn.classList.add('hidden');
+}
+
+function kopiereWerte() {
+  const zeilen = [
+    '═══ Treppen-Aufmaß ═══',
+    `Treppentyp: ${modus}`,
+    `Stufenhöhe s: ${document.getElementById('r-s').textContent}`,
+    `Auftritt a: ${document.getElementById('r-a').textContent}`,
+    `Steigungswinkel: ${document.getElementById('r-alpha').textContent}`,
+    `Stufenanzahl: ${document.getElementById('r-n').textContent}`,
+    `Schrittmaß: ${document.getElementById('r-schritt').textContent}`,
+    `Wangenlänge: ${document.getElementById('r-wange').textContent}`,
+    `Handlauflänge: ${document.getElementById('r-hl').textContent}`,
+    `Pfostenanzahl: ${document.getElementById('r-pfosten').textContent}`,
+    `Geländer gesamt: ${document.getElementById('r-gel-ges').textContent}`,
+  ];
+  const notiz = document.getElementById('inp-notiz').value;
+  if (notiz) zeilen.push('Notiz: ' + notiz);
+  navigator.clipboard.writeText(zeilen.join('\n')).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Kopiert!';
+    btn.classList.replace('bg-blue-600','bg-green-600');
+    setTimeout(() => { btn.textContent = orig; btn.classList.replace('bg-green-600','bg-blue-600'); }, 1800);
+  }).catch(() => alert(zeilen.join('\n')));
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  INITIALISIERUNG
+// ══════════════════════════════════════════════════════════════════════════
+calc();
+</script>
