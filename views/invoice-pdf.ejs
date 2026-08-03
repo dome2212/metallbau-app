@@ -28,12 +28,17 @@
 
     <!-- ══ BRIEFKOPF ══════════════════════════════════════════════════════ -->
     <div class="flex justify-between items-start pb-8 mb-8 border-b-2 border-blue-500">
-      <!-- Links: Firmenname + Slogan -->
+      <!-- Links: Logo oder Firmenname + Slogan -->
       <div class="flex-1 pr-8">
-        <h1 class="text-2xl font-extrabold text-slate-900 uppercase tracking-wide leading-tight">
-          <%= firma ? firma.name : 'Metallbau' %>
-        </h1>
-        <p class="text-xs text-gray-400 mt-2"><%= firma ? firma.slogan : '' %></p>
+        <% if (firma && firma.logo_url) { %>
+          <img src="<%= firma.logo_url %>" alt="<%= firma.name %>" style="max-height:80px; max-width:280px; object-fit:contain;">
+          <p class="text-xs text-gray-400 mt-2"><%= firma.slogan || '' %></p>
+        <% } else { %>
+          <h1 class="text-2xl font-extrabold text-slate-900 uppercase tracking-wide leading-tight">
+            <%= firma ? firma.name : 'Metallbau' %>
+          </h1>
+          <p class="text-xs text-gray-400 mt-2"><%= firma ? firma.slogan : '' %></p>
+        <% } %>
       </div>
       <!-- Rechts: Kontaktdaten -->
       <div class="text-right text-xs text-gray-500 space-y-1 shrink-0">

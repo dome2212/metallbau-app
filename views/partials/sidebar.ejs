@@ -3,7 +3,7 @@
   <button onclick="toggleSidebar()" class="text-sm px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white font-medium flex items-center gap-1">
     ☰ Menü
   </button>
-  <span class="font-bold text-blue-400 text-sm truncate">Metallbau-Gehrmann</span>
+  <span class="font-bold text-blue-400 text-sm truncate"><%= typeof firma !== 'undefined' ? firma.nameKurz : 'Metallbau' %></span>
 </div>
 
 <!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
@@ -15,7 +15,7 @@
     <!-- Kopfbereich mit Schließen-Button für Mobil -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
       <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">
-        🔩 Metallbau-Gehrmann
+        🔩 <%= typeof firma !== 'undefined' ? firma.nameKurz : 'Metallbau' %>
       </h2>
       <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1 font-bold">
         ✕
@@ -52,6 +52,7 @@
         <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Angebote</a>
         <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🧾 Rechnungen</a>
         <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📦 Artikelstamm</a>
+        <a href="/admin/company-settings" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏢 Firmendaten</a>
       <% } %>
     </nav>
   </div>

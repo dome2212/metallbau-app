@@ -1,0 +1,230 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🏢 Firmendaten &amp; Einstellungen</h1>
+    </header>
+
+    <div class="px-4 md:px-6 max-w-4xl mx-auto w-full space-y-6 pb-10">
+
+      <% if (success) { %>
+        <div id="successBanner" class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-5 py-3 text-sm font-medium flex items-center gap-2">
+          ✅ Einstellungen erfolgreich gespeichert! Alle PDFs, Angebote und Rechnungen verwenden ab sofort die neuen Daten.
+        </div>
+        <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 5000);</script>
+      <% } %>
+
+      <!-- ══ LOGO ══════════════════════════════════════════════════════════ -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🖼️ Firmen-Logo</h2>
+
+        <div class="flex flex-col md:flex-row gap-6 items-start">
+          <!-- Vorschau -->
+          <div class="w-48 h-28 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-700 shrink-0 overflow-hidden">
+            <% if (firma.logo_url) { %>
+              <img src="<%= firma.logo_url %>" alt="Firmen-Logo" class="max-h-full max-w-full object-contain p-2" id="logoPreview">
+            <% } else { %>
+              <span class="text-slate-400 text-xs text-center px-3">Noch kein Logo hochgeladen</span>
+            <% } %>
+          </div>
+
+          <!-- Upload-Formular -->
+          <div class="flex-1 space-y-3">
+            <form action="/admin/company-settings/logo" method="POST" enctype="multipart/form-data">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG – max. 5 MB)</span>
+              </label>
+              <div class="flex gap-2 flex-wrap">
+                <input type="file" name="logo" accept="image/*" required
+                  class="block text-sm text-slate-600 dark:text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  onchange="previewLogo(this)">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                  Hochladen
+                </button>
+              </div>
+            </form>
+
+            <% if (firma.logo_url) { %>
+              <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('Logo wirklich löschen?')">
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Logo entfernen</button>
+              </form>
+            <% } %>
+
+            <p class="text-xs text-slate-400 dark:text-slate-500">
+              Das Logo erscheint auf allen PDFs (Angebote &amp; Rechnungen). Empfohlen: transparenter Hintergrund (PNG) oder SVG.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ HAUPTFORMULAR ══════════════════════════════════════════════════ -->
+      <form action="/admin/company-settings" method="POST" class="space-y-6">
+
+        <!-- Firmenname & Kontakt -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏢 Firmenname &amp; Kontakt</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div class="md:col-span-2">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Vollständiger Firmenname <span class="text-red-400">*</span>
+                <span class="text-slate-400 font-normal">(wird in PDFs, KI-Prompts und überall angezeigt)</span>
+              </label>
+              <input type="text" name="name" required value="<%= firma.name %>"
+                placeholder="z.B. Mustermann Metallbau GmbH"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Kurzname <span class="text-slate-400 font-normal">(für Sidebar &amp; App-Titel)</span>
+              </label>
+              <input type="text" name="nameKurz" value="<%= firma.nameKurz %>"
+                placeholder="z.B. Metallbau-Mustermann"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Slogan</label>
+              <input type="text" name="slogan" value="<%= firma.slogan %>"
+                placeholder="z.B. Qualität die bleibt."
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Straße &amp; Hausnummer</label>
+              <input type="text" name="strasse" value="<%= firma.strasse %>"
+                placeholder="z.B. Hauptstraße 1"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">PLZ &amp; Ort</label>
+              <input type="text" name="plzOrt" value="<%= firma.plzOrt %>"
+                placeholder="z.B. 40210 Düsseldorf"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Telefon</label>
+              <input type="text" name="tel" value="<%= firma.tel %>"
+                placeholder="z.B. 0211 123456"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">E-Mail-Adresse</label>
+              <input type="email" name="email" value="<%= firma.email %>"
+                placeholder="z.B. info@meine-firma.de"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Website</label>
+              <input type="text" name="web" value="<%= firma.web %>"
+                placeholder="z.B. www.meine-firma.de"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Steuernummer / USt-IdNr.</label>
+              <input type="text" name="steuernr" value="<%= firma.steuernr %>"
+                placeholder="z.B. USt-IdNr.: DE123456789"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Bankdaten -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏦 Bankverbindung</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Bank</label>
+              <input type="text" name="bank" value="<%= firma.bank %>"
+                placeholder="z.B. Sparkasse Düsseldorf"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">IBAN</label>
+              <input type="text" name="iban" value="<%= firma.iban %>"
+                placeholder="z.B. DE89 3704 0044 0532 0130 00"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">BIC / SWIFT</label>
+              <input type="text" name="bic" value="<%= firma.bic %>"
+                placeholder="z.B. COBADEFFXXX"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Dokumenteneinstellungen -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📄 Dokument-Einstellungen</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Zahlungsfrist <span class="text-slate-400 font-normal">(Tage – wird auf Rechnungen angezeigt)</span>
+              </label>
+              <input type="number" name="zahlungsfrist" value="<%= firma.zahlungsfrist %>" min="1" max="90"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Angebotsgültigkeit <span class="text-slate-400 font-normal">(Tage)</span>
+              </label>
+              <input type="number" name="angebotsgueltig" value="<%= firma.angebotsgueltig %>" min="1" max="365"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Speichern-Button -->
+        <div class="flex justify-end gap-3 pb-4">
+          <a href="/" class="px-5 py-2.5 rounded-lg border dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            Abbrechen
+          </a>
+          <button type="submit"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition flex items-center gap-2">
+            💾 Alle Daten speichern
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  function previewLogo(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let preview = document.getElementById('logoPreview');
+      if (!preview) {
+        // Platzhalter-Span ersetzen durch <img>
+        const container = input.closest('.flex').querySelector('.w-48');
+        if (container) {
+          container.innerHTML = '<img id="logoPreview" src="" alt="Vorschau" class="max-h-full max-w-full object-contain p-2">';
+          preview = document.getElementById('logoPreview');
+        }
+      }
+      if (preview) preview.src = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+</script>

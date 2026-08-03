@@ -89,6 +89,7 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAU
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
+dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
@@ -116,8 +117,9 @@ const customerRoutes     = require('./routes/customerRoutes');
 const calendarRoutes     = require('./routes/calendarRoutes');
 const timetrackingRoutes = require('./routes/timetrackingRoutes');
 const vacationRoutes     = require('./routes/vacationRoutes');
-const adminRoutes        = require('./routes/adminRoutes');
-const articleRoutes      = require('./routes/articleRoutes');
+const adminRoutes              = require('./routes/adminRoutes');
+const articleRoutes            = require('./routes/articleRoutes');
+const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -166,6 +168,17 @@ app.use('/', authRoutes);
 // ==========================================
 app.use(verifyToken);
 
+// Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
+const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
+app.use(async (req, res, next) => {
+  try {
+    res.locals.firma = await _getFirmaLocals();
+  } catch (_) {
+    res.locals.firma = require('./utils/companySettings').DEFAULTS;
+  }
+  next();
+});
+
 // Dokument-Routen (Angebote → Projekt / Rechnung)
 app.use('/documents', documentRoutes);
 
@@ -189,6 +202,7 @@ app.use('/vacations', vacationRoutes);
 
 // Admin-Bereich (Zeiterfassung-Übersicht, Mitarbeiter, Ticker, PDF)
 app.use('/admin',   adminRoutes);
+app.use('/admin',   companySettingsRoutes);
 app.use('/ticker',  adminRoutes);
 
 // Artikel-Stamm
@@ -304,13 +318,14 @@ async function callAI(prompt) {
   return data.choices[0].message.content;
 }
 
-const { FIRMA } = require('./utils/firma');
+const { getFirma } = require('./utils/companySettings');
 
 app.post('/api/ai/offer-assistant', async (req, res) => {
   if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
   const { message, context } = req.body;
   if (!message) return res.status(400).json({ error: 'Keine Nachricht übermittelt.' });
-  const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${FIRMA.name}".\nHilf dem Benutzer, ein Angebot zu erstellen. Antworte immer auf Deutsch.\n\nWenn Leistungen genannt werden, antworte mit:\n1. Kurzem Einleitungssatz\n2. JSON-Liste:\nPOSITIONEN_JSON:\n[\n  {"title": "Bezeichnung", "quantity": 1, "unit": "Stk", "price": 0},\n  ...\n]\nErlaubte Einheiten: Stk, m, Std, kg, m², Psch\nStundensatz ca. 75–95 €, Materialpreise marktüblich. Bei Unsicherheit price: 0.`;
+  const firma = await getFirma();
+  const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${firma.name}".\nHilf dem Benutzer, ein Angebot zu erstellen. Antworte immer auf Deutsch.\n\nWenn Leistungen genannt werden, antworte mit:\n1. Kurzem Einleitungssatz\n2. JSON-Liste:\nPOSITIONEN_JSON:\n[\n  {"title": "Bezeichnung", "quantity": 1, "unit": "Stk", "price": 0},\n  ...\n]\nErlaubte Einheiten: Stk, m, Std, kg, m², Psch\nStundensatz ca. 75–95 €, Materialpreise marktüblich. Bei Unsicherheit price: 0.`;
   try {
     const text = await callAI(`${systemPrompt}\n\n${context ? 'Kontext:\n' + context + '\n' : ''}Benutzer: ${message}`);
     res.json({ reply: text });
@@ -384,7 +399,8 @@ app.post('/api/ai/offer-assistant-image',
     const b64      = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype;
 
-    const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${FIRMA.name}".
+    const firma = await getFirma();
+    const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${firma.name}".
 Analysiere das Bild und erkenne alle sichtbaren Metallbau-Leistungen, Materialien, Maße oder Bauteile.
 Antworte auf Deutsch. Wenn erkennbare Leistungen vorhanden sind, antworte mit:
 1. Kurzem Einleitungssatz über das Bild
@@ -439,7 +455,8 @@ app.post('/api/ai/payment-reminder', async (req, res) => {
   const { invoice_number, customer_name, total_amount, due_date, dunning_level } = req.body;
   if (!invoice_number) return res.status(400).json({ error: 'Rechnungsnummer fehlt.' });
   const levelText = dunning_level > 1 ? `(${dunning_level}. Mahnung)` : '(1. Zahlungserinnerung)';
-  const prompt = `Du bist Inhaber von "${FIRMA.name}". Schreibe einen höflichen Mahnungstext ${levelText} (3-5 Sätze, kein Betreff, keine Grußformel am Anfang).\n\nRechnungsnummer: ${invoice_number}\nKunde: ${customer_name || 'Kunde'}\nBetrag: ${total_amount ? Number(total_amount).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €' : 'offen'}\nFällig seit: ${due_date ? new Date(due_date).toLocaleDateString('de-DE') : 'überfällig'}`;
+  const firma = await getFirma();
+  const prompt = `Du bist Inhaber von "${firma.name}". Schreibe einen höflichen Mahnungstext ${levelText} (3-5 Sätze, kein Betreff, keine Grußformel am Anfang).\n\nRechnungsnummer: ${invoice_number}\nKunde: ${customer_name || 'Kunde'}\nBetrag: ${total_amount ? Number(total_amount).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €' : 'offen'}\nFällig seit: ${due_date ? new Date(due_date).toLocaleDateString('de-DE') : 'überfällig'}`;
   try {
     const text = await callAI(prompt);
     res.json({ reminder: text });

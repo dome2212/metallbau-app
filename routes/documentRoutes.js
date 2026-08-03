@@ -1,8 +1,8 @@
 const express = require('express');
-const router  = express.Router();
-const { dbQuery } = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
-const { FIRMA } = require('../utils/firma');
+const router  = require('express').Router();
+const { dbQuery }    = require('../utils/db');
+const { requireAdmin }   = require('../middleware/auth');
+const { getFirma }   = require('../utils/companySettings');
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -108,7 +108,8 @@ router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
 
     const today   = new Date();
     const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + (FIRMA.zahlungsfrist || 14));
+    const _firma1 = await getFirma();
+    dueDate.setDate(dueDate.getDate() + (_firma1.zahlungsfrist || 14));
 
     const insertRes = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
@@ -172,7 +173,8 @@ router.get('/offers/:id/pdf', requireAdmin, async (req, res) => {
     if (!offer) return res.status(404).send('Angebot nicht gefunden.');
     offer.invoice_number = offer.doc_number; // invoice-pdf.ejs nutzt invoice_number
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    res.render('invoice-pdf', { invoice: offer, items: itemsRes.rows || [], firma: FIRMA });
+    const firma = await getFirma();
+    res.render('invoice-pdf', { invoice: offer, items: itemsRes.rows || [], firma });
   } catch (err) {
     console.error('Fehler beim Angebots-PDF:', err.message);
     res.status(500).send('Fehler beim Laden des Angebots.');
@@ -234,7 +236,8 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
 
     const today   = new Date();
     const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + (FIRMA.zahlungsfrist || 14));
+    const _firma2 = await getFirma();
+    dueDate.setDate(dueDate.getDate() + (_firma2.zahlungsfrist || 14));
 
     const insertRes = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
@@ -326,7 +329,8 @@ router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma: FIRMA });
+    const firma = await getFirma();
+    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma });
   } catch (err) {
     console.error('Fehler beim Rechnungs-PDF:', err.message);
     res.status(500).send('Fehler beim Laden der Rechnung.');
@@ -346,7 +350,8 @@ router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
     res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${invoice.invoice_number}.html"`);
-    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma: FIRMA });
+    const firma = await getFirma();
+    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma });
   } catch (err) {
     console.error('Fehler beim PDF-Download:', err.message);
     res.status(500).send('Fehler beim Laden der Rechnung.');
