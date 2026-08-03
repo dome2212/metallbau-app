@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { JWT_SECRET, verifyToken } = require('../middleware/auth');
 const { dbQuery } = require('../utils/db');
 
@@ -12,12 +13,19 @@ async function createDefaultAdmin() {
     const user = result.rows[0];
 
     if (!user) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      // Zufälliges, sicheres Passwort statt hartkodiertem Wert
+      const tempPassword = crypto.randomBytes(9).toString('base64url'); // z.B. "kX9pQ2m..."
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
       await dbQuery(
         `INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'ADMIN')`,
         ['admin', hashedPassword]
       );
-      console.log('🔑 Standard-Admin angelegt: User: "admin" | PW: "admin123"');
+      console.log('==========================================');
+      console.log('🔑 Standard-Admin angelegt!');
+      console.log('   User: admin');
+      console.log('   PW:   ' + tempPassword);
+      console.log('   ⚠️  Bitte SOFORT nach dem ersten Login ändern!');
+      console.log('==========================================');
     }
   } catch (err) {
     console.error('❌ Fehler beim Prüfen/Erstellen des Admin-Users:', err.message);
@@ -59,6 +67,8 @@ router.post('/login', async (req, res) => {
     // Token als HTTP-Only Cookie speichern
     res.cookie('token', token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // nur über HTTPS senden
+      sameSite: 'lax',                                 // CSRF-Schutz
       maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
     });
 
