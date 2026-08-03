@@ -120,6 +120,7 @@ const vacationRoutes     = require('./routes/vacationRoutes');
 const adminRoutes              = require('./routes/adminRoutes');
 const articleRoutes            = require('./routes/articleRoutes');
 const companySettingsRoutes    = require('./routes/companySettingsRoutes');
+const { startBackupCron, runBackup } = require('./utils/backup');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -207,6 +208,16 @@ app.use('/ticker',  adminRoutes);
 
 // Artikel-Stamm
 app.use('/articles', articleRoutes);
+
+// Admin: Backup manuell auslösen (zum Testen)
+app.post('/admin/backup/run', require('./middleware/auth').requireAdmin, async (req, res) => {
+  try {
+    await runBackup();
+    res.redirect('/admin/company-settings?saved=1');
+  } catch (err) {
+    res.status(500).send('Backup fehlgeschlagen: ' + err.message);
+  }
+});
 
 // ==========================================
 // GLOBALE SUCHE
@@ -473,4 +484,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Metallbau-App gestartet!`);
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
+  // Automatisches Datenbank-Backup täglich um Mitternacht
+  startBackupCron();
 });
