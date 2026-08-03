@@ -62,33 +62,36 @@
 </div>
 
 <!-- Modal: KI-Assistent Artikel -->
-<div id="aiArticleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-md w-full p-4 md:p-6">
-    <div class="flex justify-between items-center mb-4 border-b dark:border-slate-700 pb-2">
+<div id="aiArticleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-xl shadow-lg max-w-md w-full flex flex-col" style="max-height:92dvh">
+    <!-- Header (fixiert) -->
+    <div class="flex justify-between items-center px-4 pt-4 pb-3 border-b dark:border-slate-700 flex-shrink-0">
       <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">✨ KI-Artikel vorschlagen</h3>
       <button onclick="toggleModal('aiArticleModal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold">&times;</button>
     </div>
-    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Beschreibe das Material oder die Leistung – die KI schlägt Bezeichnung, Einheit und Preis vor.</p>
-    <div class="space-y-3">
+    <!-- Scrollbarer Inhalt -->
+    <div class="overflow-y-auto flex-1 px-4 py-3 space-y-3">
+      <p class="text-xs text-gray-500 dark:text-gray-400">Beschreibe das Material oder die Leistung – die KI schlägt Bezeichnung, Einheit und Preis vor.</p>
       <textarea id="ai-article-input" rows="3" placeholder="z.B. Stahlrohr 40x40 mm für Geländerbau, verzinkt" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
       <div id="ai-article-error" class="hidden text-xs text-red-600 dark:text-red-400"></div>
       <div id="ai-article-result" class="hidden bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 text-sm space-y-1">
         <p class="font-semibold text-purple-800 dark:text-purple-300 text-xs uppercase mb-2">KI-Vorschlag</p>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-700 dark:text-gray-300 text-xs">
-          <span class="text-gray-500 dark:text-gray-400">Bezeichnung:</span><span id="ai-res-title" class="font-medium"></span>
-          <span class="text-gray-500 dark:text-gray-400">Einheit:</span><span id="ai-res-unit"></span>
-          <span class="text-gray-500 dark:text-gray-400">Stückpreis:</span><span id="ai-res-price"></span>
-          <span class="text-gray-500 dark:text-gray-400">Beschreibung:</span><span id="ai-res-desc" class="col-span-1"></span>
+        <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-gray-700 dark:text-gray-300 text-xs">
+          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Bezeichnung:</span><span id="ai-res-title" class="font-medium break-words"></span>
+          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Einheit:</span><span id="ai-res-unit"></span>
+          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Stückpreis:</span><span id="ai-res-price"></span>
+          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Beschreibung:</span><span id="ai-res-desc" class="break-words"></span>
         </div>
       </div>
-      <div class="flex justify-end gap-2 pt-3 border-t dark:border-slate-700">
-        <button type="button" onclick="toggleModal('aiArticleModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
-        <button type="button" id="ai-article-btn" onclick="fetchAiArticle()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1">
-          <span id="ai-btn-label">✨ Vorschlagen</span>
-          <span id="ai-btn-spinner" class="hidden">…</span>
-        </button>
-        <button type="button" id="ai-article-accept" onclick="acceptAiArticle()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Übernehmen</button>
-      </div>
+    </div>
+    <!-- Buttons (fixiert unten) -->
+    <div class="flex justify-end gap-2 px-4 py-3 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
+      <button type="button" onclick="toggleModal('aiArticleModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
+      <button type="button" id="ai-article-btn" onclick="fetchAiArticle()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1">
+        <span id="ai-btn-label">✨ Vorschlagen</span>
+        <span id="ai-btn-spinner" class="hidden">…</span>
+      </button>
+      <button type="button" id="ai-article-accept" onclick="acceptAiArticle()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Übernehmen</button>
     </div>
   </div>
 </div>
