@@ -3,6 +3,7 @@ const router  = express.Router();
 const https   = require('https');
 const { dbQuery }      = require('../utils/db');
 const { sendWhatsApp } = require('../utils/notifier');
+const { getNRWHolidays } = require('../utils/holidays');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -96,6 +97,24 @@ router.get('/api/weather', async (req, res) => {
   } catch (_) {
     res.status(500).json({ error: 'Wetterdaten nicht abrufbar' });
   }
+});
+
+// ==========================================
+// FEIERTAGE NRW (Hintergrund-Events für Kalender)
+// ==========================================
+router.get('/api/holidays', async (req, res) => {
+  const year = parseInt(req.query.year) || new Date().getFullYear();
+  const holidays = [
+    ...getNRWHolidays(year - 1).slice(-1),   // 31.12. Vorjahr, falls Ansicht drüber ragt
+    ...getNRWHolidays(year),
+    ...getNRWHolidays(year + 1).slice(0, 1)  // 1.1. Folgejahr
+  ];
+  res.json(holidays.map(h => ({
+    title: h.name,
+    start: h.date,
+    display: 'background',
+    color: '#fde68a'
+  })));
 });
 
 // ==========================================
