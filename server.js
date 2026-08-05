@@ -238,6 +238,7 @@ app.post('/sidebar-settings', (req, res) => {
     maxAge: 30 * 24 * 3600 * 1000,
     httpOnly: false,
     sameSite: 'lax',
+    path: '/',
   });
   // Zurück zur Seite von der der Request kam
   const redirect = req.body._redirect || req.headers.referer || '/';
