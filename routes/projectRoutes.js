@@ -457,6 +457,8 @@ router.get('/:id/pdf', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
+    const firma = await getFirma();
+
     const tsColPdf = isPg
       ? `TO_CHAR(tl.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
       : `strftime('%Y-%m-%d %H:%M:%S', tl.timestamp)`;
@@ -492,8 +494,8 @@ router.get('/:id/pdf', async (req, res) => {
     const L = 50, W = 495;
     const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(FIRMA.name.toUpperCase(), L, 50);
-    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(FIRMA.slogan, L, 74);
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#1e293b').text(firma.name.toUpperCase(), L, 50);
+    doc.fontSize(9).font('Helvetica').fillColor('#64748b').text(firma.slogan, L, 74);
     doc.moveTo(L, 88).lineTo(L + W, 88).lineWidth(1.5).strokeColor('#3b82f6').stroke();
 
     doc.rect(360, 50, 185, 60).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
@@ -605,7 +607,7 @@ router.get('/:id/pdf', async (req, res) => {
         doc.switchToPage(range.start + i);
         doc.moveTo(L, 820).lineTo(L + W, 820).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
         doc.fontSize(7).font('Helvetica').fillColor('#94a3b8').text(
-          `${FIRMA.nameKurz} · Auftrag #${project.id} · ${project.title} · Seite ${i + 1} von ${range.count} · Erstellt: ${today}`,
+          `${firma.nameKurz} · Auftrag #${project.id} · ${project.title} · Seite ${i + 1} von ${range.count} · Erstellt: ${today}`,
           L, 826, { width: W, align: 'center' }
         );
       }
@@ -767,7 +769,8 @@ router.post('/:id/generate-quote', async (req, res) => {
     const massText    = (measurementsRes.rows || []).length > 0 ? measurementsRes.rows.map(m => `- ${m.component_name}: Breite ${m.width || '–'} mm, Höhe/Länge ${m.height || '–'} mm${m.angle ? ', Winkel ' + m.angle + '°' : ''}, Anzahl: ${m.quantity || 1}${m.note ? ', Bemerkung: ' + m.note : ''}`).join('\n') : 'Keine Maße erfasst.';
     const notizenText = (notesRes.rows || []).length > 0 ? notesRes.rows.map(n => `- ${n.note_text}`).join('\n') : 'Keine Notizen vorhanden.';
 
-    const prompt = `Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${FIRMA.name}", ${FIRMA.strasse}, ${FIRMA.plzOrt}.\n\nErstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.\n\n**Projektdaten:**\n- Projekttitel: ${project.title}\n- Beschreibung: ${project.description || 'Keine.'}\n- Status: ${project.status}\n- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}\n\n**Erfasste Maße:**\n${massText}\n\n**Projektnotizen:**\n${notizenText}\n\nErstelle jetzt das Angebot:`.trim();
+    const firma = await getFirma();
+    const prompt = `Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${firma.name}", ${firma.strasse}, ${firma.plzOrt}.\n\nErstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.\n\n**Projektdaten:**\n- Projekttitel: ${project.title}\n- Beschreibung: ${project.description || 'Keine.'}\n- Status: ${project.status}\n- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}\n\n**Erfasste Maße:**\n${massText}\n\n**Projektnotizen:**\n${notizenText}\n\nErstelle jetzt das Angebot:`.trim();
     const text = await callAI(prompt);
     res.json({ quote: text });
   } catch (err) {
@@ -805,7 +808,8 @@ router.post('/:id/generate-quote-with-images', imageUpload.array('images', 3), a
       ? `\n\nZusätzlich wurden ${imageBuffers.length} Foto(s) hochgeladen. Analysiere diese Bilder und extrahiere daraus relevante Informationen (z.B. sichtbare Maße, Materialien, Bauzustand, Beschädigungen, Konstruktionsdetails) und fließe diese Erkenntnisse in das Angebot ein.`
       : '';
 
-    const prompt = `Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${FIRMA.name}", ${FIRMA.strasse}, ${FIRMA.plzOrt}.\n\nErstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.\n\n**Projektdaten:**\n- Projekttitel: ${project.title}\n- Beschreibung: ${project.description || 'Keine.'}\n- Status: ${project.status}\n- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}\n\n**Erfasste Maße:**\n${massText}\n\n**Projektnotizen:**\n${notizenText}${bildHinweis}\n\nErstelle jetzt das Angebot:`.trim();
+    const firma = await getFirma();
+    const prompt = `Du bist ein professioneller Angebotsschreiber für den Metallbaubetrieb "${firma.name}", ${firma.strasse}, ${firma.plzOrt}.\n\nErstelle auf Basis der folgenden Projektdaten ein formelles, professionelles Angebot in deutscher Sprache.\n\n**Projektdaten:**\n- Projekttitel: ${project.title}\n- Beschreibung: ${project.description || 'Keine.'}\n- Status: ${project.status}\n- Kunde: ${project.company_name || project.contact_person || 'Unbekannt'}\n\n**Erfasste Maße:**\n${massText}\n\n**Projektnotizen:**\n${notizenText}${bildHinweis}\n\nErstelle jetzt das Angebot:`.trim();
 
     const text = imageBuffers.length > 0
       ? await callAIWithImages(prompt, imageBuffers)
@@ -819,3 +823,4 @@ router.post('/:id/generate-quote-with-images', imageUpload.array('images', 3), a
 });
 
 module.exports = router;
+
