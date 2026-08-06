@@ -66,31 +66,6 @@
         </div>
       </div>
 
-      <!-- Krankmeldung -->
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">🤒 Krankmeldung einreichen</h2>
-        <form action="/vacations/add" method="POST" enctype="multipart/form-data" class="space-y-4">
-          <input type="hidden" name="type" value="Krank">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Von *</label>
-              <input type="date" name="start_date" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bis *</label>
-              <input type="date" name="end_date" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Krankmeldung (PDF/Foto, optional)</label>
-            <input type="file" name="document" accept="image/*,.pdf" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-          </div>
-          <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
-            🤒 Krankmeldung einreichen
-          </button>
-        </form>
-      </div>
-
       <!-- Layout auf 12 Spalten angepasst für saubere Aufteilung -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         

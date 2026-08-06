@@ -27,12 +27,17 @@
           </div>
           <div class="flex gap-2 shrink-0">
             <% if (!stats.isStampedIn) { %>
-              <form action="/timetracking/stamp" method="POST">
+              <form action="/timetracking/stamp" method="POST" id="dash-stamp-in-form">
                 <input type="hidden" name="type" value="IN">
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
+                <input type="hidden" name="latitude" id="dash-lat">
+                <input type="hidden" name="longitude" id="dash-lng">
+                <button type="button" onclick="dashStampIn()"
+                  id="dash-stamp-in-btn"
+                  class="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
                   🟢 Einstempeln
                 </button>
               </form>
+              <p id="dash-gps-status" class="text-xs text-slate-400 italic mt-1 hidden"></p>
             <% } else { %>
               <form action="/timetracking/stamp" method="POST">
                 <input type="hidden" name="type" value="OUT">
@@ -177,6 +182,42 @@
     </div>
   </main>
 </div>
+
+<script>
+function dashStampIn() {
+  const btn    = document.getElementById('dash-stamp-in-btn');
+  const status = document.getElementById('dash-gps-status');
+
+  if (!navigator.geolocation) {
+    // Kein GPS verfügbar → direkt absenden (Server entscheidet)
+    document.getElementById('dash-stamp-in-form').submit();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '📡 GPS wird ermittelt…';
+  status.textContent = 'GPS-Standort wird ermittelt…';
+  status.classList.remove('hidden');
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('dash-lat').value = pos.coords.latitude;
+      document.getElementById('dash-lng').value = pos.coords.longitude;
+      status.textContent = '📍 Standort erfasst – wird eingestempelt…';
+      document.getElementById('dash-stamp-in-form').submit();
+    },
+    (err) => {
+      // GPS fehlgeschlagen → trotzdem absenden, Server prüft
+      status.textContent = '⚠️ GPS nicht verfügbar – wird trotzdem versucht…';
+      status.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = '🟢 Einstempeln';
+      document.getElementById('dash-stamp-in-form').submit();
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+</script>
 
 </body>
 </html>

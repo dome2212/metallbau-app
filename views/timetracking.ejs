@@ -121,7 +121,11 @@ Ausgestempelt
 <% } %>
 <% } %>
 </div>
-<p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>
+<% if (!isStampedIn) { %>
+<p id="gps-status" class="text-xs text-slate-400 italic">📡 GPS-Standort wird ermittelt… (nur für Einstempeln erforderlich)</p>
+<% } else { %>
+<p id="gps-status" class="text-xs text-slate-400 italic hidden"></p>
+<% } %>
 </form>
 
 <!-- ── Baustellen-Wechsel-Panel (wird per JS eingeblendet) ── -->
@@ -309,7 +313,11 @@ function checkGeofence(lat, lng) {
 // ================================================
 let watchId = null;
 
-if (navigator.geolocation) {
+// GPS nur anfordern wenn EINSTEMPELN möglich ist (d.h. noch nicht eingestempelt)
+// Beim Ausstempeln ist kein GPS nötig
+const needsGps = !IS_STAMPED_IN;
+
+if (navigator.geolocation && needsGps) {
   // Einmalig für das Stempel-Formular
   navigator.geolocation.getCurrentPosition(
     (pos) => {
@@ -317,14 +325,19 @@ if (navigator.geolocation) {
       document.getElementById('longitude').value = pos.coords.longitude;
       syncSwitchGps(pos.coords.latitude, pos.coords.longitude);
       const statusEl = document.getElementById('gps-status');
-      statusEl.textContent = '📍 GPS-Standort erfolgreich erfasst.';
-      statusEl.className = 'text-xs text-green-600 italic';
+      if (statusEl) {
+        statusEl.textContent = '📍 GPS-Standort erfolgreich erfasst.';
+        statusEl.className = 'text-xs text-green-600 italic';
+      }
       // Sofort Geo-Fencing prüfen
       checkGeofence(pos.coords.latitude, pos.coords.longitude);
     },
     () => {
       const statusEl = document.getElementById('gps-status');
-      statusEl.textContent = '⚠️ GPS-Standort konnte nicht ermittelt werden (optional).';
+      if (statusEl) {
+        statusEl.textContent = '⚠️ GPS-Standort konnte nicht ermittelt werden.';
+        statusEl.className = 'text-xs text-orange-500 italic';
+      }
     },
     { timeout: 10000, enableHighAccuracy: true }
   );
@@ -333,7 +346,6 @@ if (navigator.geolocation) {
   if (GEO_PROJECTS.length > 0) {
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        // Koordinaten in beiden Formularen aktuell halten
         document.getElementById('latitude').value = pos.coords.latitude;
         document.getElementById('longitude').value = pos.coords.longitude;
         syncSwitchGps(pos.coords.latitude, pos.coords.longitude);
@@ -343,9 +355,9 @@ if (navigator.geolocation) {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
   }
-} else {
-  document.getElementById('gps-status').textContent =
-    'Geolocation wird von diesem Browser nicht unterstützt.';
+} else if (!navigator.geolocation && needsGps) {
+  const statusEl = document.getElementById('gps-status');
+  if (statusEl) statusEl.textContent = 'Geolocation wird von diesem Browser nicht unterstützt.';
 }
 
 // ================================================
