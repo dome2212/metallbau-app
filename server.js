@@ -134,8 +134,6 @@ const articleRoutes            = require('./routes/articleRoutes');
 const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 const reportsRoutes            = require('./routes/reportsRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
-const schnittlisteRoutes = require('./routes/schnittlisteRoutes');
-
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -271,11 +269,6 @@ app.get('/steel-calculator', (req, res) => {
   }
   res.render('steel-calculator', { currentUser: req.user });
 });
-
-// ==========================================
-// SCHNITTLISTE
-// ==========================================
-app.use('/schnittliste', schnittlisteRoutes);
 
 // ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)

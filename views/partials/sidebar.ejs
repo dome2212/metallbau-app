@@ -87,9 +87,6 @@
       <% if (_show('steel_calc') && _f.feature_steel_calc !== 'false' && _perm('steel_calc', false, false)) { %>
       <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahl-Rechner</a>
       <% } %>
-      <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
-      <a href="/schnittliste" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">✂️ Schnittliste</a>
-      <% } %>
       <!-- NUR FÜR CHEF & ADMIN -->
       <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
