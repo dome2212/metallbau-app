@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
 const { requireAdmin } = require('../middleware/auth');
+const { getFirma } = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -79,8 +80,15 @@ router.get('/', async (req, res) => {
       WHERE projects.status != 'Abgeschlossen'
       ORDER BY projects.title ASC
     `);
+    const firma = await getFirma().catch(() => ({}));
+    const stampAllowProject  = firma.stamp_allow_project    !== 'false';
+    const stampGeofence      = firma.stamp_geofence_enabled !== 'false';
+
     const allProjects = projectsRes.rows || [];
-    const geoProjects = allProjects.filter(p => p.site_lat && p.site_lng);
+    // Projekte nur übergeben wenn Baustellen-Stempeln aktiviert
+    const visibleProjects = stampAllowProject ? allProjects : [];
+    // Geo-Fencing nur wenn aktiviert
+    const geoProjects = stampGeofence ? allProjects.filter(p => p.site_lat && p.site_lng) : [];
     const activeProjectId    = isStampedIn && lastLog ? (lastLog.project_id    || null) : null;
     const activeProjectTitle = isStampedIn && lastLog ? (lastLog.project_title || null) : null;
 
@@ -94,10 +102,16 @@ router.get('/', async (req, res) => {
       isStampedIn,
       lastStampTime,
       todayTotalHours,
-      projects: allProjects,
+      projects: visibleProjects,
       geoProjects,
       activeProjectId,
-      activeProjectTitle
+      activeProjectTitle,
+      stampSettings: {
+        allowProject:  stampAllowProject,
+        allowNote:     firma.stamp_allow_note    !== 'false',
+        allowSwitch:   firma.stamp_allow_switch  !== 'false',
+        geofence:      stampGeofence,
+      }
     });
   } catch (err) {
     console.error('Fehler beim Laden der Zeiterfassung:', err.message);
@@ -126,32 +140,43 @@ router.post('/stamp', async (req, res) => {
 
   if (!['IN', 'OUT'].includes(type)) return res.status(400).send('Ungültiger Stempel-Typ');
 
-  if (type === 'IN' && userRole !== 'ADMIN') {
-    if (!latitude || !longitude) {
-      return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
-    }
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    const FIRM_LAT    = parseFloat(process.env.FIRM_LAT || '51.3069467');
-    const FIRM_LNG    = parseFloat(process.env.FIRM_LNG || '6.9483845');
-    const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || '300', 10);
-    const distFirm    = getDistanceFromLatLonInMeters(lat, lng, FIRM_LAT, FIRM_LNG);
-    const atFirm      = distFirm <= FIRM_RADIUS;
+  if (type === 'IN') {
+    const firma = await getFirma().catch(() => ({}));
 
-    let atSite = false;
-    if (!atFirm) {
-      const siteRes = await dbQuery(`
-        SELECT id, site_lat, site_lng, site_radius FROM projects
-        WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen'
-      `);
-      for (const proj of (siteRes.rows || [])) {
-        const d = getDistanceFromLatLonInMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
-        if (d <= (proj.site_radius || 200)) { atSite = true; break; }
+    // GPS-Pflicht: deaktivierbar über Admin-Panel (stamp_require_gps)
+    const gpsRequired  = firma.stamp_require_gps  !== 'false';
+    // Admins ausgenommen: konfigurierbar (stamp_admin_no_gps)
+    const adminNoGps   = firma.stamp_admin_no_gps !== 'false';
+    const isAdmin      = userRole === 'ADMIN' || userRole === 'CHEF';
+    const skipGps      = isAdmin && adminNoGps;
+
+    if (gpsRequired && !skipGps) {
+      if (!latitude || !longitude) {
+        return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
       }
-    }
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const FIRM_LAT    = parseFloat(process.env.FIRM_LAT || firma.firm_lat || '51.3069467');
+      const FIRM_LNG    = parseFloat(process.env.FIRM_LNG || firma.firm_lng || '6.9483845');
+      const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || firma.firm_radius || '300', 10);
+      const distFirm    = getDistanceFromLatLonInMeters(lat, lng, FIRM_LAT, FIRM_LNG);
+      const atFirm      = distFirm <= FIRM_RADIUS;
 
-    if (!atFirm && !atSite) {
-      return res.status(400).send(`Einstempeln verweigert: Du befindest dich weder an der Firma noch auf einer bekannten Baustelle (ca. ${Math.round(distFirm)} m von der Firma entfernt).`);
+      let atSite = false;
+      if (!atFirm) {
+        const siteRes = await dbQuery(`
+          SELECT id, site_lat, site_lng, site_radius FROM projects
+          WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen'
+        `);
+        for (const proj of (siteRes.rows || [])) {
+          const d = getDistanceFromLatLonInMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
+          if (d <= (proj.site_radius || 200)) { atSite = true; break; }
+        }
+      }
+
+      if (!atFirm && !atSite) {
+        return res.status(400).send(`Einstempeln verweigert: Du befindest dich weder an der Firma noch auf einer bekannten Baustelle (ca. ${Math.round(distFirm)} m von der Firma entfernt).`);
+      }
     }
   }
 

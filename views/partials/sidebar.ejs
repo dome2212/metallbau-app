@@ -74,10 +74,19 @@
       <% if (_show('vacations')) { %>
       <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
       <% } %>
+      <% if (_show('map') && _f.feature_map !== 'false') { %>
+      <a href="/map" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗺️ Baustellen-Karte</a>
+      <% } %>
+      <% if (_show('treppe') && _f.feature_treppe !== 'false') { %>
+      <a href="/treppe" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🪜 Treppen-Rechner</a>
+      <% } %>
+      <% if (_show('steel_calc') && _f.feature_steel_calc !== 'false') { %>
+      <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahl-Rechner</a>
+      <% } %>
       <!-- NUR FÜR CHEF & ADMIN -->
       <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-          <%= currentUser.role === 'CHEF' ? '👑 Chef-Bereich' : '🛠️ Chef-Bereich' %>
+          <%= currentUser.role === 'CHEF' ? '👑 Chef-Bereich' : '🛠️ Admin-Bereich' %>
         </div>
         <% if (_show('admin_users')) { %>
         <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
@@ -199,6 +208,9 @@
     { key: 'calendar',          label: '📅 Kalender' },
     { key: 'timetracking',      label: '⏱️ Zeiterfassung' },
     { key: 'vacations',         label: '🌴 Urlaub & Abwesenheit' },
+    { key: 'map',               label: '🗺️ Baustellen-Karte' },
+    { key: 'treppe',            label: '🪜 Treppen-Rechner' },
+    { key: 'steel_calc',        label: '⚖️ Stahl-Rechner' },
     { key: 'admin_users',       label: '👥 Mitarbeiter-Logins (Admin)' },
     { key: 'admin_timetracking',label: '📋 Arbeitszeiten-Übersicht (Admin)' },
     { key: 'customers',         label: '👤 Kunden (Admin)' },

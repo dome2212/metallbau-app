@@ -283,4 +283,32 @@ router.post('/panel/dashboard', requireAdmin, async (req, res) => {
   }
 });
 
+// ── POST: Stempeluhr ─────────────────────────────────────────────────────────
+router.post('/panel/stampclock', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['firm_lat','firm_lng','firm_radius']);
+    const toggles = ['stamp_require_gps','stamp_allow_project','stamp_geofence_enabled',
+                     'stamp_allow_note','stamp_allow_switch','stamp_admin_no_gps'];
+    for (const key of toggles) {
+      await setFirmaValue(key, req.body[key] === 'true' ? 'true' : 'false');
+    }
+    res.redirect('/admin/panel?tab=stampclock&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: E-Mail / SMTP / Backup-Einstellungen ────────────────────────────────
+router.post('/panel/notifications', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['smtp_backup_email','smtp_host','smtp_port','smtp_user']);
+    // Passwort nur speichern wenn ein neuer Wert eingegeben wurde
+    const pass = (req.body.smtp_pass || '').trim();
+    if (pass) await setFirmaValue('smtp_pass', pass);
+    res.redirect('/admin/panel?tab=info&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
 module.exports = router;

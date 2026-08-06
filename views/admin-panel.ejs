@@ -29,12 +29,11 @@
         <% const tabs = [
             { id: 'design',   label: '🎨 Design' },
             { id: 'sidebar',  label: '📌 Sidebar' },
-            { id: 'features', label: '🔧 Features' },
             { id: 'pdf',      label: '📄 PDF & Dokumente' },
-            { id: 'worktime', label: '⏱️ Arbeitszeit' },
-            { id: 'projects', label: '🏗️ Aufträge' },
+            { id: 'worktime',   label: '⏱️ Arbeitszeit' },
+            { id: 'stampclock', label: '🕐 Stempeluhr' },
+            { id: 'projects',   label: '🏗️ Aufträge' },
             { id: 'security', label: '🔒 Sicherheit' },
-            { id: 'locale',   label: '🌍 Lokalisierung' },
             { id: 'dashboard',label: '📊 Dashboard KPIs' },
             { id: 'access',   label: '🔐 Zugriff' },
             { id: 'info',     label: 'ℹ️ System' },
@@ -173,23 +172,6 @@
           </div>
         </div>
 
-        <!-- Dark-Mode Standard -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">🌙 Dark-Mode Standard</h2>
-          <div class="flex items-center gap-4">
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="hidden" name="dark_mode_default" value="false">
-              <input type="checkbox" name="dark_mode_default" value="true"
-                <%= firma.dark_mode_default === 'true' ? 'checked' : '' %>
-                class="w-5 h-5 accent-blue-600 cursor-pointer">
-              <div>
-                <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Dark-Mode standardmäßig aktivieren</p>
-                <p class="text-xs text-slate-400">Gilt für neue Benutzer. Jeder kann es im Browser selbst überschreiben.</p>
-              </div>
-            </label>
-          </div>
-        </div>
-
         <div class="flex justify-end gap-3">
           <button type="reset" class="px-5 py-2.5 rounded-lg border dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition">
             Zurücksetzen
@@ -304,61 +286,6 @@
         <div class="flex justify-end">
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
             💾 Sidebar-Einstellungen speichern
-          </button>
-        </div>
-      </form>
-      <% } %>
-
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <!-- TAB: FEATURES                                                       -->
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <% if (tab === 'features') { %>
-      <form action="/admin/panel/features" method="POST" class="space-y-6">
-
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔧 Module & Features</h2>
-          <p class="text-xs text-slate-400 mb-5">Deaktivierte Module werden in der Navigation und im Dashboard ausgeblendet.</p>
-
-          <div class="space-y-3">
-            <% const features = [
-              { key: 'feature_map',        label: '🗺️ Karten-Modul',           desc: 'Baustellen-Karte mit GPS-Standorten' },
-              { key: 'feature_lexikon',    label: '📖 Lexikon',                desc: 'Internes Nachschlagewerk' },
-              { key: 'feature_treppe',     label: '🪜 Treppen-Rechner',        desc: 'Berechnungshilfe für Treppen' },
-              { key: 'feature_steel_calc', label: '⚖️ Stahl-Rechner',          desc: 'Gewichts- und Materialrechner' },
-              { key: 'feature_ai',         label: '🤖 KI-Funktionen',          desc: 'KI-Angebots-Assistent, Beschreibungen, Mahnungen' },
-            ]; %>
-            <% for (const f of features) { %>
-              <label class="flex items-center justify-between gap-4 p-4 rounded-xl border dark:border-slate-600 cursor-pointer
-                hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-                <div>
-                  <p class="text-sm font-semibold text-slate-700 dark:text-slate-200"><%= f.label %></p>
-                  <p class="text-xs text-slate-400"><%= f.desc %></p>
-                </div>
-                <div class="relative shrink-0">
-                  <input type="hidden" name="<%= f.key %>" value="0">
-                  <input type="checkbox" name="<%= f.key %>" value="1"
-                    <%= firma[f.key] !== 'false' ? 'checked' : '' %>
-                    class="sr-only peer" id="feat_<%= f.key %>">
-                  <label for="feat_<%= f.key %>"
-                    class="block w-11 h-6 rounded-full cursor-pointer transition
-                      bg-slate-200 dark:bg-slate-600 peer-checked:bg-blue-600 relative
-                      after:content-[''] after:absolute after:top-0.5 after:left-0.5
-                      after:bg-white after:rounded-full after:h-5 after:w-5 after:transition
-                      peer-checked:after:translate-x-5">
-                  </label>
-                </div>
-              </label>
-            <% } %>
-          </div>
-        </div>
-
-        <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl border dark:border-slate-600 p-4 text-xs text-slate-500 dark:text-slate-400">
-          <strong>Hinweis:</strong> Deaktivierte Features verbergen nur die Navigation und Verlinkungen. Die Routen bleiben für direkte URLs zugänglich. Für vollständige Sperrung müssten die Routen in der Server-Konfiguration deaktiviert werden.
-        </div>
-
-        <div class="flex justify-end">
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
-            💾 Feature-Einstellungen speichern
           </button>
         </div>
       </form>
@@ -555,6 +482,100 @@
       <% } %>
 
       <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: STEMPELUHR                                                     -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'stampclock') { %>
+      <form action="/admin/panel/stampclock" method="POST" class="space-y-6">
+
+        <!-- Allgemeine Schalter -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🕐 Stempeluhr-Verhalten</h2>
+          <p class="text-xs text-slate-400 mb-5">Steuert, wie und wann Mitarbeiter stempeln dürfen.</p>
+
+          <div class="space-y-3">
+
+            <%
+              const stampToggles = [
+                { key: 'stamp_require_gps',      label: '📍 GPS-Standort beim Stempeln erforderlich',        desc: 'Mitarbeiter müssen ihren Standort freigeben, bevor sie einstempeln können.' },
+                { key: 'stamp_allow_project',    label: '🏗️ Baustellen-Stempeln aktiviert',                  desc: 'Mitarbeiter können beim Stempeln ein Projekt / eine Baustelle auswählen.' },
+                { key: 'stamp_geofence_enabled', label: '📡 Geo-Fencing aktiv (Baustellen-Erkennung)',        desc: 'Erkennt automatisch ob sich der Mitarbeiter auf einer Baustelle befindet und schlägt das Projekt vor.' },
+                { key: 'stamp_allow_note',       label: '📝 Tätigkeits-Notiz beim Stempeln erlaubt',          desc: 'Mitarbeiter können beim Stempeln eine Notiz / Tätigkeit eingeben.' },
+                { key: 'stamp_allow_switch',     label: '🔄 Baustellen-Wechsel-Funktion aktiviert',           desc: 'Erlaubt das direkte Wechseln zwischen Projekten ohne manuelles Aus-/Einstempeln.' },
+                { key: 'stamp_admin_no_gps',     label: '🛡️ Admins sind von GPS-Pflicht ausgenommen',         desc: 'Admins und Chefs können ohne GPS-Standort stempeln (aktuelles Verhalten).' },
+              ];
+            %>
+            <% for (const t of stampToggles) { %>
+              <label class="flex items-center justify-between gap-4 p-4 rounded-xl border dark:border-slate-600 cursor-pointer
+                hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                <div>
+                  <p class="text-sm font-semibold text-slate-700 dark:text-slate-200"><%= t.label %></p>
+                  <p class="text-xs text-slate-400"><%= t.desc %></p>
+                </div>
+                <div class="relative shrink-0">
+                  <input type="hidden" name="<%= t.key %>" value="false">
+                  <input type="checkbox" name="<%= t.key %>" value="true"
+                    <%= firma[t.key] === 'false' ? '' : 'checked' %>
+                    class="sr-only peer" id="stamp_<%= t.key %>">
+                  <label for="stamp_<%= t.key %>"
+                    class="block w-11 h-6 rounded-full cursor-pointer transition
+                      bg-slate-200 dark:bg-slate-600 peer-checked:bg-blue-600 relative
+                      after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                      after:bg-white after:rounded-full after:h-5 after:w-5 after:transition
+                      peer-checked:after:translate-x-5">
+                  </label>
+                </div>
+              </label>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Firmen-Standort für Geo-Fencing -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📍 Firmen-Standort (Geo-Fencing)</h2>
+          <p class="text-xs text-slate-400 mb-5">Mitarbeiter dürfen nur im Umkreis des Firmenstandorts oder einer Baustelle einstempeln. Koordinaten findest du z.B. bei Google Maps (Rechtsklick → Koordinaten kopieren).</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Breitengrad (Latitude)</label>
+              <input type="text" name="firm_lat" value="<%= firma.firm_lat || process.env.FIRM_LAT || '' %>"
+                placeholder="z.B. 51.3069467"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Längengrad (Longitude)</label>
+              <input type="text" name="firm_lng" value="<%= firma.firm_lng || process.env.FIRM_LNG || '' %>"
+                placeholder="z.B. 6.9483845"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlaubter Radius (Meter)</label>
+              <input type="number" name="firm_radius" value="<%= firma.firm_radius || process.env.FIRM_RADIUS_METERS || 300 %>"
+                min="50" max="5000" step="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-slate-400 mt-1">Standard: 300 m</p>
+            </div>
+          </div>
+          <% if (process.env.FIRM_LAT) { %>
+            <div class="mt-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+              ℹ️ Firmen-Koordinaten sind per <code>FIRM_LAT / FIRM_LNG / FIRM_RADIUS_METERS</code> in der <code>.env</code> gesetzt – diese haben Vorrang gegenüber den hier eingetragenen Werten.
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Hinweis-Box -->
+        <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl border dark:border-slate-600 p-4 text-xs text-slate-500 dark:text-slate-400">
+          <strong>Hinweis:</strong> Deaktivierte Optionen werden sofort wirksam. GPS-Pflicht und Geo-Fencing gelten nur für Mitarbeiter (EMPLOYEE) – Admins und Chefs sind standardmäßig ausgenommen (sofern der Schalter oben aktiv ist).
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Stempeluhr-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
       <!-- TAB: AUFTRÄGE & PROJEKTE                                            -->
       <!-- ══════════════════════════════════════════════════════════════════ -->
       <% if (tab === 'projects') { %>
@@ -650,73 +671,6 @@
         <div class="flex justify-end">
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
             💾 Sicherheits-Einstellungen speichern
-          </button>
-        </div>
-      </form>
-      <% } %>
-
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <!-- TAB: LOKALISIERUNG                                                  -->
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <% if (tab === 'locale') { %>
-      <form action="/admin/panel/locale" method="POST" class="space-y-6">
-
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🌍 Sprache & Lokalisierung</h2>
-          <div class="space-y-5">
-
-            <div>
-              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Währungssymbol</label>
-              <div class="flex gap-2 flex-wrap mb-2">
-                <% for (const c of ['€','CHF','£','$','kr']) { %>
-                  <label class="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-slate-600 cursor-pointer text-sm
-                    <%= (firma.currency_symbol || '€') === c ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
-                    <input type="radio" name="currency_symbol" value="<%= c %>"
-                      <%= (firma.currency_symbol || '€') === c ? 'checked' : '' %> class="accent-blue-600">
-                    <%= c %>
-                  </label>
-                <% } %>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Datumsformat</label>
-              <div class="flex gap-2 flex-wrap">
-                <% const locales = [
-                  { val: 'de-DE', label: 'Deutsch (TT.MM.JJJJ)' },
-                  { val: 'de-AT', label: 'Österreich (TT.MM.JJJJ)' },
-                  { val: 'de-CH', label: 'Schweiz (TT.MM.JJJJ)' },
-                  { val: 'en-GB', label: 'English UK (DD/MM/YYYY)' },
-                  { val: 'en-US', label: 'English US (MM/DD/YYYY)' },
-                ]; %>
-                <% for (const l of locales) { %>
-                  <label class="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-slate-600 cursor-pointer text-sm
-                    <%= (firma.date_format || 'de-DE') === l.val ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
-                    <input type="radio" name="date_format" value="<%= l.val %>"
-                      <%= (firma.date_format || 'de-DE') === l.val ? 'checked' : '' %> class="accent-blue-600">
-                    <%= l.label %>
-                  </label>
-                <% } %>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Zeitzone</label>
-              <select name="timezone"
-                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
-                <% const tzones = ['Europe/Berlin','Europe/Vienna','Europe/Zurich','Europe/London','Europe/Paris','UTC']; %>
-                <% for (const tz of tzones) { %>
-                  <option value="<%= tz %>" <%= (firma.timezone || 'Europe/Berlin') === tz ? 'selected' : '' %>><%= tz %></option>
-                <% } %>
-              </select>
-            </div>
-
-          </div>
-        </div>
-
-        <div class="flex justify-end">
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
-            💾 Lokalisierung speichern
           </button>
         </div>
       </form>
@@ -925,8 +879,8 @@
               ['Umgebung',           process.env.NODE_ENV || 'development'],
               ['Datenbank',          process.env.DATABASE_URL ? 'PostgreSQL (Render)' : 'SQLite (lokal)'],
               ['Cloudinary',         process.env.CLOUDINARY_CLOUD_NAME ? '✅ Konfiguriert (' + process.env.CLOUDINARY_CLOUD_NAME + ')' : '❌ Nicht konfiguriert'],
-              ['Backup-E-Mail',      process.env.BACKUP_EMAIL ? '✅ ' + process.env.BACKUP_EMAIL : '❌ Nicht gesetzt'],
-              ['SMTP',               process.env.SMTP_USER ? '✅ ' + process.env.SMTP_USER : '❌ Nicht konfiguriert'],
+              ['Backup-E-Mail',      (process.env.BACKUP_EMAIL || firma.smtp_backup_email) ? '✅ ' + (process.env.BACKUP_EMAIL || firma.smtp_backup_email) : '❌ Nicht gesetzt'],
+              ['SMTP',               (process.env.SMTP_USER || firma.smtp_user) ? '✅ ' + (process.env.SMTP_USER || firma.smtp_user) : '❌ Nicht konfiguriert'],
               ['KI (OpenAI)',        process.env.OPENAI_API_KEY ? '✅ API-Key gesetzt' : '❌ Kein API-Key'],
             ]; %>
             <% for (const [label, val] of sysInfo) { %>
@@ -941,15 +895,19 @@
         <!-- Backup -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
           <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">🗄️ Datenbank-Backup</h2>
-          <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <%
+            const _backupEmail = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
+            const _smtpUser    = process.env.SMTP_USER    || firma.smtp_user         || '';
+          %>
+          <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
             <div class="flex-1 text-sm text-slate-500 dark:text-slate-400">
-              <% if (!process.env.BACKUP_EMAIL || !process.env.SMTP_USER) { %>
+              <% if (!_backupEmail || !_smtpUser) { %>
                 <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 rounded-lg px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
                   ⚠️ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> nicht gesetzt – Backup deaktiviert.
                 </div>
               <% } else { %>
                 <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 rounded-lg px-4 py-2.5 text-xs text-green-800 dark:text-green-300">
-                  ✅ Backup täglich um Mitternacht → <strong><%= process.env.BACKUP_EMAIL %></strong>
+                  ✅ Backup täglich um Mitternacht → <strong><%= _backupEmail %></strong>
                 </div>
               <% } %>
             </div>
@@ -961,6 +919,55 @@
               </button>
             </form>
           </div>
+
+          <!-- SMTP & Backup konfigurieren -->
+          <form action="/admin/panel/notifications" method="POST" class="space-y-4 border-t dark:border-slate-700 pt-4">
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">✉️ E-Mail / SMTP konfigurieren</p>
+            <% if (process.env.SMTP_USER) { %>
+              <div class="bg-slate-50 dark:bg-slate-700/30 rounded-lg px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+                ℹ️ SMTP ist per Umgebungsvariable gesetzt – Änderungen hier haben keine Wirkung, solange <code>SMTP_USER</code> in der <code>.env</code> gesetzt ist.
+              </div>
+            <% } %>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Backup-E-Mail <span class="text-slate-400">(Empfänger)</span></label>
+                <input type="email" name="smtp_backup_email" value="<%= firma.smtp_backup_email || '' %>"
+                  placeholder="chef@meine-firma.de"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Host</label>
+                <input type="text" name="smtp_host" value="<%= firma.smtp_host || '' %>"
+                  placeholder="smtp.gmail.com"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Port</label>
+                <input type="number" name="smtp_port" value="<%= firma.smtp_port || '587' %>"
+                  placeholder="587"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Benutzername <span class="text-slate-400">(Absender)</span></label>
+                <input type="email" name="smtp_user" value="<%= firma.smtp_user || '' %>"
+                  placeholder="absender@gmail.com"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Passwort <span class="text-slate-400">(App-Passwort)</span></label>
+                <input type="password" name="smtp_pass" value="<%= firma.smtp_pass || '' %>"
+                  placeholder="Leer lassen um nicht zu ändern"
+                  autocomplete="new-password"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-slate-400 mt-1">Leer lassen, um das gespeicherte Passwort beizubehalten.</p>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+                💾 E-Mail-Einstellungen speichern
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- Quick-Links -->

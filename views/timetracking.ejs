@@ -26,6 +26,7 @@ const ACTIVE_PROJECT_ID = <%- JSON.stringify(typeof activeProjectId !== 'undefin
 <!-- ================================================ -->
 <!-- GEO-FENCING BANNER (wird per JS ein-/ausgeblendet) -->
 <!-- ================================================ -->
+<% const _ss = typeof stampSettings !== 'undefined' ? stampSettings : { allowProject:true, allowNote:true, allowSwitch:true, geofence:true }; %>
 <div id="geofence-banner" class="hidden rounded-xl border-2 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 p-4 shadow-sm">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
     <div class="space-y-1">
@@ -79,6 +80,7 @@ Ausgestempelt
 <input type="hidden" name="latitude" id="latitude">
 <input type="hidden" name="longitude" id="longitude">
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<% if (_ss.allowProject) { %>
 <div>
 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Baustelle / Projekt</label>
 <select name="project_id" id="project-select" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500">
@@ -93,10 +95,15 @@ Ausgestempelt
 <% } %>
 </select>
 </div>
+<% } else { %>
+<input type="hidden" name="project_id" value="">
+<% } %>
+<% if (_ss.allowNote) { %>
 <div>
 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tätigkeit / Notiz (optional)</label>
 <input type="text" name="note" id="note-input" placeholder="z.B. Stahlgeländer Montage" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
 </div>
+<% } %>
 </div>
 <div class="flex flex-col sm:flex-row gap-3 pt-2">
 <% if (!isStampedIn) { %>
@@ -107,9 +114,11 @@ Ausgestempelt
 <button type="submit" name="type" value="OUT" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded shadow transition flex-1 text-center">
 🔴 Ausstempeln (Feierabend / Pause)
 </button>
+<% if (_ss.allowSwitch && _ss.allowProject) { %>
 <button type="button" onclick="showSwitchPanel()" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-3 rounded shadow transition flex-1 text-center">
 🔄 Baustelle wechseln
 </button>
+<% } %>
 <% } %>
 </div>
 <p id="gps-status" class="text-xs text-slate-400 italic">GPS-Standort wird ermittelt...</p>

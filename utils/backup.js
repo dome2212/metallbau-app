@@ -22,31 +22,36 @@ const { getFirma } = require('./companySettings');
 const isPg = !!process.env.DATABASE_URL;
 
 // ── Transporter ──────────────────────────────────────────────────────────────
-function getTransporter() {
+async function getTransporter() {
+  const firma = await getFirma().catch(() => ({}));
+  const host  = process.env.SMTP_HOST || firma.smtp_host || 'smtp.gmail.com';
+  const port  = parseInt(process.env.SMTP_PORT || firma.smtp_port || '587', 10);
+  const user  = process.env.SMTP_USER || firma.smtp_user || '';
+  const pass  = process.env.SMTP_PASS || firma.smtp_pass || '';
   return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST || 'smtp.gmail.com',
-    port:   parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_PORT === '465',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
   });
 }
 
 // ── Backup erstellen & versenden ─────────────────────────────────────────────
 async function runBackup() {
-  const to = process.env.BACKUP_EMAIL;
+  const firma = await getFirma().catch(() => ({}));
+  const to    = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
   if (!to) {
     console.log('[Backup] BACKUP_EMAIL nicht gesetzt – Backup übersprungen.');
     return;
   }
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  const smtpUser = process.env.SMTP_USER || firma.smtp_user || '';
+  const smtpPass = process.env.SMTP_PASS || firma.smtp_pass || '';
+  if (!smtpUser || !smtpPass) {
     console.log('[Backup] SMTP nicht konfiguriert – Backup übersprungen.');
     return;
   }
 
-  const firma    = await getFirma().catch(() => ({ name: 'Metallbau' }));
+  const firmaInfo = firma.name ? firma : await getFirma().catch(() => ({ name: 'Metallbau' }));
   const dateStr  = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
   const timeStr  = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }).replace(':', '-');
   const filename = `backup_${dateStr}_${timeStr}`;
@@ -76,13 +81,13 @@ async function runBackup() {
     }
 
     // ── E-Mail versenden ─────────────────────────────────────────────────────
-    const transporter = getTransporter();
+    const transporter = await getTransporter();
     const fileSize    = (fs.statSync(attachmentPath).size / 1024).toFixed(1);
 
     await transporter.sendMail({
-      from:    `"${firma.name} Backup" <${process.env.SMTP_USER}>`,
+      from:    `"${firmaInfo.name} Backup" <${smtpUser}>`,
       to,
-      subject: `🗄️ Datenbank-Backup ${dateStr} – ${firma.nameKurz || firma.name}`,
+      subject: `🗄️ Datenbank-Backup ${dateStr} – ${firmaInfo.nameKurz || firmaInfo.name}`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:500px;color:#1f2328">
           <h2 style="color:#3b82d4">🗄️ Automatisches Datenbank-Backup</h2>
@@ -90,7 +95,7 @@ async function runBackup() {
           <table style="border-collapse:collapse;width:100%;margin:16px 0">
             <tr style="background:#f7f8fa">
               <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Firma</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${firma.name}</td>
+              <td style="padding:8px 12px;border:1px solid #e5e7eb">${firmaInfo.name}</td>
             </tr>
             <tr>
               <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Datum</td>
@@ -125,11 +130,11 @@ async function runBackup() {
     console.error('[Backup] ❌ Fehler beim Backup:', err.message);
     // Fehler-E-Mail an Admin schicken
     try {
-      const transporter = getTransporter();
+      const transporter = await getTransporter();
       await transporter.sendMail({
-        from:    `"${firma.name} Backup" <${process.env.SMTP_USER}>`,
+        from:    `"${firmaInfo.name} Backup" <${smtpUser}>`,
         to,
-        subject: `❌ Backup FEHLGESCHLAGEN ${dateStr} – ${firma.nameKurz || firma.name}`,
+        subject: `❌ Backup FEHLGESCHLAGEN ${dateStr} – ${firmaInfo.nameKurz || firmaInfo.name}`,
         text:    `Das automatische Backup ist fehlgeschlagen:\n\n${err.message}`,
       });
     } catch (_) {}
