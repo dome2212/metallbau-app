@@ -30,7 +30,7 @@
                 <th class="p-4">Angebots-Nr.</th>
                 <th class="p-4">Datum</th>
                 <th class="p-4">Kunde</th>
-                <th class="p-4">Betrag (Brutto)</th>
+                <% if (canSeeMoney) { %><th class="p-4">Betrag (Brutto)</th><% } %>
                 <th class="p-4">Status</th>
                 <th class="p-4 text-right">Aktionen</th>
               </tr>
@@ -42,7 +42,9 @@
                     <td class="py-3 px-4 font-semibold text-gray-800 dark:text-gray-100">📋 <%= offer.doc_number %></td>
                     <td class="py-3 px-4 text-gray-600 dark:text-gray-400"><%= new Date(offer.created_at).toLocaleDateString('de-DE') %></td>
                     <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-medium"><%= offer.company_name || offer.contact_person || 'Privat' %></td>
-                    <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-semibold"><%= parseFloat(offer.total_amount || 0).toFixed(2) %> €</td>
+                    <% if (canSeeMoney) { %>
+                      <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-semibold"><%= parseFloat(offer.total_amount || 0).toFixed(2) %> €</td>
+                    <% } %>
                     
                     <!-- STATUS ANZEIGE -->
                     <td class="py-3 px-4">
@@ -88,7 +90,7 @@
                 <% }); %>
               <% } else { %>
                 <tr>
-                  <td colspan="6" class="text-center text-gray-400 dark:text-slate-500 py-8">Keine Angebote vorhanden.</td>
+                  <td colspan="<%= canSeeMoney ? 6 : 5 %>" class="text-center text-gray-400 dark:text-slate-500 py-8">Keine Angebote vorhanden.</td>
                 </tr>
               <% } %>
             </tbody>

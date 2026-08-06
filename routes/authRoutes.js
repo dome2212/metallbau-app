@@ -6,22 +6,21 @@ const crypto = require('crypto');
 const { JWT_SECRET, verifyToken } = require('../middleware/auth');
 const { dbQuery } = require('../utils/db');
 
-// Initialen Admin-User anlegen, falls noch keiner existiert
+// Initialen Chef-User anlegen, falls noch keiner existiert
 async function createDefaultAdmin() {
   try {
     const result = await dbQuery(`SELECT id FROM users WHERE username = 'admin'`);
     const user = result.rows[0];
 
     if (!user) {
-      // Zufälliges, sicheres Passwort statt hartkodiertem Wert
-      const tempPassword = crypto.randomBytes(9).toString('base64url'); // z.B. "kX9pQ2m..."
+      const tempPassword = crypto.randomBytes(9).toString('base64url');
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
       await dbQuery(
-        `INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'ADMIN')`,
+        `INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'CHEF')`,
         ['admin', hashedPassword]
       );
       console.log('==========================================');
-      console.log('🔑 Standard-Admin angelegt!');
+      console.log('🔑 Standard-Chef angelegt!');
       console.log('   User: admin');
       console.log('   PW:   ' + tempPassword);
       console.log('   ⚠️  Bitte SOFORT nach dem ersten Login ändern!');

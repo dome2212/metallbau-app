@@ -29,7 +29,8 @@ router.post('/users/add', requireAdmin, async (req, res) => {
   const { username, password, role, whatsapp_phone } = req.body;
   if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const userRole = role === 'ADMIN' ? 'ADMIN' : 'EMPLOYEE';
+  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const userRole = allowedRoles.includes(role) ? role : 'EMPLOYEE';
   const phone    = (whatsapp_phone || '').trim() || null;
   try {
     await dbQuery(

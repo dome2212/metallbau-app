@@ -66,14 +66,16 @@
                   <th class="p-3">Beschreibung (Material / Arbeitszeit)</th>
                   <th class="p-3 text-center w-24">Menge</th>
                   <th class="p-3 text-center w-24">Einheit</th>
-                  <th class="p-3 text-end w-28">Einzelpreis</th>
-                  <th class="p-3 text-end w-28">Gesamt</th>
+                  <% if (canSeeMoney) { %>
+                    <th class="p-3 text-end w-28">Einzelpreis</th>
+                    <th class="p-3 text-end w-28">Gesamt</th>
+                  <% } %>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
                 <% if (items.length === 0) { %>
                   <tr>
-                    <td colspan="5" class="text-center text-gray-400 dark:text-slate-500 py-6 text-xs">Keine Positionen hinterlegt.</td>
+                    <td colspan="<%= canSeeMoney ? 5 : 3 %>" class="text-center text-gray-400 dark:text-slate-500 py-6 text-xs">Keine Positionen hinterlegt.</td>
                   </tr>
                 <% } else { %>
                   <% items.forEach(item => { %>
@@ -81,18 +83,22 @@
                       <td class="p-3 text-gray-800 dark:text-gray-100"><%= item.description %></td>
                       <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.quantity %></td>
                       <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.unit %></td>
-                      <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= (item.price || 0).toFixed(2) %> €</td>
-                      <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
+                      <% if (canSeeMoney) { %>
+                        <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= (item.price || 0).toFixed(2) %> €</td>
+                        <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
+                      <% } %>
                     </tr>
                   <% }) %>
                 <% } %>
               </tbody>
+              <% if (canSeeMoney) { %>
               <tfoot class="bg-gray-50 dark:bg-slate-700 border-t dark:border-slate-600">
                 <tr>
                   <td colspan="4" class="p-3 text-end font-bold text-gray-800 dark:text-gray-100 text-sm">Gesamtbetrag (Brutto):</td>
                   <td class="p-3 text-end font-bold text-emerald-600 text-base"><%= (invoice.total_amount || 0).toFixed(2) %> €</td>
                 </tr>
               </tfoot>
+              <% } %>
             </table>
           </div>
         </div>

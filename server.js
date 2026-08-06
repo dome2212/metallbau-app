@@ -183,12 +183,15 @@ app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
 const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
+const { canSeeMoney: _canSeeMoney } = require('./middleware/auth');
 app.use(async (req, res, next) => {
   try {
     res.locals.firma = await _getFirmaLocals();
   } catch (_) {
     res.locals.firma = require('./utils/companySettings').DEFAULTS;
   }
+  // canSeeMoney als Helper für alle EJS-Views verfügbar machen
+  res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user) : false;
   next();
 });
 

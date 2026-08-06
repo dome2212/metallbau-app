@@ -27,7 +27,12 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Auftragssumme (€)</label>
-              <input type="text" name="total_price" placeholder="0.00" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
+              <% if (canSeeMoney) { %>
+                <input type="text" name="total_price" placeholder="0.00" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
+              <% } else { %>
+                <input type="hidden" name="total_price" value="0">
+                <div class="w-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-400 rounded p-2 text-sm italic">Nur für Chef sichtbar</div>
+              <% } %>
             </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Beschreibung / Details</label>
