@@ -99,10 +99,6 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS driving_license TEXT`).catch
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 
-// ── Rollen-Migration: bestehende ADMIN-Accounts → CHEF ──────────────────────
-// Einmalig beim Start – damit alle bestehenden "ADMIN"-User die neue CHEF-Rolle bekommen.
-dbQuery(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`).catch(() => {});
-
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
 dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
