@@ -87,40 +87,68 @@ router.get('/logout', (req, res) => {
 // ==========================================
 // PROFIL – Passwort selbst ändern
 // ==========================================
-router.get('/profile', verifyToken, (req, res) => {
-  res.render('profile', { error: null, success: null });
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const result = await dbQuery(
+      'SELECT id, username, role, phone, qualifications, driving_license, notes FROM users WHERE id = ?',
+      [req.user.id]
+    );
+    const fullUser = result.rows[0] || req.user;
+    res.render('profile', { error: null, success: req.query.saved ? 'Profil erfolgreich gespeichert.' : null, currentUser: { ...req.user, ...fullUser } });
+  } catch (err) {
+    res.render('profile', { error: null, success: null });
+  }
 });
 
 router.post('/profile/change-password', verifyToken, async (req, res) => {
   const { current_password, new_password, confirm_password } = req.body;
 
   if (!current_password || !new_password || !confirm_password) {
-    return res.render('profile', { error: 'Alle Felder sind Pflichtfelder.', success: null });
+    return res.render('profile', { error: 'Alle Felder sind Pflichtfelder.', success: null, currentUser: req.user });
   }
   if (new_password.length < 6) {
-    return res.render('profile', { error: 'Das neue Passwort muss mindestens 6 Zeichen haben.', success: null });
+    return res.render('profile', { error: 'Das neue Passwort muss mindestens 6 Zeichen haben.', success: null, currentUser: req.user });
   }
   if (new_password !== confirm_password) {
-    return res.render('profile', { error: 'Die neuen Passwörter stimmen nicht überein.', success: null });
+    return res.render('profile', { error: 'Die neuen Passwörter stimmen nicht überein.', success: null, currentUser: req.user });
   }
 
   try {
     const result = await dbQuery('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
     const user = result.rows[0];
-    if (!user) return res.render('profile', { error: 'Benutzer nicht gefunden.', success: null });
+    if (!user) return res.render('profile', { error: 'Benutzer nicht gefunden.', success: null, currentUser: req.user });
 
     const valid = await bcrypt.compare(current_password, user.password_hash);
     if (!valid) {
-      return res.render('profile', { error: 'Das aktuelle Passwort ist falsch.', success: null });
+      return res.render('profile', { error: 'Das aktuelle Passwort ist falsch.', success: null, currentUser: req.user });
     }
 
     const hashed = await bcrypt.hash(new_password, 10);
     await dbQuery('UPDATE users SET password_hash = ? WHERE id = ?', [hashed, req.user.id]);
 
-    res.render('profile', { error: null, success: 'Passwort erfolgreich geändert.' });
+    res.render('profile', { error: null, success: 'Passwort erfolgreich geändert.', currentUser: req.user });
   } catch (err) {
     console.error('Fehler beim Passwort ändern:', err.message);
-    res.render('profile', { error: 'Serverfehler. Bitte erneut versuchen.', success: null });
+    res.render('profile', { error: 'Serverfehler. Bitte erneut versuchen.', success: null, currentUser: req.user });
+  }
+});
+
+router.post('/profile/update', verifyToken, async (req, res) => {
+  const { phone, qualifications, driving_license } = req.body;
+  try {
+    await dbQuery(
+      'UPDATE users SET phone = ?, qualifications = ?, driving_license = ? WHERE id = ?',
+      [
+        (phone || '').trim() || null,
+        (qualifications || '').trim() || null,
+        (driving_license || '').trim() || null,
+        req.user.id
+      ]
+    );
+    res.redirect('/profile?saved=1');
+  } catch (err) {
+    console.error('Fehler beim Profil speichern:', err.message);
+    res.redirect('/profile');
   }
 });
 

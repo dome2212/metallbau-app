@@ -1,0 +1,213 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+
+    <!-- Page Header -->
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📊 Auswertungen & Berichte</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Übersicht über Auftragsstatus, Umsätze und Kunden</p>
+      </div>
+    </header>
+
+    <div class="px-4 md:px-6 max-w-7xl mx-auto w-full space-y-8 pb-10">
+
+      <!-- ================================================================ -->
+      <!-- SECTION 1: AUFTRAGSSTATUS-ÜBERSICHT                              -->
+      <!-- ================================================================ -->
+      <section>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">🏗️ Auftragsstatus-Übersicht</h2>
+
+        <%
+          const statusDef = [
+            { key: 'In Planung',         badge: 'bg-slate-100 text-slate-700',    bar: '#94a3b8' },
+            { key: 'Avor / Vorbereitung',badge: 'bg-blue-100 text-blue-800',      bar: '#60a5fa' },
+            { key: 'In Produktion',      badge: 'bg-amber-100 text-amber-800',    bar: '#fbbf24' },
+            { key: 'Oberfläche',         badge: 'bg-purple-100 text-purple-800',  bar: '#a78bfa' },
+            { key: 'Montagebereit',      badge: 'bg-emerald-100 text-emerald-800',bar: '#34d399' },
+            { key: 'Montage läuft',      badge: 'bg-orange-100 text-orange-800',  bar: '#f97316' },
+            { key: 'Abgeschlossen',      badge: 'bg-green-100 text-green-800',    bar: '#22c55e' },
+          ];
+
+          // Build a lookup from DB results
+          const statMap = {};
+          if (typeof projectStats !== 'undefined') {
+            projectStats.forEach(r => { statMap[r.status] = parseInt(r.count, 10) || 0; });
+          }
+
+          // Merge: include all DB statuses, enriched by statusDef colors
+          const allStatuses = [];
+          statusDef.forEach(sd => {
+            allStatuses.push({ key: sd.key, badge: sd.badge, bar: sd.bar, count: statMap[sd.key] || 0 });
+          });
+          // Any DB status not in statusDef gets a default style
+          Object.keys(statMap).forEach(s => {
+            if (!statusDef.find(sd => sd.key === s)) {
+              allStatuses.push({ key: s, badge: 'bg-gray-100 text-gray-700', bar: '#9ca3af', count: statMap[s] });
+            }
+          });
+
+          const totalProjects = allStatuses.reduce((sum, s) => sum + s.count, 0);
+          const maxStatusCount = allStatuses.reduce((m, s) => Math.max(m, s.count), 1);
+        %>
+
+        <!-- Count Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+          <% allStatuses.forEach(s => { %>
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-3 flex flex-col items-center text-center gap-1">
+              <span class="text-2xl font-bold text-slate-800 dark:text-white"><%= s.count %></span>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full <%= s.badge %>"><%= s.key %></span>
+            </div>
+          <% }); %>
+        </div>
+
+        <!-- SVG Bar Chart -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 overflow-x-auto">
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Aufträge nach Status</p>
+          <%
+            const svgBarW  = 52;
+            const svgGap   = 12;
+            const svgMaxH  = 120;
+            const svgPadL  = 40;
+            const svgPadB  = 48;
+            const svgH     = svgMaxH + svgPadB + 10;
+            const visStats = allStatuses.filter(s => s.count > 0);
+            const svgW     = svgPadL + visStats.length * (svgBarW + svgGap) + svgGap;
+          %>
+          <svg width="<%= svgW %>" height="<%= svgH %>" style="min-width:<%= svgW %>px">
+            <!-- Y-axis label -->
+            <text x="4" y="<%= svgMaxH / 2 + 10 %>" font-size="10" fill="#94a3b8" text-anchor="middle" transform="rotate(-90,4,<%= svgMaxH / 2 + 10 %>)">Anzahl</text>
+            <% visStats.forEach((s, i) => {
+              const barH = Math.max(4, Math.round((s.count / maxStatusCount) * svgMaxH));
+              const x    = svgPadL + i * (svgBarW + svgGap);
+              const y    = svgMaxH - barH;
+              const labelY = svgMaxH + 14;
+            %>
+              <!-- Bar -->
+              <rect x="<%= x %>" y="<%= y %>" width="<%= svgBarW %>" height="<%= barH %>"
+                    fill="<%= s.bar %>" rx="4"/>
+              <!-- Count above bar -->
+              <text x="<%= x + svgBarW / 2 %>" y="<%= y - 4 %>" font-size="11" fill="#64748b" text-anchor="middle" font-weight="600"><%= s.count %></text>
+              <!-- Label below bar (two lines if long) -->
+              <%
+                const words = s.key.split(' ');
+                const line1 = words.slice(0, 2).join(' ');
+                const line2 = words.slice(2).join(' ');
+              %>
+              <text x="<%= x + svgBarW / 2 %>" y="<%= labelY %>" font-size="9" fill="#94a3b8" text-anchor="middle"><%= line1 %></text>
+              <% if (line2) { %>
+              <text x="<%= x + svgBarW / 2 %>" y="<%= labelY + 12 %>" font-size="9" fill="#94a3b8" text-anchor="middle"><%= line2 %></text>
+              <% } %>
+            <% }); %>
+          </svg>
+          <p class="text-xs text-slate-400 mt-3">Gesamt: <strong class="text-slate-700 dark:text-slate-200"><%= totalProjects %></strong> Aufträge</p>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- SECTION 2: UMSATZ PRO MONAT (nur wenn canSeeMoney)              -->
+      <!-- ================================================================ -->
+      <% if (typeof canSeeMoney !== 'undefined' && canSeeMoney) { %>
+      <section>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">💶 Umsatz pro Monat (letzte 12 Monate)</h2>
+
+        <% if (typeof monthlyRevenue !== 'undefined' && monthlyRevenue.length > 0) { %>
+          <%
+            const revMax  = monthlyRevenue.reduce((m, r) => Math.max(m, parseFloat(r.total) || 0), 1);
+            const revBarW = 52;
+            const revGap  = 14;
+            const revMaxH = 120;
+            const revPadL = 60;
+            const revPadB = 36;
+            const revH    = revMaxH + revPadB + 10;
+            const revW    = revPadL + monthlyRevenue.length * (revBarW + revGap) + revGap;
+          %>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 overflow-x-auto">
+            <svg width="<%= revW %>" height="<%= revH %>" style="min-width:<%= revW %>px">
+              <!-- Y-axis label -->
+              <text x="8" y="<%= revMaxH / 2 + 10 %>" font-size="10" fill="#94a3b8" text-anchor="middle" transform="rotate(-90,8,<%= revMaxH / 2 + 10 %>)">€</text>
+              <% monthlyRevenue.forEach((r, i) => {
+                const val  = parseFloat(r.total) || 0;
+                const barH = Math.max(4, Math.round((val / revMax) * revMaxH));
+                const x    = revPadL + i * (revBarW + revGap);
+                const y    = revMaxH - barH;
+              %>
+                <rect x="<%= x %>" y="<%= y %>" width="<%= revBarW %>" height="<%= barH %>"
+                      fill="#3b82f6" rx="4" opacity="0.85"/>
+                <!-- Amount above bar -->
+                <text x="<%= x + revBarW / 2 %>" y="<%= y - 4 %>" font-size="9" fill="#64748b" text-anchor="middle">
+                  <%= val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(0) %>
+                </text>
+                <!-- Month label -->
+                <text x="<%= x + revBarW / 2 %>" y="<%= revMaxH + 14 %>" font-size="9" fill="#94a3b8" text-anchor="middle"><%= r.month %></text>
+              <% }); %>
+            </svg>
+            <p class="text-xs text-slate-400 mt-3">
+              Gesamt: <strong class="text-slate-700 dark:text-slate-200">
+                <%= new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+                  monthlyRevenue.reduce((s, r) => s + (parseFloat(r.total) || 0), 0)
+                ) %>
+              </strong> bezahlte Rechnungen
+            </p>
+          </div>
+        <% } else { %>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-6 text-center text-slate-400 text-sm">
+            Keine bezahlten Rechnungen in den letzten 12 Monaten gefunden.
+          </div>
+        <% } %>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- SECTION 3: UMSATZ PRO KUNDE (nur wenn canSeeMoney)             -->
+      <!-- ================================================================ -->
+      <section>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">👤 Top 10 Kunden nach Umsatz</h2>
+
+        <% if (typeof topCustomers !== 'undefined' && topCustomers.length > 0) { %>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse min-w-[500px]">
+                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600 text-xs text-slate-500 dark:text-slate-400 uppercase">
+                  <tr>
+                    <th class="px-4 py-3">#</th>
+                    <th class="px-4 py-3">Firma / Kunde</th>
+                    <th class="px-4 py-3">Ansprechpartner</th>
+                    <th class="px-4 py-3 text-right">Umsatz (bezahlt)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                  <% topCustomers.forEach((c, i) => { %>
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                      <td class="px-4 py-3 text-slate-400 font-mono text-xs"><%= i + 1 %></td>
+                      <td class="px-4 py-3 font-semibold text-slate-800 dark:text-gray-100">
+                        <%= c.company_name || '–' %>
+                      </td>
+                      <td class="px-4 py-3 text-slate-500 dark:text-slate-400"><%= c.contact_person || '–' %></td>
+                      <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                        <%= new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(parseFloat(c.total) || 0) %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        <% } else { %>
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-6 text-center text-slate-400 text-sm">
+            Keine Kundendaten mit bezahlten Rechnungen gefunden.
+          </div>
+        <% } %>
+      </section>
+      <% } else { %>
+        <!-- Revenue sections hidden for non-money users -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-6 text-center text-slate-400 text-sm">
+          🔒 Umsatz-Auswertungen sind nur für den Chef sichtbar.
+        </div>
+      <% } %>
+
+    </div>
+  </main>
+</div>

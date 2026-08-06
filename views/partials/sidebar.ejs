@@ -111,6 +111,9 @@
         <% if (_show('company_settings')) { %>
         <a href="/admin/company-settings" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏢 Firmendaten</a>
         <% } %>
+        <% if (_show('reports')) { %>
+        <a href="/reports" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📊 Berichte & Auswertungen</a>
+        <% } %>
         <a href="/admin/panel" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-yellow-400 text-sm font-semibold">⚙️ Admin-Panel</a>
       <% } %>
     </nav>
@@ -221,6 +224,7 @@
     { key: 'documents',         label: '📋 Angebote & Rechnungen (Admin)' },
     { key: 'articles',          label: '📦 Artikelstamm (Admin)' },
     { key: 'company_settings',  label: '🏢 Firmendaten (Admin)' },
+    { key: 'reports',           label: '📊 Berichte & Auswertungen (Admin)' },
   ];
 
   function getSidebarHidden() {

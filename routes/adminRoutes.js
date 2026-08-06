@@ -301,6 +301,127 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
+// MONATLICHER ÜBERSTUNDEN-BERICHT (PDF)
+// ==========================================
+router.get('/timetracking/overtime-pdf', requireAdmin, async (req, res) => {
+  const { month, user_id } = req.query;
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).send('Bitte einen gültigen Monat im Format YYYY-MM angeben.');
+  }
+  try {
+    const tsCol = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const monthFilter = isPg
+      ? `to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?`
+      : `strftime('%Y-%m', time_logs.timestamp) = ?`;
+
+    // Workdays in the given month (Mon–Fri)
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const targetHoursPerUser = workdaysInMonth * 8;
+
+    // Fetch users to report on
+    let users;
+    if (user_id) {
+      const uRes = await dbQuery('SELECT id, username FROM users WHERE id = ?', [user_id]);
+      users = uRes.rows || [];
+    } else {
+      const uRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
+      users = uRes.rows || [];
+    }
+
+    // For each user calculate worked hours
+    const rows = [];
+    for (const u of users) {
+      const logsRes = await dbQuery(
+        `SELECT ${tsCol} as local_timestamp, type FROM time_logs WHERE user_id = ? AND ${monthFilter} ORDER BY time_logs.timestamp ASC`,
+        [u.id, month]
+      );
+      const entries = (logsRes.rows || []).map(e => ({ ...e, timestamp: e.local_timestamp || e.timestamp }));
+      let workedMs = 0;
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i].type !== 'IN') continue;
+        const start = new Date(entries[i].timestamp).getTime();
+        const next  = entries[i + 1];
+        if (next && next.type === 'OUT') {
+          const end = new Date(next.timestamp).getTime();
+          if (end > start) workedMs += (end - start);
+        }
+      }
+      const workedHours   = workedMs / 3600000;
+      const overtimeHours = workedHours - targetHoursPerUser;
+      rows.push({ username: u.username, target: targetHoursPerUser, worked: workedHours, overtime: overtimeHours });
+    }
+
+    if (!PDFKit) return res.status(500).send('PDF-Generator nicht geladen.');
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Ueberstunden_${month}.pdf`);
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(18).font('Helvetica-Bold').text(`Überstunden-Bericht ${month}`, { align: 'left' });
+    doc.fontSize(9).font('Helvetica').text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
+    doc.moveDown(1.5);
+
+    // Table header
+    const col1 = 50, col2 = 230, col3 = 320, col4 = 410;
+    doc.fontSize(10).font('Helvetica-Bold');
+    const hY = doc.y;
+    doc.text('Mitarbeiter',     col1, hY, { width: 175 });
+    doc.text('Soll-Std.',       col2, hY, { width: 85 });
+    doc.text('Ist-Std.',        col3, hY, { width: 85 });
+    doc.text('Überstunden',     col4, hY, { width: 120 });
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(0.8);
+
+    doc.font('Helvetica').fontSize(9);
+    let totalWorked = 0;
+    let totalTarget = 0;
+    for (const row of rows) {
+      if (doc.y > 750) doc.addPage();
+      const rY      = doc.y;
+      const otSign  = row.overtime >= 0 ? '+' : '';
+      totalWorked += row.worked;
+      totalTarget += row.target;
+      doc.text(row.username,                              col1, rY, { width: 175, lineBreak: false });
+      doc.text(row.target.toFixed(2) + ' h',             col2, rY, { width: 85,  lineBreak: false });
+      doc.text(row.worked.toFixed(2) + ' h',             col3, rY, { width: 85,  lineBreak: false });
+      doc.text(otSign + row.overtime.toFixed(2) + ' h',  col4, rY, { width: 120 });
+      doc.moveDown(1.2);
+    }
+
+    // Summary row
+    if (rows.length > 1) {
+      doc.moveDown(0.3);
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.5);
+      const sY       = doc.y;
+      const totOt    = totalWorked - totalTarget;
+      const totSign  = totOt >= 0 ? '+' : '';
+      doc.font('Helvetica-Bold').fontSize(9);
+      doc.text('Gesamt',                                   col1, sY, { width: 175, lineBreak: false });
+      doc.text(totalTarget.toFixed(2) + ' h',             col2, sY, { width: 85,  lineBreak: false });
+      doc.text(totalWorked.toFixed(2) + ' h',             col3, sY, { width: 85,  lineBreak: false });
+      doc.text(totSign + totOt.toFixed(2) + ' h',         col4, sY, { width: 120 });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim Überstunden-PDF:', err.message);
+    res.status(500).send('Fehler beim Generieren der PDF.');
+  }
+});
+
+// ==========================================
 // SCHWARZES BRETT (TICKER)
 // ==========================================
 router.post('/add', requireAdmin, async (req, res) => {

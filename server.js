@@ -61,6 +61,8 @@ dbQuery(`CREATE TABLE IF NOT EXISTS project_notes (id SERIAL PRIMARY KEY, projec
 dbQuery(`ALTER TABLE project_notes ADD COLUMN IF NOT EXISTS audio_url TEXT`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS vacations (id SERIAL PRIMARY KEY, user_id INT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, reason TEXT, type TEXT DEFAULT 'Urlaub', file_url TEXT, status TEXT DEFAULT 'Beantragt', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS project_tasks (id SERIAL PRIMARY KEY, project_id INT NOT NULL, title TEXT NOT NULL, description TEXT, category TEXT DEFAULT 'Restarbeit', status TEXT DEFAULT 'Offen', photo_url TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS due_date TEXT`).catch(() => {})
+dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS assigned_to INT`).catch(() => {})
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
@@ -91,6 +93,10 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAU
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS qualifications TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS driving_license TEXT`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 
 // ── Rollen-Migration: bestehende ADMIN-Accounts → CHEF ──────────────────────
@@ -126,6 +132,7 @@ const vacationRoutes     = require('./routes/vacationRoutes');
 const adminRoutes              = require('./routes/adminRoutes');
 const articleRoutes            = require('./routes/articleRoutes');
 const companySettingsRoutes    = require('./routes/companySettingsRoutes');
+const reportsRoutes            = require('./routes/reportsRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
 
 const app  = express();
@@ -230,6 +237,9 @@ app.use('/ticker',  adminRoutes);
 
 // Artikel-Stamm
 app.use('/articles', articleRoutes);
+
+// Berichte & Auswertungen
+app.use('/reports', reportsRoutes);
 
 // ==========================================
 // TREPPEN- & GELÄNDER-AUFMASS

@@ -13,6 +13,41 @@
 
     <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-6">
 
+      <!-- SCHNELL-STEMPEL WIDGET (nur für Mitarbeiter) -->
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-5 mb-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              ⏱️ Status:
+              <span class="<%= stats.isStampedIn ? 'text-green-600' : 'text-slate-500' %> font-bold">
+                <%= stats.isStampedIn ? '🟢 Eingestempelt' : '⚪ Nicht eingestempelt' %>
+              </span>
+            </p>
+            <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">wird geladen…</strong></p>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <% if (!stats.isStampedIn) { %>
+              <form action="/timetracking/stamp" method="POST">
+                <input type="hidden" name="type" value="IN">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
+                  🟢 Einstempeln
+                </button>
+              </form>
+            <% } else { %>
+              <form action="/timetracking/stamp" method="POST">
+                <input type="hidden" name="type" value="OUT">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
+                  🔴 Ausstempeln
+                </button>
+              </form>
+            <% } %>
+            <a href="/timetracking" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium px-3 py-2.5 rounded-lg transition">
+              Details →
+            </a>
+          </div>
+        </div>
+      </div>
+
       <!-- ═══════════════════════════════════════════════════ -->
       <!-- ÜBERSTUNDEN-AMPEL  (volle Breite)                  -->
       <!-- ═══════════════════════════════════════════════════ -->

@@ -231,13 +231,14 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]),
-      dbQuery('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY created_at DESC', [id])
+      dbQuery(`SELECT project_tasks.*, users.username as assigned_username FROM project_tasks LEFT JOIN users ON project_tasks.assigned_to = users.id WHERE project_tasks.project_id = ? ORDER BY project_tasks.created_at DESC`, [id]),
+      dbQuery('SELECT id, username FROM users ORDER BY username ASC')
     ]);
 
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
@@ -261,7 +262,8 @@ router.get('/:id', async (req, res) => {
       photos:       photosRes.rows       || [],
       measurements: measurementsRes.rows || [],
       notes:        notesRes.rows        || [],
-      tasks:        tasksRes.rows        || []
+      tasks:        tasksRes.rows        || [],
+      users:        usersRes.rows        || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -379,12 +381,12 @@ router.post('/notes/delete', async (req, res) => {
 // ==========================================
 router.post('/:id/tasks/add', upload.single('photo'), async (req, res) => {
   const projectId = req.params.id;
-  const { title, category, description } = req.body;
+  const { title, category, description, due_date, assigned_to } = req.body;
   if (!title || !title.trim()) return res.redirect(`/projects/${projectId}`);
   try {
     await dbQuery(
-      `INSERT INTO project_tasks (project_id, title, description, category, status, photo_url) VALUES (?, ?, ?, ?, 'Offen', ?)`,
-      [projectId, title.trim(), description ? description.trim() : null, category || 'Restarbeit', req.file ? req.file.path : null]
+      `INSERT INTO project_tasks (project_id, title, description, category, status, photo_url, due_date, assigned_to) VALUES (?, ?, ?, ?, 'Offen', ?, ?, ?)`,
+      [projectId, title.trim(), description ? description.trim() : null, category || 'Restarbeit', req.file ? req.file.path : null, due_date || null, assigned_to || null]
     );
   } catch (err) { console.error('Fehler beim Speichern der Aufgabe:', err.message); }
   res.redirect(`/projects/${projectId}`);

@@ -21,6 +21,10 @@
           const hsc = headerStatusColors[project.status] || 'bg-blue-100 text-blue-800';
         %>
         <span class="px-3 py-1 rounded text-sm font-semibold <%= hsc %>"><%= project.status %></span>
+        <button onclick="document.getElementById('qrModal').classList.remove('hidden')"
+          class="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded text-xs font-semibold transition flex items-center gap-1">
+          📱 QR-Code
+        </button>
         <% if (currentUser.role === 'ADMIN') { %>
           <a href="/projects/<%= project.id %>/pdf" target="_blank"
             class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-xs font-semibold transition flex items-center gap-1">
@@ -316,6 +320,19 @@
                 <option value="Bestellung">Nachbestellung</option>
               </select>
             </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Fälligkeit (optional)</label>
+              <input type="date" name="due_date" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Zugewiesen an</label>
+              <select name="assigned_to" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white">
+                <option value="">— Niemand —</option>
+                <% if (typeof users !== 'undefined') { users.forEach(u => { %>
+                  <option value="<%= u.id %>"><%= u.username %></option>
+                <% }) } %>
+              </select>
+            </div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Beschreibung / Details</label>
@@ -351,6 +368,16 @@
                     <% if (task.description) { %>
                       <p class="text-xs text-slate-600 dark:text-slate-300"><%= task.description %></p>
                     <% } %>
+                    <div class="flex flex-wrap gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      <% if (task.due_date) { %>
+                        <span class="<%= new Date(task.due_date) < new Date() && task.status !== 'Erledigt' ? 'text-red-600 font-semibold' : '' %>">
+                          📅 Fällig: <%= new Date(task.due_date).toLocaleDateString('de-DE') %>
+                        </span>
+                      <% } %>
+                      <% if (task.assigned_username) { %>
+                        <span>👤 <%= task.assigned_username %></span>
+                      <% } %>
+                    </div>
                     <% if (task.photo_url) { %>
                       <div class="pt-1">
                         <a href="<%= task.photo_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium inline-flex items-center gap-1">
@@ -1060,6 +1087,49 @@ async function acceptKiChecklist() {
 }
 </script>
 <% } %>
+
+<!-- QR-CODE MODAL -->
+<div id="qrModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-sm w-full p-6 flex flex-col items-center gap-4">
+    <div class="flex justify-between items-center w-full border-b dark:border-slate-700 pb-3">
+      <h3 class="text-base font-bold text-slate-800 dark:text-gray-100">📱 QR-Code – Auftrag</h3>
+      <button onclick="document.getElementById('qrModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400 text-center">Scanne den Code um direkt zu diesem Auftrag zu gelangen.</p>
+    <div id="qrCodeContainer" class="bg-white p-3 rounded-lg border border-slate-200">
+      <canvas id="qrCanvas"></canvas>
+    </div>
+    <p class="text-xs text-slate-400 font-mono break-all text-center" id="qrUrl"></p>
+    <button onclick="downloadQR()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+      💾 QR-Code herunterladen
+    </button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  (function() {
+    const projectUrl = window.location.origin + '/projects/<%= project.id %>';
+    document.getElementById('qrUrl').textContent = projectUrl;
+    let qrGenerated = false;
+    document.querySelector('[onclick*="qrModal"]').addEventListener('click', function() {
+      if (!qrGenerated) {
+        new QRCode(document.getElementById('qrCanvas'), {
+          text: projectUrl, width: 200, height: 200,
+          colorDark: '#1e293b', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        qrGenerated = true;
+      }
+    });
+  })();
+  function downloadQR() {
+    const canvas = document.querySelector('#qrCanvas canvas') || document.getElementById('qrCanvas');
+    const link = document.createElement('a');
+    link.download = 'QR-Auftrag-<%= project.id %>.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+</script>
 
 </body>
 </html>

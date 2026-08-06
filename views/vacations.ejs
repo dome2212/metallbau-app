@@ -66,6 +66,31 @@
         </div>
       </div>
 
+      <!-- Krankmeldung -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">🤒 Krankmeldung einreichen</h2>
+        <form action="/vacations/add" method="POST" enctype="multipart/form-data" class="space-y-4">
+          <input type="hidden" name="type" value="Krank">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Von *</label>
+              <input type="date" name="start_date" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bis *</label>
+              <input type="date" name="end_date" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Krankmeldung (PDF/Foto, optional)</label>
+            <input type="file" name="document" accept="image/*,.pdf" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
+          </div>
+          <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+            🤒 Krankmeldung einreichen
+          </button>
+        </form>
+      </div>
+
       <!-- Layout auf 12 Spalten angepasst für saubere Aufteilung -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
@@ -195,6 +220,66 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Team-Jahresübersicht -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">📅 Team-Urlaubskalender <%= currentYear %></h2>
+        <p class="text-xs text-slate-400 mb-4">Genehmigte Abwesenheiten aller Mitarbeiter auf einen Blick. 🟢 Urlaub · 🔴 Krank · 🟡 Sonstiges</p>
+        <div class="overflow-x-auto">
+          <table class="text-xs border-collapse min-w-max">
+            <thead>
+              <tr>
+                <th class="text-left px-2 py-1.5 font-semibold text-slate-600 dark:text-slate-300 w-32 sticky left-0 bg-white dark:bg-slate-800">Mitarbeiter</th>
+                <% for (let m = 1; m <= 12; m++) { %>
+                  <% const mName = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][m-1]; %>
+                  <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
+                  <% for (let d = 1; d <= daysInM; d++) { %>
+                    <% const dow = new Date(currentYear, m-1, d).getDay(); %>
+                    <th class="px-0 py-1 text-center font-normal <%= dow === 0 || dow === 6 ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500' %> w-4"
+                      title="<%= mName %> <%= d %>"><%= d === 1 ? mName : '' %></th>
+                  <% } %>
+                <% } %>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+              <%
+                const approvedVacs = vacations.filter(v => v.status === 'Genehmigt');
+                const allUsersForCal = currentUser.role === 'ADMIN' ? users : users.filter(u => u.id === currentUser.id);
+              %>
+              <% allUsersForCal.forEach(u => { %>
+                <tr>
+                  <td class="px-2 py-1 font-semibold text-slate-700 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-800 whitespace-nowrap"><%= u.username %></td>
+                  <% for (let m = 1; m <= 12; m++) { %>
+                    <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
+                    <% for (let d = 1; d <= daysInM; d++) { %>
+                      <%
+                        const dateStr = currentYear + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+                        const vac = approvedVacs.find(v => v.user_id === u.id && dateStr >= v.start_date && dateStr <= v.end_date);
+                        const dow = new Date(currentYear, m-1, d).getDay();
+                        let cellBg = '', cellTitle = '';
+                        if (vac) {
+                          if (vac.type === 'Krank') { cellBg = 'bg-red-400 dark:bg-red-600'; cellTitle = 'Krank'; }
+                          else if (vac.type === 'Urlaub') { cellBg = 'bg-emerald-400 dark:bg-emerald-600'; cellTitle = 'Urlaub'; }
+                          else { cellBg = 'bg-amber-400 dark:bg-amber-600'; cellTitle = vac.type; }
+                        } else if (dow === 0 || dow === 6) {
+                          cellBg = 'bg-slate-100 dark:bg-slate-700/50';
+                        }
+                      %>
+                      <td class="w-4 h-5 <%= cellBg %>" title="<%= cellTitle || dateStr %>"></td>
+                    <% } %>
+                  <% } %>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex gap-4 mt-3 text-xs text-slate-500 dark:text-slate-400">
+          <span><span class="inline-block w-3 h-3 rounded bg-emerald-400 mr-1"></span>Urlaub (genehmigt)</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-red-400 mr-1"></span>Krank</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-amber-400 mr-1"></span>Sonstiges</span>
+          <span><span class="inline-block w-3 h-3 rounded bg-slate-100 border mr-1"></span>Wochenende</span>
+        </div>
       </div>
 
     </div>
