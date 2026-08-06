@@ -46,7 +46,7 @@
   <div class="page max-w-4xl mx-auto bg-white rounded-xl shadow-md text-gray-800" style="padding: 48px 56px;">
 
     <!-- ── BRIEFKOPF ──────────────────────────────────────────────────────── -->
-    <div class="flex justify-between items-start pb-7 mb-7 border-b-2 border-blue-600">
+    <div class="flex justify-between items-start pb-7 mb-7 border-b-2" style="border-color:<%= f.pdf_color || '#1e3a5f' %>">
 
       <!-- Links: Logo oder Firmenname -->
       <div class="flex-1 pr-8">
@@ -153,17 +153,15 @@
         <%= docLabel %> Nr. <%= docNr %>
       <% } %>
     </h2>
-    <p class="text-sm text-gray-500 mb-7">
+    <p class="text-sm text-gray-500 mb-7" style="white-space:pre-line;">
       <% if (isDunning) { %>
         Sehr geehrte Damen und Herren,<br>
         trotz unserer Rechnung haben wir bisher keinen Zahlungseingang feststellen können.
         Wir bitten Sie, den ausstehenden Betrag umgehend zu begleichen.
       <% } else if (isOffer) { %>
-        Sehr geehrte Damen und Herren,<br>
-        vielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:
+        <%= (f.pdf_intro_offer || 'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:') %>
       <% } else { %>
-        Sehr geehrte Damen und Herren,<br>
-        wir erlauben uns, folgende Leistungen in Rechnung zu stellen:
+        <%= (f.pdf_intro_invoice || 'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:') %>
       <% } %>
     </p>
 
@@ -234,7 +232,8 @@
         </p>
       <% } else { %>
         <p>
-          Zahlbar innerhalb von <strong><%= f.zahlungsfrist || 14 %> Tagen</strong> ohne Abzug.
+          Zahlbar innerhalb von <strong><%= f.zahlungsfrist || 14 %> Tagen</strong> ohne Abzug
+          per <strong><%= f.default_payment_method || 'Überweisung' %></strong>.
           Bitte geben Sie bei der Überweisung die Rechnungsnummer
           <strong><%= docNr %></strong> als Verwendungszweck an.
         </p>
@@ -260,6 +259,19 @@
           <% if (f.name)     { %><p class="mt-1 text-gray-400"><%= f.name %></p><% } %>
         </div>
       </div>
+
+      <!-- PDF-Fußzeile aus Admin-Panel -->
+      <% if (f.pdf_footer_text) { %>
+        <div class="border-t border-gray-100 pt-3 text-[10px] text-gray-400 text-center" style="white-space:pre-line;"><%= f.pdf_footer_text %></div>
+      <% } %>
+
+      <!-- AGB-Text aus Admin-Panel -->
+      <% if (f.pdf_agb_text) { %>
+        <div class="border-t border-gray-100 pt-4 text-[10px] text-gray-400" style="white-space:pre-line;">
+          <p class="font-semibold text-gray-500 mb-1">Allgemeine Geschäftsbedingungen</p>
+          <%= f.pdf_agb_text %>
+        </div>
+      <% } %>
 
     </div>
   </div><!-- Ende .page -->

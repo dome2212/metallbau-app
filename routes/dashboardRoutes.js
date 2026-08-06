@@ -64,8 +64,10 @@ router.get('/', async (req, res) => {
 
       const monthTotalHours = (totalMilliseconds / 3600000).toFixed(2);
 
-      // Soll-Stunden
-      const dailyHours = 8;
+      // Soll-Stunden aus Firmen-Einstellungen
+      const { getFirma: _getDashFirma } = require('../utils/companySettings');
+      const _dashFirma = await _getDashFirma();
+      const dailyHours = parseFloat(_dashFirma.work_hours_per_day || 8);
       let workdaysSoFar = 0;
       for (let d = 1; d <= now.getDate(); d++) {
         const dow = new Date(curYear, curMonth, d).getDay();
@@ -155,6 +157,8 @@ router.get('/', async (req, res) => {
         dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId])
       ]);
 
+      const { getFirma: _getDashFirma2 } = require('../utils/companySettings');
+      const _dashFirma2 = await _getDashFirma2();
       const fmt = (n) => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
       const stats = {
         openOffersCount:      offerRes.rows[0]?.count ?? 0,
@@ -166,6 +170,11 @@ router.get('/', async (req, res) => {
         overdueInvoicesCount: overdueRes.rows[0]?.count ?? 0,
         overdueInvoicesSum:   fmt(overdueRes.rows[0]?.total),
         openTasksCount:       openTasksRes.rows[0]?.count ?? 0,
+        // KPI-Schwellen aus Admin-Panel
+        kpiOverdueWarn:   parseInt(_dashFirma2.kpi_overdue_warn   || 3),
+        kpiOverdueDanger: parseInt(_dashFirma2.kpi_overdue_danger || 6),
+        kpiTasksWarn:     parseInt(_dashFirma2.kpi_tasks_warn     || 5),
+        kpiTasksDanger:   parseInt(_dashFirma2.kpi_tasks_danger   || 10),
       };
 
       const formattedDocs = (recentDocsRes.rows || []).map(doc => ({

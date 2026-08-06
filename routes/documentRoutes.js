@@ -36,10 +36,13 @@ router.get('/offers', requireAdmin, async (req, res) => {
 router.post('/create-offer', requireAdmin, async (req, res) => {
   const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
   try {
+    const firma    = await getFirma();
+    const prefix   = (firma.offer_prefix || 'ANG').toUpperCase();
+    const taxRate  = parseFloat(firma.default_tax_rate || 19);
     const year     = new Date().getFullYear();
     const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'OFFER'`);
     const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const docNumber = `ANG-${year}-${nextNum}`;
+    const docNumber = `${prefix}-${year}-${nextNum}`;
 
     // Positionen aufbauen
     const titleArr    = Array.isArray(titles)    ? titles    : (titles    ? [titles]    : []);
@@ -54,13 +57,13 @@ router.post('/create-offer', requireAdmin, async (req, res) => {
       subtotal += q * p;
       return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p };
     });
-    const taxAmount   = subtotal * 0.19;
+    const taxAmount   = subtotal * (taxRate / 100);
     const totalAmount = subtotal + taxAmount;
 
     const insertRes = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
-       VALUES ('OFFER', ?, ?, 'OFFEN', 19, ?, ?, ?)`,
-      [docNumber, customer_id, subtotal, taxAmount, totalAmount]
+       VALUES ('OFFER', ?, ?, 'OFFEN', ?, ?, ?, ?)`,
+      [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount]
     );
     const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
 
@@ -101,10 +104,12 @@ router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
     const offer    = offerRes.rows[0];
     if (!offer) return res.status(404).send('Angebot nicht gefunden.');
 
+    const _firmaConv = await getFirma();
+    const invPrefix  = (_firmaConv.invoice_prefix || 'RECH').toUpperCase();
     const year     = new Date().getFullYear();
     const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
     const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `RECH-${year}-${nextNum}`;
+    const invoiceNumber = `${invPrefix}-${year}-${nextNum}`;
 
     const today   = new Date();
     const dueDate = new Date(today);
@@ -214,10 +219,13 @@ router.get('/invoices', requireAdmin, async (req, res) => {
 router.post('/create-invoice', requireAdmin, async (req, res) => {
   const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
   try {
+    const _firma2  = await getFirma();
+    const invPfx   = (_firma2.invoice_prefix || 'RECH').toUpperCase();
+    const taxRate  = parseFloat(_firma2.default_tax_rate || 19);
     const year     = new Date().getFullYear();
     const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
     const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `RECH-${year}-${nextNum}`;
+    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
 
     const titleArr    = Array.isArray(titles)    ? titles    : (titles    ? [titles]    : []);
     const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
@@ -231,18 +239,17 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
       subtotal += q * p;
       return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p };
     });
-    const taxAmount   = subtotal * 0.19;
+    const taxAmount   = subtotal * (taxRate / 100);
     const totalAmount = subtotal + taxAmount;
 
     const today   = new Date();
     const dueDate = new Date(today);
-    const _firma2 = await getFirma();
     dueDate.setDate(dueDate.getDate() + (_firma2.zahlungsfrist || 14));
 
     const insertRes = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', 19, ?, ?, ?, ?)`,
-      [invoiceNumber, customer_id, subtotal, taxAmount, totalAmount, dueDate.toISOString().split('T')[0]]
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
+      [invoiceNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, dueDate.toISOString().split('T')[0]]
     );
     const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
 

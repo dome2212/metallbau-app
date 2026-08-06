@@ -169,52 +169,117 @@ router.get('/panel', requireAdmin, async (req, res) => {
   }
 });
 
-// ── POST: Admin-Panel Design-Einstellungen speichern ────────────────────────
+// Hilfsfunktion: mehrere Felder aus req.body speichern
+async function saveFields(body, keys) {
+  for (const key of keys) {
+    const val = (body[key] ?? '').toString().trim();
+    await setFirmaValue(key, val);
+  }
+}
+// Hilfsfunktion: Boolean-Checkboxen speichern
+async function saveCheckboxes(body, keys) {
+  for (const key of keys) {
+    await setFirmaValue(key, body[key] === '1' ? 'true' : 'false');
+  }
+}
+
+// ── POST: Design ─────────────────────────────────────────────────────────────
 router.post('/panel/design', requireAdmin, async (req, res) => {
-  const felder = [
-    'color_primary', 'color_sidebar_bg', 'color_sidebar_text',
-    'color_sidebar_hover', 'color_topbar_bg', 'color_page_bg',
-    'app_icon', 'dark_mode_default'
-  ];
   try {
-    for (const key of felder) {
-      const val = (req.body[key] ?? '').toString().trim();
-      if (val) await setFirmaValue(key, val);
-    }
+    await saveFields(req.body, [
+      'color_primary','color_sidebar_bg','color_sidebar_text',
+      'color_sidebar_hover','color_topbar_bg','color_page_bg',
+      'app_icon','dark_mode_default'
+    ]);
     res.redirect('/admin/panel?tab=design&saved=1');
   } catch (err) {
-    console.error('Fehler beim Speichern der Design-Einstellungen:', err.message);
-    res.status(500).send('Fehler beim Speichern.');
+    res.status(500).send('Fehler: ' + err.message);
   }
 });
 
-// ── POST: Admin-Panel Feature-Schalter speichern ────────────────────────────
+// ── POST: Features ────────────────────────────────────────────────────────────
 router.post('/panel/features', requireAdmin, async (req, res) => {
-  const felder = ['feature_map', 'feature_lexikon', 'feature_treppe', 'feature_steel_calc', 'feature_ai'];
   try {
-    for (const key of felder) {
-      const val = req.body[key] === '1' ? 'true' : 'false';
-      await setFirmaValue(key, val);
-    }
+    await saveCheckboxes(req.body, ['feature_map','feature_lexikon','feature_treppe','feature_steel_calc','feature_ai']);
     res.redirect('/admin/panel?tab=features&saved=1');
   } catch (err) {
-    console.error('Fehler beim Speichern der Feature-Einstellungen:', err.message);
-    res.status(500).send('Fehler beim Speichern.');
+    res.status(500).send('Fehler: ' + err.message);
   }
 });
 
-// ── POST: Admin-Panel Sidebar-Einstellungen speichern ───────────────────────
+// ── POST: Sidebar ─────────────────────────────────────────────────────────────
 router.post('/panel/sidebar', requireAdmin, async (req, res) => {
-  const felder = ['nameKurz', 'app_icon', 'sidebar_modus', 'sidebar_logo_height'];
   try {
-    for (const key of felder) {
-      const val = (req.body[key] ?? '').toString().trim();
-      await setFirmaValue(key, val);
-    }
+    await saveFields(req.body, ['nameKurz','app_icon','sidebar_modus','sidebar_logo_height','sidebar_footer_text']);
     res.redirect('/admin/panel?tab=sidebar&saved=1');
   } catch (err) {
-    console.error('Fehler beim Speichern der Sidebar-Einstellungen:', err.message);
-    res.status(500).send('Fehler beim Speichern.');
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: PDF & Dokumente ─────────────────────────────────────────────────────
+router.post('/panel/pdf', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, [
+      'invoice_prefix','offer_prefix','default_tax_rate','default_payment_method',
+      'pdf_color','pdf_footer_text','pdf_agb_text','pdf_intro_offer','pdf_intro_invoice'
+    ]);
+    res.redirect('/admin/panel?tab=pdf&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: Arbeitszeit ─────────────────────────────────────────────────────────
+router.post('/panel/worktime', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, [
+      'work_hours_per_day','vacation_days_default',
+      'break_auto_minutes','break_trigger_hours','holiday_region'
+    ]);
+    res.redirect('/admin/panel?tab=worktime&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: Aufträge & Projekte ─────────────────────────────────────────────────
+router.post('/panel/projects', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['project_number_prefix','default_project_status','archive_after_days']);
+    res.redirect('/admin/panel?tab=projects&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: Sicherheit ──────────────────────────────────────────────────────────
+router.post('/panel/security', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['session_timeout_minutes','max_login_attempts','min_password_length']);
+    res.redirect('/admin/panel?tab=security&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: Lokalisierung ───────────────────────────────────────────────────────
+router.post('/panel/locale', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['currency_symbol','date_format','timezone']);
+    res.redirect('/admin/panel?tab=locale&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: Dashboard KPI-Schwellen ─────────────────────────────────────────────
+router.post('/panel/dashboard', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, ['kpi_overdue_warn','kpi_overdue_danger','kpi_tasks_warn','kpi_tasks_danger']);
+    res.redirect('/admin/panel?tab=dashboard&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
   }
 });
 

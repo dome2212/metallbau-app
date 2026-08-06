@@ -27,12 +27,18 @@
       <!-- Tab-Navigation -->
       <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-6 overflow-x-auto">
         <% const tabs = [
-          { id: 'design',   label: '🎨 Farben & Design' },
-          { id: 'sidebar',  label: '📌 Sidebar' },
-          { id: 'features', label: '🔧 Features' },
-          { id: 'access',   label: '🔐 Zugriff & Rollen' },
-          { id: 'info',     label: 'ℹ️ System-Info' },
-        ]; %>
+            { id: 'design',   label: '🎨 Design' },
+            { id: 'sidebar',  label: '📌 Sidebar' },
+            { id: 'features', label: '🔧 Features' },
+            { id: 'pdf',      label: '📄 PDF & Dokumente' },
+            { id: 'worktime', label: '⏱️ Arbeitszeit' },
+            { id: 'projects', label: '🏗️ Aufträge' },
+            { id: 'security', label: '🔒 Sicherheit' },
+            { id: 'locale',   label: '🌍 Lokalisierung' },
+            { id: 'dashboard',label: '📊 Dashboard KPIs' },
+            { id: 'access',   label: '🔐 Zugriff' },
+            { id: 'info',     label: 'ℹ️ System' },
+          ]; %>
         <% for (const t of tabs) { %>
           <a href="/admin/panel?tab=<%= t.id %>"
             class="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition
@@ -359,6 +365,441 @@
       <% } %>
 
       <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: PDF & DOKUMENTE                                               -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'pdf') { %>
+      <form action="/admin/panel/pdf" method="POST" class="space-y-6">
+
+        <!-- Nummern-Schema -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔢 Nummern-Schema</h2>
+          <p class="text-xs text-slate-400 mb-5">Prefix für automatisch generierte Dokumentnummern.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Rechnungs-Prefix <span class="text-slate-400 font-normal">(z.B. <code>RECH</code> → RECH-2025-0001)</span>
+              </label>
+              <input type="text" name="invoice_prefix" value="<%= firma.invoice_prefix || 'RECH' %>" maxlength="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Angebots-Prefix <span class="text-slate-400 font-normal">(z.B. <code>ANG</code> → ANG-2025-0001)</span>
+              </label>
+              <input type="text" name="offer_prefix" value="<%= firma.offer_prefix || 'ANG' %>" maxlength="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- MwSt & Zahlungsart -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">💰 Standard-Werte</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Mehrwertsteuersatz (%)</label>
+              <div class="flex gap-2 flex-wrap mb-2">
+                <% for (const rate of [0, 7, 19]) { %>
+                  <label class="flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg border dark:border-slate-600 text-sm
+                    <%= (firma.default_tax_rate || '19') == rate ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <input type="radio" name="default_tax_rate" value="<%= rate %>"
+                      <%= (firma.default_tax_rate || '19') == rate ? 'checked' : '' %> class="accent-blue-600">
+                    <%= rate %> %
+                  </label>
+                <% } %>
+              </div>
+              <input type="number" name="default_tax_rate" value="<%= firma.default_tax_rate || 19 %>" min="0" max="100" step="0.1"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500"
+                placeholder="Eigener Wert">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Zahlungsart</label>
+              <select name="default_payment_method"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <% for (const method of ['Überweisung','Bar','EC-Karte','PayPal','Scheck','Lastschrift']) { %>
+                  <option value="<%= method %>" <%= firma.default_payment_method === method ? 'selected' : '' %>><%= method %></option>
+                <% } %>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF Briefkopf-Farbe -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🎨 PDF-Erscheinungsbild</h2>
+          <div class="flex items-center gap-4">
+            <div>
+              <input type="color" name="pdf_color" value="<%= firma.pdf_color || '#1e3a5f' %>"
+                class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Briefkopf-Akzentfarbe</p>
+              <p class="text-xs text-slate-400">Farbe der Trennlinie und Tabellen-Header im PDF</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Einleitungstexte -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">✉️ Einleitungstexte</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Einleitungstext Angebot</label>
+              <textarea name="pdf_intro_offer" rows="3"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_intro_offer || 'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:' %></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Einleitungstext Rechnung</label>
+              <textarea name="pdf_intro_invoice" rows="3"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_intro_invoice || 'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF-Fußzeile & AGB -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📃 Fußzeile & AGB</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                PDF-Fußzeile <span class="text-slate-400 font-normal">(erscheint am Ende jedes PDFs, z.B. Hinweis auf Datenschutz)</span>
+              </label>
+              <textarea name="pdf_footer_text" rows="2" placeholder="z.B. Alle Preise zzgl. gesetzl. MwSt. · Es gelten unsere AGB."
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_footer_text || '' %></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                AGB-Text <span class="text-slate-400 font-normal">(erscheint als separate Sektion am Ende des PDFs)</span>
+              </label>
+              <textarea name="pdf_agb_text" rows="5" placeholder="Hier Ihre Allgemeinen Geschäftsbedingungen eingeben…"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_agb_text || '' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 PDF-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: ARBEITSZEIT                                                    -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'worktime') { %>
+      <form action="/admin/panel/worktime" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">⏱️ Soll-Stunden & Urlaub</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Arbeitsstunden pro Tag <span class="text-slate-400 font-normal">(Basis für Überstunden-Berechnung)</span>
+              </label>
+              <input type="number" name="work_hours_per_day" value="<%= firma.work_hours_per_day || 8 %>"
+                min="1" max="24" step="0.5"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Urlaubstage pro Jahr <span class="text-slate-400 font-normal">(Standard für neue Mitarbeiter)</span>
+              </label>
+              <input type="number" name="vacation_days_default" value="<%= firma.vacation_days_default || 30 %>"
+                min="1" max="365"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">☕ Automatischer Pausenabzug</h2>
+          <p class="text-xs text-slate-400 mb-4">Pause wird automatisch abgezogen wenn der Arbeitstag länger ist als X Stunden. <strong>0 = deaktiviert.</strong></p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Pause abziehen (Minuten)</label>
+              <input type="number" name="break_auto_minutes" value="<%= firma.break_auto_minutes || 0 %>"
+                min="0" max="120" step="5" placeholder="0 = deaktiviert"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Abziehen wenn Arbeitstag > X Stunden</label>
+              <input type="number" name="break_trigger_hours" value="<%= firma.break_trigger_hours || 6 %>"
+                min="1" max="12" step="0.5"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🗓️ Feiertags-Region</h2>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Bundesland (für Feiertagsberechnung)</label>
+            <select name="holiday_region"
+              class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <% const regions = ['NRW','Bayern','Baden-Württemberg','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen','Österreich','Schweiz']; %>
+              <% for (const r of regions) { %>
+                <option value="<%= r %>" <%= firma.holiday_region === r ? 'selected' : '' %>><%= r %></option>
+              <% } %>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Arbeitszeit-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: AUFTRÄGE & PROJEKTE                                            -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'projects') { %>
+      <form action="/admin/panel/projects" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏗️ Auftrags-Einstellungen</h2>
+          <div class="space-y-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Auftragsnummer-Prefix <span class="text-slate-400 font-normal">(wird bei zukünftiger Auto-Nummerierung genutzt)</span>
+              </label>
+              <input type="text" name="project_number_prefix" value="<%= firma.project_number_prefix || 'BAUS' %>" maxlength="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Projektstatus bei Neuanlage</label>
+              <select name="default_project_status"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <% for (const s of ['In Planung','Aktiv','Angefragt','Pausiert','Abgeschlossen']) { %>
+                  <option value="<%= s %>" <%= firma.default_project_status === s ? 'selected' : '' %>><%= s %></option>
+                <% } %>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Auto-Archivierung nach X Tagen <span class="text-slate-400 font-normal">(0 = deaktiviert)</span>
+              </label>
+              <input type="number" name="archive_after_days" value="<%= firma.archive_after_days || 180 %>"
+                min="0" max="3650"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-slate-400 mt-1">Abgeschlossene Aufträge die älter als X Tage sind werden automatisch archiviert. 0 = nie archivieren.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Auftrags-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: SICHERHEIT                                                     -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'security') { %>
+      <form action="/admin/panel/security" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔒 Sicherheits-Einstellungen</h2>
+          <div class="space-y-5">
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Session-Timeout (Minuten) <span class="text-slate-400 font-normal">(0 = niemals automatisch abmelden)</span>
+              </label>
+              <input type="number" name="session_timeout_minutes" value="<%= firma.session_timeout_minutes || 480 %>"
+                min="0" max="10080"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-slate-400 mt-1">Standard: 480 Min. (8 Stunden). Empfehlung: 60–480 Min.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Max. Login-Fehlversuche <span class="text-slate-400 font-normal">(Rate-Limit vor temporärer Sperrung)</span>
+              </label>
+              <input type="number" name="max_login_attempts" value="<%= firma.max_login_attempts || 10 %>"
+                min="3" max="50"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Mindest-Passwortlänge <span class="text-slate-400 font-normal">(gilt bei Passwort-Vergabe)</span>
+              </label>
+              <input type="number" name="min_password_length" value="<%= firma.min_password_length || 6 %>"
+                min="4" max="32"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+          </div>
+        </div>
+
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-3">
+          <span class="text-xl shrink-0">⚠️</span>
+          <div>
+            Die Session-Timeout-Einstellung wird clientseitig (JavaScript) umgesetzt. Für serverseitige Token-Ablaufzeiten muss <code>JWT_SECRET</code> mit korrekter Ablaufzeit konfiguriert werden.
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Sicherheits-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: LOKALISIERUNG                                                  -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'locale') { %>
+      <form action="/admin/panel/locale" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🌍 Sprache & Lokalisierung</h2>
+          <div class="space-y-5">
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Währungssymbol</label>
+              <div class="flex gap-2 flex-wrap mb-2">
+                <% for (const c of ['€','CHF','£','$','kr']) { %>
+                  <label class="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-slate-600 cursor-pointer text-sm
+                    <%= (firma.currency_symbol || '€') === c ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <input type="radio" name="currency_symbol" value="<%= c %>"
+                      <%= (firma.currency_symbol || '€') === c ? 'checked' : '' %> class="accent-blue-600">
+                    <%= c %>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Datumsformat</label>
+              <div class="flex gap-2 flex-wrap">
+                <% const locales = [
+                  { val: 'de-DE', label: 'Deutsch (TT.MM.JJJJ)' },
+                  { val: 'de-AT', label: 'Österreich (TT.MM.JJJJ)' },
+                  { val: 'de-CH', label: 'Schweiz (TT.MM.JJJJ)' },
+                  { val: 'en-GB', label: 'English UK (DD/MM/YYYY)' },
+                  { val: 'en-US', label: 'English US (MM/DD/YYYY)' },
+                ]; %>
+                <% for (const l of locales) { %>
+                  <label class="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-slate-600 cursor-pointer text-sm
+                    <%= (firma.date_format || 'de-DE') === l.val ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <input type="radio" name="date_format" value="<%= l.val %>"
+                      <%= (firma.date_format || 'de-DE') === l.val ? 'checked' : '' %> class="accent-blue-600">
+                    <%= l.label %>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Zeitzone</label>
+              <select name="timezone"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <% const tzones = ['Europe/Berlin','Europe/Vienna','Europe/Zurich','Europe/London','Europe/Paris','UTC']; %>
+                <% for (const tz of tzones) { %>
+                  <option value="<%= tz %>" <%= (firma.timezone || 'Europe/Berlin') === tz ? 'selected' : '' %>><%= tz %></option>
+                <% } %>
+              </select>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Lokalisierung speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: DASHBOARD KPIs                                                 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'dashboard') { %>
+      <form action="/admin/panel/dashboard" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📊 Dashboard KPI-Schwellenwerte</h2>
+          <p class="text-xs text-slate-400 mb-5">Ab diesen Werten wechselt die Farbe der Dashboard-Karten von grau → gelb → rot.</p>
+
+          <div class="space-y-6">
+
+            <!-- Überfällige Rechnungen -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border dark:border-slate-600">
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">🧾 Überfällige Rechnungen</p>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🟡 Ab dieser Anzahl: Warnung (gelb)</label>
+                  <input type="number" name="kpi_overdue_warn" value="<%= firma.kpi_overdue_warn || 3 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🔴 Ab dieser Anzahl: Kritisch (rot)</label>
+                  <input type="number" name="kpi_overdue_danger" value="<%= firma.kpi_overdue_danger || 6 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-400">
+                </div>
+              </div>
+            </div>
+
+            <!-- Offene Aufgaben -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border dark:border-slate-600">
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">✅ Offene Aufgaben / Mängel</p>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🟡 Ab dieser Anzahl: Warnung (gelb)</label>
+                  <input type="number" name="kpi_tasks_warn" value="<%= firma.kpi_tasks_warn || 5 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🔴 Ab dieser Anzahl: Kritisch (rot)</label>
+                  <input type="number" name="kpi_tasks_danger" value="<%= firma.kpi_tasks_danger || 10 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-400">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Vorschau -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">👁️ Live-Vorschau</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div id="prevOverdue" class="p-4 rounded-xl border-l-4 border-gray-300 bg-gray-50 dark:bg-slate-700 transition">
+              <p class="text-xs text-gray-400 font-semibold uppercase">Überfällige Rechnungen</p>
+              <input type="number" id="previewOverdueVal" value="0" min="0"
+                oninput="updateKpiPreview()"
+                class="text-2xl font-bold w-20 bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-100">
+            </div>
+            <div id="prevTasks" class="p-4 rounded-xl border-l-4 border-gray-300 bg-gray-50 dark:bg-slate-700 transition">
+              <p class="text-xs text-gray-400 font-semibold uppercase">Offene Aufgaben</p>
+              <input type="number" id="previewTasksVal" value="0" min="0"
+                oninput="updateKpiPreview()"
+                class="text-2xl font-bold w-20 bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-100">
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3">Gib oben Testwerte ein um die Farblogik zu sehen.</p>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 KPI-Schwellen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
       <!-- TAB: ZUGRIFF & ROLLEN                                              -->
       <!-- ══════════════════════════════════════════════════════════════════ -->
       <% if (tab === 'access') { %>
@@ -568,4 +1009,43 @@
       if (wrap) wrap.classList.toggle('hidden', this.value !== 'logo');
     });
   });
+
+  // KPI-Vorschau: Farblogik Live-Demo
+  function updateKpiPreview() {
+    const ov   = parseInt(document.getElementById('previewOverdueVal')?.value || 0);
+    const ta   = parseInt(document.getElementById('previewTasksVal')?.value   || 0);
+    const owW  = parseInt(document.querySelector('input[name="kpi_overdue_warn"]')?.value   || 3);
+    const owD  = parseInt(document.querySelector('input[name="kpi_overdue_danger"]')?.value || 6);
+    const twW  = parseInt(document.querySelector('input[name="kpi_tasks_warn"]')?.value     || 5);
+    const twD  = parseInt(document.querySelector('input[name="kpi_tasks_danger"]')?.value   || 10);
+
+    const colorClass = (val, warn, danger) =>
+      val >= danger ? 'border-red-500 bg-red-50'
+      : val >= warn ? 'border-yellow-400 bg-yellow-50'
+      : 'border-gray-300 bg-gray-50';
+
+    const ovEl = document.getElementById('prevOverdue');
+    const taEl = document.getElementById('prevTasks');
+    if (ovEl) ovEl.className = 'p-4 rounded-xl border-l-4 transition ' + colorClass(ov, owW, owD);
+    if (taEl) taEl.className = 'p-4 rounded-xl border-l-4 transition ' + colorClass(ta, twW, twD);
+  }
+
+  // Session-Timeout clientseitig (aus Admin-Panel Einstellung)
+  (function() {
+    const mins = parseInt('<%= typeof firma !== "undefined" && firma.session_timeout_minutes ? firma.session_timeout_minutes : 0 %>');
+    if (!mins || mins <= 0) return;
+    let timer = setTimeout(() => {
+      alert('Deine Sitzung ist abgelaufen. Du wirst jetzt abgemeldet.');
+      window.location.href = '/logout';
+    }, mins * 60 * 1000);
+    ['click','keydown','scroll','mousemove'].forEach(ev =>
+      document.addEventListener(ev, () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          alert('Deine Sitzung ist abgelaufen. Du wirst jetzt abgemeldet.');
+          window.location.href = '/logout';
+        }, mins * 60 * 1000);
+      }, { passive: true })
+    );
+  })();
 </script>
