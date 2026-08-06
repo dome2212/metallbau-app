@@ -39,15 +39,6 @@ if (process.env.DATABASE_URL) {
         if (err) console.error("⚠️ Migration ADMIN→CHEF:", err.message);
         else console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
       });
-      db.query(`SELECT * FROM users WHERE role = 'CHEF'`, (err, res) => {
-        if (res && res.rows.length === 0) {
-          const hashedPassword = bcrypt.hashSync('chef123', 10);
-          db.query(`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`, ['chef', hashedPassword, 'CHEF'], (err) => {
-            if (err) console.error("❌ Fehler beim Anlegen des Chef-Users:", err.message);
-            else console.log("✅ Chef-User 'chef' erfolgreich erstellt!");
-          });
-        }
-      });
     }
   });
 

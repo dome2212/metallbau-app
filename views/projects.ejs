@@ -9,7 +9,7 @@
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
       
       <!-- Nur der Chef darf neue Aufträge anlegen -->
-      <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
+      <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
         <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
           <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">Neuen Auftrag anlegen</h2>
           <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -129,7 +129,7 @@
 
                   <!-- Status-Zelle -->
                   <td class="p-3">
-                    <% if (currentUser.role === 'ADMIN') { %>
+                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <!-- Schnellstatus: Dropdown → sofortiger fetch, kein Reload -->
                       <select
                         data-project-id="<%= p.id %>"
@@ -150,7 +150,7 @@
 
                   <!-- Preis nur für Admin -->
                   <td class="p-3 font-medium">
-                    <% if (currentUser.role === 'ADMIN') { %>
+                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <%= (Number(p.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
                     <% } else { %>
                       <span class="text-slate-400 italic">Intern</span>
@@ -159,7 +159,7 @@
 
                   <td class="p-3 text-right space-x-2">
                     <a href="/projects/<%= p.id %>" class="text-blue-600 hover:underline text-xs font-medium">Öffnen</a>
-                    <% if (currentUser.role === 'ADMIN') { %>
+                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <form action="/projects/delete" method="POST" class="inline"
                         onsubmit="return confirm('Auftrag wirklich löschen?');">
                         <input type="hidden" name="id" value="<%= p.id %>">
