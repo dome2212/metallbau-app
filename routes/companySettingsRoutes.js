@@ -156,4 +156,66 @@ router.post('/company-settings/logo-delete', requireAdmin, async (req, res) => {
   }
 });
 
+// ── GET: Admin-Panel ────────────────────────────────────────────────────────
+router.get('/panel', requireAdmin, async (req, res) => {
+  try {
+    const firma   = await getFirma();
+    const success = req.query.saved === '1';
+    const tab     = req.query.tab || 'design';
+    res.render('admin-panel', { firma, success, tab });
+  } catch (err) {
+    console.error('Fehler beim Laden des Admin-Panels:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ── POST: Admin-Panel Design-Einstellungen speichern ────────────────────────
+router.post('/panel/design', requireAdmin, async (req, res) => {
+  const felder = [
+    'color_primary', 'color_sidebar_bg', 'color_sidebar_text',
+    'color_sidebar_hover', 'color_topbar_bg', 'color_page_bg',
+    'app_icon', 'dark_mode_default'
+  ];
+  try {
+    for (const key of felder) {
+      const val = (req.body[key] ?? '').toString().trim();
+      if (val) await setFirmaValue(key, val);
+    }
+    res.redirect('/admin/panel?tab=design&saved=1');
+  } catch (err) {
+    console.error('Fehler beim Speichern der Design-Einstellungen:', err.message);
+    res.status(500).send('Fehler beim Speichern.');
+  }
+});
+
+// ── POST: Admin-Panel Feature-Schalter speichern ────────────────────────────
+router.post('/panel/features', requireAdmin, async (req, res) => {
+  const felder = ['feature_map', 'feature_lexikon', 'feature_treppe', 'feature_steel_calc', 'feature_ai'];
+  try {
+    for (const key of felder) {
+      const val = req.body[key] === '1' ? 'true' : 'false';
+      await setFirmaValue(key, val);
+    }
+    res.redirect('/admin/panel?tab=features&saved=1');
+  } catch (err) {
+    console.error('Fehler beim Speichern der Feature-Einstellungen:', err.message);
+    res.status(500).send('Fehler beim Speichern.');
+  }
+});
+
+// ── POST: Admin-Panel Sidebar-Einstellungen speichern ───────────────────────
+router.post('/panel/sidebar', requireAdmin, async (req, res) => {
+  const felder = ['nameKurz', 'app_icon', 'sidebar_modus', 'sidebar_logo_height'];
+  try {
+    for (const key of felder) {
+      const val = (req.body[key] ?? '').toString().trim();
+      await setFirmaValue(key, val);
+    }
+    res.redirect('/admin/panel?tab=sidebar&saved=1');
+  } catch (err) {
+    console.error('Fehler beim Speichern der Sidebar-Einstellungen:', err.message);
+    res.status(500).send('Fehler beim Speichern.');
+  }
+});
+
 module.exports = router;

@@ -1,0 +1,571 @@
+<%- include('partials/header') %>
+
+<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
+  <%- include('partials/sidebar') %>
+
+  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+
+    <!-- Seitenüberschrift -->
+    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⚙️ Admin-Panel</h1>
+        <p class="text-xs text-slate-400 mt-0.5">App-Design, Sidebar, Features und Berechtigungen verwalten</p>
+      </div>
+      <a href="/" class="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition">← Dashboard</a>
+    </header>
+
+    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full pb-12">
+
+      <!-- Erfolgsmeldung -->
+      <% if (success) { %>
+        <div id="successBanner" class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-5 py-3 text-sm font-medium flex items-center gap-2 mb-5">
+          ✅ Einstellungen erfolgreich gespeichert!
+        </div>
+        <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 4000);</script>
+      <% } %>
+
+      <!-- Tab-Navigation -->
+      <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-6 overflow-x-auto">
+        <% const tabs = [
+          { id: 'design',   label: '🎨 Farben & Design' },
+          { id: 'sidebar',  label: '📌 Sidebar' },
+          { id: 'features', label: '🔧 Features' },
+          { id: 'access',   label: '🔐 Zugriff & Rollen' },
+          { id: 'info',     label: 'ℹ️ System-Info' },
+        ]; %>
+        <% for (const t of tabs) { %>
+          <a href="/admin/panel?tab=<%= t.id %>"
+            class="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition
+              <%= tab === t.id
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700' %>">
+            <%= t.label %>
+          </a>
+        <% } %>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: FARBEN & DESIGN                                               -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'design') { %>
+      <form action="/admin/panel/design" method="POST" class="space-y-6">
+
+        <!-- Farbpalette -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🎨 Farbpalette der App</h2>
+          <p class="text-xs text-slate-400 mb-5">Diese Farben wirken sich sofort auf die gesamte App aus (nach dem Speichern).</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+            <!-- Primärfarbe -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_primary" value="<%= firma.color_primary || '#2563eb' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_primary', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Primärfarbe</p>
+                <p class="text-xs text-slate-400">Buttons, Links, Akzente</p>
+                <div id="prev_primary" class="mt-1 h-4 w-20 rounded" style="background:<%= firma.color_primary || '#2563eb' %>;"></div>
+              </div>
+            </div>
+
+            <!-- Sidebar Hintergrund -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_sidebar_bg" value="<%= firma.color_sidebar_bg || '#1e293b' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_sidebar_bg', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Sidebar Hintergrund</p>
+                <p class="text-xs text-slate-400">Hintergrundfarbe der Seitenleiste</p>
+                <div id="prev_sidebar_bg" class="mt-1 h-4 w-20 rounded border border-slate-300" style="background:<%= firma.color_sidebar_bg || '#1e293b' %>;"></div>
+              </div>
+            </div>
+
+            <!-- Sidebar Schrift -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_sidebar_text" value="<%= firma.color_sidebar_text || '#e2e8f0' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_sidebar_text', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Sidebar Schrift</p>
+                <p class="text-xs text-slate-400">Textfarbe in der Sidebar</p>
+                <div id="prev_sidebar_text" class="mt-1 h-4 w-20 rounded border border-slate-300" style="background:<%= firma.color_sidebar_text || '#e2e8f0' %>;"></div>
+              </div>
+            </div>
+
+            <!-- Sidebar Hover -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_sidebar_hover" value="<%= firma.color_sidebar_hover || '#334155' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_sidebar_hover', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Sidebar Hover</p>
+                <p class="text-xs text-slate-400">Farbe beim Darüberfahren</p>
+                <div id="prev_sidebar_hover" class="mt-1 h-4 w-20 rounded border border-slate-300" style="background:<%= firma.color_sidebar_hover || '#334155' %>;"></div>
+              </div>
+            </div>
+
+            <!-- Seitenhintergrund -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_page_bg" value="<%= firma.color_page_bg || '#f1f5f9' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_page_bg', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Seiten-Hintergrund</p>
+                <p class="text-xs text-slate-400">Hintergrund des Hauptinhalts</p>
+                <div id="prev_page_bg" class="mt-1 h-4 w-20 rounded border border-slate-300" style="background:<%= firma.color_page_bg || '#f1f5f9' %>;"></div>
+              </div>
+            </div>
+
+            <!-- Header-Hintergrund -->
+            <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-600">
+              <div>
+                <input type="color" name="color_topbar_bg" value="<%= firma.color_topbar_bg || '#ffffff' %>"
+                  class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent"
+                  oninput="updatePreview('prev_topbar_bg', this.value)">
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Header-Hintergrund</p>
+                <p class="text-xs text-slate-400">Topbar / Kartenköpfe</p>
+                <div id="prev_topbar_bg" class="mt-1 h-4 w-20 rounded border border-slate-300" style="background:<%= firma.color_topbar_bg || '#ffffff' %>;"></div>
+              </div>
+            </div>
+
+          </div><!-- /grid -->
+        </div>
+
+        <!-- Farb-Vorlagen -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">⚡ Schnell-Vorlagen</h2>
+          <div class="flex flex-wrap gap-3">
+            <% const presets = [
+              { name: 'Standard Blau',  primary:'#2563eb', sidebarBg:'#1e293b', sidebarText:'#e2e8f0', sidebarHover:'#334155', pageBg:'#f1f5f9', topbarBg:'#ffffff' },
+              { name: 'Dunkel',         primary:'#6366f1', sidebarBg:'#0f172a', sidebarText:'#cbd5e1', sidebarHover:'#1e293b', pageBg:'#1e293b', topbarBg:'#0f172a' },
+              { name: 'Grün',           primary:'#16a34a', sidebarBg:'#14532d', sidebarText:'#dcfce7', sidebarHover:'#166534', pageBg:'#f0fdf4', topbarBg:'#ffffff' },
+              { name: 'Orange',         primary:'#ea580c', sidebarBg:'#431407', sidebarText:'#fed7aa', sidebarHover:'#7c2d12', pageBg:'#fff7ed', topbarBg:'#ffffff' },
+              { name: 'Lila',           primary:'#7c3aed', sidebarBg:'#2e1065', sidebarText:'#ede9fe', sidebarHover:'#4c1d95', pageBg:'#faf5ff', topbarBg:'#ffffff' },
+              { name: 'Rot',            primary:'#dc2626', sidebarBg:'#450a0a', sidebarText:'#fecaca', sidebarHover:'#7f1d1d', pageBg:'#fef2f2', topbarBg:'#ffffff' },
+            ]; %>
+            <% for (const p of presets) { %>
+              <button type="button"
+                onclick="applyPreset('<%= p.primary %>','<%= p.sidebarBg %>','<%= p.sidebarText %>','<%= p.sidebarHover %>','<%= p.pageBg %>','<%= p.topbarBg %>')"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">
+                <span class="w-4 h-4 rounded-full inline-block shrink-0" style="background:<%= p.primary %>;"></span>
+                <%= p.name %>
+              </button>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Dark-Mode Standard -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">🌙 Dark-Mode Standard</h2>
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="hidden" name="dark_mode_default" value="false">
+              <input type="checkbox" name="dark_mode_default" value="true"
+                <%= firma.dark_mode_default === 'true' ? 'checked' : '' %>
+                class="w-5 h-5 accent-blue-600 cursor-pointer">
+              <div>
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Dark-Mode standardmäßig aktivieren</p>
+                <p class="text-xs text-slate-400">Gilt für neue Benutzer. Jeder kann es im Browser selbst überschreiben.</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button type="reset" class="px-5 py-2.5 rounded-lg border dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            Zurücksetzen
+          </button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Design speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: SIDEBAR                                                        -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'sidebar') { %>
+      <form action="/admin/panel/sidebar" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📌 Sidebar anpassen</h2>
+
+          <div class="space-y-5">
+
+            <!-- App-Kurzname -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Kurzname <span class="text-slate-400 font-normal">(erscheint oben in der Sidebar)</span>
+              </label>
+              <input type="text" name="nameKurz" value="<%= firma.nameKurz %>"
+                placeholder="z.B. Metallbau-Mustermann"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- App-Icon -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Sidebar-Icon <span class="text-slate-400 font-normal">(Emoji vor dem Kurznamen)</span>
+              </label>
+              <div class="flex flex-wrap gap-2 mb-3">
+                <% const icons = ['🔩','🏗️','⚙️','🏢','🔧','🛠️','⚒️','🏛️','🔨','🪛','🪚','🏭','⛏️','🪜']; %>
+                <% for (const ic of icons) { %>
+                  <button type="button"
+                    onclick="document.getElementById('appIconInput').value='<%= ic %>'; document.getElementById('iconPreview').textContent='<%= ic %>';"
+                    class="w-10 h-10 text-xl rounded-lg border dark:border-slate-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition flex items-center justify-center
+                      <%= firma.app_icon === ic ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <%= ic %>
+                  </button>
+                <% } %>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="text" name="app_icon" id="appIconInput" value="<%= firma.app_icon || '🔩' %>"
+                  maxlength="5" placeholder="Eigenes Emoji eingeben"
+                  oninput="document.getElementById('iconPreview').textContent=this.value"
+                  class="w-40 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <span class="text-xs text-slate-400">Vorschau: <span id="iconPreview" class="text-2xl"><%= firma.app_icon || '🔩' %></span></span>
+              </div>
+            </div>
+
+            <!-- Sidebar-Modus -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Sidebar-Kopf
+              </label>
+              <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.sidebar_modus !== 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="sidebar_modus" value="text"
+                    <%= firma.sidebar_modus !== 'logo' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Icon + Kurzname als Text</p>
+                    <p class="text-xs text-slate-400">z.B. <%= firma.app_icon || '🔩' %> <%= firma.nameKurz %></p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.sidebar_modus === 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="sidebar_modus" value="logo"
+                    <%= firma.sidebar_modus === 'logo' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Logo anzeigen</p>
+                    <p class="text-xs text-slate-400">Das hochgeladene Sidebar-Logo</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Logo-Höhe -->
+            <div id="heightWrap" class="<%= firma.sidebar_modus === 'logo' ? '' : 'hidden' %> bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border dark:border-slate-600">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Logo-Höhe in der Sidebar: <span id="heightVal" class="font-bold text-blue-600"><%= firma.sidebar_logo_height || 80 %>px</span>
+              </label>
+              <input type="range" name="sidebar_logo_height" id="heightRange"
+                min="40" max="200" step="5" value="<%= firma.sidebar_logo_height || 80 %>"
+                oninput="document.getElementById('heightVal').textContent=this.value+'px'"
+                class="w-full accent-blue-600 cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>Klein (40px)</span><span>Mittel (120px)</span><span>Groß (200px)</span>
+              </div>
+            </div>
+
+          </div><!-- /space-y-5 -->
+        </div>
+
+        <!-- Hinweis: Logos über Firmendaten hochladen -->
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-3">
+          <span class="text-lg shrink-0">💡</span>
+          <div>
+            Logos (PDF-Logo & Sidebar-Logo) kannst du unter
+            <a href="/admin/company-settings" class="underline font-semibold">Firmendaten</a>
+            hochladen.
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Sidebar-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: FEATURES                                                       -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'features') { %>
+      <form action="/admin/panel/features" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔧 Module & Features</h2>
+          <p class="text-xs text-slate-400 mb-5">Deaktivierte Module werden in der Navigation und im Dashboard ausgeblendet.</p>
+
+          <div class="space-y-3">
+            <% const features = [
+              { key: 'feature_map',        label: '🗺️ Karten-Modul',           desc: 'Baustellen-Karte mit GPS-Standorten' },
+              { key: 'feature_lexikon',    label: '📖 Lexikon',                desc: 'Internes Nachschlagewerk' },
+              { key: 'feature_treppe',     label: '🪜 Treppen-Rechner',        desc: 'Berechnungshilfe für Treppen' },
+              { key: 'feature_steel_calc', label: '⚖️ Stahl-Rechner',          desc: 'Gewichts- und Materialrechner' },
+              { key: 'feature_ai',         label: '🤖 KI-Funktionen',          desc: 'KI-Angebots-Assistent, Beschreibungen, Mahnungen' },
+            ]; %>
+            <% for (const f of features) { %>
+              <label class="flex items-center justify-between gap-4 p-4 rounded-xl border dark:border-slate-600 cursor-pointer
+                hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                <div>
+                  <p class="text-sm font-semibold text-slate-700 dark:text-slate-200"><%= f.label %></p>
+                  <p class="text-xs text-slate-400"><%= f.desc %></p>
+                </div>
+                <div class="relative shrink-0">
+                  <input type="hidden" name="<%= f.key %>" value="0">
+                  <input type="checkbox" name="<%= f.key %>" value="1"
+                    <%= firma[f.key] !== 'false' ? 'checked' : '' %>
+                    class="sr-only peer" id="feat_<%= f.key %>">
+                  <label for="feat_<%= f.key %>"
+                    class="block w-11 h-6 rounded-full cursor-pointer transition
+                      bg-slate-200 dark:bg-slate-600 peer-checked:bg-blue-600 relative
+                      after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                      after:bg-white after:rounded-full after:h-5 after:w-5 after:transition
+                      peer-checked:after:translate-x-5">
+                  </label>
+                </div>
+              </label>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl border dark:border-slate-600 p-4 text-xs text-slate-500 dark:text-slate-400">
+          <strong>Hinweis:</strong> Deaktivierte Features verbergen nur die Navigation und Verlinkungen. Die Routen bleiben für direkte URLs zugänglich. Für vollständige Sperrung müssten die Routen in der Server-Konfiguration deaktiviert werden.
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Feature-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: ZUGRIFF & ROLLEN                                              -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'access') { %>
+      <div class="space-y-6">
+
+        <!-- Schnell-Links -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔐 Zugriff & Berechtigungen</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <a href="/admin/users"
+              class="flex items-start gap-4 p-4 rounded-xl border dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+              <span class="text-3xl shrink-0">👥</span>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Mitarbeiter-Logins</p>
+                <p class="text-xs text-slate-400 mt-0.5">Benutzer anlegen, Passwörter ändern, Rollen vergeben (ADMIN / EMPLOYEE)</p>
+                <span class="text-xs text-blue-600 hover:underline mt-1 inline-block">Öffnen →</span>
+              </div>
+            </a>
+
+            <a href="/admin/timetracking"
+              class="flex items-start gap-4 p-4 rounded-xl border dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+              <span class="text-3xl shrink-0">📋</span>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Arbeitszeiten-Übersicht</p>
+                <p class="text-xs text-slate-400 mt-0.5">Alle Stempelzeiten einsehen, nachtragen und exportieren</p>
+                <span class="text-xs text-blue-600 hover:underline mt-1 inline-block">Öffnen →</span>
+              </div>
+            </a>
+
+            <a href="/admin/company-settings"
+              class="flex items-start gap-4 p-4 rounded-xl border dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+              <span class="text-3xl shrink-0">🏢</span>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Firmendaten</p>
+                <p class="text-xs text-slate-400 mt-0.5">Name, Adresse, Bankverbindung, Logos für PDFs und Sidebar</p>
+                <span class="text-xs text-blue-600 hover:underline mt-1 inline-block">Öffnen →</span>
+              </div>
+            </a>
+
+            <div class="flex items-start gap-4 p-4 rounded-xl border dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
+              <span class="text-3xl shrink-0">🚫</span>
+              <div>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Geldbeträge im Admin-Panel</p>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Dieses Admin-Panel zeigt <strong class="text-slate-600 dark:text-slate-300">keine Geldsummen</strong> an.
+                  Rechnungs- und Angebotssummen sind ausschließlich in den jeweiligen Dokumenten-Bereichen sichtbar.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Rollen-Übersicht -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📖 Rollen-Übersicht</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b dark:border-slate-700">
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Bereich</th>
+                  <th class="text-center py-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ADMIN</th>
+                  <th class="text-center py-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EMPLOYEE</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y dark:divide-slate-700">
+                <% const roleRows = [
+                  ['Dashboard',            true,  true],
+                  ['Aufträge & Baustellen', true,  true],
+                  ['Kalender',             true,  true],
+                  ['Zeiterfassung',        true,  true],
+                  ['Urlaub & Abwesenheit', true,  true],
+                  ['Mitarbeiter-Logins',   true,  false],
+                  ['Arbeitszeiten aller',  true,  false],
+                  ['Kunden',               true,  false],
+                  ['Angebote',             true,  false],
+                  ['Rechnungen',           true,  false],
+                  ['Artikelstamm',         true,  false],
+                  ['Firmendaten',          true,  false],
+                  ['Admin-Panel',          true,  false],
+                ]; %>
+                <% for (const [area, admin, emp] of roleRows) { %>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                    <td class="py-2 px-3 text-slate-700 dark:text-slate-300"><%= area %></td>
+                    <td class="py-2 px-3 text-center"><%= admin ? '✅' : '❌' %></td>
+                    <td class="py-2 px-3 text-center"><%= emp   ? '✅' : '❌' %></td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: SYSTEM-INFO                                                   -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <% if (tab === 'info') { %>
+      <div class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">ℹ️ System-Information</h2>
+          <dl class="space-y-3">
+            <% const sysInfo = [
+              ['Node.js Version',    process.version],
+              ['Umgebung',           process.env.NODE_ENV || 'development'],
+              ['Datenbank',          process.env.DATABASE_URL ? 'PostgreSQL (Render)' : 'SQLite (lokal)'],
+              ['Cloudinary',         process.env.CLOUDINARY_CLOUD_NAME ? '✅ Konfiguriert (' + process.env.CLOUDINARY_CLOUD_NAME + ')' : '❌ Nicht konfiguriert'],
+              ['Backup-E-Mail',      process.env.BACKUP_EMAIL ? '✅ ' + process.env.BACKUP_EMAIL : '❌ Nicht gesetzt'],
+              ['SMTP',               process.env.SMTP_USER ? '✅ ' + process.env.SMTP_USER : '❌ Nicht konfiguriert'],
+              ['KI (OpenAI)',        process.env.OPENAI_API_KEY ? '✅ API-Key gesetzt' : '❌ Kein API-Key'],
+            ]; %>
+            <% for (const [label, val] of sysInfo) { %>
+              <div class="flex items-start gap-4 py-2 border-b dark:border-slate-700 last:border-0">
+                <dt class="w-48 shrink-0 text-xs font-medium text-slate-500 uppercase tracking-wide pt-0.5"><%= label %></dt>
+                <dd class="text-sm text-slate-700 dark:text-slate-300 font-mono"><%= val %></dd>
+              </div>
+            <% } %>
+          </dl>
+        </div>
+
+        <!-- Backup -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">🗄️ Datenbank-Backup</h2>
+          <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div class="flex-1 text-sm text-slate-500 dark:text-slate-400">
+              <% if (!process.env.BACKUP_EMAIL || !process.env.SMTP_USER) { %>
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 rounded-lg px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+                  ⚠️ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> nicht gesetzt – Backup deaktiviert.
+                </div>
+              <% } else { %>
+                <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 rounded-lg px-4 py-2.5 text-xs text-green-800 dark:text-green-300">
+                  ✅ Backup täglich um Mitternacht → <strong><%= process.env.BACKUP_EMAIL %></strong>
+                </div>
+              <% } %>
+            </div>
+            <form action="/admin/backup/run" method="POST"
+              onsubmit="return confirm('Jetzt sofort ein Backup erstellen?')">
+              <button type="submit"
+                class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
+                🗄️ Backup jetzt erstellen
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Quick-Links -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔗 Schnell-Links</h2>
+          <div class="flex flex-wrap gap-3">
+            <% const links = [
+              ['/admin/users',            '👥 Mitarbeiter'],
+              ['/admin/timetracking',     '📋 Arbeitszeiten'],
+              ['/admin/company-settings', '🏢 Firmendaten'],
+              ['/customers',              '👤 Kunden'],
+              ['/articles',               '📦 Artikelstamm'],
+              ['/documents/invoices',     '🧾 Rechnungen'],
+              ['/documents/offers',       '📋 Angebote'],
+            ]; %>
+            <% for (const [href, label] of links) { %>
+              <a href="<%= href %>"
+                class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">
+                <%= label %>
+              </a>
+            <% } %>
+          </div>
+        </div>
+
+      </div>
+      <% } %>
+
+    </div><!-- /max-w-5xl -->
+  </main>
+</div>
+
+<script>
+  // Farb-Vorschau Live-Update
+  function updatePreview(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.style.background = value;
+  }
+
+  // Schnell-Vorlage anwenden
+  function applyPreset(primary, sidebarBg, sidebarText, sidebarHover, pageBg, topbarBg) {
+    setColorInput('color_primary',      primary);
+    setColorInput('color_sidebar_bg',   sidebarBg);
+    setColorInput('color_sidebar_text', sidebarText);
+    setColorInput('color_sidebar_hover',sidebarHover);
+    setColorInput('color_page_bg',      pageBg);
+    setColorInput('color_topbar_bg',    topbarBg);
+  }
+  function setColorInput(name, value) {
+    const inp = document.querySelector(`input[name="${name}"]`);
+    if (!inp) return;
+    inp.value = value;
+    inp.dispatchEvent(new Event('input'));
+  }
+
+  // Sidebar-Modus: Logo-Höhe ein-/ausblenden
+  document.querySelectorAll('input[name="sidebar_modus"]').forEach(r => {
+    r.addEventListener('change', function() {
+      const wrap = document.getElementById('heightWrap');
+      if (wrap) wrap.classList.toggle('hidden', this.value !== 'logo');
+    });
+  });
+</script>

@@ -9,9 +9,10 @@
     // Dark-Mode so früh wie möglich setzen, um Flackern zu verhindern
     (function() {
       try {
-        if (localStorage.getItem('darkMode') === 'true') {
-          document.documentElement.classList.add('dark');
-        }
+        const dmDefault = '<%= typeof firma !== "undefined" && firma.dark_mode_default === "true" ? "true" : "false" %>';
+        const stored = localStorage.getItem('darkMode');
+        const active = stored !== null ? stored === 'true' : dmDefault === 'true';
+        if (active) document.documentElement.classList.add('dark');
       } catch(e) {}
     })();
   </script>
@@ -21,6 +22,26 @@
   </script>
   <!-- PWA Manifest & Theme-Color für den Handy-Browser -->
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="<%= typeof firma !== 'undefined' && firma.color_primary ? firma.color_primary : '#2563eb' %>">
+  <!-- Dynamische Design-Variablen aus Admin-Panel -->
+  <% const _d = typeof firma !== 'undefined' ? firma : {}; %>
+  <style>
+    :root {
+      --color-primary:      <%= _d.color_primary      || '#2563eb' %>;
+      --color-sidebar-bg:   <%= _d.color_sidebar_bg   || '#1e293b' %>;
+      --color-sidebar-text: <%= _d.color_sidebar_text || '#e2e8f0' %>;
+      --color-sidebar-hover:<%= _d.color_sidebar_hover|| '#334155' %>;
+      --color-topbar-bg:    <%= _d.color_topbar_bg    || '#ffffff' %>;
+      --color-page-bg:      <%= _d.color_page_bg      || '#f1f5f9' %>;
+    }
+    /* Sidebar */
+    #sidebar { background-color: var(--color-sidebar-bg) !important; }
+    #sidebar a, #sidebar .text-gray-300 { color: var(--color-sidebar-text) !important; }
+    #sidebar a:hover { background-color: var(--color-sidebar-hover) !important; }
+    /* Mobile Menü-Leiste */
+    .md\\:hidden.bg-slate-900 { background-color: var(--color-sidebar-bg) !important; }
+    /* Primärfarbe für Buttons & Links */
+    .btn-primary, .bg-blue-600 { background-color: var(--color-primary) !important; }
+  </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-950 dark:text-gray-100 flex flex-col md:flex-row min-h-screen">

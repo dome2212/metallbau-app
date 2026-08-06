@@ -26,6 +26,23 @@ const DEFAULTS = {
   sidebar_logo_url:   null,   // Cloudinary-URL des Sidebar-Logos
   sidebar_modus:      'text', // 'text' = Kurzname anzeigen, 'logo' = Logo anzeigen
   sidebar_logo_height: 80,   // Höhe des Sidebar-Logos in px (40–200)
+
+  // ── Design & Farben (Admin-Panel) ──────────────────────────────
+  color_primary:      '#2563eb',  // Haupt-Akzentfarbe (Blau)
+  color_sidebar_bg:   '#1e293b',  // Sidebar Hintergrund
+  color_sidebar_text: '#e2e8f0',  // Sidebar Schriftfarbe
+  color_sidebar_hover:'#334155',  // Sidebar Hover-Hintergrund
+  color_topbar_bg:    '#ffffff',  // Topbar / Header Hintergrund
+  color_page_bg:      '#f1f5f9',  // Seiten-Hintergrund
+  app_icon:           '🔩',       // Emoji-Icon in der Sidebar
+  dark_mode_default:  'false',    // Dark-Mode standardmäßig aktiv?
+
+  // ── Feature-Schalter (Admin-Panel) ────────────────────────────
+  feature_map:        'true',     // Karten-Modul anzeigen
+  feature_lexikon:    'true',     // Lexikon anzeigen
+  feature_treppe:     'true',     // Treppen-Rechner anzeigen
+  feature_steel_calc: 'true',     // Stahl-Rechner anzeigen
+  feature_ai:         'true',     // KI-Funktionen anzeigen
 };
 
 // Einfacher In-Memory-Cache (wird bei jeder Änderung geleert)
