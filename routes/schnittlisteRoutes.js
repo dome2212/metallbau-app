@@ -493,33 +493,36 @@ async function callVisionKI(b64, mimeType) {
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
 
   const systemPrompt = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
-Du erhältst eine technische Zeichnung (Werkstattzeichnung, Stahlbauzeichnung, Schal- oder Positionsplan).
-Deine Aufgabe: Lies ALLE Bauteilpositionen / Zuschnitte aus der Zeichnung heraus und erstelle daraus eine vollständige Schnittliste.
+Du erhältst ein Bild — das kann eine technische Zeichnung, eine Prinzipskizze, ein Katalogblatt oder ein Foto eines Geländers / einer Stahlkonstruktion sein.
+Deine Aufgabe: Erkenne ALLE Bauteile, Profile und Materialien und erstelle daraus eine Schnittliste.
 
-Beachte folgende Quellen in der Zeichnung:
-- Stücklisten / Positionstabellen (oft als Tabelle am Rand oder unten)
-- Bemaßungslinien mit Längenangaben (z.B. "2450", "L=3200", "ℓ=1800 mm")
-- Profilbezeichnungen neben Bauteilen (z.B. "IPE 200", "HEB 160", "ROR 60x60x3", "□80x5", "∅60,3x3,2")
-- Positionsnummern (Kreise mit Zahlen, "Pos. 1", "P1" usw.)
-- Mengenangaben ("3×", "4 Stk", "n=6")
-- Bauteilbezeichnungen / Bemerkungen ("Unterzug", "Stütze", "Riegel", "Rahmen")
-- Maßstabsangaben: Falls ein Maßstab (z.B. 1:20) und Bemaßung fehlt, schätze die Länge aus dem Maßstab.
-- Achsmaße, Feldweiten und Gesamtlängen aus dem Grundriss oder Schnitt ableiten wenn nötig.
+WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
+- Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
+- Wenn nur ein Durchmesser oder Profiltyp erkennbar ist (z.B. "Ø33,7mm", "Ø12mm Vollmaterial"): trotzdem als Position aufnehmen
+- Jedes erkennbare Bauteil / Material einzeln aufnehmen, auch wenn die genaue Länge fehlt
+- Bei fehlender Länge: laenge:0 setzen — der Benutzer trägt sie später ein
 
-Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Array ohne Erklärungstext davor oder danach.
-Format (genau so):
+Erkennungsquellen (alle auswerten):
+- Bauteilbezeichnungen mit Pfeilen / Hinweislinien (z.B. "Wandflansch Ø80mm", "Ø33,7 Füllstab", "Handlauf Ø42,4mm")
+- Durchmesser- und Profilangaben (Ø, □, mm-Angaben)
+- Mengenangaben aus dem Bild oder aus sichtbaren Wiederholungen
+- Materialangaben (z.B. "V2A geschliffen K240", "Edelstahl", "8mm")
+- Stücklisten- oder Positionstabellen falls vorhanden
+- Bemaßungslinien mit konkreten Zahlenwerten
+
+Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Array ohne jeglichen Erklärungstext.
+Format:
 [
-  {"pos":"1","menge":2,"profil":"IPE 200","laenge":2450,"bemerk":"Unterzug"},
-  {"pos":"2","menge":4,"profil":"ROR 60x60x3","laenge":950,"bemerk":"Stütze"}
+  {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":0,"bemerk":"Handlauf, Länge nach Maß"},
+  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"bemerk":"Vertikal-Füllstab"},
+  {"pos":"3","menge":1,"profil":"Wandflansch Ø80mm","laenge":0,"bemerk":"mit Wandanschluss, geschweißt"}
 ]
-Strikte Regeln:
-- "laenge" immer als Ganzzahl in mm — falls Angabe in cm oder m: umrechnen (1 m = 1000 mm, 1 cm = 10 mm)
-- "menge" als Ganzzahl (Standardwert 1 wenn unklar)
-- "profil" exakt so wie in der Zeichnung erkennbar, normgerecht ausschreiben (z.B. "IPE 200", "HEB 160", "Rohr 60x3", "Flachstahl 50x5")
-- "bemerk" = Bauteilbezeichnung oder Hinweis aus der Zeichnung, sonst leerer String
-- "pos" = Positionsnummer aus der Zeichnung als String; falls keine vorhanden: fortlaufend nummerieren
-- Jede erkennbare Position einzeln auflisten — nicht zusammenfassen
-- Falls gar keine Positionen erkennbar: leeres Array []
+Regeln:
+- "laenge" als Ganzzahl in mm; 0 wenn keine konkrete Länge erkennbar
+- "menge" als Ganzzahl; 1 wenn unklar; bei sichtbaren Wiederholungen (z.B. 7 Füllstäbe) die Anzahl schätzen
+- "profil" so präzise wie erkennbar (Durchmesser, Wandstärke, Profiltyp)
+- "bemerk" = Bauteilname aus dem Bild + wichtige Hinweise (Material, Oberfläche, Verbindungsart)
+- "pos" = fortlaufend nummerieren
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
   let lastError;
@@ -586,19 +589,22 @@ router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) =
       return res.status(422).json({ fehler: 'Keine Positionen im Bild erkennbar.' });
     }
 
-    // Normalisieren + validieren
+    // Normalisieren — auch Positionen ohne Länge (laenge:0) zulassen
     const positionen = parsed
-      .filter(p => p.profil && parseFloat(p.laenge) > 0)
+      .filter(p => p.profil && String(p.profil).trim() !== '')
       .map((p, i) => ({
         pos:    String(p.pos || i + 1),
         menge:  Math.max(1, parseInt(p.menge, 10) || 1),
         profil: String(p.profil).trim(),
-        laenge: Math.round(parseFloat(p.laenge)),
+        laenge: Math.max(0, Math.round(parseFloat(p.laenge) || 0)),
         bemerk: String(p.bemerk || '').trim()
       }));
 
     if (positionen.length === 0) {
-      return res.status(422).json({ fehler: 'Keine auswertbaren Positionen erkannt.' });
+      return res.status(422).json({
+        fehler: 'Keine Bauteile erkannt. Bitte prüfe ob das Bild eine technische Zeichnung oder Skizze mit Profilbezeichnungen enthält.',
+        rohAntwort: rawText.slice(0, 500)
+      });
     }
 
     const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10) || 6000;

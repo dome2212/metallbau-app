@@ -456,17 +456,23 @@ function rendereErgebnis() {
 
 function rendereTabelle() {
   const tbody = document.getElementById('pos-tabelle');
-  tbody.innerHTML = aktPositionen.map((p, i) => `
-    <tr data-idx="${i}" class="hover:bg-slate-50">
+  tbody.innerHTML = aktPositionen.map((p, i) => {
+    const lFehlt = !p.laenge || p.laenge === 0;
+    return `
+    <tr data-idx="${i}" class="${lFehlt ? 'bg-amber-50' : 'hover:bg-slate-50'}">
       <td class="px-3 py-1.5"><input class="pos-input text-xs font-mono text-slate-400" value="${esc(p.pos)}"></td>
       <td class="px-3 py-1.5"><input class="pos-input w-16 text-center" type="number" min="1" value="${p.menge}"></td>
       <td class="px-3 py-1.5"><input class="pos-input font-semibold text-slate-800" value="${esc(p.profil)}"></td>
-      <td class="px-3 py-1.5"><input class="pos-input w-24 text-right" type="number" min="1" value="${p.laenge}"></td>
+      <td class="px-3 py-1.5">
+        <input class="pos-input w-24 text-right ${lFehlt ? 'text-amber-600 font-semibold' : ''}"
+          type="number" min="0" value="${p.laenge || ''}" placeholder="${lFehlt ? '✏ eintragen' : ''}">
+      </td>
       <td class="px-3 py-1.5"><input class="pos-input text-slate-500 text-xs" value="${esc(p.bemerk)}"></td>
       <td class="px-3 py-1.5 text-right">
         <button onclick="posLoeschen(${i})" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50">🗑️</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 // ── Hilfsfunktionen ──────────────────────────────────────────
