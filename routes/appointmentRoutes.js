@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const dbQuery = require('../utils/dbQuery');
+const { dbQuery } = require('../utils/db');
 
 // Wird in server.js unter '/api/appointments' eingebunden.
 router.get('/', async (req, res) => {

@@ -232,7 +232,6 @@ app.use('/vacations', vacationRoutes);
 // Admin-Bereich (Zeiterfassung-Übersicht, Mitarbeiter, Ticker, PDF)
 app.use('/admin',   adminRoutes);
 app.use('/admin',   companySettingsRoutes);
-app.use('/ticker',  adminRoutes);
 
 // Artikel-Stamm
 app.use('/articles', articleRoutes);

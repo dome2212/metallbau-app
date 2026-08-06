@@ -88,7 +88,7 @@ router.get('/:id/projects', async (req, res) => {
 
     const [offersRes, invoicesRes, appointmentsRes, filesRes] = await Promise.all([
       dbQuery("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC", [id]),
-      dbQuery("SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC", [id]),
+      dbQuery("SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'INVOICE' ORDER BY created_at DESC", [id]),
       dbQuery("SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC", [id]),
       dbQuery("SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC", [id])
     ]);
