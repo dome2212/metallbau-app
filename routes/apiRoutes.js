@@ -149,12 +149,12 @@ router.get('/dashboard', apiAuth, async (req, res) => {
 
     // Chef-Dashboard
     const sqlOverdue = isPg
-      ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status!='Bezahlt' AND due_date IS NOT NULL AND due_date!='' AND due_date::date<=CURRENT_DATE`
-      : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status!='Bezahlt' AND due_date IS NOT NULL AND due_date!='' AND due_date<=date('now')`;
+      ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date!='' AND due_date::date<=CURRENT_DATE`
+      : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date!='' AND due_date<=date('now')`;
 
     const [offerRes, invoiceRes, custRes, projRes, overdueRes, taskRes, recentRes, tickerRes] = await Promise.all([
       dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='OFFER' AND status!='ANGENOMMEN' AND status!='ABGELEHNT'`),
-      dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status!='Bezahlt'`),
+      dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
       dbQuery(`SELECT COUNT(*) as count FROM customers`),
       dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen')`),
       dbQuery(sqlOverdue),

@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   const userRole = req.user.role;
 
   try {
-    if (userRole !== 'ADMIN') {
+    if (userRole === 'EMPLOYEE') {
       // ── Mitarbeiter-Dashboard ──────────────────────────────────────────────
       const now = new Date();
       const curYear  = now.getFullYear();
@@ -140,12 +140,12 @@ router.get('/', async (req, res) => {
     } else {
       // ── Chef-Dashboard ────────────────────────────────────────────────────
       const sqlOverdueInvoices = isPg
-        ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date::date <= CURRENT_DATE`
-        : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt' AND due_date IS NOT NULL AND due_date != '' AND due_date <= date('now')`;
+        ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date != '' AND due_date::date <= CURRENT_DATE`
+        : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date != '' AND due_date <= date('now')`;
 
       const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes] = await Promise.all([
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'`),
-        dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status != 'Bezahlt'`),
+        dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
         dbQuery(`SELECT COUNT(*) as count FROM customers`),
         dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen')`),
         dbQuery(sqlOverdueInvoices),
