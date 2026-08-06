@@ -275,7 +275,7 @@ router.get('/api/appointments', async (req, res) => {
 // ==========================================
 // TERMIN ANLEGEN (mit optionaler Mitarbeiter-Zuweisung)
 // ==========================================
-router.post('/api/appointments/add', async (req, res) => {
+router.post('/api/appointments/add', requireAdmin, async (req, res) => {
   const { title, customer_id, start_date, end_date, description } = req.body;
   // user_ids kommt als Array oder einzelner Wert (Checkboxen)
   let userIds = req.body.user_ids;
