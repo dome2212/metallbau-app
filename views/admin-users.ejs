@@ -13,7 +13,7 @@
       <!-- Formular: Neuen Mitarbeiter anlegen -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
         <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">Neuen Mitarbeiter-Account erstellen</h2>
-        <form action="/admin/users/add" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form action="/admin/users/add" method="POST" autocomplete="off" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Benutzername</label>
             <input type="text" name="username" required placeholder="z.B. max.mustermann" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
@@ -44,7 +44,7 @@
       <!-- Passwort ändern -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
         <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔑 Passwort eines Mitarbeiters ändern</h2>
-        <form action="/admin/users/change-password" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form action="/admin/users/change-password" method="POST" autocomplete="off" class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs md:text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mitarbeiter</label>
             <select name="user_id" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
@@ -94,7 +94,7 @@
                         <span class="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-md font-semibold">👷 Mitarbeiter</span>
                       <% } %>
                       <!-- Rolle direkt ändern -->
-                      <form action="/admin/users/change-role" method="POST" class="mt-1.5 flex items-center gap-1">
+                      <form action="/admin/users/change-role" method="POST" autocomplete="off" class="mt-1.5 flex items-center gap-1">
                         <input type="hidden" name="user_id" value="<%= u.id %>">
                         <select name="role" class="text-xs border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-1.5 py-1 bg-white cursor-pointer">
                           <option value="EMPLOYEE" <%= u.role === 'EMPLOYEE' ? 'selected' : '' %>>👷 Mitarbeiter</option>
