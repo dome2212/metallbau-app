@@ -4,7 +4,7 @@ const https   = require('https');
 const { dbQuery }        = require('../utils/db');
 const { sendWhatsApp }   = require('../utils/notifier');
 const { getNRWHolidays, isNRWHoliday } = require('../utils/holidays');
-const { hasPerm }        = require('../middleware/auth');
+const { hasPerm, requireAdmin } = require('../middleware/auth');
 const { getFirma }       = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
