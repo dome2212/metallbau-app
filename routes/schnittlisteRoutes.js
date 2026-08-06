@@ -492,21 +492,34 @@ async function callVisionKI(b64, mimeType) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
 
-  const systemPrompt = `Du bist ein Experte für Metallbau-Schnittlisten.
-Analysiere das Bild und extrahiere ALLE erkennbaren Stahlpositionen / Zuschnitte.
+  const systemPrompt = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
+Du erhältst eine technische Zeichnung (Werkstattzeichnung, Stahlbauzeichnung, Schal- oder Positionsplan).
+Deine Aufgabe: Lies ALLE Bauteilpositionen / Zuschnitte aus der Zeichnung heraus und erstelle daraus eine vollständige Schnittliste.
+
+Beachte folgende Quellen in der Zeichnung:
+- Stücklisten / Positionstabellen (oft als Tabelle am Rand oder unten)
+- Bemaßungslinien mit Längenangaben (z.B. "2450", "L=3200", "ℓ=1800 mm")
+- Profilbezeichnungen neben Bauteilen (z.B. "IPE 200", "HEB 160", "ROR 60x60x3", "□80x5", "∅60,3x3,2")
+- Positionsnummern (Kreise mit Zahlen, "Pos. 1", "P1" usw.)
+- Mengenangaben ("3×", "4 Stk", "n=6")
+- Bauteilbezeichnungen / Bemerkungen ("Unterzug", "Stütze", "Riegel", "Rahmen")
+- Maßstabsangaben: Falls ein Maßstab (z.B. 1:20) und Bemaßung fehlt, schätze die Länge aus dem Maßstab.
+- Achsmaße, Feldweiten und Gesamtlängen aus dem Grundriss oder Schnitt ableiten wenn nötig.
+
 Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Array ohne Erklärungstext davor oder danach.
 Format (genau so):
 [
   {"pos":"1","menge":2,"profil":"IPE 200","laenge":2450,"bemerk":"Unterzug"},
-  {"pos":"2","menge":4,"profil":"ROR 60x60x3","laenge":950,"bemerk":""}
+  {"pos":"2","menge":4,"profil":"ROR 60x60x3","laenge":950,"bemerk":"Stütze"}
 ]
-Regeln:
-- "laenge" immer als Zahl in mm (ganze Zahl)
-- "menge" als Zahl (ganze Zahl, Standardwert 1 wenn unklar)
-- "profil" = Profilbezeichnung so wie im Bild erkennbar (z.B. "HEB 200", "Rohr 60x3", "Flach 50x5")
-- "bemerk" = kurze Notiz falls sichtbar, sonst leerer String
-- "pos" = laufende Nummer als String
-- Falls keine Positionen erkennbar: leeres Array []
+Strikte Regeln:
+- "laenge" immer als Ganzzahl in mm — falls Angabe in cm oder m: umrechnen (1 m = 1000 mm, 1 cm = 10 mm)
+- "menge" als Ganzzahl (Standardwert 1 wenn unklar)
+- "profil" exakt so wie in der Zeichnung erkennbar, normgerecht ausschreiben (z.B. "IPE 200", "HEB 160", "Rohr 60x3", "Flachstahl 50x5")
+- "bemerk" = Bauteilbezeichnung oder Hinweis aus der Zeichnung, sonst leerer String
+- "pos" = Positionsnummer aus der Zeichnung als String; falls keine vorhanden: fortlaufend nummerieren
+- Jede erkennbare Position einzeln auflisten — nicht zusammenfassen
+- Falls gar keine Positionen erkennbar: leeres Array []
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
   let lastError;
