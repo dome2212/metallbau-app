@@ -231,14 +231,14 @@ Alle Firmendaten sind **zentral** in [`utils/firma.js`](utils/firma.js) hinterle
 
 ```js
 const FIRMA = {
-  name:            'Frank Gehrmann Stahl- und Metallbau GmbH',
-  nameKurz:        'Metallbau-Gehrmann',
+  name:            ',
+  nameKurz:        '',
   slogan:          'Hochwertige Handwerksarbeit zum fairen Preis.',
-  strasse:         'Ratingerstr. 85',
-  plzOrt:          '42279 Heiligenhaus',
-  tel:             '02102 85610',
-  email:           'info@metallbau-gehrmann.de',
-  web:             'www.metallbau-gehrmann.de',
+  strasse:         '',
+  plzOrt:          '',
+  tel:             '',
+  email:           '',
+  web:             '',
   iban:            'DE12 3456 7890 1234 5678 90',  // ← anpassen
   bic:             'MUBADE12',                      // ← anpassen
   bank:            'Musterbank DE',                 // ← anpassen
