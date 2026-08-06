@@ -34,12 +34,17 @@ if (process.env.DATABASE_URL) {
       console.error("❌ FEHLER beim Erstellen der users-Tabelle:", err.message);
     } else {
       console.log("✅ users-Tabelle bereit!");
-      db.query(`SELECT * FROM users WHERE role = 'ADMIN'`, (err, res) => {
+      // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
+      db.query(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
+        if (err) console.error("⚠️ Migration ADMIN→CHEF:", err.message);
+        else console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
+      });
+      db.query(`SELECT * FROM users WHERE role = 'CHEF'`, (err, res) => {
         if (res && res.rows.length === 0) {
           const hashedPassword = bcrypt.hashSync('chef123', 10);
-          db.query(`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`, ['chef', hashedPassword, 'ADMIN'], (err) => {
-            if (err) console.error("❌ Fehler beim Anlegen des Admin-Users:", err.message);
-            else console.log("✅ Admin-User 'chef' erfolgreich erstellt!");
+          db.query(`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`, ['chef', hashedPassword, 'CHEF'], (err) => {
+            if (err) console.error("❌ Fehler beim Anlegen des Chef-Users:", err.message);
+            else console.log("✅ Chef-User 'chef' erfolgreich erstellt!");
           });
         }
       });
@@ -65,13 +70,23 @@ if (process.env.DATABASE_URL) {
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       project_id INTEGER,
+      customer_id INTEGER,
       type TEXT CHECK(type IN ('IN', 'OUT')) NOT NULL,
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       note TEXT,
       latitude REAL,
       longitude REAL
     )
-  `, (err) => { if (err) console.error("❌ Fehler time_logs:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler time_logs:", err.message);
+    else {
+      db.query(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INTEGER`, () => {});
+      db.query(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`, () => {});
+      db.query(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude REAL`, () => {});
+      db.query(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude REAL`, () => {});
+      db.query(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INTEGER`, () => {});
+    }
+  });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -81,9 +96,21 @@ if (process.env.DATABASE_URL) {
       description TEXT,
       status TEXT DEFAULT 'In Planung',
       total_price REAL DEFAULT 0,
+      site_lat NUMERIC(10,8),
+      site_lng NUMERIC(11,8),
+      site_radius INTEGER DEFAULT 200,
+      site_note TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler projects:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler projects:", err.message);
+    else {
+      db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`, () => {});
+      db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng NUMERIC(11,8)`, () => {});
+      db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INTEGER DEFAULT 200`, () => {});
+      db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_note TEXT`, () => {});
+    }
+  });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS documents (
@@ -93,9 +120,36 @@ if (process.env.DATABASE_URL) {
       customer_id INTEGER,
       total_amount REAL,
       status TEXT,
+      tax_rate NUMERIC(5,2) DEFAULT 19,
+      subtotal NUMERIC(12,2) DEFAULT 0,
+      tax_amount NUMERIC(12,2) DEFAULT 0,
+      due_date TEXT,
+      status_note TEXT,
+      dunning_level INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler documents:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler documents:", err.message);
+    else {
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) DEFAULT 19`, () => {});
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) DEFAULT 0`, () => {});
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(12,2) DEFAULT 0`, () => {});
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS due_date TEXT`, () => {});
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status_note TEXT`, () => {});
+      db.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS dunning_level INTEGER DEFAULT 0`, () => {});
+    }
+  });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS document_items (
+      id SERIAL PRIMARY KEY,
+      document_id INTEGER NOT NULL,
+      description TEXT,
+      quantity NUMERIC(10,3) DEFAULT 1,
+      unit TEXT DEFAULT 'Stk',
+      price NUMERIC(12,2) DEFAULT 0
+    )
+  `, (err) => { if (err) console.error("❌ Fehler document_items:", err.message); });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS offer_items (
@@ -136,12 +190,18 @@ if (process.env.DATABASE_URL) {
   db.query(`
     CREATE TABLE IF NOT EXISTS articles (
       id SERIAL PRIMARY KEY,
-      title TEXT,
+      title TEXT NOT NULL,
       unit TEXT,
-      unit_price REAL,
-      description TEXT
+      unit_price NUMERIC(10,2) DEFAULT 0,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler articles:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler articles:", err.message);
+    else {
+      db.query(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`, () => {});
+    }
+  });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS appointments (
@@ -150,9 +210,128 @@ if (process.env.DATABASE_URL) {
       customer_id INTEGER,
       start_date TEXT,
       end_date TEXT,
-      description TEXT
+      description TEXT,
+      project_id INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler appointments:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler appointments:", err.message);
+    else {
+      db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS project_id INTEGER`, () => {});
+      db.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`, () => {});
+    }
+  });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS vacations (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      reason TEXT,
+      type TEXT DEFAULT 'Urlaub',
+      file_url TEXT,
+      status TEXT DEFAULT 'Beantragt',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) console.error("❌ Fehler vacations:", err.message);
+    else {
+      db.query(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
+      db.query(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'Urlaub'`, () => {});
+    }
+  });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_photos (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER,
+      file_url TEXT NOT NULL,
+      original_name TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler project_photos:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_measurements (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER,
+      component_name TEXT NOT NULL,
+      width TEXT,
+      height TEXT,
+      angle TEXT,
+      quantity INTEGER DEFAULT 1,
+      note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler project_measurements:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_notes (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER,
+      note_text TEXT NOT NULL,
+      audio_url TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => {
+    if (err) console.error("❌ Fehler project_notes:", err.message);
+    else {
+      db.query(`ALTER TABLE project_notes ADD COLUMN IF NOT EXISTS audio_url TEXT`, () => {});
+    }
+  });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_tasks (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT DEFAULT 'Restarbeit',
+      status TEXT DEFAULT 'Offen',
+      photo_url TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler project_tasks:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS project_sketches (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL,
+      title TEXT,
+      image_data TEXT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler project_sketches:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS tickers (
+      id SERIAL PRIMARY KEY,
+      message TEXT NOT NULL,
+      author TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler tickers:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS appointment_users (
+      appointment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      PRIMARY KEY (appointment_id, user_id)
+    )
+  `, (err) => { if (err) console.error("❌ Fehler appointment_users:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT,
+      auth TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler push_subscriptions:", err.message); });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS customer_files (
@@ -164,12 +343,7 @@ if (process.env.DATABASE_URL) {
       file_url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { 
-    if (err) console.error("❌ Fehler customer_files:", err.message); 
-    else {
-      db.query(`ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
-    }
-  });
+  `, (err) => { if (err) console.error("❌ Fehler customer_files:", err.message); });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS project_files (
@@ -181,12 +355,7 @@ if (process.env.DATABASE_URL) {
       file_url TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => {
-    if (err) console.error("❌ Fehler project_files:", err.message);
-    else {
-      db.query(`ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
-    }
-  });
+  `, (err) => { if (err) console.error("❌ Fehler project_files:", err.message); });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS user_settings (
@@ -196,6 +365,20 @@ if (process.env.DATABASE_URL) {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `, (err) => { if (err) console.error("❌ Fehler user_settings:", err.message); });
+
+  db.query(`
+    CREATE TABLE IF NOT EXISTS company_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error("❌ Fehler company_settings:", err.message); });
+
+  // users: fehlende Spalten nachrüsten
+  db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INTEGER DEFAULT 30`, () => {});
+  db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`, () => {});
+  db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`, () => {});
+  db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`, () => {});
 
 } else {
   // Lokale Entwicklung (SQLite)
@@ -269,7 +452,30 @@ if (process.env.DATABASE_URL) {
           customer_id INTEGER,
           total_amount REAL,
           status TEXT,
+          tax_rate NUMERIC(5,2) DEFAULT 19,
+          subtotal NUMERIC(12,2) DEFAULT 0,
+          tax_amount NUMERIC(12,2) DEFAULT 0,
+          due_date TEXT,
+          status_note TEXT,
+          dunning_level INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) DEFAULT 19`, () => {});
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) DEFAULT 0`, () => {});
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(12,2) DEFAULT 0`, () => {});
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS due_date TEXT`, () => {});
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status_note TEXT`, () => {});
+      db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS dunning_level INTEGER DEFAULT 0`, () => {});
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS document_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id INTEGER NOT NULL,
+          description TEXT,
+          quantity NUMERIC(10,3) DEFAULT 1,
+          unit TEXT DEFAULT 'Stk',
+          price NUMERIC(12,2) DEFAULT 0
         )
       `);
 
@@ -312,12 +518,14 @@ if (process.env.DATABASE_URL) {
       db.run(`
         CREATE TABLE IF NOT EXISTS articles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT,
+          title TEXT NOT NULL,
           unit TEXT,
-          unit_price REAL,
-          description TEXT
+          unit_price NUMERIC(10,2) DEFAULT 0,
+          description TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+      db.run(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
 
       db.run(`
         CREATE TABLE IF NOT EXISTS appointments (
@@ -326,9 +534,13 @@ if (process.env.DATABASE_URL) {
           customer_id INTEGER,
           start_date TEXT,
           end_date TEXT,
-          description TEXT
+          description TEXT,
+          project_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+      db.run(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS project_id INTEGER`, () => {});
+      db.run(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
 
       db.run(`
         CREATE TABLE IF NOT EXISTS project_sketches (
@@ -355,6 +567,57 @@ if (process.env.DATABASE_URL) {
       `);
 
       db.run(`
+        CREATE TABLE IF NOT EXISTS vacations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          start_date TEXT NOT NULL,
+          end_date TEXT NOT NULL,
+          reason TEXT,
+          type TEXT DEFAULT 'Urlaub',
+          file_url TEXT,
+          status TEXT DEFAULT 'Beantragt',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.run(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS file_url TEXT`, () => {});
+      db.run(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'Urlaub'`, () => {});
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS project_photos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER,
+          file_url TEXT NOT NULL,
+          original_name TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS project_measurements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER,
+          component_name TEXT NOT NULL,
+          width TEXT,
+          height TEXT,
+          angle TEXT,
+          quantity INTEGER DEFAULT 1,
+          note TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS project_notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER,
+          note_text TEXT NOT NULL,
+          audio_url TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.run(`ALTER TABLE project_notes ADD COLUMN IF NOT EXISTS audio_url TEXT`, () => {});
+
+      db.run(`
         CREATE TABLE IF NOT EXISTS tickers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           message TEXT NOT NULL,
@@ -370,6 +633,44 @@ if (process.env.DATABASE_URL) {
           PRIMARY KEY (appointment_id, user_id)
         )
       `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          endpoint TEXT NOT NULL UNIQUE,
+          p256dh TEXT,
+          auth TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS company_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // users: fehlende Spalten nachrüsten
+      db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INTEGER DEFAULT 30`, () => {});
+      db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`, () => {});
+      db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`, () => {});
+      db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify INTEGER DEFAULT 1`, () => {});
+
+      // time_logs: fehlende Spalten nachrüsten
+      db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INTEGER`, () => {});
+      db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`, () => {});
+      db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude REAL`, () => {});
+      db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude REAL`, () => {});
+      db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INTEGER`, () => {});
+
+      // projects: fehlende Spalten nachrüsten (für ältere DBs)
+      db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat REAL`, () => {});
+      db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng REAL`, () => {});
+      db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INTEGER DEFAULT 200`, () => {});
+      db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_note TEXT`, () => {});
 
       db.run(`
         CREATE TABLE IF NOT EXISTS customer_files (
@@ -404,12 +705,16 @@ if (process.env.DATABASE_URL) {
         )
       `);
 
-      // Admin-User lokal prüfen/anlegen
-      db.get(`SELECT * FROM users WHERE role = 'ADMIN'`, (err, row) => {
+      // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
+      db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
+        if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
+      });
+      // Chef-User lokal prüfen/anlegen
+      db.get(`SELECT * FROM users WHERE role = 'CHEF'`, (err, row) => {
         if (!row) {
           const hashedPassword = bcrypt.hashSync('chef123', 10);
-          db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'ADMIN'], (err) => {
-            if (!err) console.log("✅ Lokaler Admin-User 'chef' erfolgreich erstellt!");
+          db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'CHEF'], (err) => {
+            if (!err) console.log("✅ Lokaler Chef-User 'chef' erfolgreich erstellt!");
           });
         }
       });

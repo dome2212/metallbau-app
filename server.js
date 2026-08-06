@@ -93,6 +93,10 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catc
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 
+// ── Rollen-Migration: bestehende ADMIN-Accounts → CHEF ──────────────────────
+// Einmalig beim Start – damit alle bestehenden "ADMIN"-User die neue CHEF-Rolle bekommen.
+dbQuery(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`).catch(() => {});
+
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
 dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
@@ -229,6 +233,20 @@ app.use('/articles', articleRoutes);
 // ==========================================
 app.get('/treppe', (req, res) => {
   res.render('treppe', { currentUser: req.user });
+});
+
+// ==========================================
+// BAUSTELLEN-KARTE
+// ==========================================
+app.get('/map', (req, res) => {
+  res.render('map', { currentUser: req.user });
+});
+
+// ==========================================
+// STAHL-RECHNER
+// ==========================================
+app.get('/steel-calculator', (req, res) => {
+  res.render('steel-calculator', { currentUser: req.user });
 });
 
 // ==========================================

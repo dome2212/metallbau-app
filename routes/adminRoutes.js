@@ -80,6 +80,22 @@ router.post('/users/change-password', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/users/change-role', requireAdmin, async (req, res) => {
+  const { user_id, role } = req.body;
+  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  if (!allowedRoles.includes(role)) return res.status(400).send('Ungültige Rolle.');
+  // Eigene Chef-Rolle darf nicht selbst entzogen werden
+  if (parseInt(user_id) === req.user.id && role !== 'CHEF') {
+    return res.status(400).send('Du kannst dir selbst die Chef-Rolle nicht entziehen.');
+  }
+  try {
+    await dbQuery('UPDATE users SET role = ? WHERE id = ?', [role, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern der Rolle');
+  }
+});
+
 router.post('/users/delete', requireAdmin, async (req, res) => {
   const { id } = req.body;
   if (parseInt(id) === req.user.id) {

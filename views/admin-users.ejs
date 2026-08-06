@@ -86,11 +86,23 @@
                   <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
                     <td class="p-4 font-semibold text-slate-800 dark:text-gray-100"><%= u.username %></td>
                     <td class="p-4">
-                      <% if (u.role === 'ADMIN') { %>
-                        <span class="bg-purple-100 text-purple-800 text-xs px-2.5 py-1 rounded-md font-semibold">Administrator</span>
+                      <% if (u.role === 'CHEF') { %>
+                        <span class="bg-yellow-100 text-yellow-800 text-xs px-2.5 py-1 rounded-md font-semibold">👑 Chef</span>
+                      <% } else if (u.role === 'ADMIN') { %>
+                        <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-md font-semibold">🛠️ Admin</span>
                       <% } else { %>
-                        <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-md font-semibold">Mitarbeiter</span>
+                        <span class="bg-slate-100 text-slate-600 text-xs px-2.5 py-1 rounded-md font-semibold">👷 Mitarbeiter</span>
                       <% } %>
+                      <!-- Rolle direkt ändern -->
+                      <form action="/admin/users/change-role" method="POST" class="mt-1.5 flex items-center gap-1">
+                        <input type="hidden" name="user_id" value="<%= u.id %>">
+                        <select name="role" class="text-xs border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-1.5 py-1 bg-white cursor-pointer">
+                          <option value="EMPLOYEE" <%= u.role === 'EMPLOYEE' ? 'selected' : '' %>>👷 Mitarbeiter</option>
+                          <option value="ADMIN"    <%= u.role === 'ADMIN'    ? 'selected' : '' %>>🛠️ Admin</option>
+                          <option value="CHEF"     <%= u.role === 'CHEF'     ? 'selected' : '' %>>👑 Chef</option>
+                        </select>
+                        <button type="submit" class="px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-semibold transition">✓</button>
+                      </form>
                     </td>
                     <td class="p-4">
                       <!-- Nummer + API-Key eingeben & speichern -->
@@ -135,6 +147,9 @@
                         <input type="hidden" name="id" value="<%= u.id %>">
                         <button type="submit" class="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-semibold transition">🗑️ Löschen</button>
                       </form>
+                      <% if (typeof currentUser !== 'undefined' && u.id === currentUser.id) { %>
+                        <span class="text-[10px] text-slate-400 block mt-1">← Du</span>
+                      <% } %>
                     </td>
                   </tr>
                 <% }) %>
