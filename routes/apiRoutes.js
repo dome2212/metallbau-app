@@ -235,7 +235,7 @@ router.get('/projects/:id', apiAuth, async (req, res) => {
 
 // POST /api/v2/projects  (nur ADMIN)
 router.post('/projects', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { customer_id, title, description, total_price, status } = req.body;
   if (!title) return res.status(400).json({ error: 'Titel erforderlich' });
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
@@ -252,7 +252,7 @@ router.post('/projects', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/projects/:id/status  (nur ADMIN)
 router.patch('/projects/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!status) return res.status(400).json({ error: 'Status fehlt' });
   try {
@@ -294,7 +294,7 @@ router.get('/customers', apiAuth, async (req, res) => {
 
 // POST /api/v2/customers  (nur ADMIN)
 router.post('/customers', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
   try {
     const r = await dbQuery(
@@ -309,7 +309,7 @@ router.post('/customers', apiAuth, async (req, res) => {
 
 // PUT /api/v2/customers/:id  (nur ADMIN)
 router.put('/customers/:id', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
   try {
     await dbQuery(
@@ -520,7 +520,7 @@ router.post('/vacations', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/vacations/:id/status  (nur ADMIN)
 router.patch('/vacations/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!['Genehmigt', 'Abgelehnt'].includes(status)) return res.status(400).json({ error: 'Ungültiger Status' });
   try {
@@ -658,7 +658,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
 
 // GET /api/v2/documents?type=OFFER|INVOICE
 router.get('/documents', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Nur für Admins.' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Nur für Admins.' });
   const type = req.query.type; // OFFER oder INVOICE
   const sql  = type
     ? `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.doc_type=? ORDER BY d.id DESC LIMIT 50`
@@ -673,7 +673,7 @@ router.get('/documents', apiAuth, async (req, res) => {
 
 // GET /api/v2/documents/:id  – Detail mit Positionen
 router.get('/documents/:id', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Nur für Admins.' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Nur für Admins.' });
   try {
     const docRes   = await dbQuery(`SELECT d.*,c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.id=?`, [req.params.id]);
     const doc      = docRes.rows[0];
@@ -687,7 +687,7 @@ router.get('/documents/:id', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/documents/:id/status  (nur ADMIN)
 router.patch('/documents/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!status) return res.status(400).json({ error: 'Status fehlt' });
   try {

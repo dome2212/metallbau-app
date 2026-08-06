@@ -160,7 +160,7 @@ router.get('/', async (req, res) => {
 // PROJEKT ANLEGEN
 // ==========================================
 router.post('/add', async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { customer_id, title, description, total_price, status } = req.body;
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
   try {
@@ -188,7 +188,7 @@ router.post('/add', async (req, res) => {
 // STATUS SCHNELL ÄNDERN
 // ==========================================
 router.post('/update-status', async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id, status } = req.body;
   try {
     await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
@@ -202,7 +202,7 @@ router.post('/update-status', async (req, res) => {
 // PROJEKT BEARBEITEN
 // ==========================================
 router.post('/:id/edit', async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
   const { title, description, total_price, status } = req.body;
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
@@ -274,7 +274,7 @@ router.get('/:id', async (req, res) => {
 // PROJEKT LÖSCHEN
 // ==========================================
 router.post('/delete', async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id } = req.body;
   try {
     // Alle abhängigen Daten zuerst löschen
@@ -429,7 +429,7 @@ router.post('/files/delete', async (req, res) => {
 // GEO-FENCING KOORDINATEN SETZEN
 // ==========================================
 router.post('/:id/set-location', async (req, res) => {
-  if (req.user.role !== 'ADMIN') return res.status(403).send('Zugriff verweigert');
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
   const { site_lat, site_lng, site_radius, site_note } = req.body;
   try {
