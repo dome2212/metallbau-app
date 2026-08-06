@@ -1,5 +1,28 @@
 const PDFDocument = require('pdfkit');
+const https       = require('https');
+const http        = require('http');
 const { getFirma } = require('./companySettings');
+
+/**
+ * Lädt eine Bild-URL (http/https) und gibt einen Buffer zurück.
+ * Gibt null zurück, wenn der Download fehlschlägt.
+ */
+function fetchImageBuffer(url) {
+  return new Promise((resolve) => {
+    try {
+      const lib = url.startsWith('https') ? https : http;
+      lib.get(url, (res) => {
+        if (res.statusCode !== 200) { res.resume(); return resolve(null); }
+        const chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end',  () => resolve(Buffer.concat(chunks)));
+        res.on('error',() => resolve(null));
+      }).on('error', () => resolve(null));
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
 
 /**
  * Erzeugt ein vollständiges Rechnungs- oder Angebots-PDF mit PDFKit.
@@ -47,13 +70,36 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   // BRIEFKOPF
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Firmenname links
-  doc.fontSize(18).fillColor(accentColor).font('Helvetica-Bold')
-     .text((firma.name || 'Ihre Firma').toUpperCase(), doc.page.margins.left, 50, { width: PAGE_W * 0.55 });
+  // Logo-Buffer vorab laden (blockiert nicht den Stream, da wir async/await nutzen)
+  let logoBuffer = null;
+  if (firma.logo_url) {
+    logoBuffer = await fetchImageBuffer(firma.logo_url);
+  }
 
-  if (firma.slogan) {
-    doc.fontSize(8).fillColor('#888888').font('Helvetica')
-       .text(firma.slogan, doc.page.margins.left, doc.y, { width: PAGE_W * 0.55 });
+  // Links: Logo oder Firmenname
+  const LOGO_MAX_W = PAGE_W * 0.45;
+  const LOGO_MAX_H = 70;
+
+  if (logoBuffer) {
+    // Logo einbetten – PDFKit skaliert automatisch wenn width+height angegeben
+    doc.image(logoBuffer, doc.page.margins.left, 50, {
+      fit:   [LOGO_MAX_W, LOGO_MAX_H],
+      align: 'left',
+      valign:'top'
+    });
+    if (firma.slogan) {
+      const logoBottom = 50 + LOGO_MAX_H + 4;
+      doc.fontSize(8).fillColor('#888888').font('Helvetica')
+         .text(firma.slogan, doc.page.margins.left, logoBottom, { width: LOGO_MAX_W });
+    }
+  } else {
+    // Fallback: Firmenname als Text
+    doc.fontSize(18).fillColor(accentColor).font('Helvetica-Bold')
+       .text((firma.name || 'Ihre Firma').toUpperCase(), doc.page.margins.left, 50, { width: PAGE_W * 0.55 });
+    if (firma.slogan) {
+      doc.fontSize(8).fillColor('#888888').font('Helvetica')
+         .text(firma.slogan, doc.page.margins.left, doc.y, { width: PAGE_W * 0.55 });
+    }
   }
 
   // Kontaktdaten rechts

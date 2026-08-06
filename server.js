@@ -236,36 +236,6 @@ app.use('/articles', articleRoutes);
 app.use('/reports', reportsRoutes);
 
 // ==========================================
-// TREPPEN- & GELÄNDER-AUFMASS
-// ==========================================
-app.get('/treppe', (req, res) => {
-  if (!_hasPerm(req.user, 'treppe', res.locals.firma, false, false)) {
-    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
-  }
-  res.render('treppe', { currentUser: req.user });
-});
-
-// ==========================================
-// BAUSTELLEN-KARTE
-// ==========================================
-app.get('/map', (req, res) => {
-  if (!_hasPerm(req.user, 'map', res.locals.firma, false, false)) {
-    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
-  }
-  res.render('map', { currentUser: req.user });
-});
-
-// ==========================================
-// STAHL-RECHNER
-// ==========================================
-app.get('/steel-calculator', (req, res) => {
-  if (!_hasPerm(req.user, 'steel_calc', res.locals.firma, false, false)) {
-    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
-  }
-  res.render('steel-calculator', { currentUser: req.user });
-});
-
-// ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)
 // ==========================================
 app.post('/sidebar-settings', (req, res) => {

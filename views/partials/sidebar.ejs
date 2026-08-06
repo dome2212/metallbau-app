@@ -78,15 +78,6 @@
       <% if (_show('vacations') && _perm('vacations', true, true)) { %>
       <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
       <% } %>
-      <% if (_show('map') && _f.feature_map !== 'false' && _perm('map', false, false)) { %>
-      <a href="/map" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗺️ Baustellen-Karte</a>
-      <% } %>
-      <% if (_show('treppe') && _f.feature_treppe !== 'false' && _perm('treppe', false, false)) { %>
-      <a href="/treppe" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🪜 Treppen-Rechner</a>
-      <% } %>
-      <% if (_show('steel_calc') && _f.feature_steel_calc !== 'false' && _perm('steel_calc', false, false)) { %>
-      <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahl-Rechner</a>
-      <% } %>
       <!-- NUR FÜR CHEF & ADMIN -->
       <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
