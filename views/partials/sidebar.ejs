@@ -77,7 +77,7 @@
       <!-- NUR FÜR CHEF & ADMIN -->
       <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
         <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-          <%= currentUser.role === 'CHEF' ? '👑 Chef-Bereich' : '🛠️ Admin-Bereich' %>
+          <%= currentUser.role === 'CHEF' ? '👑 Chef-Bereich' : '🛠️ Chef-Bereich' %>
         </div>
         <% if (_show('admin_users')) { %>
         <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
