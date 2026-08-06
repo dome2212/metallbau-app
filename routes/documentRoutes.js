@@ -1,8 +1,8 @@
 const express = require('express');
 const router  = require('express').Router();
-const { dbQuery }    = require('../utils/db');
-const { requireAdmin }   = require('../middleware/auth');
-const { getFirma }   = require('../utils/companySettings');
+const { dbQuery }          = require('../utils/db');
+const { requireAdmin, hasPerm } = require('../middleware/auth');
+const { getFirma }         = require('../utils/companySettings');
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -10,6 +10,10 @@ const { getFirma }   = require('../utils/companySettings');
 
 // GET: Angebots-Übersicht
 router.get('/offers', requireAdmin, async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'documents', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const [offersRes, customersRes, articlesRes] = await Promise.all([
       dbQuery(`
@@ -192,6 +196,10 @@ router.get('/offers/:id/pdf', requireAdmin, async (req, res) => {
 
 // GET: Rechnungs-Übersicht
 router.get('/invoices', requireAdmin, async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'documents', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const [invoicesRes, customersRes, articlesRes] = await Promise.all([
       dbQuery(`

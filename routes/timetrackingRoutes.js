@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, hasPerm } = require('../middleware/auth');
 const { getFirma } = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
@@ -21,6 +21,10 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
 // STEMPELUHR-ANSICHT
 // ==========================================
 router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'timetracking', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   const userId = req.user.id;
   try {
     const sqlToday = isPg

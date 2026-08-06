@@ -187,7 +187,7 @@ app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
 const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
-const { canSeeMoney: _canSeeMoney } = require('./middleware/auth');
+const { canSeeMoney: _canSeeMoney, hasPerm: _hasPerm } = require('./middleware/auth');
 app.use(async (req, res, next) => {
   try {
     res.locals.firma = await _getFirmaLocals();
@@ -195,7 +195,10 @@ app.use(async (req, res, next) => {
     res.locals.firma = require('./utils/companySettings').DEFAULTS;
   }
   // canSeeMoney als Helper für alle EJS-Views verfügbar machen
-  res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user) : false;
+  res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user, res.locals.firma) : false;
+  // hasPerm als Helper-Funktion für alle EJS-Views (Sidebar, Seiten)
+  res.locals.hasPerm = (area, adminDef, employeeDef) =>
+    _hasPerm(req.user, area, res.locals.firma, adminDef, employeeDef);
   next();
 });
 
@@ -232,6 +235,9 @@ app.use('/articles', articleRoutes);
 // TREPPEN- & GELÄNDER-AUFMASS
 // ==========================================
 app.get('/treppe', (req, res) => {
+  if (!_hasPerm(req.user, 'treppe', res.locals.firma, false, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   res.render('treppe', { currentUser: req.user });
 });
 
@@ -239,6 +245,9 @@ app.get('/treppe', (req, res) => {
 // BAUSTELLEN-KARTE
 // ==========================================
 app.get('/map', (req, res) => {
+  if (!_hasPerm(req.user, 'map', res.locals.firma, false, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   res.render('map', { currentUser: req.user });
 });
 
@@ -246,6 +255,9 @@ app.get('/map', (req, res) => {
 // STAHL-RECHNER
 // ==========================================
 app.get('/steel-calculator', (req, res) => {
+  if (!_hasPerm(req.user, 'steel_calc', res.locals.firma, false, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   res.render('steel-calculator', { currentUser: req.user });
 });
 

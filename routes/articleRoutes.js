@@ -1,11 +1,17 @@
 const express = require('express');
 const router  = express.Router();
-const { dbQuery } = require('../utils/db');
+const { dbQuery }  = require('../utils/db');
+const { hasPerm }  = require('../middleware/auth');
+const { getFirma } = require('../utils/companySettings');
 
 // ==========================================
 // ARTIKEL-ÜBERSICHT
 // ==========================================
 router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'articles', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const result = await dbQuery('SELECT * FROM articles ORDER BY title ASC');
     res.render('articles', { articles: result.rows || [] });

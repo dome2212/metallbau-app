@@ -56,31 +56,35 @@
       } catch(e) {}
       const _show = key => !_hidden.includes('hide_' + key);
     %>
+    <%
+      // hasPerm-Wrapper für die Sidebar (greift auf res.locals.hasPerm zu)
+      const _perm = (typeof hasPerm === 'function') ? hasPerm : () => true;
+    %>
     <nav class="space-y-1.5" id="sidebar-nav">
       <% if (_show('dashboard')) { %>
       <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏠 Dashboard</a>
       <% } %>
 
-      <!-- Für Alle sichtbar -->
-      <% if (_show('projects')) { %>
+      <!-- Berechtigungsgesteuerte Bereiche -->
+      <% if (_show('projects') && _perm('projects', true, true)) { %>
       <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
       <% } %>
-      <% if (_show('calendar')) { %>
+      <% if (_show('calendar') && _perm('calendar', true, true)) { %>
       <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
       <% } %>
-      <% if (_show('timetracking')) { %>
+      <% if (_show('timetracking') && _perm('timetracking', true, true)) { %>
       <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
       <% } %>
-      <% if (_show('vacations')) { %>
+      <% if (_show('vacations') && _perm('vacations', true, true)) { %>
       <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
       <% } %>
-      <% if (_show('map') && _f.feature_map !== 'false') { %>
+      <% if (_show('map') && _f.feature_map !== 'false' && _perm('map', false, false)) { %>
       <a href="/map" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🗺️ Baustellen-Karte</a>
       <% } %>
-      <% if (_show('treppe') && _f.feature_treppe !== 'false') { %>
+      <% if (_show('treppe') && _f.feature_treppe !== 'false' && _perm('treppe', false, false)) { %>
       <a href="/treppe" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🪜 Treppen-Rechner</a>
       <% } %>
-      <% if (_show('steel_calc') && _f.feature_steel_calc !== 'false') { %>
+      <% if (_show('steel_calc') && _f.feature_steel_calc !== 'false' && _perm('steel_calc', false, false)) { %>
       <a href="/steel-calculator" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⚖️ Stahl-Rechner</a>
       <% } %>
       <!-- NUR FÜR CHEF & ADMIN -->
@@ -94,14 +98,14 @@
         <% if (_show('admin_timetracking')) { %>
         <a href="/admin/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Arbeitszeiten-Übersicht</a>
         <% } %>
-        <% if (_show('customers')) { %>
+        <% if (_show('customers') && _perm('customers', true, false)) { %>
         <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👤 Kunden</a>
         <% } %>
-        <% if (_show('documents')) { %>
+        <% if (_show('documents') && _perm('documents', true, false)) { %>
         <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Angebote</a>
         <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🧾 Rechnungen</a>
         <% } %>
-        <% if (_show('articles')) { %>
+        <% if (_show('articles') && _perm('articles', true, false)) { %>
         <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📦 Artikelstamm</a>
         <% } %>
         <% if (_show('company_settings')) { %>

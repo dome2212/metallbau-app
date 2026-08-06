@@ -4,6 +4,8 @@ const https   = require('https');
 const { dbQuery }        = require('../utils/db');
 const { sendWhatsApp }   = require('../utils/notifier');
 const { getNRWHolidays, isNRWHoliday } = require('../utils/holidays');
+const { hasPerm }        = require('../middleware/auth');
+const { getFirma }       = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -122,6 +124,10 @@ function fetchWeather(lat, lng, dateStr) {
 // Admin sieht alle Mitarbeiter für Zuweisung
 // ==========================================
 router.get('/calendar', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'calendar', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const [customersRes, usersRes, allVacRes] = await Promise.all([
       dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC'),

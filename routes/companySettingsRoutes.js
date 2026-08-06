@@ -304,6 +304,25 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
   }
 });
 
+// ── POST: Zugriff & Berechtigungen ───────────────────────────────────────────
+router.post('/panel/access', requireAdmin, async (req, res) => {
+  try {
+    const areas = ['projects','calendar','timetracking','vacations','customers',
+                   'documents','articles','map','treppe','steel_calc','money'];
+    for (const key of areas) {
+      for (const role of ['admin','employee']) {
+        const fieldName = `perm_${role}_${key}`;
+        const raw = req.body[fieldName];
+        const checked = Array.isArray(raw) ? raw.includes('true') : raw === 'true';
+        await setFirmaValue(fieldName, checked ? 'true' : 'false');
+      }
+    }
+    res.redirect('/admin/panel?tab=access&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
 // ── POST: E-Mail / SMTP / Backup-Einstellungen ────────────────────────────────
 router.post('/panel/notifications', requireAdmin, async (req, res) => {
   try {

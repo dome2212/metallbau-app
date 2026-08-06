@@ -4,9 +4,10 @@ const multer  = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { requireAdmin }      = require('../middleware/auth');
+const { requireAdmin, hasPerm } = require('../middleware/auth');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { isNRWHoliday }      = require('../utils/holidays');
+const { getFirma }          = require('../utils/companySettings');
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -20,6 +21,10 @@ const upload = multer({
 // URLAUBSÜBERSICHT
 // ==========================================
 router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'vacations', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   const userId   = req.user.id;
   const userRole = req.user.role;
   try {

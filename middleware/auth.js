@@ -42,9 +42,32 @@ function requireAdmin(req, res, next) {
   );
 }
 
-/** Hilfsfunktion für Views: Darf der eingeloggte User Geldbeträge sehen? */
-function canSeeMoney(user) {
-  return user && user.role === 'CHEF';
+/**
+ * Prüft ob ein User Zugriff auf einen konfigurierbaren Bereich hat.
+ * @param {object} user  - req.user (hat .role)
+ * @param {string} area  - z.B. 'projects', 'documents', 'money'
+ * @param {object} firma - Einstellungen aus DB (getFirma())
+ * @param {boolean} adminDef   - Default für ADMIN wenn kein DB-Eintrag
+ * @param {boolean} employeeDef - Default für EMPLOYEE wenn kein DB-Eintrag
+ */
+function hasPerm(user, area, firma, adminDef = true, employeeDef = false) {
+  if (!user) return false;
+  if (user.role === 'CHEF') return true;
+  const role = user.role === 'ADMIN' ? 'admin' : 'employee';
+  const key  = `perm_${role}_${area}`;
+  const def  = user.role === 'ADMIN' ? adminDef : employeeDef;
+  return firma[key] !== undefined ? firma[key] !== 'false' : def;
 }
 
-module.exports = { verifyToken, requireAdmin, requireChef, canSeeMoney, JWT_SECRET };
+/** Hilfsfunktion für Views: Darf der eingeloggte User Geldbeträge sehen?
+ *  CHEF immer; ADMIN nur wenn perm_admin_money nicht explizit auf false gesetzt. */
+function canSeeMoney(user, firma = {}) {
+  if (!user) return false;
+  if (user.role === 'CHEF') return true;
+  if (user.role === 'ADMIN') {
+    return firma.perm_admin_money !== 'false';
+  }
+  return false;
+}
+
+module.exports = { verifyToken, requireAdmin, requireChef, canSeeMoney, hasPerm, JWT_SECRET };

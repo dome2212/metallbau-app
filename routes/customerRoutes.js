@@ -4,6 +4,8 @@ const multer  = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
+const { hasPerm }           = require('../middleware/auth');
+const { getFirma }          = require('../utils/companySettings');
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -17,6 +19,10 @@ const upload = multer({
 // KUNDENLISTE
 // ==========================================
 router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const result = await dbQuery('SELECT * FROM customers ORDER BY created_at DESC');
     res.render('customers', { customers: result.rows || [] });

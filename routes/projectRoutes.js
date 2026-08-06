@@ -4,7 +4,7 @@ const multer    = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { requireAdmin }      = require('../middleware/auth');
+const { requireAdmin, hasPerm } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 
@@ -139,6 +139,10 @@ function fetchWeather(lat, lng, dateStr) {
 // PROJEKTLISTE
 // ==========================================
 router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'projects', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
   try {
     const projRes = await dbQuery(`
       SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
