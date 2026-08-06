@@ -1,0 +1,301 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+  <main class="flex-1 p-4 md:p-6 md:ml-72 bg-gray-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- HEADER                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Dashboard – Metallbau Gehrmann</h1>
+      <button onclick="openWidgetConfig()"
+        class="flex items-center gap-2 text-sm bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-600 dark:text-gray-200 px-3 py-2 rounded-lg shadow-sm transition">
+        ⚙️ Widgets anpassen
+      </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- KPI-WIDGET-RASTER                                            -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="widget-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+
+      <!-- Widget: Offene Angebote -->
+      <div id="w-openOffers" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-yellow-500">
+        <p class="text-xs text-gray-400 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Offene Angebote</p>
+        <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"><%= stats.openOffersCount %></p>
+        <% if (canSeeMoney) { %>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1"><%= stats.openOffersSum %> €</p>
+        <% } %>
+        <a href="/documents/offers" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Übersicht →</a>
+      </div>
+
+      <!-- Widget: Unbezahlte Rechnungen -->
+      <div id="w-openInvoices" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-red-500">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Unbezahlte Rechnungen</p>
+        <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"><%= stats.openInvoicesCount %></p>
+        <% if (canSeeMoney) { %>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1"><%= stats.openInvoicesSum %> €</p>
+        <% } %>
+        <a href="/documents/invoices" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Übersicht →</a>
+      </div>
+
+      <!-- Widget: Kunden Gesamt -->
+      <div id="w-customers" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-green-500">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Kunden Gesamt</p>
+        <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"><%= stats.totalCustomers %></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">registrierte Kunden</p>
+        <a href="/customers" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Übersicht →</a>
+      </div>
+
+      <!-- Widget: Aktive Aufträge -->
+      <div id="w-activeProjects" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-blue-500">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Aktive Aufträge</p>
+        <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"><%= stats.activeProjectsCount %></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">nicht abgeschlossen</p>
+        <a href="/projects" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Übersicht →</a>
+      </div>
+
+      <!-- Widget: Fällige Rechnungen -->
+      <div id="w-overdueInvoices" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-orange-500">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Fällige Rechnungen</p>
+        <p class="text-2xl font-bold <%= stats.overdueInvoicesCount > 0 ? 'text-orange-600' : 'text-gray-800 dark:text-gray-100' %>">
+          <%= stats.overdueInvoicesCount %>
+        </p>
+        <% if (canSeeMoney) { %>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1"><%= stats.overdueInvoicesSum %> € überfällig</p>
+        <% } %>
+        <a href="/documents/invoices" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Übersicht →</a>
+      </div>
+
+      <!-- Widget: Offene Mängel -->
+      <div id="w-openTasks" class="widget bg-white dark:bg-slate-800 p-5 rounded-lg shadow border-l-4 border-purple-500">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-1">Offene Aufgaben / Mängel</p>
+        <p class="text-2xl font-bold <%= stats.openTasksCount > 0 ? 'text-purple-700' : 'text-gray-800 dark:text-gray-100' %>">
+          <%= stats.openTasksCount %>
+        </p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">projektübergreifend offen</p>
+        <a href="/projects" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Zur Aufträgen →</a>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- FIRMEN-TICKER / SCHWARZES BRETT                             -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+          📢 Schwarzes Brett
+          <span class="text-xs font-normal bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Admin</span>
+        </h2>
+      </div>
+
+      <form action="/ticker/add" method="POST" class="flex gap-2 mb-5">
+        <input type="text" name="message" required maxlength="250"
+          placeholder="Nachricht an alle Mitarbeiter posten… (z.B. Frühschluss heute um 15 Uhr)"
+          class="flex-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <button type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition whitespace-nowrap">
+          📤 Senden
+        </button>
+      </form>
+
+      <% if (tickers && tickers.length > 0) { %>
+        <ul class="space-y-2">
+          <% tickers.forEach(t => { %>
+            <li class="flex items-start justify-between gap-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-800 dark:text-gray-200"><%= t.message %></p>
+                <p class="text-[10px] text-gray-400 mt-1">
+                  von <strong><%= t.author %></strong> ·
+                  <%= new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+                </p>
+              </div>
+              <form action="/ticker/delete" method="POST" class="shrink-0">
+                <input type="hidden" name="id" value="<%= t.id %>">
+                <button type="submit" class="text-gray-400 hover:text-red-500 transition text-lg font-bold leading-none" title="Löschen">&times;</button>
+              </form>
+            </li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p class="text-sm text-gray-400 dark:text-gray-500 italic">Noch keine Nachrichten gepostet.</p>
+      <% } %>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- LETZTE VORGÄNGE                                             -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Letzte Vorgänge</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[600px]">
+          <thead>
+            <tr class="border-b dark:border-slate-700 text-sm text-gray-600 dark:text-gray-400">
+                <th class="py-2">Dokument-Nr.</th>
+                <th>Typ</th>
+                <th>Kunde</th>
+                <% if (canSeeMoney) { %><th>Betrag (Brutto)</th><% } %>
+                <th>Status</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm divide-y">
+              <% recentDocs.forEach(doc => { %>
+                <tr class="border-b dark:border-slate-700">
+                  <td class="py-3 font-mono font-medium dark:text-gray-300"><%= doc.doc_number %></td>
+                  <td class="dark:text-gray-300"><%= doc.doc_type === 'OFFER' ? 'Angebot' : 'Rechnung' %></td>
+                  <td class="dark:text-gray-300"><%= doc.customer_name %></td>
+                  <% if (canSeeMoney) { %>
+                    <td class="dark:text-gray-300"><%= (doc.total_amount != null ? Number(doc.total_amount) : 0).toLocaleString('de-DE', {style:'currency', currency:'EUR'}) %></td>
+                  <% } %>
+                  <td>
+                  <span class="px-2 py-1 text-xs rounded-full 
+                    <%= doc.status === 'BEZAHLT' ? 'bg-green-100 text-green-800' : 
+                       (doc.status === 'ENTWURF' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800') %>">
+                    <%= doc.status %>
+                  </span>
+                </td>
+                <td>
+                  <% if (doc.doc_type === 'OFFER' && doc.status !== 'ANGENOMMEN') { %>
+                    <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
+                      <input type="hidden" name="offer_id" value="<%= doc.id %>">
+                      <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded">
+                        In Rechnung wandeln
+                      </button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- WIDGET-KONFIGURATIONS-PANEL (Overlay)                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div id="widget-config-overlay" class="hidden fixed inset-0 z-[900] bg-black/50 flex items-center justify-center px-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
+
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-base font-bold text-gray-800 dark:text-gray-100">⚙️ Widgets konfigurieren</h3>
+        <button onclick="closeWidgetConfig()" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xl font-bold leading-none">✕</button>
+      </div>
+
+      <p class="text-xs text-gray-400 mb-4">Wähle welche Kacheln auf dem Dashboard sichtbar sein sollen.</p>
+
+      <ul class="space-y-3" id="widget-toggle-list">
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-yellow-500 cursor-pointer" data-widget="w-openOffers" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🟡 Offene Angebote</span>
+        </label></li>
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-red-500 cursor-pointer" data-widget="w-openInvoices" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🔴 Unbezahlte Rechnungen</span>
+        </label></li>
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-green-500 cursor-pointer" data-widget="w-customers" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🟢 Kunden Gesamt</span>
+        </label></li>
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-blue-500 cursor-pointer" data-widget="w-activeProjects" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🔵 Aktive Aufträge</span>
+        </label></li>
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-orange-500 cursor-pointer" data-widget="w-overdueInvoices" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🟠 Fällige Rechnungen</span>
+        </label></li>
+        <li><label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="widget-toggle w-4 h-4 accent-purple-500 cursor-pointer" data-widget="w-openTasks" checked>
+          <span class="text-sm text-gray-700 dark:text-gray-300">🟣 Offene Aufgaben / Mängel</span>
+        </label></li>
+      </ul>
+
+      <div class="flex gap-2 mt-6">
+        <button onclick="saveWidgetConfig()"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-lg transition">
+          Speichern
+        </button>
+        <button onclick="resetWidgetConfig()"
+          class="px-4 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-slate-600 rounded-lg transition">
+          Zurücksetzen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Widget-Einstellungen aus der Datenbank (server-seitig gerendert)
+    const WIDGET_SETTINGS = <%- JSON.stringify(widgetSettings) %>;
+    const ALL_WIDGETS = ['w-openOffers', 'w-openInvoices', 'w-customers', 'w-activeProjects', 'w-overdueInvoices', 'w-openTasks'];
+
+    // Sichtbarkeit anwenden
+    function applyWidgetVisibility(settings) {
+      ALL_WIDGETS.forEach(id => {
+        const el = document.getElementById(id);
+        const visible = settings && id in settings ? settings[id] : true;
+        if (el) el.classList.toggle('hidden', !visible);
+      });
+    }
+
+    // Checkboxen im Panel vorbelegen
+    function syncCheckboxes(settings) {
+      document.querySelectorAll('.widget-toggle').forEach(cb => {
+        const id = cb.dataset.widget;
+        cb.checked = settings && id in settings ? settings[id] : true;
+      });
+    }
+
+    function openWidgetConfig() {
+      syncCheckboxes(WIDGET_SETTINGS);
+      document.getElementById('widget-config-overlay').classList.remove('hidden');
+    }
+
+    function closeWidgetConfig() {
+      document.getElementById('widget-config-overlay').classList.add('hidden');
+    }
+
+    async function saveWidgetConfig() {
+      const config = {};
+      document.querySelectorAll('.widget-toggle').forEach(cb => {
+        config[cb.dataset.widget] = cb.checked;
+      });
+      try {
+        await fetch('/api/user-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: config })
+        });
+      } catch (_) {}
+      applyWidgetVisibility(config);
+      closeWidgetConfig();
+    }
+
+    async function resetWidgetConfig() {
+      const config = {};
+      ALL_WIDGETS.forEach(id => config[id] = true);
+      try {
+        await fetch('/api/user-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: config })
+        });
+      } catch (_) {}
+      applyWidgetVisibility(config);
+      syncCheckboxes(config);
+    }
+
+    // Overlay schließen beim Klick auf den Hintergrund
+    document.getElementById('widget-config-overlay').addEventListener('click', function(e) {
+      if (e.target === this) closeWidgetConfig();
+    });
+
+    // Beim Laden sofort aus DB-Werten anwenden
+    applyWidgetVisibility(WIDGET_SETTINGS);
+  </script>
+
+</body>
+</html>
