@@ -9,44 +9,52 @@
     <header class="bg-white shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
       <div>
         <h1 class="text-xl md:text-2xl font-bold text-slate-800">✂️ Automatische Schnittliste</h1>
-        <p class="text-sm text-slate-500 mt-0.5">CSV- oder XLSX-Datei hochladen → optimierte Aufteilung auf Stangenlängen + PDF</p>
+        <p class="text-sm text-slate-500 mt-0.5">CSV / XLSX hochladen <span class="text-slate-300">·</span> oder Foto / Scan per KI auslesen</p>
       </div>
     </header>
 
     <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-10">
 
-      <!-- ── Upload-Formular ───────────────────────────────── -->
-      <div class="bg-white rounded-xl shadow p-4 md:p-6 space-y-5">
-        <h2 class="text-base font-semibold text-slate-800">📂 Datei hochladen</h2>
+      <!-- ── Tab-Leiste ────────────────────────────────────── -->
+      <div class="flex gap-1 bg-white rounded-xl shadow p-1.5 max-w-sm">
+        <button id="tab-datei" onclick="wechsleTab('datei')"
+          class="flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition tab-aktiv">
+          📂 Datei (CSV/XLSX)
+        </button>
+        <button id="tab-bild" onclick="wechsleTab('bild')"
+          class="flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition tab-inaktiv">
+          📷 Foto / KI-Scan
+        </button>
+      </div>
 
-        <!-- Hinweis zum Dateiformat -->
+      <!-- ════════════════════════════════════════════════════
+           TAB 1 — DATEI-UPLOAD
+           ════════════════════════════════════════════════════ -->
+      <div id="panel-datei" class="bg-white rounded-xl shadow p-4 md:p-6 space-y-5">
+
         <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800 space-y-1">
           <p class="font-semibold">Erwartetes Format (CSV oder XLSX):</p>
-          <p>Pflichtfelder: <code class="bg-blue-100 px-1 rounded">Menge</code> (oder „Anz"), <code class="bg-blue-100 px-1 rounded">Profil</code> (oder „Material"), <code class="bg-blue-100 px-1 rounded">Länge</code> (Wert in mm)</p>
-          <p>Optional: <code class="bg-blue-100 px-1 rounded">Pos</code>, <code class="bg-blue-100 px-1 rounded">Bemerkung</code></p>
-          <p class="text-xs text-blue-600 mt-1">Spaltenreihenfolge egal · CSV: Semikolon oder Komma · XLSX: erste Zeile = Kopfzeile</p>
+          <p>Pflichtfelder: <code class="bg-blue-100 px-1 rounded">Menge</code>, <code class="bg-blue-100 px-1 rounded">Profil</code>, <code class="bg-blue-100 px-1 rounded">Länge</code> (in mm)</p>
+          <p class="text-xs text-blue-600">Optional: Pos, Bemerkung · CSV: Semikolon oder Komma · erste Zeile = Kopfzeile</p>
           <button type="button" onclick="zeigeBeispiel()" class="text-xs text-blue-700 underline mt-1">Beispiel-CSV anzeigen</button>
         </div>
 
-        <!-- Beispiel-CSV (versteckt) -->
         <div id="beispiel-csv" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-3">
-          <p class="text-xs font-semibold text-slate-600 mb-2">Beispiel-CSV (Inhalt kopieren → als .csv speichern):</p>
-          <pre class="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">Pos;Menge;Profil;Länge;Bemerkung
+          <p class="text-xs font-semibold text-slate-600 mb-2">Beispiel-CSV:</p>
+          <pre class="text-xs text-slate-700 leading-relaxed">Pos;Menge;Profil;Länge;Bemerkung
 1;3;IPE 200;2450;Unterzug
 2;5;IPE 200;1800;Querträger
 3;2;HEB 160;3200;Hauptträger
 4;4;ROR 60x60x3;950;Stütze
-5;6;ROR 60x60x3;600;Rahmenriegel
-6;1;HEB 160;4100;Sondermaß</pre>
-          <button type="button" onclick="downloadBeispielCsv()" class="mt-2 text-xs text-blue-600 hover:underline">⬇ Beispiel-CSV herunterladen</button>
+5;6;ROR 60x60x3;600;Rahmenriegel</pre>
+          <button type="button" onclick="downloadBeispielCsv()" class="mt-2 text-xs text-blue-600 hover:underline">⬇ Herunterladen</button>
         </div>
 
-        <!-- Eingabefelder -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">CSV- oder XLSX-Datei</label>
             <input type="file" id="datei-input" accept=".csv,.txt,.xlsx"
-              class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white"
               onchange="onDateiGewaehlt(this)">
             <p id="datei-name" class="mt-1 text-xs text-slate-400"></p>
           </div>
@@ -54,56 +62,102 @@
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Stangenlänge (mm)</label>
             <input type="number" id="stangenlaenge" value="6000" min="100" max="20000" step="100"
               class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
-            <p class="mt-1 text-xs text-slate-400">Standard: 6000 mm (6 m)</p>
           </div>
         </div>
 
-        <!-- Aktions-Buttons -->
         <div class="flex flex-wrap gap-3 pt-1 border-t border-slate-100">
           <button onclick="berechnen()"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M9 7V5a2 2 0 012-2h2M9 7h6m0 0V5a2 2 0 012 2v2m0 0h2a2 2 0 012 2v3"/></svg>
-            Schnittliste berechnen
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition">
+            ✂️ Schnittliste berechnen
           </button>
           <button id="btn-pdf" onclick="pdfHerunterladen()" disabled
-            class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+            class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition">
             🖨️ PDF herunterladen
           </button>
         </div>
+      </div>
 
-        <!-- Fehleranzeige -->
-        <div id="fehler-box" class="hidden bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-700"></div>
+      <!-- ════════════════════════════════════════════════════
+           TAB 2 — BILD / KI-SCAN
+           ════════════════════════════════════════════════════ -->
+      <div id="panel-bild" class="hidden bg-white rounded-xl shadow p-4 md:p-6 space-y-5">
 
-        <!-- Lade-Indikator -->
-        <div id="loading" class="hidden text-sm text-slate-500 flex items-center gap-2">
-          <svg class="animate-spin w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-          </svg>
-          Datei wird analysiert…
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 space-y-1">
+          <p class="font-semibold">🤖 KI-Bilderkennung</p>
+          <p>Lade ein Foto oder einen Scan einer Schnittliste, handgeschriebener Aufstellung oder Zeichnung hoch — die KI liest die Positionen automatisch aus.</p>
+          <p class="text-xs text-amber-600">Unterstützt: JPG, PNG, WebP · max. 15 MB · benötigt OPENROUTER_API_KEY</p>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div id="drop-zone"
+          class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer transition hover:border-blue-400 hover:bg-blue-50"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
+          onclick="document.getElementById('bild-input').click()">
+          <div id="drop-inhalt">
+            <p class="text-3xl mb-2">📷</p>
+            <p class="text-sm font-semibold text-slate-600">Bild hier ablegen oder klicken zum Auswählen</p>
+            <p class="text-xs text-slate-400 mt-1">JPG · PNG · WebP</p>
+          </div>
+          <img id="bild-vorschau" class="hidden mx-auto max-h-48 rounded-lg mt-2 shadow">
+        </div>
+        <input type="file" id="bild-input" accept="image/*" class="hidden" onchange="onBildGewaehlt(this)">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Stangenlänge (mm)</label>
+            <input type="number" id="stangenlaenge-bild" value="6000" min="100" max="20000" step="100"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 pt-1 border-t border-slate-100">
+          <button id="btn-bild-analyse" onclick="bildAnalysieren()" disabled
+            class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+            🤖 KI-Analyse starten
+          </button>
+          <button id="btn-pdf-bild" onclick="pdfHerunterladen()" disabled
+            class="bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm px-6 py-2.5 rounded-xl shadow transition">
+            🖨️ PDF herunterladen
+          </button>
         </div>
       </div>
 
-      <!-- ── Ergebnis-Bereich ──────────────────────────────── -->
-      <div id="ergebnis" class="hidden space-y-5">
+      <!-- ── Gemeinsame Fehler / Lade-Anzeige ─────────────── -->
+      <div id="fehler-box" class="hidden bg-red-50 border border-red-300 rounded-lg px-4 py-3 text-sm text-red-700"></div>
+      <div id="loading" class="hidden bg-white rounded-xl shadow px-5 py-4 flex items-center gap-3 text-sm text-slate-600">
+        <svg class="animate-spin w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+        <span id="loading-text">Wird verarbeitet…</span>
+      </div>
 
-        <!-- Zusammenfassung -->
+      <!-- ── Ergebnis-Bereich (gemeinsam für beide Tabs) ───── -->
+      <div id="ergebnis" class="hidden space-y-5">
+        <div id="ki-hinweis" class="hidden bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+          ✅ KI hat <span id="ki-anzahl">0</span> Positionen erkannt. Bitte kurz prüfen, dann PDF herunterladen.
+        </div>
+
         <div id="zusammenfassung" class="bg-white rounded-xl shadow p-4 md:p-5"></div>
 
-        <!-- Positionstabelle -->
+        <!-- Editierbare Positionstabelle -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
-          <div class="px-4 md:px-5 py-3 border-b border-slate-200">
-            <h2 class="text-sm font-semibold text-slate-800">📋 Erkannte Positionen</h2>
+          <div class="px-4 md:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800">📋 Erkannte Positionen <span class="text-xs text-slate-400 font-normal ml-1">(Werte können direkt bearbeitet werden)</span></h2>
+            <button onclick="posHinzufuegen()" class="text-xs text-blue-600 hover:underline">+ Zeile</button>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left min-w-[500px]">
+            <table class="w-full text-sm text-left min-w-[560px]">
               <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b">
                 <tr>
-                  <th class="px-4 py-2">Pos</th>
-                  <th class="px-4 py-2">Menge</th>
-                  <th class="px-4 py-2">Profil</th>
-                  <th class="px-4 py-2">Länge</th>
-                  <th class="px-4 py-2">Bemerkung</th>
+                  <th class="px-3 py-2">Pos</th>
+                  <th class="px-3 py-2">Menge</th>
+                  <th class="px-3 py-2">Profil</th>
+                  <th class="px-3 py-2">Länge (mm)</th>
+                  <th class="px-3 py-2">Bemerkung</th>
+                  <th class="px-3 py-2 text-right">
+                    <button onclick="neuBerechnen()" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">↻ Neu berechnen</button>
+                  </th>
                 </tr>
               </thead>
               <tbody id="pos-tabelle" class="divide-y divide-slate-100 text-slate-700"></tbody>
@@ -111,160 +165,270 @@
           </div>
         </div>
 
-        <!-- Optimierungsergebnis pro Profil -->
         <div id="profil-karten" class="space-y-4"></div>
-
-      </div><!-- /#ergebnis -->
+      </div>
 
     </div>
   </main>
 </div>
 
-<!-- ── verstecktes PDF-Formular ─────────────────────────────── -->
+<!-- Verstecktes PDF-Formular -->
 <form id="pdf-form" method="POST" action="/schnittliste/pdf" enctype="multipart/form-data" class="hidden">
   <input type="hidden" name="stangenlaenge" id="pdf-stangenlaenge">
   <input type="hidden" name="firma_name" value="<%= currentUser ? currentUser.username : '' %>">
-  <!-- Die Datei wird per JS eingefügt -->
 </form>
+
+<style>
+  .tab-aktiv   { background:#1e40af; color:#fff; }
+  .tab-inaktiv { background:transparent; color:#475569; }
+  .tab-inaktiv:hover { background:#f1f5f9; }
+  .pos-input { border:none; outline:none; background:transparent; width:100%; padding:2px 4px; border-radius:4px; }
+  .pos-input:focus { background:#eff6ff; }
+</style>
 
 <script>
 'use strict';
 
-let letztePositionen = null;
-let letzteGruppen    = null;
-let aktDatei         = null;
+// ── Zustand ──────────────────────────────────────────────────
+let aktDatei        = null;  // CSV/XLSX
+let aktBild         = null;  // Bilddatei
+let aktPositionen   = [];
+let aktGruppen      = [];
+let aktStange       = 6000;
+let aktQuelle       = 'datei'; // 'datei' | 'bild'
 
+// ── Tab-Wechsel ──────────────────────────────────────────────
+function wechsleTab(tab) {
+  aktQuelle = tab;
+  document.getElementById('panel-datei').classList.toggle('hidden', tab !== 'datei');
+  document.getElementById('panel-bild').classList.toggle('hidden',  tab !== 'bild');
+  document.getElementById('tab-datei').className =
+    'flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition ' + (tab === 'datei' ? 'tab-aktiv' : 'tab-inaktiv');
+  document.getElementById('tab-bild').className =
+    'flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition ' + (tab === 'bild' ? 'tab-aktiv' : 'tab-inaktiv');
+  verstecke('ergebnis'); verstecke('fehler-box');
+}
+
+// ── Datei-Tab ────────────────────────────────────────────────
 function onDateiGewaehlt(inp) {
   aktDatei = inp.files[0] || null;
   document.getElementById('datei-name').textContent = aktDatei ? aktDatei.name : '';
-  // Ergebnis zurücksetzen
-  document.getElementById('ergebnis').classList.add('hidden');
+  verstecke('ergebnis'); verstecke('fehler-box');
   document.getElementById('btn-pdf').disabled = true;
-  verstecke('fehler-box');
-}
-
-function zeigeBeispiel() {
-  const box = document.getElementById('beispiel-csv');
-  box.classList.toggle('hidden');
-}
-
-function downloadBeispielCsv() {
-  const inhalt = `Pos;Menge;Profil;Länge;Bemerkung\n1;3;IPE 200;2450;Unterzug\n2;5;IPE 200;1800;Querträger\n3;2;HEB 160;3200;Hauptträger\n4;4;ROR 60x60x3;950;Stütze\n5;6;ROR 60x60x3;600;Rahmenriegel\n6;1;HEB 160;4100;Sondermaß`;
-  const blob = new Blob([inhalt], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'schnittliste-beispiel.csv'; a.click();
-  URL.revokeObjectURL(url);
 }
 
 async function berechnen() {
-  verstecke('fehler-box');
-  verstecke('ergebnis');
+  verstecke('fehler-box'); verstecke('ergebnis');
   document.getElementById('btn-pdf').disabled = true;
-
   if (!aktDatei) { zeigeFehler('Bitte zuerst eine Datei auswählen.'); return; }
-  const stangenlaenge = parseInt(document.getElementById('stangenlaenge').value, 10);
-  if (!stangenlaenge || stangenlaenge < 100) { zeigeFehler('Ungültige Stangenlänge.'); return; }
+  const sl = parseInt(document.getElementById('stangenlaenge').value, 10);
+  if (!sl || sl < 100) { zeigeFehler('Ungültige Stangenlänge.'); return; }
 
-  document.getElementById('loading').classList.remove('hidden');
-
+  zeigeLoading('Datei wird analysiert…');
   const fd = new FormData();
   fd.append('datei', aktDatei);
-  fd.append('stangenlaenge', stangenlaenge);
-
+  fd.append('stangenlaenge', sl);
   try {
     const res  = await fetch('/schnittliste/upload', { method: 'POST', body: fd });
     const data = await res.json();
-    document.getElementById('loading').classList.add('hidden');
+    versteckeLoading();
     if (!data.ok) { zeigeFehler(data.fehler || 'Unbekannter Fehler.'); return; }
-    letztePositionen = data.positionen;
-    letzteGruppen    = data.gruppen;
-    rendereErgebnis(data.positionen, data.gruppen, data.stangenlaenge);
+    aktPositionen = data.positionen;
+    aktGruppen    = data.gruppen;
+    aktStange     = data.stangenlaenge;
+    verstecke('ki-hinweis');
+    rendereErgebnis();
     document.getElementById('btn-pdf').disabled = false;
-  } catch (e) {
-    document.getElementById('loading').classList.add('hidden');
-    zeigeFehler('Netzwerkfehler: ' + e.message);
-  }
+  } catch (e) { versteckeLoading(); zeigeFehler('Netzwerkfehler: ' + e.message); }
 }
 
-// ── PDF via verstecktem Formular mit aktueller Datei ─────────
-function pdfHerunterladen() {
-  if (!aktDatei) return;
-  const sl = document.getElementById('stangenlaenge').value;
-  document.getElementById('pdf-stangenlaenge').value = sl;
+// ── Bild-Tab ─────────────────────────────────────────────────
+function onBildGewaehlt(inp) {
+  aktBild = inp.files[0] || null;
+  if (aktBild) zeigeVorschau(aktBild);
+  document.getElementById('btn-bild-analyse').disabled = !aktBild;
+  document.getElementById('btn-pdf-bild').disabled = true;
+  verstecke('ergebnis'); verstecke('fehler-box');
+}
 
+function onDragOver(e)  { e.preventDefault(); document.getElementById('drop-zone').classList.add('border-blue-400','bg-blue-50'); }
+function onDragLeave(e) { document.getElementById('drop-zone').classList.remove('border-blue-400','bg-blue-50'); }
+function onDrop(e) {
+  e.preventDefault();
+  onDragLeave(e);
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) { zeigeFehler('Nur Bilddateien (JPG, PNG, WebP) erlaubt.'); return; }
+  aktBild = file;
+  zeigeVorschau(file);
+  document.getElementById('btn-bild-analyse').disabled = false;
+  document.getElementById('btn-pdf-bild').disabled = true;
+  verstecke('ergebnis'); verstecke('fehler-box');
+}
+
+function zeigeVorschau(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('bild-vorschau');
+    img.src = e.target.result;
+    img.classList.remove('hidden');
+    document.getElementById('drop-inhalt').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function bildAnalysieren() {
+  verstecke('fehler-box'); verstecke('ergebnis');
+  document.getElementById('btn-pdf-bild').disabled = true;
+  if (!aktBild) { zeigeFehler('Kein Bild ausgewählt.'); return; }
+  const sl = parseInt(document.getElementById('stangenlaenge-bild').value, 10) || 6000;
+
+  zeigeLoading('KI analysiert das Bild — das kann einige Sekunden dauern…');
+  const fd = new FormData();
+  fd.append('bild', aktBild);
+  fd.append('stangenlaenge', sl);
+  try {
+    const res  = await fetch('/schnittliste/bild', { method: 'POST', body: fd });
+    const data = await res.json();
+    versteckeLoading();
+    if (!data.ok) { zeigeFehler(data.fehler || 'KI konnte keine Positionen erkennen.'); return; }
+    aktPositionen = data.positionen;
+    aktGruppen    = data.gruppen;
+    aktStange     = data.stangenlaenge;
+    // KI-Hinweis zeigen
+    const hinweis = document.getElementById('ki-hinweis');
+    document.getElementById('ki-anzahl').textContent = aktPositionen.length;
+    hinweis.classList.remove('hidden');
+    rendereErgebnis();
+    document.getElementById('btn-pdf-bild').disabled = false;
+  } catch (e) { versteckeLoading(); zeigeFehler('Netzwerkfehler: ' + e.message); }
+}
+
+// ── Editierbare Tabelle ──────────────────────────────────────
+function posHinzufuegen() {
+  aktPositionen.push({ pos: String(aktPositionen.length + 1), menge: 1, profil: '', laenge: 0, bemerk: '' });
+  rendereTabelle();
+}
+
+function posLoeschen(idx) {
+  aktPositionen.splice(idx, 1);
+  rendereTabelle();
+}
+
+function leseTabelle() {
+  // Aktuelle Werte aus den Input-Feldern lesen
+  const rows = document.querySelectorAll('#pos-tabelle tr[data-idx]');
+  aktPositionen = [];
+  rows.forEach(row => {
+    const inps = row.querySelectorAll('.pos-input');
+    aktPositionen.push({
+      pos:    inps[0].value.trim() || String(aktPositionen.length + 1),
+      menge:  Math.max(1, parseInt(inps[1].value, 10) || 1),
+      profil: inps[2].value.trim(),
+      laenge: Math.round(parseFloat(inps[3].value) || 0),
+      bemerk: inps[4].value.trim()
+    });
+  });
+}
+
+function neuBerechnen() {
+  leseTabelle();
+  const sl = parseInt(
+    (aktQuelle === 'bild'
+      ? document.getElementById('stangenlaenge-bild')
+      : document.getElementById('stangenlaenge')
+    ).value, 10) || aktStange;
+  // Neu optimieren: AJAX-freie Variante – sende Positionen als JSON
+  fetch('/schnittliste/upload', {
+    method: 'POST',
+    body: (() => {
+      // CSV aus aktPositionen bauen und als Datei hochladen
+      const csv = 'Pos;Menge;Profil;Länge;Bemerkung\n' +
+        aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk}`).join('\n');
+      const fd = new FormData();
+      fd.append('datei', new File([csv], 'edit.csv', { type: 'text/csv' }));
+      fd.append('stangenlaenge', sl);
+      return fd;
+    })()
+  }).then(r => r.json()).then(data => {
+    if (!data.ok) { zeigeFehler(data.fehler || 'Fehler.'); return; }
+    aktPositionen = data.positionen;
+    aktGruppen    = data.gruppen;
+    aktStange     = data.stangenlaenge;
+    rendereErgebnis();
+  }).catch(e => zeigeFehler('Fehler: ' + e.message));
+}
+
+// ── PDF ──────────────────────────────────────────────────────
+function pdfHerunterladen() {
+  leseTabelle();
+  const sl = parseInt(
+    (aktQuelle === 'bild'
+      ? document.getElementById('stangenlaenge-bild')
+      : document.getElementById('stangenlaenge')
+    ).value, 10) || aktStange;
+
+  // CSV aus aktuellen Positionen aufbauen und als Datei übergeben
+  const csv = 'Pos;Menge;Profil;Länge;Bemerkung\n' +
+    aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk}`).join('\n');
+  const csvFile = new File([csv], 'schnittliste.csv', { type: 'text/csv' });
+
+  document.getElementById('pdf-stangenlaenge').value = sl;
   const form = document.getElementById('pdf-form');
-  // Altes Datei-Input entfernen (falls vorhanden)
   const old = form.querySelector('input[name="datei"]');
   if (old) old.remove();
-
-  // DataTransfer-Trick: neues File-Input mit der gespeicherten Datei befüllen
   const fi = document.createElement('input');
   fi.type = 'file'; fi.name = 'datei'; fi.style.display = 'none';
   form.appendChild(fi);
-
   const dt = new DataTransfer();
-  dt.items.add(aktDatei);
+  dt.items.add(csvFile);
   fi.files = dt.files;
-
   form.submit();
 }
 
-// ── Ergebnis rendern ─────────────────────────────────────────
-function rendereErgebnis(positionen, gruppen, stangenlaenge) {
+// ── Render ───────────────────────────────────────────────────
+function rendereErgebnis() {
   // Zusammenfassung
-  const gesamtStangen = gruppen.reduce((s, g) => s + g.stangenzahl, 0);
-  const avgAusnutzung = gruppen.length
-    ? Math.round(gruppen.reduce((s,g)=>s+g.ausnutzung,0) / gruppen.length) : 0;
-  const gesamtVerschnitt = gruppen.reduce((s,g)=>s+g.verschnittGes,0);
+  const gesamtStangen    = aktGruppen.reduce((s, g) => s + g.stangenzahl, 0);
+  const avgAusnutzung    = aktGruppen.length
+    ? Math.round(aktGruppen.reduce((s,g)=>s+g.ausnutzung,0) / aktGruppen.length) : 0;
+  const gesamtVerschnitt = aktGruppen.reduce((s,g)=>s+g.verschnittGes,0);
 
   document.getElementById('zusammenfassung').innerHTML = `
     <h2 class="text-sm font-semibold text-slate-700 mb-3">📊 Zusammenfassung</h2>
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      ${kachel('Positionen', positionen.length, '')}
-      ${kachel('Stangen gesamt', gesamtStangen, 'Stk')}
-      ${kachel('Ø Ausnutzung', avgAusnutzung, '%')}
-      ${kachel('Gesamtverschnitt', mm(gesamtVerschnitt), 'mm')}
+      ${kachel('Positionen',      aktPositionen.length,       '')}
+      ${kachel('Stangen gesamt',  gesamtStangen,              'Stk')}
+      ${kachel('Ø Ausnutzung',    avgAusnutzung,              '%')}
+      ${kachel('Gesamtverschnitt',mm(gesamtVerschnitt),       'mm')}
     </div>`;
 
-  // Positionstabelle
-  const tbody = document.getElementById('pos-tabelle');
-  tbody.innerHTML = positionen.map(p => `
-    <tr class="hover:bg-slate-50">
-      <td class="px-4 py-2 text-xs text-slate-400 font-mono">${esc(p.pos)}</td>
-      <td class="px-4 py-2">${p.menge}</td>
-      <td class="px-4 py-2 font-semibold text-slate-800">${esc(p.profil)}</td>
-      <td class="px-4 py-2">${mm(p.laenge)} mm</td>
-      <td class="px-4 py-2 text-slate-500 text-xs">${esc(p.bemerk) || '–'}</td>
-    </tr>`).join('');
+  rendereTabelle();
 
   // Profil-Karten
   const container = document.getElementById('profil-karten');
   const FARBEN = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
-  container.innerHTML = gruppen.map(g => {
+  container.innerHTML = aktGruppen.map(g => {
     const stDetails = g.stangen.map((st, si) => {
-      const label = st.uebermas ? 'Übermaß' : `Stange ${si+1}`;
-      // Balkenvisualisierung
-      const balken = st.teile.map((t, ti) => {
-        const pct = st.uebermas ? 100 : Math.max(1, Math.round((t.laenge / stangenlaenge) * 100));
-        const farbe = FARBEN[ti % FARBEN.length];
+      const label   = st.uebermas ? 'Übermaß' : `Stange ${si+1}`;
+      const balken  = st.teile.map((t, ti) => {
+        const pct   = st.uebermas ? 100 : Math.max(1, Math.round((t.laenge / aktStange) * 100));
         return `<div title="Pos ${esc(t.pos)}: ${mm(t.laenge)} mm"
-          style="width:${pct}%;background:${farbe};height:100%;display:inline-block;vertical-align:top;"></div>`;
+          style="width:${pct}%;background:${FARBEN[ti%FARBEN.length]};height:100%;display:inline-block;vertical-align:top;"></div>`;
       }).join('');
-      const restPct = st.uebermas ? 0 : Math.round((st.rest / stangenlaenge) * 100);
-      const restBalken = restPct > 0
+      const restPct = st.uebermas ? 0 : Math.round((st.rest / aktStange) * 100);
+      const restB   = restPct > 0
         ? `<div style="width:${restPct}%;background:#e5e7eb;height:100%;display:inline-block;vertical-align:top;" title="Verschnitt: ${mm(st.rest)} mm"></div>` : '';
-      const teileListe = st.teile.map(t => `<span class="inline-block bg-slate-100 text-slate-600 text-xs px-1.5 py-0.5 rounded mr-1 mb-1">Pos ${esc(t.pos)}: ${mm(t.laenge)} mm</span>`).join('');
+      const teileListe = st.teile.map(t =>
+        `<span class="inline-block bg-slate-100 text-slate-600 text-xs px-1.5 py-0.5 rounded mr-1 mb-1">Pos ${esc(t.pos)}: ${mm(t.laenge)} mm</span>`
+      ).join('');
       return `
         <div class="border border-slate-200 rounded-lg p-3 space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-xs font-semibold text-slate-600">${label}</span>
-            ${st.uebermas ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">⚠ Übermaß</span>' :
-              `<span class="text-xs text-slate-400">Rest: ${mm(st.rest)} mm</span>`}
+            ${st.uebermas ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">⚠ Übermaß</span>'
+                          : `<span class="text-xs text-slate-400">Rest: ${mm(st.rest)} mm</span>`}
           </div>
-          <div style="height:14px;width:100%;background:#f1f5f9;border-radius:4px;overflow:hidden;">
-            ${balken}${restBalken}
-          </div>
+          <div style="height:14px;width:100%;background:#f1f5f9;border-radius:4px;overflow:hidden;">${balken}${restB}</div>
           <div class="pt-1">${teileListe}</div>
         </div>`;
     }).join('');
@@ -275,8 +439,8 @@ function rendereErgebnis(positionen, gruppen, stangenlaenge) {
           <h3 class="text-sm font-bold text-blue-800">${esc(g.profil)}</h3>
           <div class="flex flex-wrap gap-3 text-xs text-blue-700">
             <span>📦 ${g.stangenzahl} Stange(n)</span>
-            <span>📏 Gesamtlänge: ${mm(g.gesamtLaenge)} mm</span>
-            <span class="font-semibold ${g.ausnutzung >= 80 ? 'text-green-700' : g.ausnutzung >= 60 ? 'text-amber-700' : 'text-red-700'}">
+            <span>📏 ${mm(g.gesamtLaenge)} mm</span>
+            <span class="font-semibold ${g.ausnutzung>=80?'text-green-700':g.ausnutzung>=60?'text-amber-700':'text-red-700'}">
               Ausnutzung: ${g.ausnutzung} %
             </span>
             <span>Verschnitt: ${mm(g.verschnittGes)} mm</span>
@@ -287,6 +451,21 @@ function rendereErgebnis(positionen, gruppen, stangenlaenge) {
   }).join('');
 
   document.getElementById('ergebnis').classList.remove('hidden');
+}
+
+function rendereTabelle() {
+  const tbody = document.getElementById('pos-tabelle');
+  tbody.innerHTML = aktPositionen.map((p, i) => `
+    <tr data-idx="${i}" class="hover:bg-slate-50">
+      <td class="px-3 py-1.5"><input class="pos-input text-xs font-mono text-slate-400" value="${esc(p.pos)}"></td>
+      <td class="px-3 py-1.5"><input class="pos-input w-16 text-center" type="number" min="1" value="${p.menge}"></td>
+      <td class="px-3 py-1.5"><input class="pos-input font-semibold text-slate-800" value="${esc(p.profil)}"></td>
+      <td class="px-3 py-1.5"><input class="pos-input w-24 text-right" type="number" min="1" value="${p.laenge}"></td>
+      <td class="px-3 py-1.5"><input class="pos-input text-slate-500 text-xs" value="${esc(p.bemerk)}"></td>
+      <td class="px-3 py-1.5 text-right">
+        <button onclick="posLoeschen(${i})" class="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50">🗑️</button>
+      </td>
+    </tr>`).join('');
 }
 
 // ── Hilfsfunktionen ──────────────────────────────────────────
@@ -303,7 +482,23 @@ function zeigeFehler(msg) {
   box.textContent = '⚠ ' + msg;
   box.classList.remove('hidden');
 }
-function verstecke(id) { document.getElementById(id).classList.add('hidden'); }
+function zeigeLoading(txt) {
+  document.getElementById('loading-text').textContent = txt || 'Wird verarbeitet…';
+  document.getElementById('loading').classList.remove('hidden');
+}
+function versteckeLoading() { document.getElementById('loading').classList.add('hidden'); }
+function verstecke(id)      { document.getElementById(id).classList.add('hidden'); }
+
+function zeigeBeispiel() { document.getElementById('beispiel-csv').classList.toggle('hidden'); }
+
+function downloadBeispielCsv() {
+  const inhalt = `Pos;Menge;Profil;Länge;Bemerkung\n1;3;IPE 200;2450;Unterzug\n2;5;IPE 200;1800;Querträger\n3;2;HEB 160;3200;Hauptträger\n4;4;ROR 60x60x3;950;Stütze\n5;6;ROR 60x60x3;600;Rahmenriegel`;
+  const blob = new Blob([inhalt], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'schnittliste-beispiel.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 
 </body>

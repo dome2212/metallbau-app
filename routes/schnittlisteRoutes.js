@@ -14,6 +14,16 @@ const upload = multer({
   }
 });
 
+// Bild-Upload (JPEG/PNG/WebP)
+const bildUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = file.mimetype.startsWith('image/');
+    cb(ok ? null : new Error('Nur Bilddateien erlaubt (JPG, PNG, WebP)'), ok);
+  }
+});
+
 // ══════════════════════════════════════════════════════════════
 //  PARSER-HILFEN
 // ══════════════════════════════════════════════════════════════
@@ -464,6 +474,127 @@ router.post('/pdf', requireAdmin, upload.single('datei'), (req, res) => {
     erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName);
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  VISION-KI-HILFSFUNKTION  (gleiche Infrastruktur wie server.js)
+// ══════════════════════════════════════════════════════════════
+
+const VISION_MODELS = [
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
+];
+
+async function callVisionKI(b64, mimeType) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
+
+  const systemPrompt = `Du bist ein Experte für Metallbau-Schnittlisten.
+Analysiere das Bild und extrahiere ALLE erkennbaren Stahlpositionen / Zuschnitte.
+Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Array ohne Erklärungstext davor oder danach.
+Format (genau so):
+[
+  {"pos":"1","menge":2,"profil":"IPE 200","laenge":2450,"bemerk":"Unterzug"},
+  {"pos":"2","menge":4,"profil":"ROR 60x60x3","laenge":950,"bemerk":""}
+]
+Regeln:
+- "laenge" immer als Zahl in mm (ganze Zahl)
+- "menge" als Zahl (ganze Zahl, Standardwert 1 wenn unklar)
+- "profil" = Profilbezeichnung so wie im Bild erkennbar (z.B. "HEB 200", "Rohr 60x3", "Flach 50x5")
+- "bemerk" = kurze Notiz falls sichtbar, sonst leerer String
+- "pos" = laufende Nummer als String
+- Falls keine Positionen erkennbar: leeres Array []
+- Keine Codeblöcke, kein Markdown, nur reines JSON`;
+
+  let lastError;
+  for (const model of VISION_MODELS) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.APP_URL || 'https://metallbau-app.onrender.com',
+          'X-Title': 'Metallbau App'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+            ]
+          }],
+          temperature: 0.1
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        const code = data?.error?.code;
+        if (code === 429 || code === 404 || code === 400) { lastError = data; continue; }
+        throw new Error(JSON.stringify(data));
+      }
+      return data.choices[0].message.content;
+    } catch (err) {
+      lastError = err;
+      if (!err.message?.includes('fetch')) throw err;
+    }
+  }
+  throw new Error('Alle Vision-Modelle nicht verfügbar: ' + JSON.stringify(lastError));
+}
+
+// POST /schnittliste/bild  – Bild analysieren → Positionen zurückgeben
+router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ fehler: 'Kein Bild hochgeladen.' });
+  if (!process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ fehler: 'KI-Analyse nicht konfiguriert (OPENROUTER_API_KEY fehlt).' });
+  }
+
+  try {
+    const b64      = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const rawText  = await callVisionKI(b64, mimeType);
+
+    // JSON aus KI-Antwort extrahieren (auch wenn leichter Zusatztext dabei ist)
+    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return res.status(422).json({
+        fehler: 'Die KI konnte keine Schnittlisten-Daten im Bild erkennen.',
+        rohAntwort: rawText.slice(0, 300)
+      });
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return res.status(422).json({ fehler: 'Keine Positionen im Bild erkennbar.' });
+    }
+
+    // Normalisieren + validieren
+    const positionen = parsed
+      .filter(p => p.profil && parseFloat(p.laenge) > 0)
+      .map((p, i) => ({
+        pos:    String(p.pos || i + 1),
+        menge:  Math.max(1, parseInt(p.menge, 10) || 1),
+        profil: String(p.profil).trim(),
+        laenge: Math.round(parseFloat(p.laenge)),
+        bemerk: String(p.bemerk || '').trim()
+      }));
+
+    if (positionen.length === 0) {
+      return res.status(422).json({ fehler: 'Keine auswertbaren Positionen erkannt.' });
+    }
+
+    const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10) || 6000;
+    const gruppen       = optimiere(positionen, stangenlaenge);
+
+    res.json({ ok: true, positionen, gruppen, stangenlaenge });
+  } catch (err) {
+    console.error('Schnittliste Bild-KI Fehler:', err.message);
+    res.status(500).json({ fehler: 'KI-Analyse fehlgeschlagen: ' + err.message });
   }
 });
 
