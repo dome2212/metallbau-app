@@ -67,13 +67,13 @@
                           📄 Detail
                         </a>
 
-                        <!-- Button: PDF drucken (Browser) -->
+                        <!-- Button: PDF Vorschau (öffnet im Browser) -->
                         <a href="/documents/invoices/<%= invoice.id %>/pdf" target="_blank" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
-                          🖨️ Drucken
+                          🖨️ Vorschau
                         </a>
 
-                        <!-- Button: PDF Download -->
-                        <a href="/documents/invoices/<%= invoice.id %>/pdf-download" class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded text-xs font-medium border border-slate-200">
+                        <!-- Button: PDF Download (echter Datei-Download) -->
+                        <a href="/documents/invoices/<%= invoice.id %>/pdf-download" download class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded text-xs font-medium border border-slate-200">
                           ⬇️ PDF
                         </a>
 

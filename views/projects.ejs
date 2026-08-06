@@ -36,10 +36,7 @@
             </div>
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Beschreibung / Details</label>
-              <div class="flex gap-2">
-                <input type="text" name="description" id="proj-desc-input" placeholder="Optionale Details zum Bauvorhaben..." class="flex-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-                <button type="button" onclick="openKiDescModal()" title="KI-Assistent" class="shrink-0 bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 rounded text-xs font-semibold transition whitespace-nowrap">✨ KI</button>
-              </div>
+              <input type="text" name="description" id="proj-desc-input" placeholder="Optionale Details zum Bauvorhaben..." class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
@@ -181,80 +178,6 @@
 
     </div>
   </main>
-
-<!-- ================================================ -->
-<!-- KI-BESCHREIBUNGSASSISTENT MODAL                   -->
-<!-- ================================================ -->
-<div id="kiDescModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-5 md:p-6 flex flex-col gap-4">
-    <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
-      <h3 class="text-lg font-bold text-slate-800 dark:text-gray-100">✨ KI-Beschreibung generieren</h3>
-      <button onclick="document.getElementById('kiDescModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
-    </div>
-    <p class="text-xs text-slate-500 dark:text-slate-400">Gib Stichworte ein – die KI schreibt eine saubere Auftragsbeschreibung daraus.</p>
-    <input type="text" id="kiDescKeywords" placeholder="z.B. Stahlgeländer, 3 Felder, verzinkt, RAL 7016" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-violet-500">
-    <div id="kiDescError" class="hidden text-xs text-red-600 dark:text-red-400"></div>
-    <div id="kiDescResult" class="hidden bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-3 text-sm text-slate-700 dark:text-slate-200 italic"></div>
-    <div class="flex justify-end gap-2 pt-2 border-t dark:border-slate-700">
-      <button type="button" onclick="document.getElementById('kiDescModal').classList.add('hidden')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
-      <button type="button" id="kiDescBtn" onclick="generateKiDesc()" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition">✨ Generieren</button>
-      <button type="button" id="kiDescAcceptBtn" onclick="acceptKiDesc()" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Übernehmen</button>
-    </div>
-  </div>
-</div>
-
-<script>
-let _kiDescText = '';
-
-function openKiDescModal() {
-  document.getElementById('kiDescModal').classList.remove('hidden');
-  document.getElementById('kiDescError').classList.add('hidden');
-  document.getElementById('kiDescResult').classList.add('hidden');
-  document.getElementById('kiDescAcceptBtn').classList.add('hidden');
-  document.getElementById('kiDescKeywords').value = '';
-  _kiDescText = '';
-}
-
-async function generateKiDesc() {
-  const keywords = document.getElementById('kiDescKeywords').value.trim();
-  if (!keywords) return;
-  const btn      = document.getElementById('kiDescBtn');
-  const errorEl  = document.getElementById('kiDescError');
-  const resultEl = document.getElementById('kiDescResult');
-  const acceptBtn= document.getElementById('kiDescAcceptBtn');
-
-  btn.disabled = true; btn.textContent = '⏳';
-  errorEl.classList.add('hidden');
-  resultEl.classList.add('hidden');
-  acceptBtn.classList.add('hidden');
-
-  try {
-    const res  = await fetch('/api/ai/project-description', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ keywords })
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'Fehler');
-    _kiDescText = data.description;
-    resultEl.textContent = data.description;
-    resultEl.classList.remove('hidden');
-    acceptBtn.classList.remove('hidden');
-  } catch (err) {
-    errorEl.textContent = '❌ ' + err.message;
-    errorEl.classList.remove('hidden');
-  } finally {
-    btn.disabled = false; btn.textContent = '✨ Generieren';
-  }
-}
-
-function acceptKiDesc() {
-  const input = document.getElementById('proj-desc-input');
-  if (input && _kiDescText) input.value = _kiDescText;
-  document.getElementById('kiDescModal').classList.add('hidden');
-}
-</script>
 
 <script>
   // ── Status-Farben (müssen mit den EJS-Werten übereinstimmen) ────────────

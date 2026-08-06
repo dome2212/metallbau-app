@@ -1,8 +1,9 @@
 const express = require('express');
 const router  = require('express').Router();
-const { dbQuery }          = require('../utils/db');
-const { requireAdmin, hasPerm } = require('../middleware/auth');
-const { getFirma }         = require('../utils/companySettings');
+const { dbQuery }                    = require('../utils/db');
+const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
+const { getFirma }                   = require('../utils/companySettings');
+const { generateDocumentPDF }        = require('../utils/pdfGenerator');
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -170,23 +171,41 @@ router.post('/offers/convert-to-project', requireAdmin, async (req, res) => {
   }
 });
 
-// GET: Angebots-PDF (Browser-Druck)
+// GET: Angebots-PDF — inline im Browser (echter PDF-Stream)
 router.get('/offers/:id/pdf', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
-    const offerRes  = await dbQuery(`
-      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone
+    const offerRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
+             d.doc_number AS invoice_number
       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
       WHERE d.id = ? AND d.doc_type = 'OFFER'`, [id]);
     const offer = offerRes.rows[0];
     if (!offer) return res.status(404).send('Angebot nicht gefunden.');
-    offer.invoice_number = offer.doc_number; // invoice-pdf.ejs nutzt invoice_number
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    const firma = await getFirma();
-    res.render('invoice-pdf', { invoice: offer, items: itemsRes.rows || [], firma });
+    await generateDocumentPDF(offer, itemsRes.rows || [], res, 'inline');
   } catch (err) {
     console.error('Fehler beim Angebots-PDF:', err.message);
-    res.status(500).send('Fehler beim Laden des Angebots.');
+    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
+  }
+});
+
+// GET: Angebots-PDF Download — echte PDF-Datei (Content-Disposition: attachment)
+router.get('/offers/:id/pdf-download', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const offerRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
+             d.doc_number AS invoice_number
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type = 'OFFER'`, [id]);
+    const offer = offerRes.rows[0];
+    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    await generateDocumentPDF(offer, itemsRes.rows || [], res, 'attachment');
+  } catch (err) {
+    console.error('Fehler beim Angebots-PDF-Download:', err.message);
+    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
   }
 });
 
@@ -317,6 +336,7 @@ router.post('/invoices/update-number', requireAdmin, async (req, res) => {
 router.get('/invoices/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
+    const firma      = await getFirma();
     const invoiceRes = await dbQuery(`
       SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
              d.doc_number AS invoice_number
@@ -325,14 +345,18 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    res.render('invoice-detail', { invoice, items: itemsRes.rows || [] });
+    res.render('invoice-detail', {
+      invoice,
+      items: itemsRes.rows || [],
+      canSeeMoney: canSeeMoney(req.user, firma)
+    });
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices/:id:', err.message);
     res.status(500).send('Fehler beim Laden der Rechnung.');
   }
 });
 
-// GET: Rechnungs-PDF (Browser-Druck)
+// GET: Rechnungs-PDF — inline im Browser (echter PDF-Stream)
 router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
@@ -344,15 +368,14 @@ router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    const firma = await getFirma();
-    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma });
+    await generateDocumentPDF(invoice, itemsRes.rows || [], res, 'inline');
   } catch (err) {
     console.error('Fehler beim Rechnungs-PDF:', err.message);
-    res.status(500).send('Fehler beim Laden der Rechnung.');
+    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
   }
 });
 
-// GET: Rechnungs-PDF Download (gleicher Inhalt, Content-Disposition: attachment)
+// GET: Rechnungs-PDF Download — echte PDF-Datei (Content-Disposition: attachment)
 router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
@@ -364,12 +387,10 @@ router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${invoice.invoice_number}.html"`);
-    const firma = await getFirma();
-    res.render('invoice-pdf', { invoice, items: itemsRes.rows || [], firma });
+    await generateDocumentPDF(invoice, itemsRes.rows || [], res, 'attachment');
   } catch (err) {
     console.error('Fehler beim PDF-Download:', err.message);
-    res.status(500).send('Fehler beim Laden der Rechnung.');
+    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
   }
 });
 
