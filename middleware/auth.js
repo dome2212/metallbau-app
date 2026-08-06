@@ -65,7 +65,7 @@ function canSeeMoney(user, firma = {}) {
   if (!user) return false;
   if (user.role === 'CHEF') return true;
   if (user.role === 'ADMIN') {
-    return firma.perm_admin_money !== 'false';
+    return firma.perm_admin_money === 'true';
   }
   return false;
 }
