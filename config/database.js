@@ -421,6 +421,7 @@ if (process.env.DATABASE_URL) {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
           project_id INTEGER,
+          customer_id INTEGER,
           type TEXT CHECK(type IN ('IN', 'OUT')) NOT NULL,
           timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
           note TEXT,
@@ -440,6 +441,7 @@ if (process.env.DATABASE_URL) {
           site_lat REAL,
           site_lng REAL,
           site_radius INTEGER DEFAULT 200,
+          site_note TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -653,20 +655,20 @@ if (process.env.DATABASE_URL) {
         )
       `);
 
-      // users: fehlende Spalten nachrüsten
+      // users: fehlende Spalten nachrüsten (für bestehende DBs)
       db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INTEGER DEFAULT 30`, () => {});
       db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`, () => {});
       db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`, () => {});
       db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify INTEGER DEFAULT 1`, () => {});
 
-      // time_logs: fehlende Spalten nachrüsten
+      // time_logs: fehlende Spalten nachrüsten (für bestehende DBs)
       db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INTEGER`, () => {});
       db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`, () => {});
       db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude REAL`, () => {});
       db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude REAL`, () => {});
       db.run(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INTEGER`, () => {});
 
-      // projects: fehlende Spalten nachrüsten (für ältere DBs)
+      // projects: fehlende Spalten nachrüsten (für bestehende DBs)
       db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat REAL`, () => {});
       db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng REAL`, () => {});
       db.run(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INTEGER DEFAULT 200`, () => {});

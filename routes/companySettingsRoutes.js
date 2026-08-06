@@ -176,10 +176,12 @@ async function saveFields(body, keys) {
     await setFirmaValue(key, val);
   }
 }
-// Hilfsfunktion: Boolean-Checkboxen speichern
+// Hilfsfunktion: Boolean-Checkboxen speichern (robust gegen Array-Werte durch hidden+checkbox)
 async function saveCheckboxes(body, keys) {
   for (const key of keys) {
-    await setFirmaValue(key, body[key] === '1' ? 'true' : 'false');
+    const raw = body[key];
+    const checked = Array.isArray(raw) ? raw.includes('1') || raw.includes('true') : raw === '1' || raw === 'true';
+    await setFirmaValue(key, checked ? 'true' : 'false');
   }
 }
 
@@ -290,7 +292,11 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
     const toggles = ['stamp_require_gps','stamp_allow_project','stamp_geofence_enabled',
                      'stamp_allow_note','stamp_allow_switch','stamp_admin_no_gps'];
     for (const key of toggles) {
-      await setFirmaValue(key, req.body[key] === 'true' ? 'true' : 'false');
+      // req.body[key] kann ein Array sein ['false','true'] wenn Checkbox gecheckt ist
+      // (hidden field sendet 'false', Checkbox sendet 'true' — beide landen im Body)
+      const raw = req.body[key];
+      const checked = Array.isArray(raw) ? raw.includes('true') : raw === 'true';
+      await setFirmaValue(key, checked ? 'true' : 'false');
     }
     res.redirect('/admin/panel?tab=stampclock&saved=1');
   } catch (err) {
