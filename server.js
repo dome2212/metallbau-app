@@ -99,6 +99,7 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS driving_license TEXT`).catch
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
 dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode INT DEFAULT 0`).catch(() => {});
+dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS rfid_uid TEXT`).catch(() => {});
 
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
@@ -413,6 +414,58 @@ app.get('/api/today-hours', async (req, res) => {
     res.json({ label: `${h} Std. ${m} Min.` });
   } catch (err) {
     res.json({ label: '–' });
+  }
+});
+
+// ==========================================
+// RFID-STEMPEL (Raspberry Pi Lesegerät)
+// Kein JWT – gesichert per RFID_API_KEY in .env
+// ==========================================
+app.post('/api/rfid/stamp', async (req, res) => {
+  // API-Key prüfen (Header: X-RFID-Key)
+  const apiKey = process.env.RFID_API_KEY;
+  if (apiKey && req.headers['x-rfid-key'] !== apiKey) {
+    return res.status(401).json({ ok: false, error: 'Ungültiger API-Key' });
+  }
+
+  const { uid, note } = req.body;
+  if (!uid || typeof uid !== 'string' || uid.trim() === '') {
+    return res.status(400).json({ ok: false, error: 'UID fehlt' });
+  }
+
+  try {
+    // Mitarbeiter anhand UID suchen
+    const userRes = await dbQuery(
+      `SELECT id, username, role FROM users WHERE rfid_uid = ?`,
+      [uid.trim().toUpperCase()]
+    );
+    const user = userRes.rows[0];
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Unbekannte RFID-UID' });
+    }
+
+    // Letzten Stempel ermitteln → IN oder OUT
+    const lastRes = await dbQuery(
+      isPg
+        ? `SELECT type FROM time_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1`
+        : `SELECT type FROM time_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1`,
+      [user.id]
+    );
+    const lastType  = lastRes.rows[0]?.type || 'OUT';
+    const stampType = lastType === 'IN' ? 'OUT' : 'IN';
+
+    // Eintrag speichern
+    const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
+    await dbQuery(
+      `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, ${tsExpr})`,
+      [user.id, stampType, note || (stampType === 'IN' ? 'RFID Einstempel' : 'RFID Ausstempel')]
+    );
+
+    console.log(`[RFID] ${user.username} → ${stampType} (UID: ${uid})`);
+    res.json({ ok: true, username: user.username, type: stampType });
+  } catch (err) {
+    console.error('[RFID] Fehler:', err.message);
+    res.status(500).json({ ok: false, error: 'Datenbankfehler' });
   }
 });
 

@@ -17,7 +17,7 @@ try { PDFKit = require('pdfkit'); } catch (_) {}
 router.get('/users', requireAdmin, async (req, res) => {
   try {
     const result = await dbQuery(
-      'SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, rfid_uid, created_at FROM users ORDER BY created_at DESC'
     );
     res.render('admin-users', { users: result.rows || [] });
   } catch (err) {
@@ -452,6 +452,20 @@ router.post('/delete', requireAdmin, async (req, res) => {
     console.error('Fehler beim Löschen des Tickers:', err.message);
   }
   res.redirect('/');
+});
+
+// ==========================================
+// RFID-UID setzen / löschen
+// ==========================================
+router.post('/users/set-rfid', requireAdmin, async (req, res) => {
+  const { user_id, rfid_uid } = req.body;
+  const uid = (rfid_uid || '').trim().toUpperCase() || null;
+  try {
+    await dbQuery('UPDATE users SET rfid_uid = ? WHERE id = ?', [uid, user_id]);
+  } catch (err) {
+    console.error('Fehler beim Setzen der RFID-UID:', err.message);
+  }
+  res.redirect('/admin/users');
 });
 
 module.exports = router;
