@@ -3,10 +3,9 @@
 <!-- FullCalendar Library & CSS -->
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
+<%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <!-- Header mit beiden Buttons -->
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -44,7 +43,7 @@
     <!-- ===================================================== -->
     <!-- URLAUBSKALENDER – MONATSÜBERSICHT                      -->
     <!-- ===================================================== -->
-    <% if (currentUser && currentUser.role === 'ADMIN') { %>
+    <% if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
     <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6">
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -135,8 +134,7 @@
       </div>
     </div>
     <% } %>
-  </main>
-</div>
+</main>
 
 <!-- Modal 1: Termin anlegen -->
 <div id="appointmentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

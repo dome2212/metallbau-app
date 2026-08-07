@@ -1,267 +1,251 @@
 <%- include('partials/header') %>
+<%- include('partials/sidebar') %>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
+<main class="flex-1 md:ml-72 min-h-screen page-bg dark:bg-slate-900 pt-14 md:pt-0">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
-  <!-- Hauptinhalt mit korrektem Abstand für die Sidebar -->
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
-    
-    <!-- Header mit Palme -->
-    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🌴 Urlaubs- & Abwesenheitsplanung</h1>
-    </header>
+    <!-- Page Header -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Urlaub & Abwesenheit</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Urlaubsanträge, Krankmeldungen und Abwesenheitsplanung</p>
+    </div>
 
-    <!-- Inhalt-Container -->
-    <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
-
-      <!-- ===================================================== -->
-      <!-- URLAUBSKONTO-ÜBERSICHT (immer sichtbar)               -->
-      <!-- ===================================================== -->
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100">🏖️ Urlaubskonten <%= currentYear %></h2>
-          <% if (currentUser.role !== 'ADMIN') { %>
-            <span class="text-xs text-gray-500">Nur eigenes Konto sichtbar</span>
-          <% } %>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <%
-            const visibleUsers = currentUser.role === 'ADMIN'
-              ? users
-              : users.filter(u => u.id === currentUser.id);
-          %>
-          <% visibleUsers.forEach(u => { %>
-            <%
-              const bal = vacationBalances[u.id] || { allowance: 30, used: 0, remaining: 30 };
-              const pct = bal.allowance > 0 ? Math.min(100, Math.round((bal.used / bal.allowance) * 100)) : 0;
-              const barColor = pct >= 90 ? 'bg-red-500' : pct >= 65 ? 'bg-amber-400' : 'bg-emerald-500';
-            %>
-            <div class="bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl p-4 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-slate-800 dark:text-gray-100 truncate"><%= u.username %></span>
-                <span class="text-xs text-slate-400"><%= u.role %></span>
-              </div>
-              <!-- Fortschrittsbalken -->
-              <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
-                <div class="<%= barColor %> h-2 rounded-full transition-all" style="width:<%= pct %>%"></div>
-              </div>
-              <div class="flex justify-between text-xs text-slate-600 dark:text-slate-300">
-                <span><strong class="text-slate-800"><%= bal.remaining %></strong> Tage übrig</span>
-                <span><%= bal.used %>/<%= bal.allowance %> verbraucht</span>
-              </div>
-              <!-- Admin kann Jahresanspruch direkt hier anpassen -->
-              <% if (currentUser.role === 'ADMIN') { %>
-                <form action="/admin/users/set-vacation-allowance" method="POST" class="flex items-center gap-1 pt-1">
-                  <input type="hidden" name="user_id" value="<%= u.id %>">
-                  <input type="number" name="vacation_allowance" value="<%= bal.allowance %>"
-                    min="0" max="365"
-                    class="w-16 text-xs border border-slate-300 dark:border-slate-500 dark:bg-slate-600 dark:text-gray-100 rounded px-1.5 py-1 bg-white">
-                  <span class="text-xs text-slate-500 dark:text-slate-400">Tage/Jahr</span>
-                  <button type="submit" class="text-xs bg-slate-700 hover:bg-slate-800 text-white px-2 py-1 rounded transition">✓</button>
-                </form>
-              <% } %>
-            </div>
-          <% }) %>
-        </div>
+    <!-- Urlaubskonten -->
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Urlaubskonten <%= currentYear %></h2>
+        <% if (currentUser.role !== 'ADMIN' && currentUser.role !== 'CHEF') { %>
+          <span class="text-xs text-slate-400">Nur dein eigenes Konto</span>
+        <% } %>
       </div>
-
-      <!-- Layout auf 12 Spalten angepasst für saubere Aufteilung -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        <!-- Linke Spalte: Neuer Antrag / Eintrag (4 von 12 Spalten) -->
-        <div class="lg:col-span-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
-          <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Abwesenheit eintragen</h2>
-          
-          <form action="/vacations/add" method="POST" enctype="multipart/form-data" class="space-y-4">
-            <% if (currentUser.role === 'ADMIN') { %>
-              <div>
-                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Mitarbeiter</label>
-                <select name="user_id" class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-2 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
-                  <% users.forEach(u => { %>
-                    <option value="<%= u.id %>"><%= u.username %> (<%= u.role %>)</option>
-                  <% }) %>
-                </select>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <%
+          const visibleUsers = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')
+            ? users
+            : users.filter(u => u.id === currentUser.id);
+        %>
+        <% visibleUsers.forEach(u => { %>
+          <%
+            const bal = vacationBalances[u.id] || { allowance: 30, used: 0, remaining: 30 };
+            const pct = bal.allowance > 0 ? Math.min(100, Math.round((bal.used / bal.allowance) * 100)) : 0;
+            const barColor = pct >= 90 ? 'bg-red-500' : pct >= 65 ? 'bg-amber-400' : 'bg-emerald-500';
+          %>
+          <div class="rounded-xl p-4 space-y-2.5 border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style="background:var(--primary)">
+                  <%= u.username.charAt(0).toUpperCase() %>
+                </div>
+                <span class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate"><%= u.username %></span>
               </div>
+              <span class="badge bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"><%= u.role %></span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5">
+              <div class="<%= barColor %> h-1.5 rounded-full transition-all" style="width:<%= pct %>%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span><strong class="text-slate-700 dark:text-slate-200"><%= bal.remaining %></strong> Tage übrig</span>
+              <span><%= bal.used %>/<%= bal.allowance %></span>
+            </div>
+            <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+              <form action="/admin/users/set-vacation-allowance" method="POST" class="flex items-center gap-1.5">
+                <input type="hidden" name="user_id" value="<%= u.id %>">
+                <input type="number" name="vacation_allowance" value="<%= bal.allowance %>" min="0" max="365"
+                  class="input text-xs py-1" style="width:4.5rem">
+                <span class="text-xs text-slate-400">Tage/Jahr</span>
+                <button type="submit" class="btn py-1 px-2.5 text-xs text-white" style="background:#475569">✓</button>
+              </form>
             <% } %>
+          </div>
+        <% }) %>
+      </div>
+    </div>
 
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- Antrag stellen -->
+      <div class="lg:col-span-4 card p-5">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
+          Abwesenheit eintragen
+        </h2>
+        <form action="/vacations/add" method="POST" enctype="multipart/form-data" class="space-y-3.5">
+          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
             <div>
-              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Art der Abwesenheit</label>
-              <select name="type" id="absenceType" class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-2 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
-                <option value="Urlaub">🏖️ Urlaub</option>
-                <option value="Krank">🤒 Krankmeldung</option>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Mitarbeiter</label>
+              <select name="user_id" class="input text-sm">
+                <% users.forEach(u => { %>
+                  <option value="<%= u.id %>"><%= u.username %> (<%= u.role %>)</option>
+                <% }) %>
               </select>
             </div>
-
+          <% } %>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Art</label>
+            <select name="type" id="absenceType" class="input text-sm">
+              <option value="Urlaub">🏖️ Urlaub</option>
+              <option value="Krank">🤒 Krankmeldung</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Von Datum</label>
-              <input type="date" name="start_date" required class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-2 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Von</label>
+              <input type="date" name="start_date" required class="input text-sm">
             </div>
-
             <div>
-              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Bis Datum</label>
-              <input type="date" name="end_date" required class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-2 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Bis</label>
+              <input type="date" name="end_date" required class="input text-sm">
             </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Dokument (optional)</label>
+            <input type="file" name="document" accept="image/*,.pdf" class="input text-xs py-2 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 cursor-pointer">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Bemerkung (optional)</label>
+            <input type="text" name="reason" placeholder="z.B. Attest liegt vor" class="input text-sm">
+          </div>
+          <button type="submit" class="btn btn-primary w-full justify-center">Antrag abschicken</button>
+        </form>
+      </div>
 
-            <!-- Datei-Upload für Krankmeldung / Dokumente -->
-            <div id="fileUploadContainer">
-              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Krankmeldung / Dokument hochladen (Foto/PDF)</label>
-              <input type="file" name="document" accept="image/*,.pdf" class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-1 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Grund / Bemerkung (optional)</label>
-              <input type="text" name="reason" placeholder="z.B. Attest liegt vor" class="w-full text-xs bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded p-2 text-gray-700 dark:text-gray-100 focus:outline-none focus:border-blue-500">
-            </div>
-
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2.5 rounded transition">
-              Antrag abschicken
-            </button>
-          </form>
+      <!-- Übersicht -->
+      <div class="lg:col-span-8 card overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Alle Abwesenheiten</h2>
         </div>
-
-        <!-- Rechte Spalte: Liste aller Abwesenheiten (8 von 12 Spalten) -->
-        <div class="lg:col-span-8 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5 overflow-hidden">
-          <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Übersicht aller Abwesenheiten</h2>
-          
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
-              <thead>
-                <tr class="bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-slate-600">
-                  <th class="p-3">Mitarbeiter</th>
-                  <th class="p-3">Typ</th>
-                  <th class="p-3">Zeitraum</th>
-                  <th class="p-3">Nachweis</th>
-                  <th class="p-3">Status</th>
-                  <% if (currentUser.role === 'ADMIN') { %>
-                    <th class="p-3 text-right">Aktion</th>
-                  <% } %>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
-                <% if (vacations && vacations.length > 0) { %>
-                  <% vacations.forEach(v => { %>
-                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
-                      <td class="p-3 font-medium text-gray-800 dark:text-gray-200"><%= v.username || currentUser.username %></td>
-                      <td class="p-3">
-                        <span class="px-2 py-0.5 rounded font-semibold 
-                          <%= v.type === 'Urlaub' ? 'bg-blue-100 text-blue-700' : (v.type === 'Krank' ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700') %>">
-                          <%= v.type || 'Urlaub' %>
-                        </span>
-                      </td>
-                      <td class="p-3 text-gray-600 dark:text-gray-300"><%= v.start_date %> bis <%= v.end_date %></td>
-                      <td class="p-3">
-                        <% if (v.file_url) { %>
-                          <a href="<%= v.file_url %>" target="_blank" class="text-blue-600 hover:underline font-medium">📄 Ansehen</a>
-                        <% } else { %>
-                          <span class="text-gray-400 italic">Keine Datei</span>
-                        <% } %>
-                      </td>
-                      <td class="p-3">
-                        <span class="px-2 py-0.5 rounded font-semibold 
-                          <%= v.status === 'Genehmigt' ? 'bg-emerald-100 text-emerald-700' : (v.status === 'Beantragt' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700') %>">
-                          <%= v.status %>
-                        </span>
-                      </td>
-                      <% if (currentUser.role === 'ADMIN') { %>
-                        <td class="p-3 text-right space-x-1">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs min-w-[560px]">
+            <thead>
+              <tr class="border-b border-slate-100 dark:border-slate-700">
+                <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Mitarbeiter</th>
+                <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Typ</th>
+                <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Zeitraum</th>
+                <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                  <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aktion</th>
+                <% } %>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+              <% if (vacations && vacations.length > 0) { %>
+                <% vacations.forEach(v => { %>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                    <td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"><%= v.username || currentUser.username %></td>
+                    <td class="px-4 py-3">
+                      <span class="badge <%= v.type === 'Urlaub' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : (v.type === 'Krank' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400') %>">
+                        <%= v.type || 'Urlaub' %>
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 dark:text-slate-300">
+                      <%= v.start_date %> – <%= v.end_date %>
+                      <% if (v.file_url) { %><br><a href="<%= v.file_url %>" target="_blank" class="text-blue-500 hover:underline text-[10px]">📄 Nachweis</a><% } %>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="badge <%= v.status === 'Genehmigt' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : (v.status === 'Beantragt' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400') %>">
+                        <%= v.status %>
+                      </span>
+                    </td>
+                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                      <td class="px-4 py-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
                           <% if (v.status === 'Beantragt') { %>
                             <form action="/vacations/status" method="POST" class="inline">
                               <input type="hidden" name="id" value="<%= v.id %>">
                               <input type="hidden" name="status" value="Genehmigt">
-                              <button type="submit" class="bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">Genehmigen</button>
+                              <button type="submit" class="btn py-1 px-2.5 text-xs text-white" style="background:#16a34a">✓</button>
                             </form>
                             <form action="/vacations/status" method="POST" class="inline">
                               <input type="hidden" name="id" value="<%= v.id %>">
                               <input type="hidden" name="status" value="Abgelehnt">
-                              <button type="submit" class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">Ablehnen</button>
+                              <button type="submit" class="btn py-1 px-2.5 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">✕</button>
                             </form>
                           <% } %>
-                          <form action="/vacations/delete" method="POST" class="inline" onsubmit="return confirm('Eintrag wirklich löschen?');">
+                          <form action="/vacations/delete" method="POST" class="inline" onsubmit="return confirm('Löschen?');">
                             <input type="hidden" name="id" value="<%= v.id %>">
-                            <button type="submit" class="bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">Löschen</button>
+                            <button type="submit" class="btn py-1 px-2.5 text-xs text-slate-500 border border-slate-200 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">Löschen</button>
                           </form>
-                        </td>
-                      <% } %>
-                    </tr>
-                  <% }) %>
-                <% } else { %>
-                  <tr>
-                    <td colspan="6" class="p-6 text-center text-gray-400 dark:text-slate-500 italic">Keine Abwesenheiten eingetragen.</td>
-                  </tr>
-                <% } %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Team-Jahresübersicht -->
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-5">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">📅 Team-Urlaubskalender <%= currentYear %></h2>
-        <p class="text-xs text-slate-400 mb-4">Genehmigte Abwesenheiten aller Mitarbeiter auf einen Blick. 🟢 Urlaub · 🔴 Krank · 🟡 Sonstiges</p>
-        <div class="overflow-x-auto">
-          <table class="text-xs border-collapse min-w-max">
-            <thead>
-              <tr>
-                <th class="text-left px-2 py-1.5 font-semibold text-slate-600 dark:text-slate-300 w-32 sticky left-0 bg-white dark:bg-slate-800">Mitarbeiter</th>
-                <% for (let m = 1; m <= 12; m++) { %>
-                  <% const mName = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][m-1]; %>
-                  <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
-                  <% for (let d = 1; d <= daysInM; d++) { %>
-                    <% const dow = new Date(currentYear, m-1, d).getDay(); %>
-                    <th class="px-0 py-1 text-center font-normal <%= dow === 0 || dow === 6 ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500' %> w-4"
-                      title="<%= mName %> <%= d %>"><%= d === 1 ? mName : '' %></th>
-                  <% } %>
-                <% } %>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-              <%
-                const approvedVacs = vacations.filter(v => v.status === 'Genehmigt');
-                const allUsersForCal = currentUser.role === 'ADMIN' ? users : users.filter(u => u.id === currentUser.id);
-              %>
-              <% allUsersForCal.forEach(u => { %>
-                <tr>
-                  <td class="px-2 py-1 font-semibold text-slate-700 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-800 whitespace-nowrap"><%= u.username %></td>
-                  <% for (let m = 1; m <= 12; m++) { %>
-                    <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
-                    <% for (let d = 1; d <= daysInM; d++) { %>
-                      <%
-                        const dateStr = currentYear + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-                        const vac = approvedVacs.find(v => v.user_id === u.id && dateStr >= v.start_date && dateStr <= v.end_date);
-                        const dow = new Date(currentYear, m-1, d).getDay();
-                        let cellBg = '', cellTitle = '';
-                        if (vac) {
-                          if (vac.type === 'Krank') { cellBg = 'bg-red-400 dark:bg-red-600'; cellTitle = 'Krank'; }
-                          else if (vac.type === 'Urlaub') { cellBg = 'bg-emerald-400 dark:bg-emerald-600'; cellTitle = 'Urlaub'; }
-                          else { cellBg = 'bg-amber-400 dark:bg-amber-600'; cellTitle = vac.type; }
-                        } else if (dow === 0 || dow === 6) {
-                          cellBg = 'bg-slate-100 dark:bg-slate-700/50';
-                        }
-                      %>
-                      <td class="w-4 h-5 <%= cellBg %>" title="<%= cellTitle || dateStr %>"></td>
+                        </div>
+                      </td>
                     <% } %>
-                  <% } %>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="5" class="py-14 text-center">
+                    <div class="flex flex-col items-center gap-2 text-slate-400">
+                      <svg class="w-10 h-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      </svg>
+                      <p class="text-sm">Keine Abwesenheiten eingetragen</p>
+                    </div>
+                  </td>
                 </tr>
-              <% }) %>
+              <% } %>
             </tbody>
           </table>
         </div>
-        <div class="flex gap-4 mt-3 text-xs text-slate-500 dark:text-slate-400">
-          <span><span class="inline-block w-3 h-3 rounded bg-emerald-400 mr-1"></span>Urlaub (genehmigt)</span>
-          <span><span class="inline-block w-3 h-3 rounded bg-red-400 mr-1"></span>Krank</span>
-          <span><span class="inline-block w-3 h-3 rounded bg-amber-400 mr-1"></span>Sonstiges</span>
-          <span><span class="inline-block w-3 h-3 rounded bg-slate-100 border mr-1"></span>Wochenende</span>
-        </div>
       </div>
-
     </div>
 
-  </main>
+    <!-- Jahreskalender -->
+    <div class="card p-5">
+      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Team-Urlaubskalender <%= currentYear %></h2>
+      <p class="text-xs text-slate-400 mb-4">Genehmigte Abwesenheiten auf einen Blick</p>
+      <div class="flex gap-3 mb-3 text-xs text-slate-500 dark:text-slate-400">
+        <span><span class="inline-block w-3 h-3 rounded bg-emerald-400 mr-1 align-middle"></span>Urlaub</span>
+        <span><span class="inline-block w-3 h-3 rounded bg-red-400 mr-1 align-middle"></span>Krank</span>
+        <span><span class="inline-block w-3 h-3 rounded bg-amber-400 mr-1 align-middle"></span>Sonstiges</span>
+        <span><span class="inline-block w-3 h-3 rounded bg-slate-100 border mr-1 align-middle"></span>Wochenende</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="text-xs border-collapse min-w-max">
+          <thead>
+            <tr>
+              <th class="text-left px-2 py-1.5 font-semibold text-slate-500 dark:text-slate-400 w-28 sticky left-0 bg-white dark:bg-slate-800">Mitarbeiter</th>
+              <% for (let m = 1; m <= 12; m++) { %>
+                <% const mName = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][m-1]; %>
+                <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
+                <% for (let d = 1; d <= daysInM; d++) { %>
+                  <% const dow = new Date(currentYear, m-1, d).getDay(); %>
+                  <th class="px-0 py-1 text-center font-normal <%= dow===0||dow===6?'text-slate-300 dark:text-slate-600':'text-slate-400 dark:text-slate-500' %> w-4"
+                    title="<%= mName %> <%= d %>"><%= d===1?mName:'' %></th>
+                <% } %>
+              <% } %>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <%
+              const approvedVacs = vacations.filter(v => v.status === 'Genehmigt');
+              const allUsersForCal = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') ? users : users.filter(u => u.id === currentUser.id);
+            %>
+            <% allUsersForCal.forEach(u => { %>
+              <tr>
+                <td class="px-2 py-1 font-semibold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-800 whitespace-nowrap"><%= u.username %></td>
+                <% for (let m = 1; m <= 12; m++) { %>
+                  <% const daysInM = new Date(currentYear, m, 0).getDate(); %>
+                  <% for (let d = 1; d <= daysInM; d++) { %>
+                    <%
+                      const dateStr = currentYear+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+                      const vac = approvedVacs.find(v => v.user_id===u.id && dateStr>=v.start_date && dateStr<=v.end_date);
+                      const dow = new Date(currentYear,m-1,d).getDay();
+                      let cellBg='';
+                      if (vac) {
+                        cellBg = vac.type==='Krank'?'bg-red-400 dark:bg-red-600':vac.type==='Urlaub'?'bg-emerald-400 dark:bg-emerald-600':'bg-amber-400 dark:bg-amber-600';
+                      } else if (dow===0||dow===6) { cellBg='bg-slate-100 dark:bg-slate-700/50'; }
+                    %>
+                    <td class="w-4 h-5 <%= cellBg %>" title="<%= dateStr %>"></td>
+                  <% } %>
+                <% } %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-</div>
+  </div>
+</main>
 
 </body>
 </html>

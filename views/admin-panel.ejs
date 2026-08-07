@@ -1,9 +1,7 @@
 <%- include('partials/header') %>
+<%- include('partials/sidebar') %>
 
-<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
 
     <!-- Seitenüberschrift -->
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
@@ -1033,8 +1031,7 @@
       <% } %>
 
     </div><!-- /max-w-5xl -->
-  </main>
-</div>
+</main>
 
 <script>
   // Farb-Vorschau Live-Update
