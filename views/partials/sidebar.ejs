@@ -63,12 +63,7 @@
 
   <!-- Navigation -->
   <%
-    let _hidden = [];
-    try {
-      const _raw = (typeof req !== 'undefined' && req.cookies && req.cookies.sidebar_hidden) ||
-                   (typeof locals !== 'undefined' && locals.sidebarHidden) || '[]';
-      _hidden = JSON.parse(_raw);
-    } catch(e) {}
+    const _hidden = (typeof sidebarHidden !== 'undefined' && Array.isArray(sidebarHidden)) ? sidebarHidden : [];
     const _show = key => !_hidden.includes('hide_' + key);
     const _perm = (typeof hasPerm === 'function') ? hasPerm : () => true;
   %>

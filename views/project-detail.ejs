@@ -553,6 +553,68 @@
       </div>
 </div>
 
+<!-- ── Stunden & Nachkalkulation ──────────────────────────────────── -->
+<div class="px-4 md:px-6 pb-8 max-w-7xl mx-auto w-full">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+    <div class="flex items-center justify-between gap-3 border-b dark:border-slate-700 pb-3 mb-4">
+      <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100">⏱️ Stunden &amp; Nachkalkulation</h2>
+      <% if (typeof projectTotalHours !== 'undefined' && parseFloat(projectTotalHours) > 0) { %>
+        <span class="text-sm font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full">
+          Gesamt: <%= projectTotalHours %> Std.
+        </span>
+      <% } %>
+    </div>
+
+    <% if (typeof projectHours !== 'undefined' && projectHours.length > 0) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm min-w-[380px]">
+          <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 uppercase text-xs">
+            <tr>
+              <th class="px-4 py-2">Mitarbeiter</th>
+              <th class="px-4 py-2 text-right">Stunden</th>
+              <th class="px-4 py-2 text-right hidden md:table-cell">Anteil</th>
+              <th class="px-4 py-2 hidden md:table-cell">Fortschritt</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% projectHours.forEach(row => {
+                 const pct = projectTotalHours > 0 ? Math.round((parseFloat(row.hours) / parseFloat(projectTotalHours)) * 100) : 0;
+            %>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+              <td class="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-200">👤 <%= row.username %></td>
+              <td class="px-4 py-2.5 text-right font-bold text-slate-800 dark:text-gray-100"><%= row.hours %> Std.</td>
+              <td class="px-4 py-2.5 text-right text-slate-500 dark:text-slate-400 hidden md:table-cell"><%= pct %> %</td>
+              <td class="px-4 py-2.5 hidden md:table-cell">
+                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                  <div class="h-2 rounded-full bg-indigo-500" style="width:<%= pct %>%"></div>
+                </div>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+          <tfoot class="border-t-2 border-slate-200 dark:border-slate-600 font-semibold text-slate-700 dark:text-slate-200">
+            <tr>
+              <td class="px-4 py-2.5">Gesamt</td>
+              <td class="px-4 py-2.5 text-right text-indigo-700 dark:text-indigo-300 font-bold"><%= projectTotalHours %> Std.</td>
+              <td class="hidden md:table-cell"></td>
+              <td class="hidden md:table-cell"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">
+        💡 Nur abgeschlossene IN/OUT-Paare werden gezählt. Laufende Schichten werden beim nächsten Ausstempeln erfasst.
+      </p>
+    <% } else { %>
+      <div class="text-center py-8 text-slate-400 dark:text-slate-500">
+        <p class="text-3xl mb-2">⏱️</p>
+        <p class="text-sm font-medium">Noch keine Stunden auf dieses Projekt gebucht.</p>
+        <p class="text-xs mt-1">Mitarbeiter können beim Einstempeln dieses Projekt auswählen.</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+
 </main>
 
 <!-- ================================================ -->

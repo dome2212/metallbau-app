@@ -212,6 +212,13 @@ app.use(async (req, res, next) => {
   // hasPerm als Helper-Funktion für alle EJS-Views (Sidebar, Seiten)
   res.locals.hasPerm = (area, adminDef, employeeDef) =>
     _hasPerm(req.user, area, res.locals.firma, adminDef, employeeDef);
+  // Sidebar-Einstellungen aus Cookie für EJS verfügbar machen
+  try {
+    const raw = req.cookies && req.cookies.sidebar_hidden;
+    res.locals.sidebarHidden = raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    res.locals.sidebarHidden = [];
+  }
   next();
 });
 

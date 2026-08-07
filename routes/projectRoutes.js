@@ -231,15 +231,53 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM project_measurements WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM project_notes WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery(`SELECT project_tasks.*, users.username as assigned_username FROM project_tasks LEFT JOIN users ON project_tasks.assigned_to = users.id WHERE project_tasks.project_id = ? ORDER BY project_tasks.created_at DESC`, [id]),
-      dbQuery('SELECT id, username FROM users ORDER BY username ASC')
+      dbQuery('SELECT id, username FROM users ORDER BY username ASC'),
+      dbQuery(
+        isPg
+          ? `SELECT u.username, tl.type, tl.note,
+                    TO_CHAR(tl.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_ts
+             FROM time_logs tl JOIN users u ON tl.user_id = u.id
+             WHERE tl.project_id = ?
+             ORDER BY tl.timestamp ASC`
+          : `SELECT u.username, tl.type, tl.note,
+                    strftime('%Y-%m-%d %H:%M:%S', tl.timestamp) as local_ts
+             FROM time_logs tl JOIN users u ON tl.user_id = u.id
+             WHERE tl.project_id = ?
+             ORDER BY tl.timestamp ASC`,
+        [id]
+      )
     ]);
+
+    // Stunden pro Mitarbeiter berechnen (IN/OUT-Paar-Logik)
+    const hoursLogs = hoursRes.rows || [];
+    const hoursPerUser = {};
+    for (let i = 0; i < hoursLogs.length; i++) {
+      const log = hoursLogs[i];
+      if (log.type !== 'IN') continue;
+      const start = new Date((log.local_ts || '').replace(' ', 'T')).getTime();
+      const next  = hoursLogs[i + 1];
+      let end;
+      if (next && next.type === 'OUT' && next.username === log.username) {
+        end = new Date((next.local_ts || '').replace(' ', 'T')).getTime();
+      } else {
+        end = start; // offenes IN ohne OUT → nicht zählen
+      }
+      if (end > start) {
+        hoursPerUser[log.username] = (hoursPerUser[log.username] || 0) + (end - start);
+      }
+    }
+    const projectHours = Object.entries(hoursPerUser).map(([username, ms]) => ({
+      username,
+      hours: (ms / 3600000).toFixed(2)
+    })).sort((a, b) => b.hours - a.hours);
+    const projectTotalHours = projectHours.reduce((s, r) => s + parseFloat(r.hours), 0).toFixed(2);
 
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
     const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
@@ -263,7 +301,9 @@ router.get('/:id', async (req, res) => {
       measurements: measurementsRes.rows || [],
       notes:        notesRes.rows        || [],
       tasks:        tasksRes.rows        || [],
-      users:        usersRes.rows        || []
+      users:        usersRes.rows        || [],
+      projectHours,
+      projectTotalHours
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
