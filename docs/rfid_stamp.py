@@ -51,8 +51,8 @@ import requests
 import RPi.GPIO as GPIO
 
 # ── Konfiguration ──────────────────────────────────────────────────────────────
-APP_URL    = "https://deine-app.onrender.com"   # ← HIER deine App-URL eintragen
-RFID_KEY   = "ein_langes_geheimes_passwort_hier_einsetzen"  # ← aus .env → RFID_API_KEY
+APP_URL    = "https://metallbau-gehrmann.onrender.com"   # ← HIER deine App-URL eintragen
+RFID_KEY   = "Xk9mR3vQ8nBpL2wZ5tYdF7cA4jHsE6uN"        # ← aus .env → RFID_API_KEY
 
 LED_GREEN  = 17   # GPIO-Pin grüne LED  (0 = nicht vorhanden)
 LED_RED    = 27   # GPIO-Pin rote LED   (0 = nicht vorhanden)

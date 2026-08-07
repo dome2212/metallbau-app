@@ -455,6 +455,91 @@ router.post('/delete', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
+// PERSONALPLANUNG – Wochenplan
+// ==========================================
+router.get('/staffplan', requireAdmin, async (req, res) => {
+  try {
+    // Woche berechnen (Mo–Sa)
+    const weekParam = req.query.week || '';
+    let monday;
+    if (weekParam) {
+      monday = new Date(weekParam);
+      // Sicherstellen dass es ein Montag ist
+      const dow = monday.getDay();
+      monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
+    } else {
+      monday = new Date();
+      const dow = monday.getDay();
+      monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
+    }
+    monday.setHours(0, 0, 0, 0);
+
+    // 6 Tage (Mo–Sa) als Datumsstrings
+    const days = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    const prevMonday = new Date(monday); prevMonday.setDate(monday.getDate() - 7);
+    const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
+
+    const [usersRes, projectsRes, assignmentsRes] = await Promise.all([
+      dbQuery(`SELECT id, username, role FROM users ORDER BY username ASC`),
+      dbQuery(`SELECT id, title FROM projects WHERE status != 'Abgeschlossen' ORDER BY title ASC`),
+      dbQuery(
+        `SELECT * FROM staff_assignments WHERE assignment_date >= ? AND assignment_date <= ?`,
+        [days[0], days[5]]
+      )
+    ]);
+
+    // Assignments als Map: user_id → date → assignment
+    const assignMap = {};
+    for (const a of (assignmentsRes.rows || [])) {
+      if (!assignMap[a.user_id]) assignMap[a.user_id] = {};
+      assignMap[a.user_id][a.assignment_date] = a;
+    }
+
+    res.render('staffplan', {
+      users:      usersRes.rows || [],
+      projects:   projectsRes.rows || [],
+      days,
+      assignMap,
+      mondayStr:     days[0],
+      prevMondayStr: prevMonday.toISOString().slice(0, 10),
+      nextMondayStr: nextMonday.toISOString().slice(0, 10),
+      weekLabel: new Date(days[0]).toLocaleDateString('de-DE', { day:'numeric', month:'long' })
+        + ' – ' + new Date(days[5]).toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' })
+    });
+  } catch (err) {
+    console.error('Fehler Personalplanung:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+router.post('/staffplan/save', requireAdmin, async (req, res) => {
+  try {
+    const { user_id, date, project_id, note } = req.body;
+    if (!user_id || !date) return res.status(400).send('Fehlende Daten');
+    const pid = project_id && project_id !== '' ? parseInt(project_id, 10) : null;
+
+    // Upsert: löschen + neu anlegen
+    await dbQuery(`DELETE FROM staff_assignments WHERE user_id = ? AND assignment_date = ?`, [user_id, date]);
+    if (pid !== null || (note && note.trim())) {
+      await dbQuery(
+        `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
+        [user_id, pid, date, (note || '').trim() || null]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Zuweisung:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
 // RFID-UID setzen / löschen
 // ==========================================
 router.post('/users/set-rfid', requireAdmin, async (req, res) => {

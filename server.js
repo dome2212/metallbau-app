@@ -100,6 +100,14 @@ dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {})
 dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode INT DEFAULT 0`).catch(() => {});
 dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS rfid_uid TEXT`).catch(() => {});
+dbQuery(`CREATE TABLE IF NOT EXISTS staff_assignments (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL,
+  project_id INT,
+  assignment_date TEXT NOT NULL,
+  note TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)`).catch(() => {});
 
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
