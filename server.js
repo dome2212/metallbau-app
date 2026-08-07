@@ -155,6 +155,16 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'Public')));
 
+// UTF-8 Charset für alle HTML-Antworten erzwingen
+app.use((req, res, next) => {
+  const origRender = res.render.bind(res);
+  res.render = function(view, options, callback) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return origRender(view, options, callback);
+  };
+  next();
+});
+
 // ==========================================
 // RATE LIMITING
 // ==========================================

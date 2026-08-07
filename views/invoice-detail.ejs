@@ -19,10 +19,10 @@
                   title="Rechnungsnummer anklicken zum Bearbeiten">
                 <button type="submit"
                   class="hidden text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition"
-                  id="inv-num-save">âœ“ Speichern</button>
+                  id="inv-num-save">✓ Speichern</button>
                 <button type="button" onclick="cancelEditNum()"
                   class="hidden text-xs bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 px-2 py-1 rounded transition"
-                  id="inv-num-cancel">âœ•</button>
+                  id="inv-num-cancel">✕</button>
               </form>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">Erstellt am: <%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></p>
@@ -31,23 +31,23 @@
             <span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= invoice.status %></span>
             <button onclick="openPaymentReminderModal()"
               class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-semibold">
-              âœ‰ï¸ KI-Mahnung
+              ✉️ KI-Mahnung
             </button>
             <a href="/documents/invoices/<%= invoice.id %>/pdf" target="_blank"
               class="px-3 py-1.5 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 border dark:border-slate-600 rounded-lg text-xs text-gray-600 dark:text-gray-300">
-              ðŸ–¨ï¸ PDF Vorschau
+              🖨️ PDF Vorschau
             </a>
             <a href="/documents/invoices/<%= invoice.id %>/pdf-download" download
               class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold">
-              â¬‡ï¸ PDF herunterladen
+              ⬇️ PDF herunterladen
             </a>
-            <a href="/documents/invoices" class="px-3 py-1.5 border dark:border-slate-600 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">ZurÃ¼ck</a>
+            <a href="/documents/invoices" class="px-3 py-1.5 border dark:border-slate-600 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Zurück</a>
           </div>
         </div>
 
         <!-- Kunden-Details -->
         <div class="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 border dark:border-slate-600 space-y-1 text-sm">
-          <div class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">EmpfÃ¤nger / Kunde</div>
+          <div class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase mb-1">Empfänger / Kunde</div>
           <p class="font-semibold text-gray-800 dark:text-gray-100"><%= invoice.company_name || invoice.contact_person %></p>
           <p class="text-gray-600 dark:text-gray-300"><%= invoice.street %></p>
           <p class="text-gray-600 dark:text-gray-300"><%= invoice.zip %> <%= invoice.city %></p>
@@ -82,8 +82,8 @@
                       <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.quantity %></td>
                       <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.unit %></td>
                       <% if (canSeeMoney) { %>
-                        <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= (item.price || 0).toFixed(2) %> â‚¬</td>
-                        <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> â‚¬</td>
+                        <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= (item.price || 0).toFixed(2) %> €</td>
+                        <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= ((item.quantity || 1) * (item.price || 0)).toFixed(2) %> €</td>
                       <% } %>
                     </tr>
                   <% }) %>
@@ -93,7 +93,7 @@
               <tfoot class="bg-gray-50 dark:bg-slate-700 border-t dark:border-slate-600">
                 <tr>
                   <td colspan="4" class="p-3 text-end font-bold text-gray-800 dark:text-gray-100 text-sm">Gesamtbetrag (Brutto):</td>
-                  <td class="p-3 text-end font-bold text-emerald-600 text-base"><%= (invoice.total_amount || 0).toFixed(2) %> â‚¬</td>
+                  <td class="p-3 text-end font-bold text-emerald-600 text-base"><%= (invoice.total_amount || 0).toFixed(2) %> €</td>
                 </tr>
               </tfoot>
               <% } %>
@@ -118,41 +118,41 @@
 <div id="paymentReminderModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
   <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full p-5 md:p-7 max-h-[90vh] flex flex-col gap-4">
     <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3">
-      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">âœ‰ï¸ KI-Zahlungserinnerung</h3>
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">✉️ KI-Zahlungserinnerung</h3>
       <button onclick="document.getElementById('paymentReminderModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
     </div>
-    <p class="text-xs text-gray-500 dark:text-gray-400">Die KI schreibt einen professionellen Mahnungstext fÃ¼r diese Rechnung. Du kannst ihn vor dem Versand anpassen und kopieren.</p>
+    <p class="text-xs text-gray-500 dark:text-gray-400">Die KI schreibt einen professionellen Mahnungstext für diese Rechnung. Du kannst ihn vor dem Versand anpassen und kopieren.</p>
     <div id="reminderLoading" class="hidden flex items-center gap-3 text-sm text-orange-600 font-medium py-4">
       <svg class="animate-spin h-5 w-5 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
       </svg>
-      KI formuliert Mahnungstextâ€¦
+      KI formuliert Mahnungstext…
     </div>
     <div id="reminderError" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2"></div>
     <textarea id="reminderText" rows="10"
       class="w-full text-sm border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y"
-      placeholder="Hier erscheint der Mahnungstextâ€¦"></textarea>
+      placeholder="Hier erscheint der Mahnungstext…"></textarea>
     <div class="flex justify-between items-center gap-3 pt-2 border-t dark:border-slate-700">
       <button id="reminderGenerateBtn" onclick="generatePaymentReminder()"
         class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition">
-        âœ‰ï¸ Jetzt generieren
+        ✉️ Jetzt generieren
       </button>
       <div class="flex gap-2">
         <button onclick="copyReminderText()"
           class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium transition">
-          ðŸ“‹ Kopieren
+          📋 Kopieren
         </button>
         <% if (invoice.email) { %>
         <a href="mailto:<%= invoice.email %>?subject=Zahlungserinnerung%20Rechnung%20<%= invoice.invoice_number %>"
           id="reminderMailtoBtn"
           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
-          ðŸ“§ Per E-Mail senden
+          📧 Per E-Mail senden
         </a>
         <% } %>
         <button onclick="document.getElementById('paymentReminderModal').classList.add('hidden')"
           class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-          SchlieÃŸen
+          Schließen
         </button>
       </div>
     </div>
@@ -172,7 +172,7 @@ async function generatePaymentReminder() {
   const errorBox= document.getElementById('reminderError');
   const textarea= document.getElementById('reminderText');
 
-  btn.disabled = true; btn.textContent = 'â³ Generiertâ€¦';
+  btn.disabled = true; btn.textContent = '⏳ Generiert…';
   loading.classList.remove('hidden');
   errorBox.classList.add('hidden');
   textarea.value = '';
@@ -194,11 +194,11 @@ async function generatePaymentReminder() {
     if (!res.ok || data.error) throw new Error(data.error || 'Unbekannter Fehler');
     textarea.value = data.reminder;
   } catch (err) {
-    errorBox.textContent = 'âŒ ' + err.message;
+    errorBox.textContent = '❌ ' + err.message;
     errorBox.classList.remove('hidden');
   } finally {
     loading.classList.add('hidden');
-    btn.disabled = false; btn.textContent = 'âœ‰ï¸ Neu generieren';
+    btn.disabled = false; btn.textContent = '✉️ Neu generieren';
   }
 }
 

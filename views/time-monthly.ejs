@@ -3,7 +3,7 @@
 <%- include('partials/sidebar') %>
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">ðŸ“Š Monatsauswertung Stempeluhr</h1>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📊 Monatsauswertung Stempeluhr</h1>
       <span class="text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-lg">
         Gesamt: <strong id="total-display">wird berechnet...</strong>
       </span>
@@ -25,26 +25,26 @@
             </div>
           <% } %>
           <div>
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monat wÃ¤hlen</label>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monat wählen</label>
             <input type="month" name="month" value="<%= selectedMonth %>" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white">
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Soll-Std./Tag</label>
             <input type="number" name="daily_hours" value="<%= dailyHours %>" min="1" max="12" step="0.5"
-              class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white w-24" title="TÃ¤gliche Sollarbeitszeit in Stunden">
+              class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white w-24" title="Tägliche Sollarbeitszeit in Stunden">
           </div>
           <div class="flex gap-2">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Filtern</button>
             <a href="/timetracking/admin/export-csv?month=<%= selectedMonth %>&user_id=<%= selectedUserId %>"
                class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1">
-              ðŸ“¥ CSV Export
+              📥 CSV Export
             </a>
           </div>
         </form>
       </div>
 
       <!-- ===================================================== -->
-      <!-- ÃœBERSTUNDEN-KARTE                                     -->
+      <!-- ÜBERSTUNDEN-KARTE                                     -->
       <!-- ===================================================== -->
       <%
         const ot = parseFloat(overtimeHours);
@@ -67,23 +67,23 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 border-slate-400">
           <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Soll-Stunden (<%= dailyHours %> h/Tag)</p>
           <p class="text-2xl font-bold text-slate-800 dark:text-gray-100 mt-1"><%= targetHours %> Std.</p>
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Werktage (Moâ€“Fr) im Monat</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Werktage (Mo–Fr) im Monat</p>
         </div>
 
-        <!-- Ãœber-/Minusstunden -->
+        <!-- Über-/Minusstunden -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border-l-4 <%= isOver ? 'border-green-500' : 'border-red-500' %>">
           <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <%= isOver ? 'Ãœberstunden' : 'Minusstunden' %>
+            <%= isOver ? 'Überstunden' : 'Minusstunden' %>
           </p>
           <p class="text-2xl font-bold mt-1 <%= isOver ? 'text-green-600' : 'text-red-600' %>">
             <%= otLabel %>
           </p>
-          <p class="text-xs text-slate-400 mt-0.5">Ist âˆ’ Soll</p>
+          <p class="text-xs text-slate-400 mt-0.5">Ist − Soll</p>
         </div>
 
       </div>
 
-      <!-- Tabelle der ZeiteintrÃ¤ge -->
+      <!-- Tabelle der Zeiteinträge -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm min-w-[500px]">
@@ -114,7 +114,7 @@
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="4" class="p-6 text-center text-slate-400 dark:text-slate-500 italic text-sm">Keine EintrÃ¤ge fÃ¼r diesen Monat gefunden.</td>
+                  <td colspan="4" class="p-6 text-center text-slate-400 dark:text-slate-500 italic text-sm">Keine Einträge für diesen Monat gefunden.</td>
                 </tr>
               <% } %>
             </tbody>
@@ -126,7 +126,7 @@
   </main>
 
 <script>
-// Gesamtstunden clientseitig berechnen (IN/OUT Paare) â€“ fÃ¼r den Header-Badge
+// Gesamtstunden clientseitig berechnen (IN/OUT Paare) – für den Header-Badge
 (function() {
   const entries = <%- JSON.stringify(entries || []) %>;
   let totalMs = 0;

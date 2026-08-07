@@ -38,6 +38,23 @@ router.post('/add', async (req, res) => {
 });
 
 // ==========================================
+// ARTIKEL BEARBEITEN
+// ==========================================
+router.post('/edit', async (req, res) => {
+  const { id, title, unit, unit_price, description } = req.body;
+  const parsedPrice = String(unit_price).replace(',', '.');
+  try {
+    await dbQuery(
+      `UPDATE articles SET title = ?, unit = ?, unit_price = ?, description = ? WHERE id = ?`,
+      [title, unit, parseFloat(parsedPrice) || 0, description || null, id]
+    );
+    res.redirect('/articles');
+  } catch (err) {
+    res.status(500).send('Fehler beim Aktualisieren');
+  }
+});
+
+// ==========================================
 // ARTIKEL LÖSCHEN
 // ==========================================
 router.post('/delete', async (req, res) => {

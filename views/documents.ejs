@@ -5,7 +5,7 @@
 
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
       <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">ðŸ“‹ Dokumentenverwaltung</h1>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📋 Dokumentenverwaltung</h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Rechnungen und Zahlungsstati</p>
       </div>
       <button onclick="document.getElementById('newInvoiceModal').classList.remove('hidden')"
@@ -20,7 +20,7 @@
       <div class="flex gap-2 border-b dark:border-slate-700 pb-0">
         <span class="px-4 py-2 text-sm font-semibold text-red-600 border-b-2 border-red-500 cursor-pointer">Gesendet</span>
         <span class="px-4 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">Bezahlt</span>
-        <span class="px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-700 cursor-pointer">ÃœberfÃ¤llig</span>
+        <span class="px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-700 cursor-pointer">Überfällig</span>
       </div>
 
       <!-- Rechnungs-Tabelle -->
@@ -43,7 +43,7 @@
                     <td class="p-4 font-semibold text-slate-800 dark:text-gray-100"><%= invoice.invoice_number %></td>
                     <td class="p-4 text-slate-600 dark:text-gray-300"><%= invoice.company_name || invoice.contact_person || 'Unbekannt' %></td>
                     <td class="p-4 text-slate-600 dark:text-gray-300"><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></td>
-                    <td class="p-4 text-slate-600 dark:text-gray-300"><%= parseFloat(invoice.total_amount || 0).toFixed(2) %> â‚¬</td>
+                    <td class="p-4 text-slate-600 dark:text-gray-300"><%= parseFloat(invoice.total_amount || 0).toFixed(2) %> €</td>
                     <td class="p-4">
                       <span class="px-2.5 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><%= invoice.status %></span>
                     </td>
@@ -78,10 +78,10 @@
 
       <!-- Kunden-Auswahl -->
       <div>
-        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kunde auswÃ¤hlen *</label>
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kunde auswählen *</label>
         <select name="customer_id" required
           class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
-          <option value="" disabled selected>Bitte wÃ¤hlen...</option>
+          <option value="" disabled selected>Bitte wählen...</option>
           <% if (customers && customers.length > 0) { %>
             <% customers.forEach(customer => { %>
               <option value="<%= customer.id %>">
@@ -94,10 +94,10 @@
 
       <!-- Artikel-Schnellauswahl -->
       <div class="border-t dark:border-slate-700 pt-3">
-        <label class="block text-xs font-bold text-blue-700 dark:text-blue-400 mb-1">ðŸ“¦ Aus Artikelstamm hinzufÃ¼gen</label>
+        <label class="block text-xs font-bold text-blue-700 dark:text-blue-400 mb-1">📦 Aus Artikelstamm hinzufügen</label>
         <select id="docArticleSelect" onchange="docAddArticle(this)"
           class="w-full border border-blue-200 dark:border-blue-700 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-blue-50/50">
-          <option value="">-- Artikel wÃ¤hlen, um ihn als Position anzuhÃ¤ngen --</option>
+          <option value="">-- Artikel wählen, um ihn als Position anzuhängen --</option>
           <% if (customers && articles && articles.length > 0) { %>
             <% articles.forEach(art => { %>
               <option value="<%= art.id %>"
@@ -105,7 +105,7 @@
                 data-unit="<%= art.unit %>"
                 data-price="<%= art.unit_price %>"
                 data-desc="<%= art.description || '' %>">
-                <%= art.title %> (<%= parseFloat(art.unit_price || 0).toFixed(2) %> â‚¬ / <%= art.unit %>)
+                <%= art.title %> (<%= parseFloat(art.unit_price || 0).toFixed(2) %> € / <%= art.unit %>)
               </option>
             <% }); %>
           <% } %>
@@ -122,7 +122,7 @@
           </button>
         </div>
         <div id="docItemsContainer" class="space-y-3">
-          <!-- per JS befÃ¼llt -->
+          <!-- per JS befüllt -->
         </div>
       </div>
 
@@ -141,7 +141,7 @@
 </div>
 
 <script>
-  // Ã–ffnet das Modal und setzt beim ersten Mal eine leere Zeile
+  // Öffnet das Modal und setzt beim ersten Mal eine leere Zeile
   document.getElementById('newInvoiceModal').addEventListener('click', function(e) {
     if (e.target === this) this.classList.add('hidden');
   });
@@ -154,15 +154,14 @@
   function docAddRow(title = '', qty = 1, unit = 'Stk', price = '') {
     const c = document.getElementById('docItemsContainer');
     const id = 'doc_row_' + Date.now() + Math.random().toString(36).substr(2, 4);
-    const isDark = document.documentElement.classList.contains('dark');
     c.insertAdjacentHTML('beforeend', `
       <div id="${id}" class="p-3 bg-slate-50 dark:bg-slate-700 border dark:border-slate-600 rounded-lg space-y-2">
         <div class="flex gap-2 items-center">
           <input type="text" name="title" value="${title}" required
-            placeholder="Beschreibung (z.B. StahltrÃ¤ger HEB 160)"
+            placeholder="Beschreibung (z.B. Stahlträger HEB 160)"
             class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded p-2 text-sm bg-white">
           <button type="button" onclick="document.getElementById('${id}').remove()"
-            class="text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm flex-shrink-0" title="Entfernen">âœ•</button>
+            class="text-red-500 hover:text-red-700 font-bold px-2 py-1 text-sm flex-shrink-0" title="Entfernen">✕</button>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
@@ -177,12 +176,12 @@
               <option value="m"    ${unit==='m'   ?'selected':''}>m (Meter)</option>
               <option value="Std"  ${unit==='Std' ?'selected':''}>Std (Stunden)</option>
               <option value="kg"   ${unit==='kg'  ?'selected':''}>kg</option>
-              <option value="mÂ²"   ${unit==='mÂ²'  ?'selected':''}>mÂ²</option>
+              <option value="m²"   ${unit==='m²'  ?'selected':''}>m²</option>
               <option value="Psch" ${unit==='Psch'?'selected':''}>Pauschale</option>
             </select>
           </div>
           <div>
-            <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Einzelpreis (â‚¬)</label>
+            <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Einzelpreis (€)</label>
             <input type="number" step="0.01" name="price" value="${price}" required placeholder="0.00"
               class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded p-1.5 text-sm bg-white">
           </div>
@@ -195,7 +194,7 @@
     if (!o.value) return;
     const desc = o.getAttribute('data-desc');
     docAddRow(
-      o.getAttribute('data-title') + (desc ? ' â€“ ' + desc : ''),
+      o.getAttribute('data-title') + (desc ? ' – ' + desc : ''),
       1,
       o.getAttribute('data-unit'),
       o.getAttribute('data-price')

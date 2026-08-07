@@ -3,21 +3,21 @@
 <%- include('partials/sidebar') %>
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">ðŸ¢ Firmendaten &amp; Einstellungen</h1>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🏢 Firmendaten &amp; Einstellungen</h1>
     </header>
 
     <div class="px-4 md:px-6 max-w-4xl mx-auto w-full space-y-6 pb-10">
 
       <% if (success) { %>
         <div id="successBanner" class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-5 py-3 text-sm font-medium flex items-center gap-2">
-          âœ… Einstellungen erfolgreich gespeichert! Alle PDFs, Angebote und Rechnungen verwenden ab sofort die neuen Daten.
+          ✅ Einstellungen erfolgreich gespeichert! Alle PDFs, Angebote und Rechnungen verwenden ab sofort die neuen Daten.
         </div>
         <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 5000);</script>
       <% } %>
 
-      <!-- â•â• PDF-LOGO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+      <!-- ── PDF-LOGO ────────────────────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">ðŸ–¼ï¸ Logo fÃ¼r PDFs</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🖼️ Logo für PDFs</h2>
         <p class="text-xs text-slate-400 mb-4">Erscheint im Briefkopf von Angeboten &amp; Rechnungen.</p>
 
         <div class="flex flex-col md:flex-row gap-6 items-start">
@@ -33,7 +33,7 @@
           <div class="flex-1 space-y-3">
             <form action="/admin/company-settings/logo" method="POST" enctype="multipart/form-data">
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG â€“ max. 5 MB)</span>
+                Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG – max. 5 MB)</span>
               </label>
               <div class="flex gap-2 flex-wrap">
                 <input type="file" name="logo" accept="image/*" required
@@ -43,8 +43,8 @@
               </div>
             </form>
             <% if (firma.logo_url) { %>
-              <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('PDF-Logo wirklich lÃ¶schen?')">
-                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">ðŸ—‘ï¸ Logo entfernen</button>
+              <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('PDF-Logo wirklich löschen?')">
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Logo entfernen</button>
               </form>
             <% } %>
             <p class="text-xs text-slate-400 dark:text-slate-500">Empfohlen: transparenter Hintergrund (PNG) oder SVG.</p>
@@ -52,9 +52,9 @@
         </div>
       </div>
 
-      <!-- â•â• SIDEBAR-LOGO / TEXT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+      <!-- ── SIDEBAR-LOGO / TEXT ──────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">ðŸ”© Sidebar-Anzeige</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📩 Sidebar-Anzeige</h2>
         <p class="text-xs text-slate-400 mb-5">Was soll oben in der Seitenleiste angezeigt werden?</p>
 
         <!-- Schalter: Text oder Logo -->
@@ -75,7 +75,7 @@
                 class="accent-blue-600" onchange="this.form.submit()">
               <div>
                 <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kurzname als Text</p>
-                <p class="text-xs text-slate-400">z.B. &nbsp;<span class="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded">ðŸ”© <%= firma.nameKurz %></span></p>
+                <p class="text-xs text-slate-400">z.B. &nbsp;<span class="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded">📩 <%= firma.nameKurz %></span></p>
               </div>
             </label>
 
@@ -92,11 +92,11 @@
             </label>
           </div>
 
-          <!-- GrÃ¶ÃŸen-Regler (nur sichtbar wenn Modus = logo) -->
+          <!-- Größen-Regler (nur sichtbar wenn Modus = logo) -->
           <div id="heightSliderWrap" class="<%= firma.sidebar_modus === 'logo' ? '' : 'hidden' %> bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border dark:border-slate-600">
             <div class="flex items-center justify-between mb-2">
               <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
-                ðŸ”² Logo-GrÃ¶ÃŸe in der Sidebar
+                📲 Logo-Größe in der Sidebar
               </label>
               <span class="text-sm font-bold text-blue-600 dark:text-blue-400" id="heightLabel">
                 <%= firma.sidebar_logo_height || 80 %> px
@@ -110,7 +110,7 @@
             <div class="flex justify-between text-[10px] text-slate-400 mt-1">
               <span>Klein (40px)</span>
               <span>Mittel (120px)</span>
-              <span>GroÃŸ (200px)</span>
+              <span>Groß (200px)</span>
             </div>
             <!-- Live-Vorschau -->
             <% if (firma.sidebar_logo_url) { %>
@@ -124,7 +124,7 @@
             <div class="mt-3 flex justify-end">
               <button type="submit"
                 class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-                ðŸ’¾ GrÃ¶ÃŸe speichern
+                💾 Größe speichern
               </button>
             </div>
           </div>
@@ -144,7 +144,7 @@
           <div class="flex-1 space-y-3">
             <form action="/admin/company-settings/sidebar-logo" method="POST" enctype="multipart/form-data">
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                Sidebar-Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG â€“ max. 5 MB)</span>
+                Sidebar-Logo hochladen <span class="text-slate-400 font-normal">(JPG, PNG, SVG – max. 5 MB)</span>
               </label>
               <div class="flex gap-2 flex-wrap">
                 <input type="file" name="sidebar_logo" accept="image/*" required
@@ -154,12 +154,12 @@
               </div>
             </form>
             <% if (firma.sidebar_logo_url) { %>
-              <form action="/admin/company-settings/sidebar-logo-delete" method="POST" onsubmit="return confirm('Sidebar-Logo wirklich lÃ¶schen?')">
-                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">ðŸ—‘ï¸ Sidebar-Logo entfernen</button>
+              <form action="/admin/company-settings/sidebar-logo-delete" method="POST" onsubmit="return confirm('Sidebar-Logo wirklich löschen?')">
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Sidebar-Logo entfernen</button>
               </form>
             <% } %>
             <p class="text-xs text-slate-400 dark:text-slate-500">
-              Empfohlen: weiÃŸes oder helles Logo auf transparentem Hintergrund (PNG), da die Sidebar dunkel ist.
+              Empfohlen: weißes oder helles Logo auf transparentem Hintergrund (PNG), da die Sidebar dunkel ist.
             </p>
           </div>
         </div>
@@ -182,18 +182,18 @@
   });
 </script>
 
-      <!-- â•â• HAUPTFORMULAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+      <!-- ── HAUPTFORMULAR ──────────────────────────────────────────── -->
       <form action="/admin/company-settings" method="POST" class="space-y-6">
 
         <!-- Firmenname & Kontakt -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">ðŸ¢ Firmenname &amp; Kontakt</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏢 Firmenname &amp; Kontakt</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div class="md:col-span-2">
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                VollstÃ¤ndiger Firmenname <span class="text-red-400">*</span>
-                <span class="text-slate-400 font-normal">(wird in PDFs, KI-Prompts und Ã¼berall angezeigt)</span>
+                Vollständiger Firmenname <span class="text-red-400">*</span>
+                <span class="text-slate-400 font-normal">(wird in PDFs, KI-Prompts und überall angezeigt)</span>
               </label>
               <input type="text" name="name" required value="<%= firma.name %>"
                 placeholder="z.B. Mustermann Metallbau GmbH"
@@ -202,7 +202,7 @@
 
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                Kurzname <span class="text-slate-400 font-normal">(fÃ¼r Sidebar &amp; App-Titel)</span>
+                Kurzname <span class="text-slate-400 font-normal">(für Sidebar &amp; App-Titel)</span>
               </label>
               <input type="text" name="nameKurz" value="<%= firma.nameKurz %>"
                 placeholder="z.B. Metallbau-Mustermann"
@@ -212,21 +212,21 @@
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Slogan</label>
               <input type="text" name="slogan" value="<%= firma.slogan %>"
-                placeholder="z.B. QualitÃ¤t die bleibt."
+                placeholder="z.B. Qualität die bleibt."
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">StraÃŸe &amp; Hausnummer</label>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Straße &amp; Hausnummer</label>
               <input type="text" name="strasse" value="<%= firma.strasse %>"
-                placeholder="z.B. HauptstraÃŸe 1"
+                placeholder="z.B. Hauptstraße 1"
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
 
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">PLZ &amp; Ort</label>
               <input type="text" name="plzOrt" value="<%= firma.plzOrt %>"
-                placeholder="z.B. 40210 DÃ¼sseldorf"
+                placeholder="z.B. 40210 Düsseldorf"
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
 
@@ -263,13 +263,13 @@
 
         <!-- Bankdaten -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">ðŸ¦ Bankverbindung</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏦 Bankverbindung</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Bank</label>
               <input type="text" name="bank" value="<%= firma.bank %>"
-                placeholder="z.B. Sparkasse DÃ¼sseldorf"
+                placeholder="z.B. Sparkasse Düsseldorf"
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             </div>
 
@@ -292,12 +292,12 @@
 
         <!-- Dokumenteneinstellungen -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">ðŸ“„ Dokument-Einstellungen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📄 Dokument-Einstellungen</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                Zahlungsfrist <span class="text-slate-400 font-normal">(Tage â€“ wird auf Rechnungen angezeigt)</span>
+                Zahlungsfrist <span class="text-slate-400 font-normal">(Tage – wird auf Rechnungen angezeigt)</span>
               </label>
               <input type="number" name="zahlungsfrist" value="<%= firma.zahlungsfrist %>" min="1" max="90"
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -305,7 +305,7 @@
 
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                AngebotsgÃ¼ltigkeit <span class="text-slate-400 font-normal">(Tage)</span>
+                Angebotsgültigkeit <span class="text-slate-400 font-normal">(Tage)</span>
               </label>
               <input type="number" name="angebotsgueltig" value="<%= firma.angebotsgueltig %>" min="1" max="365"
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -321,29 +321,29 @@
           </a>
           <button type="submit"
             class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition flex items-center gap-2">
-            ðŸ’¾ Alle Daten speichern
+            💾 Alle Daten speichern
           </button>
         </div>
 
       </form>
 
-      <!-- â•â• DATENBANK-BACKUP â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+      <!-- ── DATENBANK-BACKUP ──────────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">ðŸ—„ï¸ Datenbank-Backup</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🗄️ Datenbank-Backup</h2>
         <p class="text-xs text-slate-400 mb-4">
-          TÃ¤glich um <strong>Mitternacht</strong> wird automatisch ein Backup erstellt und an
+          Täglich um <strong>Mitternacht</strong> wird automatisch ein Backup erstellt und an
           <strong><%= process.env.BACKUP_EMAIL || 'BACKUP_EMAIL (nicht gesetzt)' %></strong> gesendet.
         </p>
         <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           <div class="flex-1">
             <% if (!process.env.BACKUP_EMAIL || !process.env.SMTP_USER) { %>
               <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-lg px-4 py-2.5 text-xs">
-                âš ï¸ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> sind nicht in den Umgebungsvariablen gesetzt.
+                ⚠️ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> sind nicht in den Umgebungsvariablen gesetzt.
                 Backup ist deaktiviert bis diese Werte in Render eingetragen werden.
               </div>
             <% } else { %>
               <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-lg px-4 py-2.5 text-xs">
-                âœ… Backup konfiguriert â†’ wird tÃ¤glich an <strong><%= process.env.BACKUP_EMAIL %></strong> gesendet.
+                ✅ Backup konfiguriert → wird täglich an <strong><%= process.env.BACKUP_EMAIL %></strong> gesendet.
               </div>
             <% } %>
           </div>
@@ -351,7 +351,7 @@
             onsubmit="return confirm('Jetzt sofort ein Backup erstellen und per E-Mail senden?')">
             <button type="submit"
               class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap flex items-center gap-2">
-              ðŸ—„ï¸ Jetzt Backup erstellen
+              🗄️ Jetzt Backup erstellen
             </button>
           </form>
         </div>
