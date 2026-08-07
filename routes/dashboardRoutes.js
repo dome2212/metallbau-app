@@ -143,7 +143,19 @@ router.get('/', async (req, res) => {
         ? `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date != '' AND due_date::date <= CURRENT_DATE`
         : `SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF') AND due_date IS NOT NULL AND due_date != '' AND due_date <= date('now')`;
 
-      const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes] = await Promise.all([
+      const sqlOverdueTasks = isPg
+        ? `SELECT pt.id, pt.title, pt.due_date, p.title as project_title, p.id as project_id
+           FROM project_tasks pt LEFT JOIN projects p ON pt.project_id = p.id
+           WHERE pt.status = 'Offen' AND pt.due_date IS NOT NULL AND pt.due_date != ''
+             AND pt.due_date::date < CURRENT_DATE
+           ORDER BY pt.due_date ASC LIMIT 5`
+        : `SELECT pt.id, pt.title, pt.due_date, p.title as project_title, p.id as project_id
+           FROM project_tasks pt LEFT JOIN projects p ON pt.project_id = p.id
+           WHERE pt.status = 'Offen' AND pt.due_date IS NOT NULL AND pt.due_date != ''
+             AND pt.due_date < date('now')
+           ORDER BY pt.due_date ASC LIMIT 5`;
+
+      const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes, overdueTasksRes] = await Promise.all([
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'`),
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
         dbQuery(`SELECT COUNT(*) as count FROM customers`),
@@ -154,7 +166,8 @@ router.get('/', async (req, res) => {
           FROM documents LEFT JOIN customers ON documents.customer_id = customers.id
           ORDER BY documents.id DESC LIMIT 5`),
         dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10'),
-        dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId])
+        dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId]),
+        dbQuery(sqlOverdueTasks)
       ]);
 
       const { getFirma: _getDashFirma2 } = require('../utils/companySettings');
@@ -187,7 +200,7 @@ router.get('/', async (req, res) => {
         try { widgetSettings = JSON.parse(settingsRes.rows[0].settings_json); } catch (_) {}
       }
 
-      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings });
+      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings, overdueTasks: overdueTasksRes.rows || [] });
     }
   } catch (err) {
     console.error('Fehler im Dashboard:', err.message);

@@ -5,11 +5,15 @@
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
     <!-- Page Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Aufträge & Baustellen</h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Alle laufenden und abgeschlossenen Aufträge</p>
       </div>
+      <button id="archive-toggle-btn" onclick="toggleArchive()"
+        class="btn btn-ghost text-xs px-3 py-2">
+        📁 Archivierte anzeigen
+      </button>
     </div>
 
     <!-- Neuen Auftrag anlegen -->
@@ -222,6 +226,17 @@
   const countLabel   = document.getElementById('proj-count');
   const emptyHint    = document.getElementById('proj-empty');
 
+  let showArchived = false;
+
+  function toggleArchive() {
+    showArchived = !showArchived;
+    const btn = document.getElementById('archive-toggle-btn');
+    btn.textContent = showArchived ? '📂 Archivierte ausblenden' : '📁 Archivierte anzeigen';
+    btn.style.background = showArchived ? '#3b82f6' : '';
+    btn.style.color      = showArchived ? '#fff'    : '';
+    applyFilter();
+  }
+
   function applyFilter() {
     const q      = searchInput.value.trim().toLowerCase();
     const status = statusFilter.value;
@@ -229,9 +244,11 @@
     let visible  = 0;
 
     rows.forEach(row => {
+      const isArchived  = row.dataset.status === 'Abgeschlossen';
       const matchText   = !q      || row.dataset.title.includes(q) || row.dataset.customer.includes(q);
       const matchStatus = !status || row.dataset.status === status;
-      const show        = matchText && matchStatus;
+      const matchArchive = showArchived ? true : !isArchived;
+      const show        = matchText && matchStatus && matchArchive;
       row.classList.toggle('hidden', !show);
       if (show) visible++;
     });
@@ -242,6 +259,8 @@
 
   searchInput.addEventListener('input', applyFilter);
   statusFilter.addEventListener('change', applyFilter);
+  // Abgeschlossene standardmäßig ausblenden
+  document.addEventListener('DOMContentLoaded', applyFilter);
 </script>
 
 </body>

@@ -8,10 +8,14 @@
       <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⏱️ Mein Monatsüberblick</h1>
       <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
     </div>
-    <button id="emp-layout-btn" onclick="empToggleDragMode()"
-      class="btn btn-ghost text-xs px-3 py-2 mt-1 shrink-0">
-      🧩 Layout
-    </button>
+    <div class="flex items-center gap-2 mt-1">
+      <span class="text-xs text-slate-500 dark:text-slate-400">Heute:</span>
+      <span id="dash-worked-today-badge" class="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-0.5 rounded-full">–</span>
+      <button id="emp-layout-btn" onclick="empToggleDragMode()"
+        class="btn btn-ghost text-xs px-3 py-2 shrink-0">
+        🧩 Layout
+      </button>
+    </div>
   </div>
 
   <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-8">
@@ -26,7 +30,7 @@
               <%= stats.isStampedIn ? '🟢 Eingestempelt' : '⚪ Nicht eingestempelt' %>
             </span>
           </p>
-          <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">wird geladen…</strong></p>
+          <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">–</strong></p>
         </div>
         <div class="flex gap-2 shrink-0">
           <% if (!stats.isStampedIn) { %>
@@ -51,6 +55,25 @@
           <a href="/timetracking" class="btn btn-ghost text-sm font-medium px-3 py-2.5">
             Details →
           </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ampel-Karte -->
+    <div class="emp-dash-section card border-l-4 <%= stats.trafficBorder %> p-4 md:p-5 <%= stats.trafficBg %>" data-section="ampel">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl"><%= stats.trafficLight %></span>
+          <div>
+            <p class="text-sm font-bold <%= stats.trafficColor %>"><%= stats.trafficText %></p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Monatsfortschritt: <strong><%= stats.progressPct %> %</strong> von Soll-Stunden</p>
+          </div>
+        </div>
+        <div class="w-full sm:w-48">
+          <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2.5">
+            <div class="h-2.5 rounded-full transition-all" style="width:<%= stats.progressPct %>%;background:<%= stats.progressColor %>"></div>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1 text-right"><%= stats.monthTotalHours %> / <%= stats.targetHours %> Std.</p>
         </div>
       </div>
     </div>
@@ -228,6 +251,16 @@ function empToggleDragMode() {
 
 document.addEventListener('DOMContentLoaded', () => {
   empApplyOrder();
+
+  // Heute gearbeitete Stunden laden
+  fetch('/api/today-hours')
+    .then(r => r.json())
+    .then(d => {
+      const el1 = document.getElementById('dash-worked-today');
+      const el2 = document.getElementById('dash-worked-today-badge');
+      if (el1) el1.textContent = d.label || '–';
+      if (el2) el2.textContent = d.label || '–';
+    }).catch(() => {});
 
   document.querySelectorAll('.emp-dash-section').forEach(el => {
     // Desktop Drag events

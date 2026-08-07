@@ -456,9 +456,10 @@
     function esc(t) {
       return String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
-    const typeLabel = { project:'Auftrag', customer:'Kunde', appointment:'Termin', note:'Notiz' };
+    const typeLabel = { project:'Auftrag', customer:'Kunde', appointment:'Termin', note:'Notiz', user:'Mitarbeiter', article:'Artikel' };
     const typeBg    = { project:'bg-blue-50 text-blue-700', customer:'bg-purple-50 text-purple-700',
-                        appointment:'bg-amber-50 text-amber-700', note:'bg-slate-100 text-slate-600' };
+                        appointment:'bg-amber-50 text-amber-700', note:'bg-slate-100 text-slate-600',
+                        user:'bg-emerald-50 text-emerald-700', article:'bg-orange-50 text-orange-700' };
     box.innerHTML = results.map((r, i) => `
       <a href="${r.url}" id="sr-${i}"
         class="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer search-result-item"

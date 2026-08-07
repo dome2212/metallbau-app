@@ -1,8 +1,9 @@
-const CACHE_NAME = 'metallbau-v1';
+const CACHE_NAME = 'metallbau-v2';
 const OFFLINE_URLS = [
   '/',
   '/timetracking',
   '/manifest.json',
+  '/offline.html',
 ];
 
 self.addEventListener('install', (event) => {
@@ -42,7 +43,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Für alle anderen Requests: Network first, Cache fallback
+  // Für alle anderen Requests: Network first, Cache fallback → offline.html
   event.respondWith(
     fetch(event.request).then(response => {
       if (event.request.method === 'GET' && response.status === 200) {
@@ -50,7 +51,13 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone)).catch(() => {});
       }
       return response;
-    }).catch(() => caches.match(event.request))
+    }).catch(() =>
+      caches.match(event.request).then(cached =>
+        cached || (event.request.mode === 'navigate'
+          ? caches.match('/offline.html')
+          : new Response('Offline', { status: 503 }))
+      )
+    )
   );
 });
 

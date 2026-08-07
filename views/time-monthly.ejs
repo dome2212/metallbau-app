@@ -33,11 +33,16 @@
             <input type="number" name="daily_hours" value="<%= dailyHours %>" min="1" max="12" step="0.5"
               class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 bg-white w-24" title="Tägliche Sollarbeitszeit in Stunden">
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">Filtern</button>
-            <a href="/timetracking/admin/export-csv?month=<%= selectedMonth %>&user_id=<%= selectedUserId %>"
+            <a href="/timetracking/admin/export-csv?month=<%= selectedMonth %>&user_id=<%= selectedUserId %>&daily_hours=<%= dailyHours %>"
                class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1">
-              📥 CSV Export
+              📥 CSV
+            </a>
+            <a href="/timetracking/admin/export-pdf?month=<%= selectedMonth %>&user_id=<%= selectedUserId %>&daily_hours=<%= dailyHours %>"
+               target="_blank"
+               class="bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1">
+              📄 PDF Stundenzettel
             </a>
           </div>
         </form>
@@ -86,12 +91,13 @@
       <!-- Tabelle der Zeiteinträge -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-sm min-w-[500px]">
+          <table class="w-full text-left border-collapse text-sm min-w-[600px]">
             <thead class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs uppercase border-b dark:border-slate-600">
               <tr>
                 <th class="p-4">Datum</th>
                 <th class="p-4">Uhrzeit</th>
                 <th class="p-4">Typ</th>
+                <th class="p-4">Projekt</th>
                 <th class="p-4">Notiz</th>
               </tr>
             </thead>
@@ -109,12 +115,15 @@
                         <span class="bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-md">Ausgestempelt (OUT)</span>
                       <% } %>
                     </td>
-                    <td class="p-4 text-slate-500 dark:text-slate-400"><%= entry.note || '-' %></td>
+                    <td class="p-4 text-slate-500 dark:text-slate-400 text-xs">
+                      <%= entry.project_title ? '🏗️ ' + entry.project_title : '–' %>
+                    </td>
+                    <td class="p-4 text-slate-500 dark:text-slate-400"><%= entry.note || '–' %></td>
                   </tr>
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="4" class="p-6 text-center text-slate-400 dark:text-slate-500 italic text-sm">Keine Einträge für diesen Monat gefunden.</td>
+                  <td colspan="5" class="p-6 text-center text-slate-400 dark:text-slate-500 italic text-sm">Keine Einträge für diesen Monat gefunden.</td>
                 </tr>
               <% } %>
             </tbody>

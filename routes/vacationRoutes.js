@@ -104,9 +104,9 @@ router.post('/add', upload.single('document'), async (req, res) => {
       [userId, type || 'Urlaub', start_date, end_date, reason || null, fileUrl]
     );
 
-    // WhatsApp-Benachrichtigung an alle Admins
+    // WhatsApp-Benachrichtigung an alle Admins UND Chefs
     const adminsRes = await dbQuery(
-      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role = 'ADMIN' AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
     );
     const msg = `📅 Neuer ${type || 'Urlaub'}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
     for (const admin of (adminsRes.rows || [])) {

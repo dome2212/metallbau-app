@@ -341,6 +341,12 @@
     document.querySelectorAll('.dm-icon-sun, .dm-icon-moon').forEach(el => {
       el.classList.toggle('hidden');
     });
+    // Serverseitig speichern (best-effort)
+    fetch('/api/dark-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dark: isDark })
+    }).catch(() => {});
   }
   // Richtiges Icon beim Laden setzen
   document.addEventListener('DOMContentLoaded', () => {

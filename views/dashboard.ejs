@@ -121,6 +121,33 @@
 
     </div>
 
+    <!-- ── Überfällige Aufgaben ─────────────────────────────────────────── -->
+    <% if (typeof overdueTasks !== 'undefined' && overdueTasks.length > 0) { %>
+    <div class="dash-section card border-l-4 border-red-500 p-5" data-section="overduetasks">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-lg">🚨</div>
+        <div>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Überfällige Aufgaben</h2>
+          <p class="text-xs text-red-500 font-medium"><%= overdueTasks.length %> Aufgabe<%= overdueTasks.length !== 1 ? 'n' : '' %> mit abgelaufener Deadline</p>
+        </div>
+      </div>
+      <ul class="space-y-2">
+        <% overdueTasks.forEach(t => { %>
+          <li class="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200/60 dark:border-red-800/40 rounded-xl px-4 py-2.5">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate"><%= t.title %></p>
+              <p class="text-xs text-slate-400 mt-0.5">
+                📋 <%= t.project_title || 'Kein Projekt' %> ·
+                <span class="text-red-500 font-semibold">fällig: <%= new Date(t.due_date).toLocaleDateString('de-DE') %></span>
+              </p>
+            </div>
+            <a href="/projects/<%= t.project_id %>" class="btn btn-ghost py-1 px-2.5 text-xs shrink-0">Öffnen →</a>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <% } %>
+
     <!-- ── Schwarzes Brett ───────────────────────────────────────────────── -->
     <div class="dash-section card p-5 md:p-6" data-section="schwarzesbrett">
       <div class="flex items-center justify-between mb-5">
