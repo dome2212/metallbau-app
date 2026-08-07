@@ -1,150 +1,142 @@
-﻿<%- include('partials/header') %>
-
-  <!-- Sidebar einbinden -->
+<%- include('partials/header') %>
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
-    
-    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">â±ï¸ Mein MonatsÃ¼berblick</h1>
-      <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
-    </header>
 
-    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-6">
+  <div class="px-4 md:px-6 mb-6 pt-2">
+    <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⏱️ Mein Monatsüberblick</h1>
+    <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
+  </div>
 
-      <!-- SCHNELL-STEMPEL WIDGET (nur fÃ¼r Mitarbeiter) -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-5 mb-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-slate-400' %>">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              â±ï¸ Status:
-              <span class="<%= stats.isStampedIn ? 'text-green-600' : 'text-slate-500' %> font-bold">
-                <%= stats.isStampedIn ? 'ðŸŸ¢ Eingestempelt' : 'âšª Nicht eingestempelt' %>
-              </span>
-            </p>
-            <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">wird geladenâ€¦</strong></p>
-          </div>
-          <div class="flex gap-2 shrink-0">
-            <% if (!stats.isStampedIn) { %>
-              <form action="/timetracking/stamp" method="POST" id="dash-stamp-in-form">
-                <input type="hidden" name="type" value="IN">
-                <input type="hidden" name="latitude" id="dash-lat">
-                <input type="hidden" name="longitude" id="dash-lng">
-                <button type="button" onclick="dashStampIn()"
-                  id="dash-stamp-in-btn"
-                  class="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
-                  ðŸŸ¢ Einstempeln
-                </button>
-              </form>
-              <p id="dash-gps-status" class="text-xs text-slate-400 italic mt-1 hidden"></p>
-            <% } else { %>
-              <form action="/timetracking/stamp" method="POST">
-                <input type="hidden" name="type" value="OUT">
-                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm transition shadow">
-                  ðŸ”´ Ausstempeln
-                </button>
-              </form>
-            <% } %>
-            <a href="/timetracking" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium px-3 py-2.5 rounded-lg transition">
-              Details â†’
-            </a>
-          </div>
-        </div>
-      </div>
+  <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-8">
 
-      <!-- Statistik-Karten -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-
-        <!-- Arbeitsstunden diese Woche -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 border-indigo-500">
-          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Diese Woche</p>
-          <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.weekTotalHours %> Std.</p>
-          <p class="text-xs text-slate-400 mt-1">Mo â€“ heute</p>
-        </div>
-
-        <!-- Arbeitsstunden diesen Monat -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 border-blue-600">
-          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stunden diesen Monat</p>
-          <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.monthTotalHours %> Std.</p>
-          <p class="text-xs text-slate-400 mt-1">Soll: <%= stats.targetHours %> Std.</p>
-        </div>
-
-        <!-- Aktueller Stempelstatus -->
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
-          <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aktueller Status</p>
-          <p class="text-lg md:text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
-            <%= stats.isStampedIn ? 'ðŸŸ¢ Aktuell eingestempelt' : 'ðŸ”´ Aktuell ausgestempelt' %>
+    <!-- Schnell-Stempel Widget -->
+    <div class="card border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-slate-300 dark:border-slate-600' %> p-4 md:p-5">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Status:
+            <span class="<%= stats.isStampedIn ? 'text-green-600' : 'text-slate-500' %> font-bold">
+              <%= stats.isStampedIn ? '🟢 Eingestempelt' : '⚪ Nicht eingestempelt' %>
+            </span>
           </p>
-          <a href="/timetracking" class="text-xs text-blue-600 hover:underline mt-2 inline-block font-semibold">Zur Stempeluhr &rarr;</a>
+          <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">wird geladen…</strong></p>
         </div>
+        <div class="flex gap-2 shrink-0">
+          <% if (!stats.isStampedIn) { %>
+            <form action="/timetracking/stamp" method="POST" id="dash-stamp-in-form">
+              <input type="hidden" name="type" value="IN">
+              <input type="hidden" name="latitude" id="dash-lat">
+              <input type="hidden" name="longitude" id="dash-lng">
+              <button type="button" onclick="dashStampIn()" id="dash-stamp-in-btn"
+                class="btn font-bold px-5 py-2.5" style="background:#16a34a;color:#fff;">
+                🟢 Einstempeln
+              </button>
+            </form>
+            <p id="dash-gps-status" class="text-xs text-slate-400 italic mt-1 hidden"></p>
+          <% } else { %>
+            <form action="/timetracking/stamp" method="POST">
+              <input type="hidden" name="type" value="OUT">
+              <button type="submit" class="btn font-bold px-5 py-2.5" style="background:#dc2626;color:#fff;">
+                🔴 Ausstempeln
+              </button>
+            </form>
+          <% } %>
+          <a href="/timetracking" class="btn btn-ghost text-sm font-medium px-3 py-2.5">
+            Details →
+          </a>
+        </div>
+      </div>
+    </div>
 
+    <!-- Statistik-Karten -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+
+      <div class="card p-4 md:p-6 border-l-4 border-indigo-500">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Diese Woche</p>
+        <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.weekTotalHours %> Std.</p>
+        <p class="text-xs text-slate-400 mt-1">Mo – heute</p>
       </div>
 
-      <!-- ===================================================== -->
-      <!-- FIRMEN-TICKER (Nur-Lese Ansicht fÃ¼r Mitarbeiter)      -->
-      <!-- ===================================================== -->
-      <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl shadow p-4 md:p-5">
-        <h2 class="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
-          ðŸ“¢ Schwarzes Brett â€“ Nachrichten vom Chef
-        </h2>
-        <% if (tickers && tickers.length > 0) { %>
-          <ul class="space-y-2">
-            <% tickers.forEach(t => { %>
-              <li class="bg-white dark:bg-slate-700 border border-amber-200 dark:border-slate-600 rounded-lg px-4 py-3">
-                <p class="text-sm text-gray-800 dark:text-gray-200"><%= t.message %></p>
-                <p class="text-[10px] text-gray-400 mt-1">
-                  von <strong><%= t.author %></strong> Â·
-                  <%= new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
-                </p>
-              </li>
-            <% }) %>
-          </ul>
-        <% } else { %>
-          <p class="text-sm text-amber-700 dark:text-amber-400 italic">Keine aktuellen Nachrichten.</p>
-        <% } %>
+      <div class="card p-4 md:p-6 border-l-4 border-blue-600">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stunden diesen Monat</p>
+        <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.monthTotalHours %> Std.</p>
+        <p class="text-xs text-slate-400 mt-1">Soll: <%= stats.targetHours %> Std.</p>
       </div>
 
-      <!-- Letzte Stempel-AktivitÃ¤ten -->
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
-        <div class="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-          <h2 class="text-base md:text-lg font-semibold text-slate-800 dark:text-gray-100">Meine letzten Stempel-EintrÃ¤ge diesen Monat</h2>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[600px]">
-            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
-              <tr>
-                <th class="p-4">Aktion</th>
-                <th class="p-4">Zeitpunkt</th>
-                <th class="p-4">Notiz</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-              <% if (typeof recentLogs !== 'undefined' && recentLogs.length > 0) { %>
-                <% recentLogs.forEach(log => { %>
-                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700">
-                    <td class="p-4 font-semibold">
-                      <% if (log.type === 'IN') { %>
-                        <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs">Eingestempelt (IN)</span>
-                      <% } else { %>
-                        <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs">Ausgestempelt (OUT)</span>
-                      <% } %>
-                    </td>
-                    <td class="p-4 text-xs md:text-sm"><%= new Date(log.timestamp).toLocaleString('de-DE') %></td>
-                    <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
-                  </tr>
-                <% }) %>
-              <% } else { %>
-                <tr>
-                  <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Stempel-EintrÃ¤ge in diesem Monat vorhanden.</td>
-                </tr>
-              <% } %>
-            </tbody>
-          </table>
-        </div>
+      <div class="card p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aktueller Status</p>
+        <p class="text-lg md:text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
+          <%= stats.isStampedIn ? '🟢 Aktuell eingestempelt' : '🔴 Aktuell ausgestempelt' %>
+        </p>
+        <a href="/timetracking" class="text-xs text-blue-600 hover:underline mt-2 inline-block font-semibold">Zur Stempeluhr &rarr;</a>
       </div>
 
     </div>
-  </main>
+
+    <!-- Firmen-Ticker -->
+    <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl p-4 md:p-5">
+      <h2 class="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3">
+        📢 Schwarzes Brett – Nachrichten vom Chef
+      </h2>
+      <% if (tickers && tickers.length > 0) { %>
+        <ul class="space-y-2">
+          <% tickers.forEach(t => { %>
+            <li class="bg-white dark:bg-slate-700 border border-amber-200 dark:border-slate-600 rounded-lg px-4 py-3">
+              <p class="text-sm text-gray-800 dark:text-gray-200"><%= t.message %></p>
+              <p class="text-[10px] text-gray-400 mt-1">
+                von <strong><%= t.author %></strong> ·
+                <%= new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+              </p>
+            </li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p class="text-sm text-amber-700 dark:text-amber-400 italic">Keine aktuellen Nachrichten.</p>
+      <% } %>
+    </div>
+
+    <!-- Letzte Stempel-Aktivitäten -->
+    <div class="card overflow-hidden">
+      <div class="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Meine letzten Stempel-Einträge diesen Monat</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[500px]">
+          <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 uppercase text-xs">
+            <tr>
+              <th class="p-4">Aktion</th>
+              <th class="p-4">Zeitpunkt</th>
+              <th class="p-4">Notiz</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% if (typeof recentLogs !== 'undefined' && recentLogs.length > 0) { %>
+              <% recentLogs.forEach(log => { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td class="p-4 font-semibold">
+                    <% if (log.type === 'IN') { %>
+                      <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs">Eingestempelt (IN)</span>
+                    <% } else { %>
+                      <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs">Ausgestempelt (OUT)</span>
+                    <% } %>
+                  </td>
+                  <td class="p-4 text-xs md:text-sm"><%= new Date(log.timestamp).toLocaleString('de-DE') %></td>
+                  <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
 
 <script>
 function dashStampIn() {
@@ -152,29 +144,27 @@ function dashStampIn() {
   const status = document.getElementById('dash-gps-status');
 
   if (!navigator.geolocation) {
-    // Kein GPS verfÃ¼gbar â†’ direkt absenden (Server entscheidet)
     document.getElementById('dash-stamp-in-form').submit();
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = 'ðŸ“¡ GPS wird ermitteltâ€¦';
-  status.textContent = 'GPS-Standort wird ermitteltâ€¦';
+  btn.textContent = '📡 GPS wird ermittelt…';
+  status.textContent = 'GPS-Standort wird ermittelt…';
   status.classList.remove('hidden');
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       document.getElementById('dash-lat').value = pos.coords.latitude;
       document.getElementById('dash-lng').value = pos.coords.longitude;
-      status.textContent = 'ðŸ“ Standort erfasst â€“ wird eingestempeltâ€¦';
+      status.textContent = '📍 Standort erfasst – wird eingestempelt…';
       document.getElementById('dash-stamp-in-form').submit();
     },
-    (err) => {
-      // GPS fehlgeschlagen â†’ trotzdem absenden, Server prÃ¼ft
-      status.textContent = 'âš ï¸ GPS nicht verfÃ¼gbar â€“ wird trotzdem versuchtâ€¦';
+    () => {
+      status.textContent = '⚠️ GPS nicht verfügbar – wird trotzdem versucht…';
       status.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = 'ðŸŸ¢ Einstempeln';
+      btn.textContent = '🟢 Einstempeln';
       document.getElementById('dash-stamp-in-form').submit();
     },
     { timeout: 10000, enableHighAccuracy: true }
