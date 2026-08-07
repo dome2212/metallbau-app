@@ -191,6 +191,112 @@ if (process.env.DATABASE_URL) {
     if (err) console.error("❌ Fehler articles:", err.message);
     else {
       db.query(`ALTER TABLE articles ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`, () => {});
+
+      // Seed-Daten: gängige Metallbau-Artikel – nur einfügen wenn Tabelle noch leer
+      db.query(`SELECT COUNT(*) AS cnt FROM articles`, (err2, res2) => {
+        if (err2 || (res2.rows[0].cnt > 0)) return;
+        const seed = [
+          // ── Stahl-Profile ────────────────────────────────────────
+          ['IPE 80',           'm',   8.50,  'I-Träger IPE 80, S235JR, blank'],
+          ['IPE 100',          'm',  10.20,  'I-Träger IPE 100, S235JR, blank'],
+          ['IPE 120',          'm',  12.80,  'I-Träger IPE 120, S235JR, blank'],
+          ['IPE 140',          'm',  15.50,  'I-Träger IPE 140, S235JR, blank'],
+          ['IPE 160',          'm',  18.90,  'I-Träger IPE 160, S235JR, blank'],
+          ['IPE 200',          'm',  26.00,  'I-Träger IPE 200, S235JR, blank'],
+          ['HEB 100',          'm',  20.40,  'HEB-Träger 100, S235JR, blank'],
+          ['HEB 120',          'm',  26.50,  'HEB-Träger 120, S235JR, blank'],
+          ['HEB 160',          'm',  42.60,  'HEB-Träger 160, S235JR, blank'],
+          ['HEB 200',          'm',  61.00,  'HEB-Träger 200, S235JR, blank'],
+          ['UNP 80',           'm',   7.80,  'U-Profil UNP 80, S235JR, blank'],
+          ['UNP 100',          'm',   9.90,  'U-Profil UNP 100, S235JR, blank'],
+          ['UNP 120',          'm',  13.20,  'U-Profil UNP 120, S235JR, blank'],
+          ['UNP 160',          'm',  18.70,  'U-Profil UNP 160, S235JR, blank'],
+          ['L-Profil 40x40x4', 'm',   4.20,  'Gleichschenkliges Winkelstahl L 40x40x4, S235JR'],
+          ['L-Profil 50x50x5', 'm',   5.90,  'Gleichschenkliges Winkelstahl L 50x50x5, S235JR'],
+          ['L-Profil 60x60x6', 'm',   8.10,  'Gleichschenkliges Winkelstahl L 60x60x6, S235JR'],
+          ['L-Profil 80x80x8', 'm',  13.50,  'Gleichschenkliges Winkelstahl L 80x80x8, S235JR'],
+          ['T-Profil 50x50x5', 'm',   6.80,  'T-Stahl 50x50x5, S235JR, blank'],
+          ['Flachstahl 30x5',  'm',   2.10,  'Flachstahl 30x5 mm, S235JR, blank'],
+          ['Flachstahl 40x5',  'm',   2.80,  'Flachstahl 40x5 mm, S235JR, blank'],
+          ['Flachstahl 50x6',  'm',   4.10,  'Flachstahl 50x6 mm, S235JR, blank'],
+          ['Flachstahl 60x8',  'm',   6.50,  'Flachstahl 60x8 mm, S235JR, blank'],
+          ['Flachstahl 80x10', 'm',  10.20,  'Flachstahl 80x10 mm, S235JR, blank'],
+          ['Vierkantrohr 20x20x2',  'm',  3.20,  'Vierkantrohr 20x20x2 mm, S235JR, blank'],
+          ['Vierkantrohr 30x30x2',  'm',  4.60,  'Vierkantrohr 30x30x2 mm, S235JR, blank'],
+          ['Vierkantrohr 40x40x3',  'm',  7.10,  'Vierkantrohr 40x40x3 mm, S235JR, blank'],
+          ['Vierkantrohr 50x50x3',  'm',  9.20,  'Vierkantrohr 50x50x3 mm, S235JR, blank'],
+          ['Vierkantrohr 60x60x4',  'm', 13.80,  'Vierkantrohr 60x60x4 mm, S235JR, blank'],
+          ['Vierkantrohr 80x80x4',  'm', 18.90,  'Vierkantrohr 80x80x4 mm, S235JR, blank'],
+          ['Rundrohr 33,7x2,6',     'm',  5.40,  'Rundrohr 33,7x2,6 mm (1"), S235JR, blank'],
+          ['Rundrohr 42,4x2,6',     'm',  7.20,  'Rundrohr 42,4x2,6 mm (1¼"), S235JR, blank'],
+          ['Rundrohr 48,3x2,6',     'm',  8.30,  'Rundrohr 48,3x2,6 mm (1½"), S235JR, blank'],
+          ['Rundrohr 60,3x2,9',     'm', 11.50,  'Rundrohr 60,3x2,9 mm (2"), S235JR, blank'],
+          ['Rundstahl Ø 12 mm',     'm',  1.80,  'Rundstahl Ø 12 mm, S235JR, blank'],
+          ['Rundstahl Ø 16 mm',     'm',  3.10,  'Rundstahl Ø 16 mm, S235JR, blank'],
+          ['Rundstahl Ø 20 mm',     'm',  4.80,  'Rundstahl Ø 20 mm, S235JR, blank'],
+          // ── Bleche ──────────────────────────────────────────────
+          ['Stahlblech 2 mm',   'm²',  18.00, 'Stahlblech DC01/S235, 2 mm stark'],
+          ['Stahlblech 3 mm',   'm²',  26.00, 'Stahlblech DC01/S235, 3 mm stark'],
+          ['Stahlblech 4 mm',   'm²',  34.00, 'Stahlblech S235JR, 4 mm stark'],
+          ['Stahlblech 5 mm',   'm²',  42.00, 'Stahlblech S235JR, 5 mm stark'],
+          ['Stahlblech 6 mm',   'm²',  50.00, 'Stahlblech S235JR, 6 mm stark'],
+          ['Stahlblech 8 mm',   'm²',  66.00, 'Stahlblech S235JR, 8 mm stark'],
+          ['Stahlblech 10 mm',  'm²',  82.00, 'Stahlblech S235JR, 10 mm stark'],
+          ['Edelstahlblech 1,5 mm V2A', 'm²',  95.00, 'Edelstahlblech 1.4301 (V2A), 1,5 mm, Korn 240'],
+          ['Edelstahlblech 2 mm V2A',   'm²', 120.00, 'Edelstahlblech 1.4301 (V2A), 2 mm, Korn 240'],
+          ['Edelstahlblech 3 mm V2A',   'm²', 165.00, 'Edelstahlblech 1.4301 (V2A), 3 mm, Korn 240'],
+          ['Lochblech Stahl 2 mm',      'm²',  32.00, 'Lochblech Rv 5-8, Stahl, 2 mm'],
+          ['Gitterrost 30x30mm',        'm²',  48.00, 'Gitterrost MW 30x30, Flachstahl 25x2, feuerverzinkt'],
+          // ── Edelstahl-Profile ────────────────────────────────────
+          ['Edelstahl Vierkantrohr 40x40x2 V2A', 'm',  18.50, 'Vierkantrohr 40x40x2 mm, 1.4301 (V2A), geschliffen K240'],
+          ['Edelstahl Vierkantrohr 50x50x2 V2A', 'm',  24.00, 'Vierkantrohr 50x50x2 mm, 1.4301 (V2A), geschliffen K240'],
+          ['Edelstahl Rundrohr 33,7x2 V2A',      'm',  14.50, 'Rundrohr 33,7x2 mm (1"), 1.4301 (V2A), geschliffen K240'],
+          ['Edelstahl Rundrohr 42,4x2 V2A',      'm',  19.00, 'Rundrohr 42,4x2 mm (1¼"), 1.4301 (V2A), geschliffen K240'],
+          ['Edelstahl Flachstahl 40x5 V2A',      'm',   9.80, 'Flachstahl 40x5 mm, 1.4301 (V2A), geschliffen K240'],
+          ['Edelstahl Handlauf Ø 42,4 V2A',      'm',  22.00, 'Handlaufrohr Ø 42,4 mm, 1.4301 (V2A), K240 geschliffen'],
+          // ── Verbindungselemente ──────────────────────────────────
+          ['Schrauben M8x20 (100 Stk)',   'Psch',  8.50, 'Sechskantschrauben M8x20, 8.8 verzinkt, 100 Stück'],
+          ['Schrauben M10x30 (100 Stk)',  'Psch', 12.00, 'Sechskantschrauben M10x30, 8.8 verzinkt, 100 Stück'],
+          ['Schrauben M12x40 (50 Stk)',   'Psch', 11.00, 'Sechskantschrauben M12x40, 8.8 verzinkt, 50 Stück'],
+          ['Ankerbolzen M10x100 (10 Stk)','Psch', 18.00, 'Betonschraube/Ankerbolzen M10x100, 10 Stück'],
+          ['Ankerbolzen M12x120 (10 Stk)','Psch', 24.00, 'Betonschraube/Ankerbolzen M12x120, 10 Stück'],
+          ['Schweißmutter M8 (50 Stk)',   'Psch',  6.50, 'Schweißmuttern M8, Stahl, 50 Stück'],
+          ['Schweißmutter M10 (50 Stk)',  'Psch',  8.00, 'Schweißmuttern M10, Stahl, 50 Stück'],
+          // ── Zubehör / Normteile ──────────────────────────────────
+          ['Geländerpfosten Ø 42,4 mit Grundplatte', 'Stk', 28.00, 'Geländerpfosten Ø 42,4 mm, h=1000 mm, mit angeschweißter Grundplatte 100x100x8'],
+          ['Handlaufhalter V2A gebogen',              'Stk', 12.50, 'Handlaufhalter für Rundrohr Ø 42,4 mm, 1.4301, zum Anschweißen'],
+          ['Handlaufhalter V2A gerade',               'Stk', 10.00, 'Handlaufhalter für Rundrohr Ø 42,4 mm, 1.4301, Wandmontage'],
+          ['Kugelhandlauf-Endkappe Ø 42,4',           'Stk',  3.50, 'Endkappe für Rundrohr Ø 42,4 mm, V2A, gepresst'],
+          ['Treppengeländer-Set V2A komplett',         'Stk',320.00, 'Treppengeländer V2A, 1 m, inkl. Pfosten, Handlauf, Querstreben'],
+          ['Scharnier schwer 100x100 Stahl',           'Stk',  6.80, 'Torband/Scharnier 100x100 mm, Stahl, schwer, verzinkt'],
+          ['Scharnier schwer 140x130 Stahl',           'Stk', 12.00, 'Torband/Scharnier 140x130 mm, Stahl, schwer, verzinkt'],
+          ['Türband Edelstahl V2A',                    'Stk', 18.50, 'Türband/Scharnier V2A für Rahmentüren, einstellbar'],
+          ['Drückergarniturenset V2A',                 'Stk', 45.00, 'Drückergarnitur mit Langschild, 1.4301, inkl. Zylinder'],
+          ['Rohrverbinder T-Stück Ø 42,4',             'Stk',  7.20, 'Rohrverbinder T-Stück für Ø 42,4 mm, Stahl verzinkt'],
+          ['Torantrieb Schiebetor 600 kg',             'Stk',380.00, 'Elektro-Torantrieb für Schiebetor bis 600 kg, inkl. Steuerung'],
+          // ── Oberflächenbehandlung ────────────────────────────────
+          ['Feuerverzinkung',         'kg',   1.80, 'Stückverzinkung nach DIN EN ISO 1461, Preis je kg Stahl'],
+          ['Pulverbeschichtung',      'm²',  35.00, 'Einschicht-Pulverbeschichtung RAL nach Wahl, inkl. Vorbehandlung'],
+          ['Grundierung 2K-Epoxy',    'm²',   8.50, 'Epoxid-Grundierung zweikomponentig, ca. 80 µm'],
+          ['Decklack 2K-PU',          'm²',  14.00, 'PU-Decklack zweikomponentig RAL nach Wahl, ca. 60 µm'],
+          // ── Arbeitsleistungen ────────────────────────────────────
+          ['Schweißarbeit',           'Std',  65.00, 'Schweißarbeiten MIG/MAG oder WIG, inkl. Material'],
+          ['Schlosserarbeit',         'Std',  60.00, 'Allgemeine Schlosser- und Metallbauarbeiten'],
+          ['Montage vor Ort',         'Std',  68.00, 'Montageleistung auf der Baustelle inkl. Werkzeug'],
+          ['Aufmaß & Planung',        'Std',  70.00, 'Aufmaß nehmen, Konstruktionsplanung, CAD-Zeichnung'],
+          ['Materialzuschlag / Kleinteile', 'Psch', 25.00, 'Pauschale für Schweißdraht, Scheiben, Reiniger, Kleinteile'],
+          ['Anfahrt',                 'Psch',  0.00, 'Anfahrtskosten – Preis nach Entfernung'],
+        ];
+        const values = seed.flat();
+        const placeholders = seed.map((_, i) =>
+          `($${i*4+1}, $${i*4+2}, $${i*4+3}, $${i*4+4})`
+        ).join(', ');
+        db.query(
+          `INSERT INTO articles (title, unit, unit_price, description) VALUES ${placeholders}`,
+          values,
+          (err3) => { if (err3) console.error('❌ Artikel-Seed Fehler:', err3.message); else console.log('✅ Artikelstamm mit', seed.length, 'Einträgen befüllt.'); }
+        );
+      });
     }
   });
 
