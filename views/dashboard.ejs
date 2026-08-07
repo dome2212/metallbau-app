@@ -12,16 +12,24 @@
           <%= new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) %>
         </p>
       </div>
-      <button onclick="openWidgetConfig()" class="btn btn-ghost">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-        </svg>
-        Widgets
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="openWidgetConfig()" class="btn btn-ghost">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+          Widgets
+        </button>
+        <button id="drag-toggle-btn" onclick="toggleDragMode()" class="btn btn-ghost" title="Layout bearbeiten">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+          <span id="drag-toggle-label">Layout</span>
+        </button>
+      </div>
     </div>
 
     <!-- ── KPI Cards ─────────────────────────────────────────────────────── -->
-    <div id="widget-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="widget-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4" id="kpi-grid">
 
       <!-- Offene Angebote -->
       <div id="w-openOffers" class="widget card p-5 border-0 overflow-hidden relative">
@@ -114,7 +122,7 @@
     </div>
 
     <!-- ── Schwarzes Brett ───────────────────────────────────────────────── -->
-    <div class="card p-5 md:p-6">
+    <div class="dash-section card p-5 md:p-6" data-section="schwarzesbrett">
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-lg">📢</div>
@@ -161,7 +169,7 @@
     </div>
 
     <!-- ── Letzte Vorgänge ───────────────────────────────────────────────── -->
-    <div class="card p-5 md:p-6">
+    <div class="dash-section card p-5 md:p-6" data-section="letzteVorgaenge">
       <div class="flex items-center gap-3 mb-5">
         <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-lg">📄</div>
         <div>
@@ -266,6 +274,46 @@
   </div>
 </div>
 
+<style>
+  /* Drag-Mode Styles */
+  .drag-mode .widget,
+  .drag-mode .dash-section {
+    cursor: grab;
+    outline: 2px dashed #94a3b8;
+    outline-offset: 2px;
+  }
+  .drag-mode .widget:active,
+  .drag-mode .dash-section:active { cursor: grabbing; }
+  .drag-over-kpi  { outline: 2px solid #3b82f6 !important; background: rgba(59,130,246,.06) !important; }
+  .drag-over-sec  { outline: 2px solid #3b82f6 !important; background: rgba(59,130,246,.04) !important; }
+  .dragging-el    { opacity: .4; }
+  .drag-handle {
+    display: none;
+    position: absolute;
+    top: 8px; right: 8px;
+    color: #94a3b8;
+    cursor: grab;
+    padding: 2px;
+    z-index: 10;
+  }
+  .drag-mode .widget    { position: relative; }
+  .drag-mode .drag-handle { display: block; }
+  .drag-mode-banner {
+    display: none;
+    position: fixed;
+    bottom: 72px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: #e2e8f0;
+    font-size: .75rem; font-weight: 600;
+    padding: .45rem 1rem; border-radius: 99px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    z-index: 800; white-space: nowrap;
+    pointer-events: none;
+  }
+  @media (min-width: 768px) { .drag-mode-banner { bottom: 1.5rem; } }
+</style>
+
+<div class="drag-mode-banner" id="drag-banner">✥ Drag-Modus aktiv – Elemente verschieben, dann „Fertig" klicken</div>
+
 <script>
   const WIDGET_SETTINGS = <%- JSON.stringify(widgetSettings) %>;
   const ALL_WIDGETS = ['w-openOffers','w-openInvoices','w-customers','w-activeProjects','w-overdueInvoices','w-openTasks'];
@@ -312,6 +360,207 @@
     if (e.target === this) closeWidgetConfig();
   });
   applyWidgetVisibility(WIDGET_SETTINGS);
+
+  // ── DRAG & DROP ──────────────────────────────────────────────────────────
+  const LS_KPI  = 'dash_kpi_order';
+  const LS_SEC  = 'dash_sec_order';
+  let dragMode  = false;
+  let dragEl    = null;
+
+  // ── Reihenfolge aus localStorage wiederherstellen ─────────────────────
+  function restoreOrder() {
+    // KPI-Kacheln
+    const kpiGrid = document.getElementById('widget-grid');
+    const kpiOrder = JSON.parse(localStorage.getItem(LS_KPI) || 'null');
+    if (kpiOrder && kpiGrid) {
+      kpiOrder.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) kpiGrid.appendChild(el);
+      });
+    }
+    // Sektionen
+    const secContainer = kpiGrid && kpiGrid.parentElement;
+    const secOrder = JSON.parse(localStorage.getItem(LS_SEC) || 'null');
+    if (secOrder && secContainer) {
+      secOrder.forEach(id => {
+        const el = secContainer.querySelector('[data-section="' + id + '"]');
+        if (el) secContainer.appendChild(el);
+      });
+    }
+  }
+
+  function saveOrder() {
+    const kpiGrid = document.getElementById('widget-grid');
+    if (kpiGrid) {
+      const ids = Array.from(kpiGrid.children).map(el => el.id).filter(Boolean);
+      localStorage.setItem(LS_KPI, JSON.stringify(ids));
+    }
+    const secContainer = kpiGrid && kpiGrid.parentElement;
+    if (secContainer) {
+      const ids = Array.from(secContainer.querySelectorAll('.dash-section')).map(el => el.dataset.section).filter(Boolean);
+      localStorage.setItem(LS_SEC, JSON.stringify(ids));
+    }
+  }
+
+  // ── Drag-Modus ein/aus ───────────────────────────────────────────────
+  function toggleDragMode() {
+    dragMode = !dragMode;
+    const main = document.querySelector('main');
+    const btn  = document.getElementById('drag-toggle-btn');
+    const lbl  = document.getElementById('drag-toggle-label');
+    const banner = document.getElementById('drag-banner');
+
+    main.classList.toggle('drag-mode', dragMode);
+    banner.style.display = dragMode ? 'block' : 'none';
+    btn.style.background  = dragMode ? 'var(--primary)' : '';
+    btn.style.color       = dragMode ? '#fff' : '';
+    lbl.textContent       = dragMode ? 'Fertig' : 'Layout';
+
+    if (dragMode) {
+      enableDragKpi();
+      enableDragSections();
+    } else {
+      saveOrder();
+      disableDrag();
+    }
+  }
+
+  // ── KPI-Kacheln draggable ────────────────────────────────────────────
+  function enableDragKpi() {
+    const grid = document.getElementById('widget-grid');
+    grid.querySelectorAll('.widget').forEach(el => {
+      // Handle hinzufügen
+      if (!el.querySelector('.drag-handle')) {
+        const h = document.createElement('span');
+        h.className = 'drag-handle';
+        h.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1.5" fill="currentColor"/><circle cx="15" cy="5" r="1.5" fill="currentColor"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><circle cx="9" cy="19" r="1.5" fill="currentColor"/><circle cx="15" cy="19" r="1.5" fill="currentColor"/></svg>';
+        el.prepend(h);
+      }
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', onKpiDragStart);
+      el.addEventListener('dragend',   onKpiDragEnd);
+      el.addEventListener('dragover',  onKpiDragOver);
+      el.addEventListener('drop',      onKpiDrop);
+      // Touch
+      el.addEventListener('touchstart', onTouchStart, {passive:true});
+      el.addEventListener('touchmove',  onTouchMove,  {passive:false});
+      el.addEventListener('touchend',   onTouchEnd);
+    });
+  }
+
+  function disableDrag() {
+    document.querySelectorAll('.widget, .dash-section').forEach(el => {
+      el.removeAttribute('draggable');
+      el.removeEventListener('dragstart', onKpiDragStart);
+      el.removeEventListener('dragend',   onKpiDragEnd);
+      el.removeEventListener('dragover',  onKpiDragOver);
+      el.removeEventListener('drop',      onKpiDrop);
+      el.removeEventListener('dragstart', onSecDragStart);
+      el.removeEventListener('dragend',   onSecDragEnd);
+      el.removeEventListener('dragover',  onSecDragOver);
+      el.removeEventListener('drop',      onSecDrop);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove',  onTouchMove);
+      el.removeEventListener('touchend',   onTouchEnd);
+      el.classList.remove('drag-over-kpi', 'drag-over-sec', 'dragging-el');
+    });
+  }
+
+  function onKpiDragStart(e) { dragEl = this; this.classList.add('dragging-el'); e.dataTransfer.effectAllowed = 'move'; }
+  function onKpiDragEnd()    { this.classList.remove('dragging-el'); document.querySelectorAll('.drag-over-kpi').forEach(el => el.classList.remove('drag-over-kpi')); dragEl = null; }
+  function onKpiDragOver(e)  { e.preventDefault(); if (this !== dragEl) this.classList.add('drag-over-kpi'); }
+  function onKpiDrop(e)      {
+    e.preventDefault();
+    if (!dragEl || dragEl === this) return;
+    const grid = document.getElementById('widget-grid');
+    const els  = Array.from(grid.children);
+    const fi   = els.indexOf(dragEl);
+    const ti   = els.indexOf(this);
+    if (fi < ti) this.after(dragEl); else this.before(dragEl);
+    this.classList.remove('drag-over-kpi');
+  }
+
+  // ── Sektionen draggable ──────────────────────────────────────────────
+  function enableDragSections() {
+    document.querySelectorAll('.dash-section').forEach(el => {
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', onSecDragStart);
+      el.addEventListener('dragend',   onSecDragEnd);
+      el.addEventListener('dragover',  onSecDragOver);
+      el.addEventListener('drop',      onSecDrop);
+      el.addEventListener('touchstart', onTouchStart, {passive:true});
+      el.addEventListener('touchmove',  onTouchMove,  {passive:false});
+      el.addEventListener('touchend',   onTouchEnd);
+    });
+  }
+
+  function onSecDragStart(e) { dragEl = this; this.classList.add('dragging-el'); e.dataTransfer.effectAllowed = 'move'; }
+  function onSecDragEnd()    { this.classList.remove('dragging-el'); document.querySelectorAll('.drag-over-sec').forEach(el => el.classList.remove('drag-over-sec')); dragEl = null; }
+  function onSecDragOver(e)  { e.preventDefault(); if (this !== dragEl) this.classList.add('drag-over-sec'); }
+  function onSecDrop(e)      {
+    e.preventDefault();
+    if (!dragEl || dragEl === this) return;
+    const rect = this.getBoundingClientRect();
+    const mid  = rect.top + rect.height / 2;
+    if (e.clientY < mid) this.before(dragEl); else this.after(dragEl);
+    this.classList.remove('drag-over-sec');
+  }
+
+  // ── Touch-Drag (Mobile) ──────────────────────────────────────────────
+  let touchClone = null, touchSrc = null, touchOffX = 0, touchOffY = 0;
+
+  function onTouchStart(e) {
+    touchSrc = this;
+    const t   = e.touches[0];
+    const r   = this.getBoundingClientRect();
+    touchOffX = t.clientX - r.left;
+    touchOffY = t.clientY - r.top;
+    touchClone = this.cloneNode(true);
+    touchClone.style.cssText = `position:fixed;z-index:9999;pointer-events:none;opacity:.75;width:${r.width}px;left:${r.left}px;top:${r.top}px;`;
+    document.body.appendChild(touchClone);
+    this.classList.add('dragging-el');
+  }
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    if (!touchClone) return;
+    const t = e.touches[0];
+    touchClone.style.left = (t.clientX - touchOffX) + 'px';
+    touchClone.style.top  = (t.clientY - touchOffY) + 'px';
+  }
+
+  function onTouchEnd(e) {
+    if (!touchClone || !touchSrc) return;
+    const t = e.changedTouches[0];
+    touchClone.remove(); touchClone = null;
+    touchSrc.classList.remove('dragging-el');
+
+    // Finde Ziel-Element unter dem Finger
+    touchSrc.style.display = 'none';
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    touchSrc.style.display = '';
+    if (!under) { touchSrc = null; return; }
+
+    const target = under.closest('.widget') || under.closest('.dash-section');
+    if (!target || target === touchSrc) { touchSrc = null; return; }
+
+    if (touchSrc.classList.contains('widget') && target.classList.contains('widget')) {
+      // KPI tauschen
+      const grid = document.getElementById('widget-grid');
+      const els  = Array.from(grid.children);
+      const fi   = els.indexOf(touchSrc);
+      const ti   = els.indexOf(target);
+      if (fi < ti) target.after(touchSrc); else target.before(touchSrc);
+    } else if (touchSrc.classList.contains('dash-section') && target.classList.contains('dash-section')) {
+      const rect = target.getBoundingClientRect();
+      if (t.clientY < rect.top + rect.height / 2) target.before(touchSrc); else target.after(touchSrc);
+    }
+    touchSrc = null;
+    saveOrder();
+  }
+
+  // Reihenfolge beim Laden wiederherstellen
+  restoreOrder();
 </script>
 
 </body>
