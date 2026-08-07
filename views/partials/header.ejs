@@ -171,14 +171,6 @@
     #sidebar a[href] {
       position: relative;
     }
-  </style>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-  </script>
-</head>
     /* ── Page Transition ────────────────────────────────────────── */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -254,6 +246,13 @@
     #bottom-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
     #bottom-nav a svg { width: 1.25rem; height: 1.25rem; }
   </style>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</head>
 
 <body class="page-bg text-slate-900 dark:text-slate-100 flex flex-col md:flex-row min-h-screen">
 
