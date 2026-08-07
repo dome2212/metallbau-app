@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title><%= typeof firma !== 'undefined' ? firma.nameKurz : 'Metallbau' %> – Management</title>
-  <!-- Tailwind CSS via CDN mit darkMode: class -->
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Anti-flicker dark mode -->
   <script>
-    // Dark-Mode so früh wie möglich setzen, um Flackern zu verhindern
     (function() {
       try {
         const dmDefault = '<%= typeof firma !== "undefined" && firma.dark_mode_default === "true" ? "true" : "false" %>';
@@ -16,37 +21,174 @@
       } catch(e) {}
     })();
   </script>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { darkMode: 'class' }
   </script>
-  <!-- PWA Manifest & Theme-Color für den Handy-Browser -->
+
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="<%= typeof firma !== 'undefined' && firma.color_primary ? firma.color_primary : '#2563eb' %>">
-  <!-- Dynamische Design-Variablen aus Admin-Panel -->
+
   <% const _d = typeof firma !== 'undefined' ? firma : {}; %>
   <style>
-    :root {
-      --color-primary:      <%= _d.color_primary      || '#2563eb' %>;
-      --color-sidebar-bg:   <%= _d.color_sidebar_bg   || '#1e293b' %>;
-      --color-sidebar-text: <%= _d.color_sidebar_text || '#e2e8f0' %>;
-      --color-sidebar-hover:<%= _d.color_sidebar_hover|| '#334155' %>;
-      --color-topbar-bg:    <%= _d.color_topbar_bg    || '#ffffff' %>;
-      --color-page-bg:      <%= _d.color_page_bg      || '#f1f5f9' %>;
+    /* ── Basis ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body, input, button, select, textarea {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
-    /* Sidebar */
-    #sidebar { background-color: var(--color-sidebar-bg) !important; }
-    #sidebar a, #sidebar .text-gray-300 { color: var(--color-sidebar-text) !important; }
-    #sidebar a:hover { background-color: var(--color-sidebar-hover) !important; }
-    /* Mobile Menü-Leiste */
-    .md\\:hidden.bg-slate-900 { background-color: var(--color-sidebar-bg) !important; }
-    /* Primärfarbe für Buttons & Links */
-    .btn-primary, .bg-blue-600 { background-color: var(--color-primary) !important; }
+
+    /* ── Design-Tokens ──────────────────────────────────────────────── */
+    :root {
+      --primary:          <%= _d.color_primary      || '#2563eb' %>;
+      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#2563eb' %> 80%, #000);
+      --sidebar-bg:       <%= _d.color_sidebar_bg   || '#0f172a' %>;
+      --sidebar-text:     <%= _d.color_sidebar_text || '#cbd5e1' %>;
+      --sidebar-hover:    <%= _d.color_sidebar_hover|| '#1e293b' %>;
+      --topbar-bg:        <%= _d.color_topbar_bg    || '#ffffff' %>;
+      --page-bg:          <%= _d.color_page_bg      || '#f1f5f9' %>;
+      --radius:           0.75rem;
+      --radius-lg:        1rem;
+      --shadow-card:      0 1px 3px 0 rgb(0 0 0/.08), 0 1px 2px -1px rgb(0 0 0/.08);
+      --shadow-card-hover:0 4px 16px 0 rgb(0 0 0/.12), 0 2px 6px -1px rgb(0 0 0/.08);
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────────────── */
+    #sidebar {
+      background-color: var(--sidebar-bg) !important;
+    }
+    #sidebar a {
+      color: var(--sidebar-text) !important;
+      transition: background .15s, color .15s, padding-left .15s;
+    }
+    #sidebar a:hover {
+      background-color: var(--sidebar-hover) !important;
+      color: #fff !important;
+    }
+    #sidebar a.active {
+      background-color: var(--primary) !important;
+      color: #fff !important;
+    }
+    .md\:hidden.bg-slate-900 { background-color: var(--sidebar-bg) !important; }
+
+    /* ── Cards ──────────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .2s;
+    }
+    .dark .card {
+      background: #1e293b;
+    }
+    .card:hover {
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-weight: 600;
+      font-size: .8125rem;
+      line-height: 1;
+      padding: .55rem 1rem;
+      border-radius: .6rem;
+      cursor: pointer;
+      transition: filter .15s, transform .1s, box-shadow .15s;
+      border: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 40%, transparent);
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-ghost {
+      background: transparent;
+      color: #64748b;
+      border: 1.5px solid #e2e8f0;
+    }
+    .btn-ghost:hover { background: #f8fafc; color: #1e293b; }
+    .dark .btn-ghost { border-color: #334155; color: #94a3b8; }
+    .dark .btn-ghost:hover { background: #1e293b; color: #e2e8f0; }
+
+    /* ── Inputs ─────────────────────────────────────────────────────── */
+    .input {
+      width: 100%;
+      padding: .55rem .85rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: .6rem;
+      font-size: .875rem;
+      background: #fff;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+    }
+    .dark .input {
+      background: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+    .dark .input:focus {
+      border-color: var(--primary);
+    }
+
+    /* ── Badge ──────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: .6875rem;
+      font-weight: 600;
+      padding: .2rem .55rem;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+
+    /* ── Page layout ────────────────────────────────────────────────── */
+    .page-bg { background-color: var(--page-bg); }
+    .dark .page-bg { background-color: #0f172a; }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────── */
+    ::-webkit-scrollbar       { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+    /* ── Smooth transitions ─────────────────────────────────────────── */
+    html { scroll-behavior: smooth; }
+    * { -webkit-tap-highlight-color: transparent; }
+
+    /* ── Active nav highlight ───────────────────────────────────────── */
+    #sidebar a[href] {
+      position: relative;
+    }
   </style>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  }
-</script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-950 dark:text-gray-100 flex flex-col md:flex-row min-h-screen">
+<body class="page-bg text-slate-900 dark:text-slate-100 flex flex-col md:flex-row min-h-screen">
+<script>
+  // Active nav link hervorheben
+  document.addEventListener('DOMContentLoaded', () => {
+    const path = window.location.pathname;
+    document.querySelectorAll('#sidebar a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href === '/' ? path === '/' : (href !== '/' && path.startsWith(href))) {
+        a.classList.add('active');
+      }
+    });
+  });
+</script>

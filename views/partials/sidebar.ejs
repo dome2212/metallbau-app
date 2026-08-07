@@ -1,142 +1,234 @@
-<!-- Mobile Menü-Leiste ganz oben (nur auf Handys sichtbar) -->
-<div class="md:hidden bg-slate-900 text-white p-3 flex justify-between items-center shadow-md w-full fixed top-0 left-0 z-30">
-  <button onclick="toggleSidebar()" class="text-sm px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-white font-medium flex items-center gap-1">
-    ☰ Menü
+<!-- ── Mobile Top-Bar ──────────────────────────────────────────────────── -->
+<div class="md:hidden fixed top-0 left-0 right-0 z-30 h-14 flex items-center justify-between px-4 shadow-md"
+     style="background:var(--sidebar-bg)">
+  <button onclick="toggleSidebar()" class="flex items-center gap-2 text-slate-300 hover:text-white transition text-sm font-medium">
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+    Menü
   </button>
   <% const _f = typeof firma !== 'undefined' ? firma : {}; %>
   <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
-    <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>" class="max-h-10 w-auto object-contain">
+    <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>" class="max-h-8 w-auto object-contain">
   <% } else { %>
-    <span class="font-bold text-blue-400 text-sm truncate"><%= _f.nameKurz || 'Metallbau' %></span>
+    <span class="font-bold text-sm truncate" style="color:var(--primary)"><%= _f.nameKurz || 'Metallbau' %></span>
   <% } %>
 </div>
 
-<!-- Verdunklungs-Hintergrund für Mobil (öffnet sich, wenn Sidebar da ist) -->
-<div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+<!-- ── Backdrop ───────────────────────────────────────────────────────── -->
+<div id="sidebar-backdrop" onclick="toggleSidebar()"
+     class="fixed inset-0 bg-black/60 z-40 hidden md:hidden backdrop-blur-sm"></div>
 
-<!-- Die eigentliche Sidebar -->
-<aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 h-full max-h-screen bg-slate-800 text-white p-4 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl overflow-y-auto">
-  <div>
-    <!-- Kopfbereich mit Schließen-Button für Mobil -->
-    <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
-      <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
-        <div class="flex-1 pr-2">
-          <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>"
-               style="width:100%; max-height:<%= _f.sidebar_logo_height || 80 %>px; object-fit:contain; object-position:left;">
-        </div>
-      <% } else { %>
-        <h2 class="text-lg font-bold tracking-wide text-blue-400 truncate">
-           <%= _f.app_icon || '🔩' %> <%= _f.nameKurz || 'Metallbau' %>
-        </h2>
-      <% } %>
-      <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white text-xl p-1 font-bold shrink-0">
-        ✕
-      </button>
-    </div>
+<!-- ══════════════════════════════════════════════════════════════════════
+     SIDEBAR
+     ══════════════════════════════════════════════════════════════════════ -->
+<aside id="sidebar"
+  class="fixed inset-y-0 left-0 z-50 w-72 h-full max-h-screen flex flex-col
+         transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out
+         overflow-y-auto"
+  style="background:var(--sidebar-bg)">
 
-    <!-- Suchfeld -->
-    <div class="mb-4">
-      <button onclick="openSearch()"
-        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition group">
-        <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <span class="flex-1 text-left text-slate-400 text-xs">Suchen…</span>
-        <kbd class="hidden md:inline text-[10px] font-mono bg-slate-600 group-hover:bg-slate-500 text-slate-300 px-1.5 py-0.5 rounded">/</kbd>
-      </button>
-    </div>
-
-    <%
-      // Sidebar-Einstellungen aus Cookie lesen
-      let _hidden = [];
-      try {
-        const _raw = (typeof req !== 'undefined' && req.cookies && req.cookies.sidebar_hidden) ||
-                     (typeof locals !== 'undefined' && locals.sidebarHidden) || '[]';
-        _hidden = JSON.parse(_raw);
-      } catch(e) {}
-      const _show = key => !_hidden.includes('hide_' + key);
-    %>
-    <%
-      // hasPerm-Wrapper für die Sidebar (greift auf res.locals.hasPerm zu)
-      const _perm = (typeof hasPerm === 'function') ? hasPerm : () => true;
-    %>
-    <nav class="space-y-1.5" id="sidebar-nav">
-      <% if (_show('dashboard')) { %>
-      <a href="/" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏠 Dashboard</a>
-      <% } %>
-
-      <!-- Berechtigungsgesteuerte Bereiche -->
-      <% if (_show('projects') && _perm('projects', true, true)) { %>
-      <a href="/projects" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏗️ Aufträge & Baustellen</a>
-      <% } %>
-      <% if (_show('calendar') && _perm('calendar', true, true)) { %>
-      <a href="/calendar" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📅 Kalender</a>
-      <% } %>
-      <% if (_show('timetracking') && _perm('timetracking', true, true)) { %>
-      <a href="/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">⏱️ Zeiterfassung</a>
-      <% } %>
-      <% if (_show('vacations') && _perm('vacations', true, true)) { %>
-      <a href="/vacations" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🌴 Urlaub & Abwesenheit</a>
-      <% } %>
-      <!-- NUR FÜR CHEF & ADMIN -->
-      <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
-        <div class="pt-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-          <%= currentUser.role === 'CHEF' ? '👑 Chef-Bereich' : '🛠️ Admin-Bereich' %>
-        </div>
-        <% if (_show('admin_users')) { %>
-        <a href="/admin/users" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👥 Mitarbeiter-Logins</a>
-        <% } %>
-        <% if (_show('admin_timetracking')) { %>
-        <a href="/admin/timetracking" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Arbeitszeiten-Übersicht</a>
-        <% } %>
-        <% if (_show('customers') && _perm('customers', true, false)) { %>
-        <a href="/customers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">👤 Kunden</a>
-        <% } %>
-        <% if (_show('documents') && _perm('documents', true, false)) { %>
-        <a href="/documents/offers" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📋 Angebote</a>
-        <a href="/documents/invoices" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🧾 Rechnungen</a>
-        <% } %>
-        <% if (_show('articles') && _perm('articles', true, false)) { %>
-        <a href="/articles" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">📦 Artikelstamm</a>
-        <% } %>
-        <% if (_show('company_settings')) { %>
-        <a href="/admin/company-settings" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-gray-300 text-sm">🏢 Firmendaten</a>
-        <% } %>
-        <a href="/admin/panel" class="block px-3 py-2.5 rounded hover:bg-slate-700 text-yellow-400 text-sm font-semibold">⚙️ Admin-Panel</a>
-      <% } %>
-    </nav>
+  <!-- Kopfbereich -->
+  <div class="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+    <% if (_f.sidebar_modus === 'logo' && _f.sidebar_logo_url) { %>
+      <div class="flex-1 pr-2">
+        <img src="<%= _f.sidebar_logo_url %>" alt="<%= _f.nameKurz %>"
+             style="width:100%;max-height:<%= _f.sidebar_logo_height || 56 %>px;object-fit:contain;object-position:left;">
+      </div>
+    <% } else { %>
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="text-xl leading-none"><%= _f.app_icon || '🔩' %></span>
+        <span class="font-bold text-base text-white truncate"><%= _f.nameKurz || 'Metallbau' %></span>
+      </div>
+    <% } %>
+    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
   </div>
-  
-  <div class="border-t border-gray-700 pt-3 space-y-2 mt-4" id="sidebar-bottom">
-    <div class="text-xs text-gray-400 mb-1">
-      Eingeloggt als: <strong class="text-white"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></strong>
-      (<%= typeof currentUser !== 'undefined' ? currentUser.role : '' %>)
+
+  <!-- Suchfeld -->
+  <div class="px-4 pt-4 pb-2 shrink-0">
+    <button onclick="openSearch()"
+      class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-400 text-sm transition group"
+      style="background:rgba(255,255,255,.07)">
+      <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <span class="flex-1 text-left text-xs">Suchen…</span>
+      <kbd class="hidden md:inline text-[10px] font-mono bg-white/10 text-slate-400 px-1.5 py-0.5 rounded">/</kbd>
+    </button>
+  </div>
+
+  <!-- Navigation -->
+  <%
+    let _hidden = [];
+    try {
+      const _raw = (typeof req !== 'undefined' && req.cookies && req.cookies.sidebar_hidden) ||
+                   (typeof locals !== 'undefined' && locals.sidebarHidden) || '[]';
+      _hidden = JSON.parse(_raw);
+    } catch(e) {}
+    const _show = key => !_hidden.includes('hide_' + key);
+    const _perm = (typeof hasPerm === 'function') ? hasPerm : () => true;
+  %>
+
+  <nav class="flex-1 px-3 py-2 space-y-0.5" id="sidebar-nav">
+
+    <!-- Hauptnavigation -->
+    <% if (_show('dashboard')) { %>
+    <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🏠</span>
+      Dashboard
+    </a>
+    <% } %>
+
+    <% if (_show('projects') && _perm('projects', true, true)) { %>
+    <a href="/projects" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🏗️</span>
+      Aufträge & Baustellen
+    </a>
+    <% } %>
+
+    <% if (_show('calendar') && _perm('calendar', true, true)) { %>
+    <a href="/calendar" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">📅</span>
+      Kalender
+    </a>
+    <% } %>
+
+    <% if (_show('timetracking') && _perm('timetracking', true, true)) { %>
+    <a href="/timetracking" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">⏱️</span>
+      Zeiterfassung
+    </a>
+    <% } %>
+
+    <% if (_show('vacations') && _perm('vacations', true, true)) { %>
+    <a href="/vacations" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🌴</span>
+      Urlaub & Abwesenheit
+    </a>
+    <% } %>
+
+    <!-- Chef / Admin Bereich -->
+    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
+      <div class="pt-5 pb-1.5 px-3">
+        <p class="text-[10px] font-semibold uppercase tracking-widest" style="color:rgba(255,255,255,.3)">
+          <%= currentUser.role === 'CHEF' ? 'Chef-Bereich' : 'Admin-Bereich' %>
+        </p>
+      </div>
+
+      <% if (_show('admin_users')) { %>
+      <a href="/admin/users" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">👥</span>
+        Mitarbeiter-Logins
+      </a>
+      <% } %>
+
+      <% if (_show('admin_timetracking')) { %>
+      <a href="/admin/timetracking" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">📋</span>
+        Arbeitszeiten-Übersicht
+      </a>
+      <% } %>
+
+      <% if (_show('customers') && _perm('customers', true, false)) { %>
+      <a href="/customers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">👤</span>
+        Kunden
+      </a>
+      <% } %>
+
+      <% if (_show('documents') && _perm('documents', true, false)) { %>
+      <a href="/documents/offers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">📋</span>
+        Angebote
+      </a>
+      <a href="/documents/invoices" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🧾</span>
+        Rechnungen
+      </a>
+      <% } %>
+
+      <% if (_show('articles') && _perm('articles', true, false)) { %>
+      <a href="/articles" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">📦</span>
+        Artikelstamm
+      </a>
+      <% } %>
+
+      <% if (_show('company_settings')) { %>
+      <a href="/admin/company-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🏢</span>
+        Firmendaten
+      </a>
+      <% } %>
+
+      <a href="/admin/panel" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition"
+         style="color:#fbbf24">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg text-base" style="background:rgba(251,191,36,.15)">⚙️</span>
+        Admin-Panel
+      </a>
+    <% } %>
+  </nav>
+
+  <!-- Footer -->
+  <div class="shrink-0 px-4 py-4 border-t border-white/10 space-y-2">
+    <!-- User-Info -->
+    <div class="flex items-center gap-3 px-2 py-2 rounded-xl" style="background:rgba(255,255,255,.06)">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+           style="background:var(--primary);color:#fff">
+        <%= typeof currentUser !== 'undefined' ? currentUser.username.charAt(0).toUpperCase() : '?' %>
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-semibold text-white truncate"><%= typeof currentUser !== 'undefined' ? currentUser.username : 'Gast' %></p>
+        <p class="text-[10px] text-slate-500 truncate"><%= typeof currentUser !== 'undefined' ? currentUser.role : '' %></p>
+      </div>
+      <button onclick="openSidebarSettings()" title="Sidebar anpassen"
+        class="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition shrink-0">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
     </div>
 
-    <a href="/profile" class="block w-full text-center bg-slate-600 hover:bg-slate-500 text-white text-xs py-2 rounded transition font-medium">
-      🔑 Passwort ändern
-    </a>
+    <div class="flex gap-2">
+      <a href="/profile"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition"
+        style="background:rgba(255,255,255,.06)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+        Passwort
+      </a>
+      <a href="/logout"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-red-400 transition"
+        style="background:rgba(255,255,255,.06)">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Abmelden
+      </a>
+    </div>
 
-    <a href="/logout" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white text-xs py-2 rounded transition font-medium">
-      Abmelden
-    </a>
-    <div class="text-[10px] text-slate-500 text-center pt-1 select-none">
+    <p class="text-[10px] text-slate-600 text-center select-none pt-1">
       <%= _f.sidebar_footer_text || '@Domenic Rosic' %>
-    </div>
+    </p>
   </div>
 </aside>
 
-<!-- Abstandhalter oben für Mobil -->
+<!-- Mobile Spacer -->
 <div class="md:hidden h-14"></div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
-<!-- GLOBALE SUCHE – Overlay                                        -->
-<!-- ══════════════════════════════════════════════════════════════ -->
-<div id="search-overlay" class="hidden fixed inset-0 z-[999] bg-black/60 flex items-start justify-center pt-16 px-4" onclick="closeSearch(event)">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onclick="event.stopPropagation()">
+<!-- ══════════════════════════════════════════════════════════════════════
+     GLOBALE SUCHE
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="search-overlay" class="hidden fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-start justify-center pt-[10vh] px-4" onclick="closeSearch(event)">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 dark:border-slate-700" onclick="event.stopPropagation()">
 
-    <!-- Eingabe -->
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-700">
       <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
@@ -144,16 +236,14 @@
         class="flex-1 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none bg-transparent"
         oninput="onSearchInput(this.value)"
         onkeydown="onSearchKey(event)">
-      <kbd class="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300 px-1.5 py-0.5 rounded cursor-pointer" onclick="closeSearch()">Esc</kbd>
+      <kbd class="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded cursor-pointer" onclick="closeSearch()">Esc</kbd>
     </div>
 
-    <!-- Ergebnisse -->
     <div id="search-results" class="max-h-[420px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-700">
-      <p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>
+      <p class="text-xs text-slate-400 text-center py-10">Mindestens 2 Zeichen eingeben…</p>
     </div>
 
-    <!-- Footer -->
-    <div class="px-4 py-2 bg-slate-50 dark:bg-slate-700/50 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-[10px] text-slate-400">
+    <div class="px-5 py-2.5 bg-slate-50 dark:bg-slate-700/50 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4 text-[10px] text-slate-400">
       <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">↑↓</kbd> Navigieren</span>
       <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">↵</kbd> Öffnen</span>
       <span><kbd class="font-mono bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded px-1">Esc</kbd> Schließen</span>
@@ -162,80 +252,74 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     SIDEBAR-EINSTELLUNGEN – Modal (welche Nav-Einträge sichtbar)
+     SIDEBAR-EINSTELLUNGEN – Modal
      ══════════════════════════════════════════════════════════════════════ -->
 <div id="sidebar-settings-overlay"
-  style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;"
+  style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;"
   onclick="closeSidebarSettings(event)">
 
   <div id="sidebar-settings-modal"
-    style="background:#1e293b;color:#e2e8f0;border-radius:1rem 1rem 0 0;padding:1.5rem 1.25rem 2rem;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,.4);"
+    style="background:#1e293b;color:#e2e8f0;border-radius:1.25rem 1.25rem 0 0;padding:1.5rem 1.25rem 2rem;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(0,0,0,.4);"
     onclick="event.stopPropagation()">
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
       <div>
-        <p style="font-weight:700;font-size:1rem;margin:0;">⚙️ Sidebar anpassen</p>
-        <p style="font-size:.72rem;color:#94a3b8;margin:2px 0 0;">Wähle, welche Menüpunkte sichtbar sein sollen</p>
+        <p style="font-weight:700;font-size:1rem;margin:0;">Sidebar anpassen</p>
+        <p style="font-size:.72rem;color:#64748b;margin:3px 0 0;">Wähle sichtbare Menüpunkte</p>
       </div>
-      <button onclick="closeSidebarSettings()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.3rem;line-height:1;padding:2px 4px;">✕</button>
+      <button onclick="closeSidebarSettings()" style="background:rgba(255,255,255,.08);border:none;color:#94a3b8;cursor:pointer;font-size:1.1rem;line-height:1;padding:6px 8px;border-radius:.5rem;">✕</button>
     </div>
 
-    <div id="sidebar-toggle-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.2rem;max-height:60vh;overflow-y:auto;"></div>
+    <div id="sidebar-toggle-list" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.25rem;max-height:55vh;overflow-y:auto;"></div>
 
     <div style="display:flex;gap:.6rem;">
       <button onclick="sidebarSelectAll()"
-        style="flex:1;padding:.55rem;border-radius:.5rem;background:#334155;color:#94a3b8;border:1px solid #475569;font-size:.75rem;font-weight:600;cursor:pointer;">
+        style="flex:1;padding:.6rem;border-radius:.6rem;background:rgba(255,255,255,.08);color:#94a3b8;border:1px solid rgba(255,255,255,.1);font-size:.75rem;font-weight:600;cursor:pointer;">
         Alle einblenden
       </button>
       <button onclick="applySidebarSettings()"
-        style="flex:2;padding:.55rem;border-radius:.5rem;background:#1e3a5f;color:#fff;border:none;font-size:.8rem;font-weight:700;cursor:pointer;">
-        ✓ Übernehmen &amp; schließen
+        style="flex:2;padding:.6rem;border-radius:.6rem;background:var(--primary, #2563eb);color:#fff;border:none;font-size:.8rem;font-weight:700;cursor:pointer;">
+        ✓ Übernehmen
       </button>
     </div>
   </div>
 </div>
 
 <script>
-  // Sidebar-Einträge (key muss mit _show('key') im EJS übereinstimmen)
   const SIDEBAR_ITEMS = [
-    { key: 'dashboard',         label: '🏠 Dashboard' },
-    { key: 'projects',          label: '🏗️ Aufträge & Baustellen' },
-    { key: 'calendar',          label: '📅 Kalender' },
-    { key: 'timetracking',      label: '⏱️ Zeiterfassung' },
-    { key: 'vacations',         label: '🌴 Urlaub & Abwesenheit' },
-    { key: 'admin_users',       label: '👥 Mitarbeiter-Logins (Admin)' },
-    { key: 'admin_timetracking',label: '📋 Arbeitszeiten-Übersicht (Admin)' },
-    { key: 'customers',         label: '👤 Kunden (Admin)' },
-    { key: 'documents',         label: '📋 Angebote & Rechnungen (Admin)' },
-    { key: 'articles',          label: '📦 Artikelstamm (Admin)' },
-    { key: 'company_settings',  label: '🏢 Firmendaten (Admin)' },
+    { key: 'dashboard',          label: '🏠 Dashboard' },
+    { key: 'projects',           label: '🏗️ Aufträge & Baustellen' },
+    { key: 'calendar',           label: '📅 Kalender' },
+    { key: 'timetracking',       label: '⏱️ Zeiterfassung' },
+    { key: 'vacations',          label: '🌴 Urlaub & Abwesenheit' },
+    { key: 'admin_users',        label: '👥 Mitarbeiter-Logins (Admin)' },
+    { key: 'admin_timetracking', label: '📋 Arbeitszeiten-Übersicht (Admin)' },
+    { key: 'customers',          label: '👤 Kunden (Admin)' },
+    { key: 'documents',          label: '📋 Angebote & Rechnungen (Admin)' },
+    { key: 'articles',           label: '📦 Artikelstamm (Admin)' },
+    { key: 'company_settings',   label: '🏢 Firmendaten (Admin)' },
   ];
 
   function getSidebarHidden() {
-    // Aus dem Cookie lesen (gleiche Quelle wie EJS auf dem Server)
     try {
       const match = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('sidebar_hidden='));
       if (match) {
         const val = decodeURIComponent(match.split('=').slice(1).join('='));
-        // Cookie-Format: ["hide_lexikon","hide_treppe"]  → raw keys ohne "hide_"-Präfix
-        const arr = JSON.parse(val);
-        return arr.map((k) => k.replace(/^hide_/, ''));
+        return JSON.parse(val).map(k => k.replace(/^hide_/, ''));
       }
     } catch(e) {}
     return [];
   }
+
   function saveSidebarHidden(hiddenKeys) {
-    // Per POST an den Server senden – der setzt den Cookie korrekt
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/sidebar-settings';
     form.style.display = 'none';
-    // Redirect-Ziel mitschicken
     const redir = document.createElement('input');
     redir.name  = '_redirect';
     redir.value = window.location.pathname + window.location.search;
     form.appendChild(redir);
-    // Für jeden versteckten Key ein hide_* Feld
     hiddenKeys.forEach(key => {
       const inp = document.createElement('input');
       inp.name  = 'hide_' + key;
@@ -248,16 +332,17 @@
 
   function openSidebarSettings() {
     const hidden = getSidebarHidden();
-    const list = document.getElementById('sidebar-toggle-list');
+    const list   = document.getElementById('sidebar-toggle-list');
     list.innerHTML = SIDEBAR_ITEMS.map(item => {
       const checked = !hidden.includes(item.key);
       return `
-        <label style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:.5rem;
-          background:${checked?'#1e3a5f':'#0f172a'};border:1px solid ${checked?'#2563eb':'#334155'};cursor:pointer;" id="slbl-${item.key}">
+        <label style="display:flex;align-items:center;gap:.75rem;padding:.55rem .75rem;border-radius:.6rem;
+          background:${checked?'rgba(37,99,235,.2)':'rgba(255,255,255,.04)'};
+          border:1px solid ${checked?'rgba(37,99,235,.5)':'rgba(255,255,255,.08)'};cursor:pointer;" id="slbl-${item.key}">
           <input type="checkbox" data-sb-key="${item.key}" ${checked?'checked':''}
             onchange="sbToggleHighlight('${item.key}',this.checked)"
-            style="width:1.1rem;height:1.1rem;accent-color:#2563eb;cursor:pointer;flex-shrink:0;">
-          <span style="font-size:.8rem;font-weight:600;">${item.label}</span>
+            style="width:1rem;height:1rem;accent-color:#2563eb;cursor:pointer;flex-shrink:0;">
+          <span style="font-size:.8rem;font-weight:500;">${item.label}</span>
         </label>`;
     }).join('');
     document.getElementById('sidebar-settings-overlay').style.display = 'flex';
@@ -266,8 +351,8 @@
   function sbToggleHighlight(key, checked) {
     const lbl = document.getElementById('slbl-' + key);
     if (!lbl) return;
-    lbl.style.background  = checked ? '#1e3a5f' : '#0f172a';
-    lbl.style.borderColor = checked ? '#2563eb' : '#334155';
+    lbl.style.background  = checked ? 'rgba(37,99,235,.2)' : 'rgba(255,255,255,.04)';
+    lbl.style.borderColor = checked ? 'rgba(37,99,235,.5)' : 'rgba(255,255,255,.08)';
   }
 
   function sidebarSelectAll() {
@@ -287,18 +372,17 @@
     document.querySelectorAll('#sidebar-toggle-list input[data-sb-key]').forEach(cb => {
       if (!cb.checked) hidden.push(cb.dataset.sbKey);
     });
-    // Speichern per POST → Server setzt Cookie → Seite lädt neu
     saveSidebarHidden(hidden);
   }
 
   function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
+    const sidebar  = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     sidebar.classList.toggle('-translate-x-full');
     backdrop.classList.toggle('hidden');
   }
 
-  // ── Suche öffnen/schließen ────────────────────────────────────────────────
+  // ── Suche ──────────────────────────────────────────────────────────────────
   function openSearch() {
     document.getElementById('search-overlay').classList.remove('hidden');
     setTimeout(() => document.getElementById('search-input').focus(), 50);
@@ -308,16 +392,14 @@
     document.getElementById('search-overlay').classList.add('hidden');
     document.getElementById('search-input').value = '';
     document.getElementById('search-results').innerHTML =
-      '<p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>';
+      '<p class="text-xs text-slate-400 text-center py-10">Mindestens 2 Zeichen eingeben…</p>';
     activeIdx = -1;
   }
 
-  // Tastenkürzel /
-  document.addEventListener('keydown', function (e) {
+  document.addEventListener('keydown', function(e) {
     const tag = document.activeElement.tagName;
     if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
-      e.preventDefault();
-      openSearch();
+      e.preventDefault(); openSearch();
     }
     if (e.key === 'Escape') {
       document.getElementById('search-overlay').classList.add('hidden');
@@ -326,21 +408,18 @@
     }
   });
 
-  // ── Debounced fetch ───────────────────────────────────────────────────────
-  let searchTimer = null;
-  let activeIdx   = -1;
-  let lastResults = [];
+  let searchTimer = null, activeIdx = -1, lastResults = [];
 
   function onSearchInput(val) {
     clearTimeout(searchTimer);
     activeIdx = -1;
     if (val.trim().length < 2) {
       document.getElementById('search-results').innerHTML =
-        '<p class="text-xs text-slate-400 text-center py-8">Mindestens 2 Zeichen eingeben…</p>';
+        '<p class="text-xs text-slate-400 text-center py-10">Mindestens 2 Zeichen eingeben…</p>';
       return;
     }
     document.getElementById('search-results').innerHTML =
-      '<p class="text-xs text-slate-400 text-center py-6">Suche…</p>';
+      '<p class="text-xs text-slate-400 text-center py-8">Suche…</p>';
     searchTimer = setTimeout(() => doSearch(val.trim()), 260);
   }
 
@@ -352,70 +431,53 @@
       renderResults(lastResults, q);
     } catch (_) {
       document.getElementById('search-results').innerHTML =
-        '<p class="text-xs text-red-400 text-center py-6">Fehler beim Laden der Ergebnisse.</p>';
+        '<p class="text-xs text-red-400 text-center py-6">Fehler beim Laden.</p>';
     }
   }
 
   function renderResults(results, q) {
     const box = document.getElementById('search-results');
     if (!results.length) {
-      box.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">Keine Ergebnisse gefunden.</p>';
+      box.innerHTML = '<p class="text-xs text-slate-400 text-center py-10">Keine Ergebnisse.</p>';
       return;
     }
-
-    // Treffer im Text hervorheben
     function highlight(text, term) {
       if (!term) return esc(text);
-      const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
-      return esc(text).replace(re, '<mark class="bg-yellow-100 text-yellow-900 rounded px-0.5 not-italic">$1</mark>');
+      const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+      return esc(text).replace(re, '<mark class="bg-yellow-100 text-yellow-900 rounded px-0.5">$1</mark>');
     }
     function esc(t) {
       return String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
-
     const typeLabel = { project:'Auftrag', customer:'Kunde', appointment:'Termin', note:'Notiz' };
     const typeBg    = { project:'bg-blue-50 text-blue-700', customer:'bg-purple-50 text-purple-700',
                         appointment:'bg-amber-50 text-amber-700', note:'bg-slate-100 text-slate-600' };
-
     box.innerHTML = results.map((r, i) => `
       <a href="${r.url}" id="sr-${i}"
-        class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer search-result-item"
+        class="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer search-result-item"
         data-idx="${i}">
         <span class="text-xl leading-none mt-0.5 shrink-0">${r.icon}</span>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">${highlight(r.label, q)}</p>
           ${r.sub ? `<p class="text-xs text-slate-400 truncate mt-0.5">${esc(r.sub)}</p>` : ''}
         </div>
-        <span class="text-[10px] font-semibold shrink-0 mt-1 px-1.5 py-0.5 rounded ${typeBg[r.type] || 'bg-slate-100 text-slate-500'}">
+        <span class="text-[10px] font-semibold shrink-0 mt-1 px-1.5 py-0.5 rounded-full ${typeBg[r.type] || 'bg-slate-100 text-slate-500'}">
           ${typeLabel[r.type] || r.type}
         </span>
       </a>`).join('');
   }
 
-  // ── Tastaturnavigation ────────────────────────────────────────────────────
   function onSearchKey(e) {
     const items = document.querySelectorAll('.search-result-item');
     if (!items.length) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      activeIdx = Math.min(activeIdx + 1, items.length - 1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      activeIdx = Math.max(activeIdx - 1, 0);
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      items[activeIdx].click();
-      return;
-    } else {
-      return;
-    }
-
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx+1, items.length-1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx-1, 0); }
+    else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); return; }
+    else return;
     items.forEach((el, i) => {
       el.classList.toggle('bg-slate-100', i === activeIdx);
       el.classList.toggle('dark:bg-slate-700', i === activeIdx);
-      el.classList.toggle('hover:bg-slate-50', i !== activeIdx);
     });
-    items[activeIdx]?.scrollIntoView({ block: 'nearest' });
+    items[activeIdx]?.scrollIntoView({ block:'nearest' });
   }
 </script>

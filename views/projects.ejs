@@ -1,183 +1,177 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
-    <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🏗️ Aufträge & Baustellen</h1>
-    </header>
+<main class="flex-1 md:ml-72 min-h-screen page-bg dark:bg-slate-900 pt-14 md:pt-0">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
-    <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
-      
-      <!-- Nur der Chef darf neue Aufträge anlegen -->
-      <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
-          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">Neuen Auftrag anlegen</h2>
-          <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kunde</label>
-              <select name="customer_id" required class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-                <% customers.forEach(c => { %>
-                  <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bezeichnung / Baustelle</label>
-              <input type="text" name="title" required placeholder="z.B. Stahlgeländer Balkon" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Auftragssumme (€)</label>
-              <% if (canSeeMoney) { %>
-                <input type="text" name="total_price" placeholder="0.00" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-              <% } else { %>
-                <input type="hidden" name="total_price" value="0">
-                <div class="w-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-400 rounded p-2 text-sm italic">Nur für Chef sichtbar</div>
-              <% } %>
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Beschreibung / Details</label>
-              <input type="text" name="description" id="proj-desc-input" placeholder="Optionale Details zum Bauvorhaben..." class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
-              <select name="status" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2 text-sm">
-                <option value="In Planung">In Planung</option>
-                <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
-                <option value="In Produktion">In Produktion</option>
-                <option value="Oberfläche">Oberfläche</option>
-                <option value="Montagebereit">Montagebereit</option>
-                <option value="Montage läuft">Montage läuft</option>
-                <option value="Abgeschlossen">Abgeschlossen</option>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded text-sm transition w-full md:w-auto">Auftrag speichern</button>
-            </div>
-          </form>
-        </div>
-      <% } %>
-
-      <!-- ═══════════════════════════════════════════ -->
-      <!-- FILTER & SUCHE                              -->
-      <!-- ═══════════════════════════════════════════ -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-        <!-- Suchfeld -->
-        <div class="relative flex-1">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input id="proj-search" type="text" placeholder="Titel oder Kunde suchen…"
-            class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-        </div>
-        <!-- Status-Filter -->
-        <select id="proj-status-filter"
-          class="border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-52">
-          <option value="">Alle Status</option>
-          <option value="In Planung">In Planung</option>
-          <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
-          <option value="In Produktion">In Produktion</option>
-          <option value="Oberfläche">Oberfläche</option>
-          <option value="Montagebereit">Montagebereit</option>
-          <option value="Montage läuft">Montage läuft</option>
-          <option value="Abgeschlossen">Abgeschlossen</option>
-        </select>
-        <!-- Zähler -->
-        <span id="proj-count" class="text-xs text-slate-400 whitespace-nowrap self-center">
-          <%= projects.length %> Aufträge
-        </span>
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Aufträge & Baustellen</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Alle laufenden und abgeschlossenen Aufträge</p>
       </div>
+    </div>
 
-      <!-- ═══════════════════════════════════════════ -->
-      <!-- AUFTRAGSLISTE                               -->
-      <!-- ═══════════════════════════════════════════ -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden p-4 md:p-6">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[750px]">
-            <thead class="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-xs">
-              <tr>
-                <th class="p-3">Baustelle / Titel</th>
-                <th class="p-3">Kunde</th>
-                <th class="p-3">Status</th>
-                <th class="p-3">Summe</th>
-                <th class="p-3 text-right">Aktion</th>
-              </tr>
-            </thead>
-            <tbody id="proj-tbody" class="divide-y divide-slate-200 dark:divide-slate-700">
-              <% projects.forEach(p => { %>
-                <%
-                  const statusColors = {
-                    'In Planung':          'bg-slate-100 text-slate-700',
-                    'Avor / Vorbereitung': 'bg-blue-100 text-blue-800',
-                    'In Produktion':       'bg-amber-100 text-amber-800',
-                    'Oberfläche':          'bg-purple-100 text-purple-800',
-                    'Montagebereit':       'bg-emerald-100 text-emerald-800',
-                    'Montage läuft':       'bg-orange-100 text-orange-800',
-                    'Abgeschlossen':       'bg-green-100 text-green-800'
-                  };
-                  const sc = statusColors[p.status] || 'bg-gray-100 text-gray-700';
-                %>
-                <tr class="proj-row hover:bg-slate-50 dark:hover:bg-slate-700"
-                    data-title="<%= (p.title || '').toLowerCase() %>"
-                    data-customer="<%= ((p.company_name || p.contact_person) || '').toLowerCase() %>"
-                    data-status="<%= p.status %>">
+    <!-- Neuen Auftrag anlegen -->
+    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+      <div class="card p-5 md:p-6">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
+          Neuen Auftrag anlegen
+        </h2>
+        <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kunde</label>
+            <select name="customer_id" required class="input">
+              <% customers.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Bezeichnung / Baustelle</label>
+            <input type="text" name="title" required placeholder="z.B. Stahlgeländer Balkon" class="input">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Auftragssumme (€)</label>
+            <% if (canSeeMoney) { %>
+              <input type="text" name="total_price" placeholder="0.00" class="input">
+            <% } else { %>
+              <input type="hidden" name="total_price" value="0">
+              <div class="input text-slate-400 italic bg-slate-50 dark:bg-slate-800 cursor-not-allowed">Nur für Chef sichtbar</div>
+            <% } %>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Beschreibung / Details</label>
+            <input type="text" name="description" id="proj-desc-input" placeholder="Optionale Details zum Bauvorhaben…" class="input">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+            <select name="status" class="input">
+              <option value="In Planung">In Planung</option>
+              <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
+              <option value="In Produktion">In Produktion</option>
+              <option value="Oberfläche">Oberfläche</option>
+              <option value="Montagebereit">Montagebereit</option>
+              <option value="Montage läuft">Montage läuft</option>
+              <option value="Abgeschlossen">Abgeschlossen</option>
+            </select>
+          </div>
+          <div class="md:col-span-3">
+            <button type="submit" class="btn btn-primary">Auftrag speichern</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
 
-                  <td class="p-3 font-semibold text-slate-800 dark:text-gray-100">
-                    <a href="/projects/<%= p.id %>" class="text-blue-600 hover:underline"><%= p.title %></a>
-                  </td>
+    <!-- Filter & Suche -->
+    <div class="card p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <div class="relative flex-1">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="proj-search" type="text" placeholder="Titel oder Kunde suchen…" class="input pl-9">
+      </div>
+      <select id="proj-status-filter" class="input sm:w-52">
+        <option value="">Alle Status</option>
+        <option value="In Planung">In Planung</option>
+        <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
+        <option value="In Produktion">In Produktion</option>
+        <option value="Oberfläche">Oberfläche</option>
+        <option value="Montagebereit">Montagebereit</option>
+        <option value="Montage läuft">Montage läuft</option>
+        <option value="Abgeschlossen">Abgeschlossen</option>
+      </select>
+      <span id="proj-count" class="text-xs text-slate-400 whitespace-nowrap self-center font-medium">
+        <%= projects.length %> Aufträge
+      </span>
+    </div>
 
-                  <td class="p-3"><%= p.company_name || p.contact_person %></td>
+    <!-- Auftragsliste -->
+    <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm min-w-[750px]">
+          <thead>
+            <tr class="border-b border-slate-100 dark:border-slate-700">
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Baustelle / Titel</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Kunde</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Summe</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="proj-tbody" class="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <% projects.forEach(p => { %>
+              <%
+                const statusColors = {
+                  'In Planung':          'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+                  'Avor / Vorbereitung': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                  'In Produktion':       'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                  'Oberfläche':          'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                  'Montagebereit':       'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                  'Montage läuft':       'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                  'Abgeschlossen':       'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                };
+                const sc = statusColors[p.status] || 'bg-slate-100 text-slate-600';
+              %>
+              <tr class="proj-row hover:bg-slate-50 dark:hover:bg-slate-700/30 transition"
+                  data-title="<%= (p.title || '').toLowerCase() %>"
+                  data-customer="<%= ((p.company_name || p.contact_person) || '').toLowerCase() %>"
+                  data-status="<%= p.status %>">
 
-                  <!-- Status-Zelle -->
-                  <td class="p-3">
-                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
-                      <!-- Schnellstatus: Dropdown → sofortiger fetch, kein Reload -->
-                      <select
-                        data-project-id="<%= p.id %>"
-                        onchange="quickStatus(this)"
-                        class="status-select border rounded-lg px-2 py-1 text-xs font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 <%= sc %>">
-                        <option value="In Planung"          <%= p.status === 'In Planung'          ? 'selected' : '' %>>In Planung</option>
-                        <option value="Avor / Vorbereitung" <%= p.status === 'Avor / Vorbereitung' ? 'selected' : '' %>>Avor / Vorbereitung</option>
-                        <option value="In Produktion"       <%= p.status === 'In Produktion'       ? 'selected' : '' %>>In Produktion</option>
-                        <option value="Oberfläche"          <%= p.status === 'Oberfläche'          ? 'selected' : '' %>>Oberfläche</option>
-                        <option value="Montagebereit"       <%= p.status === 'Montagebereit'       ? 'selected' : '' %>>Montagebereit</option>
-                        <option value="Montage läuft"       <%= p.status === 'Montage läuft'       ? 'selected' : '' %>>Montage läuft</option>
-                        <option value="Abgeschlossen"       <%= p.status === 'Abgeschlossen'       ? 'selected' : '' %>>Abgeschlossen</option>
-                      </select>
-                    <% } else { %>
-                      <span class="px-2 py-1 rounded text-xs font-medium <%= sc %>"><%= p.status %></span>
-                    <% } %>
-                  </td>
+                <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100">
+                  <a href="/projects/<%= p.id %>" class="hover:text-blue-600 transition"><%= p.title %></a>
+                </td>
 
-                  <!-- Preis nur für Admin -->
-                  <td class="p-3 font-medium">
-                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
-                      <%= (Number(p.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
-                    <% } else { %>
-                      <span class="text-slate-400 italic">Intern</span>
-                    <% } %>
-                  </td>
+                <td class="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm"><%= p.company_name || p.contact_person %></td>
 
-                  <td class="p-3 text-right space-x-2">
-                    <a href="/projects/<%= p.id %>" class="text-blue-600 hover:underline text-xs font-medium">Öffnen</a>
+                <td class="px-4 py-3">
+                  <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                    <select data-project-id="<%= p.id %>" onchange="quickStatus(this)"
+                      class="status-select badge cursor-pointer outline-none border-0 focus:ring-2 focus:ring-blue-400/40 rounded-full px-2 py-1 <%= sc %>">
+                      <option value="In Planung"          <%= p.status === 'In Planung'          ? 'selected' : '' %>>In Planung</option>
+                      <option value="Avor / Vorbereitung" <%= p.status === 'Avor / Vorbereitung' ? 'selected' : '' %>>Avor / Vorbereitung</option>
+                      <option value="In Produktion"       <%= p.status === 'In Produktion'       ? 'selected' : '' %>>In Produktion</option>
+                      <option value="Oberfläche"          <%= p.status === 'Oberfläche'          ? 'selected' : '' %>>Oberfläche</option>
+                      <option value="Montagebereit"       <%= p.status === 'Montagebereit'       ? 'selected' : '' %>>Montagebereit</option>
+                      <option value="Montage läuft"       <%= p.status === 'Montage läuft'       ? 'selected' : '' %>>Montage läuft</option>
+                      <option value="Abgeschlossen"       <%= p.status === 'Abgeschlossen'       ? 'selected' : '' %>>Abgeschlossen</option>
+                    </select>
+                  <% } else { %>
+                    <span class="badge <%= sc %>"><%= p.status %></span>
+                  <% } %>
+                </td>
+
+                <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                  <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                    <%= (Number(p.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
+                  <% } else { %>
+                    <span class="text-slate-400 text-xs italic">Intern</span>
+                  <% } %>
+                </td>
+
+                <td class="px-4 py-3 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <a href="/projects/<%= p.id %>" class="btn btn-ghost py-1.5 px-3 text-xs">Öffnen</a>
                     <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <form action="/projects/delete" method="POST" class="inline"
                         onsubmit="return confirm('Auftrag wirklich löschen?');">
                         <input type="hidden" name="id" value="<%= p.id %>">
-                        <button type="submit" class="text-red-600 hover:underline text-xs">Löschen</button>
+                        <button type="submit" class="btn py-1.5 px-3 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
                       </form>
                     <% } %>
-                  </td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-          <!-- Keine-Ergebnisse-Hinweis -->
-          <p id="proj-empty" class="hidden text-sm text-slate-400 dark:text-slate-500 text-center py-8">Keine Aufträge gefunden.</p>
-        </div>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <p id="proj-empty" class="hidden text-sm text-slate-400 text-center py-10">Keine Aufträge gefunden.</p>
       </div>
-
     </div>
-  </main>
+
+  </div>
+</main>
 
 <script>
   // ── Status-Farben (müssen mit den EJS-Werten übereinstimmen) ────────────
