@@ -1,34 +1,32 @@
-<%- include('partials/header') %>
+﻿<%- include('partials/header') %>
 
-<div class="flex h-screen bg-slate-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<%- include('partials/sidebar') %>
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
 
     <!-- Page Header -->
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
       <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📊 Auswertungen & Berichte</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Übersicht über Auftragsstatus, Umsätze und Kunden</p>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">ðŸ“Š Auswertungen & Berichte</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Ãœbersicht Ã¼ber Auftragsstatus, UmsÃ¤tze und Kunden</p>
       </div>
     </header>
 
     <div class="px-4 md:px-6 max-w-7xl mx-auto w-full space-y-8 pb-10">
 
       <!-- ================================================================ -->
-      <!-- SECTION 1: AUFTRAGSSTATUS-ÜBERSICHT                              -->
+      <!-- SECTION 1: AUFTRAGSSTATUS-ÃœBERSICHT                              -->
       <!-- ================================================================ -->
       <section>
-        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">🏗️ Auftragsstatus-Übersicht</h2>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">ðŸ—ï¸ Auftragsstatus-Ãœbersicht</h2>
 
         <%
           const statusDef = [
             { key: 'In Planung',         badge: 'bg-slate-100 text-slate-700',    bar: '#94a3b8' },
             { key: 'Avor / Vorbereitung',badge: 'bg-blue-100 text-blue-800',      bar: '#60a5fa' },
             { key: 'In Produktion',      badge: 'bg-amber-100 text-amber-800',    bar: '#fbbf24' },
-            { key: 'Oberfläche',         badge: 'bg-purple-100 text-purple-800',  bar: '#a78bfa' },
+            { key: 'OberflÃ¤che',         badge: 'bg-purple-100 text-purple-800',  bar: '#a78bfa' },
             { key: 'Montagebereit',      badge: 'bg-emerald-100 text-emerald-800',bar: '#34d399' },
-            { key: 'Montage läuft',      badge: 'bg-orange-100 text-orange-800',  bar: '#f97316' },
+            { key: 'Montage lÃ¤uft',      badge: 'bg-orange-100 text-orange-800',  bar: '#f97316' },
             { key: 'Abgeschlossen',      badge: 'bg-green-100 text-green-800',    bar: '#22c55e' },
           ];
 
@@ -66,7 +64,7 @@
 
         <!-- SVG Bar Chart -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 overflow-x-auto">
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Aufträge nach Status</p>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">AuftrÃ¤ge nach Status</p>
           <%
             const svgBarW  = 52;
             const svgGap   = 12;
@@ -103,7 +101,7 @@
               <% } %>
             <% }); %>
           </svg>
-          <p class="text-xs text-slate-400 mt-3">Gesamt: <strong class="text-slate-700 dark:text-slate-200"><%= totalProjects %></strong> Aufträge</p>
+          <p class="text-xs text-slate-400 mt-3">Gesamt: <strong class="text-slate-700 dark:text-slate-200"><%= totalProjects %></strong> AuftrÃ¤ge</p>
         </div>
       </section>
 
@@ -112,7 +110,7 @@
       <!-- ================================================================ -->
       <% if (typeof canSeeMoney !== 'undefined' && canSeeMoney) { %>
       <section>
-        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">💶 Umsatz pro Monat (letzte 12 Monate)</h2>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">ðŸ’¶ Umsatz pro Monat (letzte 12 Monate)</h2>
 
         <% if (typeof monthlyRevenue !== 'undefined' && monthlyRevenue.length > 0) { %>
           <%
@@ -128,7 +126,7 @@
           <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 overflow-x-auto">
             <svg width="<%= revW %>" height="<%= revH %>" style="min-width:<%= revW %>px">
               <!-- Y-axis label -->
-              <text x="8" y="<%= revMaxH / 2 + 10 %>" font-size="10" fill="#94a3b8" text-anchor="middle" transform="rotate(-90,8,<%= revMaxH / 2 + 10 %>)">€</text>
+              <text x="8" y="<%= revMaxH / 2 + 10 %>" font-size="10" fill="#94a3b8" text-anchor="middle" transform="rotate(-90,8,<%= revMaxH / 2 + 10 %>)">â‚¬</text>
               <% monthlyRevenue.forEach((r, i) => {
                 const val  = parseFloat(r.total) || 0;
                 const barH = Math.max(4, Math.round((val / revMax) * revMaxH));
@@ -164,7 +162,7 @@
       <!-- SECTION 3: UMSATZ PRO KUNDE (nur wenn canSeeMoney)             -->
       <!-- ================================================================ -->
       <section>
-        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">👤 Top 10 Kunden nach Umsatz</h2>
+        <h2 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-4">ðŸ‘¤ Top 10 Kunden nach Umsatz</h2>
 
         <% if (typeof topCustomers !== 'undefined' && topCustomers.length > 0) { %>
           <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
@@ -183,9 +181,9 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
                       <td class="px-4 py-3 text-slate-400 font-mono text-xs"><%= i + 1 %></td>
                       <td class="px-4 py-3 font-semibold text-slate-800 dark:text-gray-100">
-                        <%= c.company_name || '–' %>
+                        <%= c.company_name || 'â€“' %>
                       </td>
-                      <td class="px-4 py-3 text-slate-500 dark:text-slate-400"><%= c.contact_person || '–' %></td>
+                      <td class="px-4 py-3 text-slate-500 dark:text-slate-400"><%= c.contact_person || 'â€“' %></td>
                       <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
                         <%= new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(parseFloat(c.total) || 0) %>
                       </td>
@@ -204,10 +202,9 @@
       <% } else { %>
         <!-- Revenue sections hidden for non-money users -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-6 text-center text-slate-400 text-sm">
-          🔒 Umsatz-Auswertungen sind nur für den Chef sichtbar.
+          ðŸ”’ Umsatz-Auswertungen sind nur fÃ¼r den Chef sichtbar.
         </div>
       <% } %>
 
     </div>
   </main>
-</div>

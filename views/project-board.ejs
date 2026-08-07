@@ -1,23 +1,21 @@
-<%- include('partials/header') %>
+﻿<%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
+<%- include('partials/sidebar') %>
   <!-- Hauptinhalt mit korrektem Abstand zur Sidebar -->
-  <main class="flex-1 p-3 md:p-6 md:ml-72 flex flex-col overflow-hidden pt-16 md:pt-6">
+<main class="flex-1 p-3 md:p-6 md:ml-72 flex flex-col overflow-hidden pt-16 md:pt-6">
 
     <!-- Kopfbereich -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 border-b border-gray-200 pb-3 shrink-0">
       <div>
         <h1 class="text-xl md:text-2xl font-bold text-gray-800">Werkstatt Kanban-Board</h1>
-        <p class="text-xs md:text-sm text-gray-500">Übersicht der Fertigungsphasen und Baustellen</p>
+        <p class="text-xs md:text-sm text-gray-500">Ãœbersicht der Fertigungsphasen und Baustellen</p>
       </div>
       <a href="/projects" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium transition inline-block">
-        📄 Tabellenansicht
+        ðŸ“„ Tabellenansicht
       </a>
     </div>
 
-    <!-- Kanban Spalten — horizontal scrollbar -->
+    <!-- Kanban Spalten â€” horizontal scrollbar -->
     <div class="flex-1 overflow-x-auto pb-4">
       <div class="inline-flex gap-4 h-full items-start pb-2">
         <%
@@ -25,9 +23,9 @@
             { key: 'In Planung',          label: 'In Planung',                    color: 'border-slate-400 bg-slate-50' },
             { key: 'Avor / Vorbereitung', label: 'Avor / Vorbereitung',            color: 'border-blue-400 bg-blue-50/30' },
             { key: 'In Produktion',       label: 'In Produktion (Schlosserei)',    color: 'border-amber-400 bg-amber-50/30' },
-            { key: 'Oberfläche',          label: 'Oberfläche (Verzinken/Lack)',    color: 'border-purple-400 bg-purple-50/30' },
+            { key: 'OberflÃ¤che',          label: 'OberflÃ¤che (Verzinken/Lack)',    color: 'border-purple-400 bg-purple-50/30' },
             { key: 'Montagebereit',       label: 'Montagebereit',                  color: 'border-emerald-400 bg-emerald-50/30' },
-            { key: 'Montage läuft',       label: 'Montage läuft',                  color: 'border-orange-400 bg-orange-50/30' },
+            { key: 'Montage lÃ¤uft',       label: 'Montage lÃ¤uft',                  color: 'border-orange-400 bg-orange-50/30' },
             { key: 'Abgeschlossen',       label: 'Abgeschlossen',                  color: 'border-gray-400 bg-gray-50' }
           ];
         %>
@@ -66,7 +64,7 @@
                 <% }) %>
               <% } else { %>
                 <div class="text-center py-6 text-gray-400 text-xs italic bg-white/50 rounded-lg border border-dashed border-gray-300">
-                  Keine Aufträge
+                  Keine AuftrÃ¤ge
                 </div>
               <% } %>
             </div>
@@ -78,7 +76,6 @@
     </div>
 
   </main>
-</div>
 
 </body>
 </html>

@@ -1,20 +1,18 @@
-<%- include('partials/header') %>
+﻿<%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<%- include('partials/sidebar') %>
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <!-- Header -->
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
         <div class="text-xs md:text-sm text-blue-600 mb-1">
-          <a href="/customers" class="hover:underline">← Zurück zur Kundenübersicht</a>
+          <a href="/customers" class="hover:underline">â† ZurÃ¼ck zur KundenÃ¼bersicht</a>
         </div>
-        <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Projekte & Vorgänge: <%= customer.company_name || customer.contact_person %></h1>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Projekte & VorgÃ¤nge: <%= customer.company_name || customer.contact_person %></h1>
         <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
           <%= customer.street || '' %>, <%= customer.zip || '' %> <%= customer.city || '' %> 
-          <%= customer.phone ? '| 📞 ' + customer.phone : '' %> 
-          <%= customer.email ? '| ✉️ ' + customer.email : '' %>
+          <%= customer.phone ? '| ðŸ“ž ' + customer.phone : '' %> 
+          <%= customer.email ? '| âœ‰ï¸ ' + customer.email : '' %>
         </p>
       </div>
     </div>
@@ -23,7 +21,7 @@
       
       <!-- Dateien & Uploads -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-4">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📁 Kundendateien & Dokumente</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">ðŸ“ Kundendateien & Dokumente</h2>
         
         <!-- Upload-Formular -->
         <form action="/customers/<%= customer.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-gray-50 dark:bg-slate-700 p-4 rounded-lg border dark:border-slate-600">
@@ -37,19 +35,19 @@
           <% if (typeof files !== 'undefined' && files.length > 0) { %>
             <% files.forEach(file => { %>
               <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-700 p-3 rounded-lg border dark:border-slate-600 text-sm gap-2">
-                <span class="truncate text-gray-700 dark:text-gray-300 text-xs md:text-sm">📄 <%= file.original_name %></span>
+                <span class="truncate text-gray-700 dark:text-gray-300 text-xs md:text-sm">ðŸ“„ <%= file.original_name %></span>
                 <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium whitespace-nowrap">Ansehen / Download</a>
               </div>
             <% }) %>
           <% } else { %>
-            <p class="text-xs text-gray-400 dark:text-slate-500 italic">Noch keine Dateien für diesen Kunden hochgeladen.</p>
+            <p class="text-xs text-gray-400 dark:text-slate-500 italic">Noch keine Dateien fÃ¼r diesen Kunden hochgeladen.</p>
           <% } %>
         </div>
       </div>
 
       <!-- Rechnungen -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📄 Rechnungen</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">ðŸ“„ Rechnungen</h2>
         <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
           <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
             <table class="w-full text-left text-sm border-collapse min-w-[500px]">
@@ -65,22 +63,22 @@
                 <% invoices.forEach(inv => { %>
                   <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
                     <td class="p-3 font-semibold text-gray-800 dark:text-gray-100"><%= inv.invoice_number %></td>
-                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(inv.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(inv.total_amount || 0).toFixed(2) %> â‚¬</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= inv.status %></span></td>
-                    <td class="p-3 text-right"><a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline text-xs font-semibold">Details 👁️</a></td>
+                    <td class="p-3 text-right"><a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline text-xs font-semibold">Details ðŸ‘ï¸</a></td>
                   </tr>
                 <% }) %>
               </tbody>
             </table>
           </div>
         <% } else { %>
-          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Rechnungen für diesen Kunden hinterlegt.</p>
+          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Rechnungen fÃ¼r diesen Kunden hinterlegt.</p>
         <% } %>
       </div>
 
       <!-- Angebote -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📋 Angebote</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">ðŸ“‹ Angebote</h2>
         <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
           <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
             <table class="w-full text-left text-sm border-collapse min-w-[400px]">
@@ -95,7 +93,7 @@
                 <% offers.forEach(off => { %>
                   <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
                     <td class="p-3 font-semibold text-gray-800 dark:text-gray-100"><%= off.doc_number %></td>
-                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(off.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(off.total_amount || 0).toFixed(2) %> â‚¬</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200"><%= off.status %></span></td>
                   </tr>
                 <% }) %>
@@ -103,19 +101,19 @@
             </table>
           </div>
         <% } else { %>
-          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Angebote für diesen Kunden hinterlegt.</p>
+          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Angebote fÃ¼r diesen Kunden hinterlegt.</p>
         <% } %>
       </div>
 
       <!-- Termine -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📅 Termine & Baustellen</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">ðŸ“… Termine & Baustellen</h2>
         <% if (typeof appointments !== 'undefined' && appointments.length > 0) { %>
           <ul class="divide-y divide-gray-200 dark:divide-slate-700 text-sm">
             <% appointments.forEach(app => { %>
               <li class="py-3">
                 <div class="font-semibold text-gray-800 dark:text-gray-100 text-sm"><%= app.title %></div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">📅 <%= app.start_date %></div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">ðŸ“… <%= app.start_date %></div>
                 <% if (app.description) { %>
                   <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 bg-gray-50 dark:bg-slate-700 p-2 rounded border dark:border-slate-600"><%= app.description %></p>
                 <% } %>
@@ -129,7 +127,6 @@
 
     </div>
   </main>
-</div>
 
 </body>
 </html>

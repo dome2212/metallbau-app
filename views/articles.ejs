@@ -1,17 +1,15 @@
-<%- include('partials/header') %>
+﻿<%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-gray-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+<%- include('partials/sidebar') %>
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">📦 Artikel- & Materialstamm</h1>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Standardartikel und Leistungen für Angebote & Rechnungen</p>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">ðŸ“¦ Artikel- & Materialstamm</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Standardartikel und Leistungen fÃ¼r Angebote & Rechnungen</p>
       </div>
       <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
         <button onclick="toggleModal('aiArticleModal')" class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-1">
-          ✨ KI-Assistent
+          âœ¨ KI-Assistent
         </button>
         <button onclick="toggleModal('addArticleModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-1">
           + Neuen Artikel anlegen
@@ -27,7 +25,7 @@
               <tr>
                 <th class="p-4">Bezeichnung / Titel</th>
                 <th class="p-4">Einheit</th>
-                <th class="p-4">Stückpreis</th>
+                <th class="p-4">StÃ¼ckpreis</th>
                 <th class="p-4">Beschreibung</th>
                 <th class="p-4 text-right">Aktion</th>
               </tr>
@@ -38,12 +36,12 @@
                   <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm">
                     <td class="py-3 px-4 font-semibold text-gray-800 dark:text-gray-100"><%= article.title %></td>
                     <td class="py-3 px-4 text-gray-600 dark:text-gray-400"><%= article.unit %></td>
-                    <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-medium"><%= Number(article.unit_price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> €</td>
+                    <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-medium"><%= Number(article.unit_price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> â‚¬</td>
                     <td class="py-3 px-4 text-gray-500 dark:text-gray-400 text-xs"><%= article.description || '-' %></td>
                     <td class="py-3 px-4 text-right">
-                      <form action="/articles/delete" method="POST" onsubmit="return confirm('Artikel wirklich löschen?');" class="inline">
+                      <form action="/articles/delete" method="POST" onsubmit="return confirm('Artikel wirklich lÃ¶schen?');" class="inline">
                         <input type="hidden" name="id" value="<%= article.id %>">
-                        <button type="submit" class="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-semibold transition">🗑️ Löschen</button>
+                        <button type="submit" class="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-semibold transition">ðŸ—‘ï¸ LÃ¶schen</button>
                       </form>
                     </td>
                   </tr>
@@ -59,27 +57,26 @@
       </div>
     </div>
   </main>
-</div>
 
 <!-- Modal: KI-Assistent Artikel -->
 <div id="aiArticleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
   <div class="bg-white dark:bg-slate-800 rounded-t-2xl md:rounded-xl shadow-lg max-w-md w-full flex flex-col" style="max-height:92dvh">
     <!-- Header (fixiert) -->
     <div class="flex justify-between items-center px-4 pt-4 pb-3 border-b dark:border-slate-700 flex-shrink-0">
-      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">✨ KI-Artikel vorschlagen</h3>
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">âœ¨ KI-Artikel vorschlagen</h3>
       <button onclick="toggleModal('aiArticleModal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl font-bold">&times;</button>
     </div>
     <!-- Scrollbarer Inhalt -->
     <div class="overflow-y-auto flex-1 px-4 py-3 space-y-3">
-      <p class="text-xs text-gray-500 dark:text-gray-400">Beschreibe das Material oder die Leistung – die KI schlägt Bezeichnung, Einheit und Preis vor.</p>
-      <textarea id="ai-article-input" rows="3" placeholder="z.B. Stahlrohr 40x40 mm für Geländerbau, verzinkt" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+      <p class="text-xs text-gray-500 dark:text-gray-400">Beschreibe das Material oder die Leistung â€“ die KI schlÃ¤gt Bezeichnung, Einheit und Preis vor.</p>
+      <textarea id="ai-article-input" rows="3" placeholder="z.B. Stahlrohr 40x40 mm fÃ¼r GelÃ¤nderbau, verzinkt" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
       <div id="ai-article-error" class="hidden text-xs text-red-600 dark:text-red-400"></div>
       <div id="ai-article-result" class="hidden bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 text-sm space-y-1">
         <p class="font-semibold text-purple-800 dark:text-purple-300 text-xs uppercase mb-2">KI-Vorschlag</p>
         <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-gray-700 dark:text-gray-300 text-xs">
           <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Bezeichnung:</span><span id="ai-res-title" class="font-medium break-words"></span>
           <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Einheit:</span><span id="ai-res-unit"></span>
-          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Stückpreis:</span><span id="ai-res-price"></span>
+          <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">StÃ¼ckpreis:</span><span id="ai-res-price"></span>
           <span class="text-gray-500 dark:text-gray-400 whitespace-nowrap">Beschreibung:</span><span id="ai-res-desc" class="break-words"></span>
         </div>
       </div>
@@ -88,10 +85,10 @@
     <div class="flex justify-end gap-2 px-4 py-3 border-t dark:border-slate-700 flex-shrink-0 bg-white dark:bg-slate-800">
       <button type="button" onclick="toggleModal('aiArticleModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
       <button type="button" id="ai-article-btn" onclick="fetchAiArticle()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 flex items-center gap-1">
-        <span id="ai-btn-label">✨ Vorschlagen</span>
-        <span id="ai-btn-spinner" class="hidden">…</span>
+        <span id="ai-btn-label">âœ¨ Vorschlagen</span>
+        <span id="ai-btn-spinner" class="hidden">â€¦</span>
       </button>
-      <button type="button" id="ai-article-accept" onclick="acceptAiArticle()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Übernehmen</button>
+      <button type="button" id="ai-article-accept" onclick="acceptAiArticle()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Ãœbernehmen</button>
     </div>
   </div>
 </div>
@@ -112,22 +109,22 @@
         <div>
           <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Einheit *</label>
           <select name="unit" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
-            <option value="Stk">Stk (Stück)</option>
+            <option value="Stk">Stk (StÃ¼ck)</option>
             <option value="m">m (Meter)</option>
-            <option value="m²">m²</option>
+            <option value="mÂ²">mÂ²</option>
             <option value="kg">kg</option>
             <option value="Std">Std (Stunden)</option>
             <option value="Psch">Pauschale</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Stückpreis (€) *</label>
+          <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">StÃ¼ckpreis (â‚¬) *</label>
           <input type="text" name="unit_price" required placeholder="0.00" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
         </div>
       </div>
       <div>
         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Beschreibung (optional)</label>
-        <input type="text" name="description" placeholder="z.B. Für Geländer und Rahmenkonstruktionen" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
+        <input type="text" name="description" placeholder="z.B. FÃ¼r GelÃ¤nder und Rahmenkonstruktionen" class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm bg-white">
       </div>
       <div class="flex justify-end gap-2 pt-3 border-t dark:border-slate-700">
         <button type="button" onclick="toggleModal('addArticleModal')" class="px-4 py-2 border dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
@@ -176,11 +173,11 @@
         return;
       }
       _aiArticleData = data.article;
-      document.getElementById('ai-res-title').textContent = data.article.title || '–';
-      document.getElementById('ai-res-unit').textContent = data.article.unit || '–';
+      document.getElementById('ai-res-title').textContent = data.article.title || 'â€“';
+      document.getElementById('ai-res-unit').textContent = data.article.unit || 'â€“';
       document.getElementById('ai-res-price').textContent =
-        Number(data.article.unit_price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
-      document.getElementById('ai-res-desc').textContent = data.article.description || '–';
+        Number(data.article.unit_price || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' â‚¬';
+      document.getElementById('ai-res-desc').textContent = data.article.description || 'â€“';
       resultEl.classList.remove('hidden');
       acceptBtn.classList.remove('hidden');
     } catch (e) {

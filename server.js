@@ -129,6 +129,7 @@ const adminRoutes              = require('./routes/adminRoutes');
 const articleRoutes            = require('./routes/articleRoutes');
 const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 const reportsRoutes            = require('./routes/reportsRoutes');
+const tickerRoutes             = require('./routes/tickerRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -234,6 +235,7 @@ app.use('/articles', articleRoutes);
 
 // Berichte & Auswertungen
 app.use('/reports', reportsRoutes);
+app.use('/ticker',  tickerRoutes);
 
 // ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)

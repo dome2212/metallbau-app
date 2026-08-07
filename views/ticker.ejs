@@ -1,11 +1,9 @@
-<%- include('partials/header') %>
+﻿<%- include('partials/header') %>
 
-<div class="flex h-screen bg-gray-100 overflow-hidden">
-  <%- include('partials/sidebar') %>
-
-  <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 min-h-screen pt-16 md:pt-6">
+<%- include('partials/sidebar') %>
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
     <header class="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800">📌 Pinnwand & Infos</h1>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800">ðŸ“Œ Pinnwand & Infos</h1>
     </header>
 
     <div class="p-4 md:p-6 max-w-3xl mx-auto w-full space-y-6">
@@ -18,11 +16,11 @@
             type="text"
             name="message"
             required
-            placeholder="z.B. Montag Betriebsausflug – Werkstatt geschlossen!"
+            placeholder="z.B. Montag Betriebsausflug â€“ Werkstatt geschlossen!"
             class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
           >
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition whitespace-nowrap">
-            📌 Pinnen
+            ðŸ“Œ Pinnen
           </button>
         </form>
       </div>
@@ -40,11 +38,11 @@
                   <%= t.formatted_date || new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
                 </p>
               </div>
-              <% if (typeof currentUser !== 'undefined' && currentUser.role === 'ADMIN') { %>
-                <form action="/ticker/delete" method="POST" onsubmit="return confirm('Meldung wirklich löschen?');" class="shrink-0">
+              <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+                <form action="/ticker/delete" method="POST" onsubmit="return confirm('Meldung wirklich lÃ¶schen?');" class="shrink-0">
                   <input type="hidden" name="id" value="<%= t.id %>">
                   <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition">
-                    🗑️ Löschen
+                    ðŸ—‘ï¸ LÃ¶schen
                   </button>
                 </form>
               <% } %>
@@ -59,7 +57,6 @@
 
     </div>
   </main>
-</div>
 
 </body>
 </html>
