@@ -84,7 +84,12 @@
                 else if (a && a.note) cellBg = 'bg-amber-50 dark:bg-amber-900/20';
               %>
               <td class="px-2 py-1.5 <%= cellBg %> cursor-pointer select-none"
-                  onclick="openCell('<%= u.id %>','<%= u.username %>','<%= d %>','<%= a ? (a.project_id || '') : '' %>','<%= a ? ((a.note||'').replace(/'/g,\"\\\\'\")) : '' %>')"
+                  data-uid="<%= u.id %>"
+                  data-uname="<%= encodeURIComponent(u.username) %>"
+                  data-date="<%= d %>"
+                  data-project="<%= a ? (a.project_id || '') : '' %>"
+                  data-note="<%= a ? encodeURIComponent(a.note || '') : '' %>"
+                  onclick="openCellEl(this)"
                   title="Klicken zum Bearbeiten">
                 <% if (a && a.project_id && projTitle) { %>
                   <div class="flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-800/50 rounded-md">
@@ -172,9 +177,20 @@
 
 <script>
 const DAY_LABELS = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
-const DAYS       = <%- JSON.stringify(days) %>;
+const DAYS       = <%- JSON.stringify(days).replace(/<\/script>/gi, '<\\/script>') %>;
 
 let _uid = null, _uname = null, _date = null;
+
+// Wrapper: liest data-Attribute aus der geklickten Zelle
+function openCellEl(td) {
+  openCell(
+    td.dataset.uid,
+    decodeURIComponent(td.dataset.uname || ''),
+    td.dataset.date,
+    td.dataset.project || '',
+    decodeURIComponent(td.dataset.note  || '')
+  );
+}
 
 function openCell(uid, uname, date, projId, note) {
   _uid   = uid;

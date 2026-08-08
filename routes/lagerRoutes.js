@@ -66,6 +66,7 @@ async function callVision(apiKey, systemPrompt, b64, mimeType) {
 router.get('/', async (req, res) => {
   try {
     const tab = req.query.tab === 'edelstahl' ? 'edelstahl'
+              : req.query.tab === 'schrauben' ? 'schrauben'
               : req.query.tab === 'entnahmen' ? 'entnahmen'
               : req.query.tab === 'reste'     ? 'reste'
               : 'baustahl';
@@ -89,8 +90,9 @@ router.get('/', async (req, res) => {
       );
       reste = r.rows || [];
     } else {
+      // baustahl, edelstahl, schrauben – alle aus lager_items mit material_type-Filter
       const r = await dbQuery(
-        `SELECT * FROM lager_items WHERE material_type = ? ORDER BY lieferdatum DESC, id DESC`,
+        `SELECT * FROM lager_items WHERE material_type = ? ORDER BY bezeichnung ASC, id DESC`,
         [tab]
       );
       items = r.rows || [];
@@ -137,7 +139,9 @@ router.post('/add', async (req, res) => {
        parseFloat(String(mindestbestand || '0').replace(',', '.')) || 0,
        lagerort || null]
     );
-    res.redirect('/lager?tab=' + (material_type === 'edelstahl' ? 'edelstahl' : 'baustahl'));
+    const validTabs = ['baustahl','edelstahl','schrauben'];
+    const redirectTab = validTabs.includes(material_type) ? material_type : 'baustahl';
+    res.redirect('/lager?tab=' + redirectTab);
   } catch (err) {
     console.error('Lager-Add Fehler:', err);
     res.status(500).send('Fehler beim Speichern');
@@ -162,7 +166,9 @@ router.post('/edit', async (req, res) => {
        parseFloat(String(mindestbestand || '0').replace(',', '.')) || 0,
        lagerort || null, id]
     );
-    res.redirect('/lager?tab=' + (material_type === 'edelstahl' ? 'edelstahl' : 'baustahl'));
+    const validTabs = ['baustahl','edelstahl','schrauben'];
+    const redirectTab = validTabs.includes(material_type) ? material_type : 'baustahl';
+    res.redirect('/lager?tab=' + redirectTab);
   } catch (err) {
     console.error('Lager-Edit Fehler:', err);
     res.status(500).send('Fehler beim Aktualisieren');

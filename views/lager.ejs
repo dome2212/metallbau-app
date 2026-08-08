@@ -7,17 +7,19 @@
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
     <div>
       <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">🏭 Lagerverwaltung</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">Bestand · Entnahmen · Reststücke</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Baustahl · Edelstahl · Schrauben · Entnahmen · Reststücke</p>
     </div>
     <div class="flex flex-wrap gap-2 w-full md:w-auto">
-      <% if (tab === 'baustahl' || tab === 'edelstahl') { %>
+      <% if (tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben') { %>
+        <% if (tab !== 'schrauben') { %>
         <button onclick="openScanModal()"
           class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
           📷 Lieferschein
         </button>
+        <% } %>
         <button onclick="openAddModal()"
           class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
-          + Material einlagern
+          + Einlagern
         </button>
         <button onclick="openEntnahmeModal()"
           class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
@@ -67,7 +69,7 @@
   <%
     const lowStockItems = items.filter(i => Number(i.mindestbestand) > 0 && Number(i.menge) <= Number(i.mindestbestand));
   %>
-  <% if ((tab === 'baustahl' || tab === 'edelstahl') && lowStockItems.length > 0) { %>
+  <% if ((tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben') && lowStockItems.length > 0) { %>
   <div class="px-4 md:px-6 mb-3">
     <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-3 flex items-start gap-3">
       <span class="text-amber-500 text-xl mt-0.5">⚠️</span>
@@ -96,6 +98,11 @@
                <%= tab === 'edelstahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         ✨ Edelstahl
       </a>
+      <a href="/lager?tab=schrauben"
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+               <%= tab === 'schrauben' ? 'border-orange-600 text-orange-600 dark:text-orange-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        🔧 Schrauben
+      </a>
       <a href="/lager?tab=entnahmen"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
                <%= tab === 'entnahmen' ? 'border-amber-600 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
@@ -110,9 +117,9 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════════════
-       TAB: BAUSTAHL / EDELSTAHL
+       TAB: BAUSTAHL / EDELSTAHL / SCHRAUBEN
   ═══════════════════════════════════════════════════════════════════════════ -->
-  <% if (tab === 'baustahl' || tab === 'edelstahl') { %>
+  <% if (tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben') { %>
   <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
       <% if (items && items.length > 0) { %>
@@ -162,11 +169,28 @@
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1.5">
-                  <button onclick="openEntnahmeModalFor(<%= item.id %>, <%= JSON.stringify(item.bezeichnung + (item.profil?' '+item.profil:'')).replace(/\"/g,'&quot;') %>, '<%= item.einheit %>')"
+                  <!-- Entnahme-Button: data-* statt onclick-Parameter um Sonderzeichen-Bugs zu vermeiden -->
+                  <button
+                    data-item-id="<%= item.id %>"
+                    data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                    onclick="openEntnahmeModalForEl(this)"
                     class="px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 rounded text-xs font-semibold transition"
                     title="Entnahme buchen">↓</button>
-                  <button onclick="openEditModal(this)"
-                    data-item="<%= JSON.stringify(item).replace(/\"/g, '&quot;') %>"
+                  <!-- Bearbeiten-Button: JSON via encodeURIComponent absichern -->
+                  <button
+                    data-item-id="<%= item.id %>"
+                    data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
+                    data-item-profil="<%= encodeURIComponent(item.profil || '') %>"
+                    data-item-abmessung="<%= encodeURIComponent(item.abmessung || '') %>"
+                    data-item-menge="<%= item.menge || 0 %>"
+                    data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                    data-item-material="<%= encodeURIComponent(item.material_type || 'baustahl') %>"
+                    data-item-lsnr="<%= encodeURIComponent(item.lieferschein_nr || '') %>"
+                    data-item-lieferdatum="<%= item.lieferdatum ? new Date(item.lieferdatum).toISOString().split('T')[0] : '' %>"
+                    data-item-notiz="<%= encodeURIComponent(item.notiz || '') %>"
+                    data-item-mindestbestand="<%= item.mindestbestand || 0 %>"
+                    data-item-lagerort="<%= encodeURIComponent(item.lagerort || '') %>"
+                    onclick="openEditModalEl(this)"
                     class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition">✏️</button>
                   <form action="/lager/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" class="inline">
                     <input type="hidden" name="id" value="<%= item.id %>">
@@ -334,6 +358,7 @@
           <select name="material_type" id="addMaterialType" class="fi w-full">
             <option value="baustahl" <%= tab === 'baustahl' ? 'selected' : '' %>>🔩 Baustahl</option>
             <option value="edelstahl" <%= tab === 'edelstahl' ? 'selected' : '' %>>✨ Edelstahl</option>
+            <option value="schrauben" <%= tab === 'schrauben' ? 'selected' : '' %>>🔧 Schrauben & Kleinteile</option>
           </select>
         </div>
         <div class="col-span-2">
@@ -405,6 +430,7 @@
           <select name="material_type" id="editMaterialType" class="fi w-full">
             <option value="baustahl">🔩 Baustahl</option>
             <option value="edelstahl">✨ Edelstahl</option>
+            <option value="schrauben">🔧 Schrauben & Kleinteile</option>
           </select>
         </div>
         <div class="col-span-2">
@@ -475,11 +501,11 @@
           <option value="">– Material auswählen –</option>
           <% allItems.forEach(i => { %>
           <option value="<%= i.id %>"
-            data-einheit="<%= i.einheit %>"
+            data-einheit="<%= encodeURIComponent(i.einheit || 'Stk') %>"
             data-bestand="<%= Number(i.menge).toLocaleString('de-DE') %>">
             <%= i.bezeichnung %><% if (i.profil) { %> · <%= i.profil %><% } %>
             (<%= Number(i.menge).toLocaleString('de-DE') %> <%= i.einheit %>)
-            – <%= i.material_type === 'edelstahl' ? '✨' : '🔩' %>
+            – <%= i.material_type === 'edelstahl' ? '✨' : i.material_type === 'schrauben' ? '🔧' : '🔩' %>
           </option>
           <% }) %>
         </select>
@@ -643,7 +669,15 @@
   function openEntnahmeModal() {
     document.getElementById('entnahmeModal').classList.remove('hidden');
   }
-  function openEntnahmeModalFor(itemId, label, einheit) {
+  // Wrapper für data-* Attribut-Pattern (Entnahme)
+  function openEntnahmeModalForEl(btn) {
+    openEntnahmeModal();
+    const sel = document.getElementById('entnahmeMaterialSelect');
+    if (sel) { sel.value = btn.dataset.itemId; }
+    updateEntnahmeHint();
+  }
+  // Alte Signatur für Kompatibilität behalten
+  function openEntnahmeModalFor(itemId) {
     openEntnahmeModal();
     const sel = document.getElementById('entnahmeMaterialSelect');
     if (sel) sel.value = itemId;
@@ -661,8 +695,9 @@
     const val  = document.getElementById('entnahmeBestandVal');
     if (!sel || !hint || !val) return;
     const opt = sel.options[sel.selectedIndex];
-    if (opt && opt.dataset.bestand) {
-      val.textContent = opt.dataset.bestand + ' ' + (opt.dataset.einheit || '');
+    if (opt && opt.dataset.bestand && opt.value) {
+      const einheit = opt.dataset.einheit ? decodeURIComponent(opt.dataset.einheit) : '';
+      val.textContent = opt.dataset.bestand + (einheit ? ' ' + einheit : '');
       hint.classList.remove('hidden');
     } else {
       hint.classList.add('hidden');
@@ -670,24 +705,41 @@
   }
 
   // ── Edit-Modal ──────────────────────────────────────────────────────────────
-  function openEditModal(btn) {
-    const item = JSON.parse(btn.dataset.item);
-    document.getElementById('editId').value            = item.id;
-    document.getElementById('editMaterialType').value  = item.material_type || 'baustahl';
-    document.getElementById('editBezeichnung').value   = item.bezeichnung || '';
-    document.getElementById('editProfil').value        = item.profil || '';
-    document.getElementById('editAbmessung').value     = item.abmessung || '';
-    document.getElementById('editMenge').value         = item.menge || '';
-    document.getElementById('editEinheit').value       = item.einheit || 'Stk';
-    document.getElementById('editLsnr').value          = item.lieferschein_nr || '';
-    document.getElementById('editNotiz').value         = item.notiz || '';
-    document.getElementById('editMindestbestand').value = item.mindestbestand || '';
-    document.getElementById('editLagerort').value      = item.lagerort || '';
-    if (item.lieferdatum) {
-      try { document.getElementById('editLieferdatum').value = new Date(item.lieferdatum).toISOString().split('T')[0]; }
-      catch(_) { document.getElementById('editLieferdatum').value = ''; }
-    } else { document.getElementById('editLieferdatum').value = ''; }
+  // Neue Variante: liest alle Felder sicher aus data-* Attributen
+  function openEditModalEl(btn) {
+    const d = btn.dataset;
+    document.getElementById('editId').value             = d.itemId;
+    document.getElementById('editMaterialType').value   = decodeURIComponent(d.itemMaterial || 'baustahl');
+    document.getElementById('editBezeichnung').value    = decodeURIComponent(d.itemBezeichnung || '');
+    document.getElementById('editProfil').value         = decodeURIComponent(d.itemProfil || '');
+    document.getElementById('editAbmessung').value      = decodeURIComponent(d.itemAbmessung || '');
+    document.getElementById('editMenge').value          = d.itemMenge || '';
+    document.getElementById('editEinheit').value        = decodeURIComponent(d.itemEinheit || 'Stk');
+    document.getElementById('editLsnr').value           = decodeURIComponent(d.itemLsnr || '');
+    document.getElementById('editNotiz').value          = decodeURIComponent(d.itemNotiz || '');
+    document.getElementById('editMindestbestand').value = d.itemMindestbestand || '';
+    document.getElementById('editLagerort').value       = decodeURIComponent(d.itemLagerort || '');
+    document.getElementById('editLieferdatum').value    = d.itemLieferdatum || '';
     document.getElementById('editModal').classList.remove('hidden');
+  }
+  // Alte Variante für Rückwärtskompatibilität (nicht mehr genutzt, bleibt aber erhalten)
+  function openEditModal(btn) {
+    try {
+      const item = JSON.parse(btn.dataset.item);
+      document.getElementById('editId').value            = item.id;
+      document.getElementById('editMaterialType').value  = item.material_type || 'baustahl';
+      document.getElementById('editBezeichnung').value   = item.bezeichnung || '';
+      document.getElementById('editProfil').value        = item.profil || '';
+      document.getElementById('editAbmessung').value     = item.abmessung || '';
+      document.getElementById('editMenge').value         = item.menge || '';
+      document.getElementById('editEinheit').value       = item.einheit || 'Stk';
+      document.getElementById('editLsnr').value          = item.lieferschein_nr || '';
+      document.getElementById('editNotiz').value         = item.notiz || '';
+      document.getElementById('editMindestbestand').value = item.mindestbestand || '';
+      document.getElementById('editLagerort').value      = item.lagerort || '';
+      document.getElementById('editLieferdatum').value   = item.lieferdatum ? item.lieferdatum.slice(0,10) : '';
+      document.getElementById('editModal').classList.remove('hidden');
+    } catch(e) { console.error('openEditModal Fehler:', e); }
   }
 
   // ── Scan-Modal ──────────────────────────────────────────────────────────────
