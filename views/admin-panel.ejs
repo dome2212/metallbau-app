@@ -1037,19 +1037,24 @@
       <% if (tab === 'lager') {
         let customTabs = [];
         try { customTabs = JSON.parse(firma.lager_custom_tabs || '[]'); } catch(e) {}
+        const colorDefs = [
+          ['blue','Blau'],['violet','Violett'],['emerald','Grün'],['amber','Gelb'],
+          ['rose','Rosa'],['slate','Grau'],['orange','Orange'],['cyan','Cyan']
+        ];
       %>
       <form action="/admin/panel/lager" method="POST" class="space-y-6">
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🏭 Eigene Lagerkategorien</h2>
-          <p class="text-xs text-slate-400 dark:text-slate-500 mb-5">
-            Füge hier eigene Tabs zur Lagerliste hinzu – z.B. „Aluminium", „Farben &amp; Lacke" oder „Werkzeuge".
-            Die Standard-Tabs (Baustahl, Edelstahl, Schrauben, Entnahmen, Reststücke) bleiben immer vorhanden.
-          </p>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
+          <div class="border-b dark:border-slate-700 pb-3">
+            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">🏭 Eigene Lagerkategorien</h2>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              Tabs neben den Standard-Tabs (Baustahl, Edelstahl …) hinzufügen – z.B. „Aluminium" oder „Werkzeuge".
+            </p>
+          </div>
 
-          <!-- Bestehende Standard-Tabs (info, nicht editierbar) -->
-          <div class="mb-5">
-            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Standard-Tabs (fest)</p>
+          <!-- Standard-Tabs Info -->
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Standard-Tabs (fest, nicht änderbar)</p>
             <div class="flex flex-wrap gap-2">
               <% for (const [icon, label] of [['🔩','Baustahl'],['✨','Edelstahl'],['🔧','Schrauben'],['📤','Entnahmen'],['✂️','Reststücke']]) { %>
               <span class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
@@ -1059,8 +1064,8 @@
             </div>
           </div>
 
-          <!-- Eigene Tabs -->
-          <div class="mb-3">
+          <!-- Tab-Liste -->
+          <div>
             <div class="flex items-center justify-between mb-3">
               <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Eigene Tabs</p>
               <button type="button" onclick="addLagerTabRow()"
@@ -1069,70 +1074,80 @@
               </button>
             </div>
 
-            <!-- Spalten-Header -->
-            <div class="grid gap-2 mb-2 px-0.5 hidden md:grid" style="grid-template-columns:2rem 2fr 3fr 1fr 5rem 2rem">
-              <span></span>
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">Icon & Bezeichnung</span>
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">Key (URL)</span>
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">Farbe</span>
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">Vorschau</span>
-              <span></span>
-            </div>
-
-            <div id="lagerTabsContainer" class="space-y-2">
+            <div id="lagerTabsContainer" class="space-y-3">
               <% if (customTabs.length === 0) { %>
               <p id="lagerTabsEmpty" class="text-sm text-slate-400 dark:text-slate-500 italic py-2">
-                Noch keine eigenen Tabs angelegt. Klicke auf „+ Tab hinzufügen".
+                Noch keine eigenen Tabs. Klicke auf „+ Tab hinzufügen".
               </p>
               <% } %>
-              <% for (const ct of customTabs) { %>
-              <div class="lager-tab-row flex flex-col md:grid gap-2 items-start md:items-center bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-3 md:p-0 md:bg-transparent md:border-0 md:rounded-none"
-                   style="grid-template-columns:2rem 2fr 3fr 1fr 5rem 2rem" draggable="true">
-                <!-- Drag-Handle -->
-                <span class="drag-handle hidden md:flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing text-xl select-none" title="Reihenfolge verschieben">⠿</span>
-                <!-- Icon + Label -->
-                <div class="flex gap-2 w-full md:contents">
-                  <input type="text" name="tab_icon" value="<%= ct.icon %>" maxlength="4" placeholder="📦"
-                    class="w-14 shrink-0 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none"
-                    oninput="updatePreviewBadge(this)">
-                  <input type="text" name="tab_label" value="<%= ct.label %>" required placeholder="z.B. Aluminium"
-                    class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    oninput="updatePreviewBadge(this)">
+              <% for (const ct of customTabs) {
+                const previewCls = ({blue:'border-blue-500 text-blue-600',violet:'border-violet-500 text-violet-600',emerald:'border-emerald-500 text-emerald-600',amber:'border-amber-500 text-amber-600',rose:'border-rose-500 text-rose-600',slate:'border-slate-500 text-slate-600',orange:'border-orange-500 text-orange-600',cyan:'border-cyan-500 text-cyan-600'})[ct.color] || 'border-blue-500 text-blue-600';
+              %>
+              <div class="lager-tab-row bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4 space-y-3" draggable="true">
+                <!-- Zeilen-Header: Vorschau + Drag + Löschen -->
+                <div class="flex items-center gap-3">
+                  <span class="drag-handle text-slate-300 dark:text-slate-500 hover:text-slate-500 cursor-grab active:cursor-grabbing text-xl select-none leading-none" title="Reihenfolge verschieben">⠿</span>
+                  <span class="tab-preview flex-1 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border-2 w-fit <%= previewCls %>">
+                    <%= ct.icon %> <%= ct.label %>
+                  </span>
+                  <button type="button" onclick="removeLagerTabRow(this)"
+                    class="ml-auto text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition" title="Tab löschen">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
                 </div>
-                <!-- Key -->
-                <input type="text" name="tab_key" value="<%= ct.key %>" placeholder="aluminium" data-user-edited="1"
-                  class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none">
-                <!-- Farbe -->
-                <select name="tab_color"
-                  class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  style="color-scheme:dark" onchange="updatePreviewBadge(this)">
-                  <% for (const [val,lbl] of [['blue','Blau'],['violet','Violett'],['emerald','Grün'],['amber','Gelb'],['rose','Rosa'],['slate','Grau'],['orange','Orange'],['cyan','Cyan']]) { %>
-                  <option value="<%= val %>" <%= ct.color === val ? 'selected' : '' %>><%= lbl %></option>
-                  <% } %>
-                </select>
-                <!-- Vorschau -->
-                <span class="tab-preview px-2.5 py-1 rounded-full text-xs font-semibold border-2 <%= {blue:'border-blue-500 text-blue-600',violet:'border-violet-500 text-violet-600',emerald:'border-emerald-500 text-emerald-600',amber:'border-amber-500 text-amber-600',rose:'border-rose-500 text-rose-600',slate:'border-slate-500 text-slate-600',orange:'border-orange-500 text-orange-600',cyan:'border-cyan-500 text-cyan-600'}[ct.color] || 'border-blue-500 text-blue-600' %>">
-                  <%= ct.icon %> <%= ct.label %>
-                </span>
-                <!-- Löschen -->
-                <button type="button" onclick="removeLagerTabRow(this)"
-                  class="self-start md:self-auto text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition" title="Tab löschen">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
+                <!-- Felder -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- Icon mit Emoji-Picker -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Icon</label>
+                    <div class="flex gap-2">
+                      <input type="text" name="tab_icon" value="<%= ct.icon %>" maxlength="4" placeholder="📦"
+                        class="w-16 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-base text-center focus:ring-2 focus:ring-blue-500 outline-none"
+                        oninput="updatePreviewBadge(this)" readonly>
+                      <button type="button" onclick="openEmojiPicker(this)"
+                        class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-left">
+                        😊 Emoji wählen…
+                      </button>
+                    </div>
+                  </div>
+                  <!-- Bezeichnung -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Bezeichnung *</label>
+                    <input type="text" name="tab_label" value="<%= ct.label %>" required placeholder="z.B. Aluminium"
+                      class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                      oninput="updatePreviewBadge(this)">
+                  </div>
+                  <!-- Key -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Key <span class="font-normal text-slate-400">(URL-Slug, nicht mehr ändern nach erstem Speichern)</span></label>
+                    <input type="text" name="tab_key" value="<%= ct.key %>" placeholder="aluminium" data-user-edited="1"
+                      class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                  <!-- Farbe -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Farbe</label>
+                    <div class="flex gap-1.5 flex-wrap">
+                      <% for (const [val] of colorDefs) { %>
+                      <label class="cursor-pointer">
+                        <input type="radio" name="tab_color_<%= ct.key %>_fake" value="<%= val %>"
+                          class="sr-only color-radio" <%= ct.color === val ? 'checked' : '' %>
+                          onchange="selectColor(this)">
+                        <input type="hidden" name="tab_color" value="<%= ct.color %>">
+                        <span class="color-dot block w-6 h-6 rounded-full border-2 <%= ct.color === val ? 'border-slate-700 dark:border-white scale-110' : 'border-transparent' %> transition-all
+                          bg-<%= val %>-500" style="background:var(--dot-<%= val %>)"></span>
+                      </label>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
               </div>
               <% } %>
             </div>
-
-            <button type="button" onclick="addLagerTabRow()"
-              class="mt-3 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium md:hidden">
-              + Weiteren Tab hinzufügen
-            </button>
           </div>
 
           <!-- Hinweis -->
-          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
-            <p><strong>⚠️ Hinweis zum Key:</strong> Einmal gespeichert sollte der Key nicht mehr geändert werden — bereits eingelagerte Artikel sind per <code>material_type = key</code> zugeordnet. Eine Änderung macht sie in diesem Tab unsichtbar.</p>
-            <p>Der Key wird beim Tippen der Bezeichnung automatisch generiert (Kleinbuchstaben, keine Sonderzeichen).</p>
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+            ⚠️ Den <strong>Key</strong> nach dem ersten Speichern nicht mehr ändern — bereits eingelagerte Artikel sind dem Key fest zugeordnet.
           </div>
         </div>
 
@@ -1143,8 +1158,51 @@
         </div>
       </form>
 
+      <!-- ── Emoji-Picker Popup ──────────────────────────────────────────────── -->
+      <div id="emojiPickerPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50"
+           onclick="if(event.target===this)closeEmojiPicker()">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-4" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-800 dark:text-gray-100">😊 Emoji wählen</h3>
+            <button onclick="closeEmojiPicker()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+          </div>
+          <!-- Suchfeld -->
+          <input id="emojiSearch" type="text" placeholder="Suchen… z.B. metal, box, tool"
+            class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
+            oninput="filterEmojis(this.value)">
+          <!-- Kategorien -->
+          <div class="flex gap-1 mb-3 flex-wrap">
+            <% for (const cat of ['Alle','Werkzeug','Material','Transport','Gebäude','Natur','Symbole']) { %>
+            <button type="button" onclick="filterEmojiCat(this,'<%= cat %>')"
+              class="emoji-cat-btn text-xs px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition <%= cat === 'Alle' ? 'bg-blue-600 text-white border-blue-600' : '' %>">
+              <%= cat %>
+            </button>
+            <% } %>
+          </div>
+          <!-- Grid -->
+          <div id="emojiGrid" class="grid grid-cols-8 gap-0.5 max-h-56 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <style>
+        :root {
+          --dot-blue:#3b82f6; --dot-violet:#8b5cf6; --dot-emerald:#10b981;
+          --dot-amber:#f59e0b; --dot-rose:#f43f5e; --dot-slate:#64748b;
+          --dot-orange:#f97316; --dot-cyan:#06b6d4;
+        }
+        .color-dot { transition: transform .1s, border-color .1s; }
+        .color-dot:hover { transform: scale(1.15); }
+        .emoji-btn {
+          font-size: 1.4rem; line-height:1; padding:.25rem;
+          border-radius:.4rem; cursor:pointer; transition: background .1s;
+          border:none; background:transparent;
+        }
+        .emoji-btn:hover { background: rgba(0,0,0,.06); }
+        .dark .emoji-btn:hover { background: rgba(255,255,255,.08); }
+      </style>
+
       <script>
-      // ── Farb-Klassen für Live-Vorschau ──────────────────────────────────────
+      // ── Farbdefinitionen ──────────────────────────────────────────────────
       const LAGER_COLOR_CLASSES = {
         blue:    'border-blue-500 text-blue-600',
         violet:  'border-violet-500 text-violet-600',
@@ -1155,54 +1213,182 @@
         orange:  'border-orange-500 text-orange-600',
         cyan:    'border-cyan-500 text-cyan-600',
       };
+      const COLOR_HEX = {
+        blue:'#3b82f6', violet:'#8b5cf6', emerald:'#10b981',
+        amber:'#f59e0b', rose:'#f43f5e', slate:'#64748b',
+        orange:'#f97316', cyan:'#06b6d4'
+      };
+
+      // ── Emoji-Daten ───────────────────────────────────────────────────────
+      const EMOJI_DATA = [
+        // Werkzeug
+        {e:'🔧',c:'Werkzeug'},{e:'🔨',c:'Werkzeug'},{e:'⚙️',c:'Werkzeug'},{e:'🔩',c:'Werkzeug'},
+        {e:'🪛',c:'Werkzeug'},{e:'🪚',c:'Werkzeug'},{e:'⛏️',c:'Werkzeug'},{e:'🪝',c:'Werkzeug'},
+        {e:'🗜️',c:'Werkzeug'},{e:'🔗',c:'Werkzeug'},{e:'📐',c:'Werkzeug'},{e:'📏',c:'Werkzeug'},
+        {e:'✂️',c:'Werkzeug'},{e:'🔬',c:'Werkzeug'},{e:'💡',c:'Werkzeug'},{e:'🔌',c:'Werkzeug'},
+        // Material
+        {e:'🪨',c:'Material'},{e:'🧱',c:'Material'},{e:'🔷',c:'Material'},{e:'🔶',c:'Material'},
+        {e:'⬛',c:'Material'},{e:'⬜',c:'Material'},{e:'🟦',c:'Material'},{e:'🟨',c:'Material'},
+        {e:'🟩',c:'Material'},{e:'🟫',c:'Material'},{e:'🧲',c:'Material'},{e:'💎',c:'Material'},
+        {e:'🪵',c:'Material'},{e:'🪜',c:'Material'},{e:'📦',c:'Material'},{e:'🗄️',c:'Material'},
+        {e:'🧴',c:'Material'},{e:'🪣',c:'Material'},{e:'🧰',c:'Material'},{e:'🪤',c:'Material'},
+        // Transport
+        {e:'🚛',c:'Transport'},{e:'🚚',c:'Transport'},{e:'🚧',c:'Transport'},{e:'🏗️',c:'Transport'},
+        {e:'⚓',c:'Transport'},{e:'🛻',c:'Transport'},{e:'🚜',c:'Transport'},{e:'🚐',c:'Transport'},
+        // Gebäude
+        {e:'🏭',c:'Gebäude'},{e:'🏠',c:'Gebäude'},{e:'🏢',c:'Gebäude'},{e:'🏗️',c:'Gebäude'},
+        {e:'🚪',c:'Gebäude'},{e:'🪟',c:'Gebäude'},{e:'🏚️',c:'Gebäude'},{e:'⛩️',c:'Gebäude'},
+        // Natur
+        {e:'🌿',c:'Natur'},{e:'🌱',c:'Natur'},{e:'🔥',c:'Natur'},{e:'💧',c:'Natur'},
+        {e:'❄️',c:'Natur'},{e:'⚡',c:'Natur'},{e:'🌊',c:'Natur'},{e:'🪴',c:'Natur'},
+        // Symbole
+        {e:'✅',c:'Symbole'},{e:'⚠️',c:'Symbole'},{e:'🔴',c:'Symbole'},{e:'🟡',c:'Symbole'},
+        {e:'🟢',c:'Symbole'},{e:'⭐',c:'Symbole'},{e:'🏷️',c:'Symbole'},{e:'📌',c:'Symbole'},
+        {e:'📎',c:'Symbole'},{e:'🗂️',c:'Symbole'},{e:'📋',c:'Symbole'},{e:'🔖',c:'Symbole'},
+        {e:'💼',c:'Symbole'},{e:'📊',c:'Symbole'},{e:'🔐',c:'Symbole'},{e:'🔑',c:'Symbole'},
+      ];
+
+      let _emojiTargetInput = null;
+      let _currentEmojiCat  = 'Alle';
+
+      function openEmojiPicker(btn) {
+        _emojiTargetInput = btn.closest('.flex').querySelector('input[name="tab_icon"]');
+        document.getElementById('emojiSearch').value = '';
+        _currentEmojiCat = 'Alle';
+        document.querySelectorAll('.emoji-cat-btn').forEach(b => {
+          b.classList.toggle('bg-blue-600', b.textContent.trim() === 'Alle');
+          b.classList.toggle('text-white',  b.textContent.trim() === 'Alle');
+          b.classList.toggle('border-blue-600', b.textContent.trim() === 'Alle');
+        });
+        renderEmojiGrid('');
+        document.getElementById('emojiPickerPopup').classList.remove('hidden');
+        document.getElementById('emojiSearch').focus();
+      }
+
+      function closeEmojiPicker() {
+        document.getElementById('emojiPickerPopup').classList.add('hidden');
+        _emojiTargetInput = null;
+      }
+
+      function pickEmoji(emoji) {
+        if (!_emojiTargetInput) return;
+        _emojiTargetInput.value = emoji;
+        _emojiTargetInput.dispatchEvent(new Event('input'));
+        closeEmojiPicker();
+      }
+
+      function renderEmojiGrid(search) {
+        const grid = document.getElementById('emojiGrid');
+        const q    = search.toLowerCase();
+        let list   = EMOJI_DATA;
+        if (_currentEmojiCat !== 'Alle') list = list.filter(d => d.c === _currentEmojiCat);
+        if (q) list = list.filter(d => d.e.includes(q) || d.c.toLowerCase().includes(q));
+        grid.innerHTML = list.map(d =>
+          `<button type="button" class="emoji-btn" onclick="pickEmoji('${d.e}')" title="${d.c}">${d.e}</button>`
+        ).join('');
+      }
+
+      function filterEmojis(val) { renderEmojiGrid(val); }
+
+      function filterEmojiCat(btn, cat) {
+        _currentEmojiCat = cat;
+        document.querySelectorAll('.emoji-cat-btn').forEach(b => {
+          const active = b === btn;
+          b.classList.toggle('bg-blue-600',    active);
+          b.classList.toggle('text-white',     active);
+          b.classList.toggle('border-blue-600',active);
+        });
+        renderEmojiGrid(document.getElementById('emojiSearch').value);
+      }
 
       // ── Vorschau-Badge live aktualisieren ──────────────────────────────────
       function updatePreviewBadge(changedInput) {
         const row     = changedInput.closest('.lager-tab-row');
         const iconEl  = row.querySelector('input[name="tab_icon"]');
         const labelEl = row.querySelector('input[name="tab_label"]');
-        const colorEl = row.querySelector('select[name="tab_color"]');
         const badge   = row.querySelector('.tab-preview');
+        // Farbe aus dem aktiven Radio ermitteln
+        const activeRadio = row.querySelector('.color-radio:checked');
+        const color = activeRadio?.value || row.querySelector('input[name="tab_color"]')?.value || 'blue';
         if (!badge) return;
         badge.textContent = (iconEl?.value || '📦') + ' ' + (labelEl?.value || '…');
-        const cls = LAGER_COLOR_CLASSES[colorEl?.value] || LAGER_COLOR_CLASSES.blue;
-        badge.className = 'tab-preview px-2.5 py-1 rounded-full text-xs font-semibold border-2 ' + cls;
+        const cls = LAGER_COLOR_CLASSES[color] || LAGER_COLOR_CLASSES.blue;
+        badge.className = 'tab-preview flex-1 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border-2 w-fit ' + cls;
+      }
+
+      // ── Farb-Radio auswählen ───────────────────────────────────────────────
+      function selectColor(radio) {
+        // Hidden-Input mit tab_color befüllen
+        const row       = radio.closest('.lager-tab-row');
+        const hidden    = row.querySelector('input[name="tab_color"]');
+        if (hidden) hidden.value = radio.value;
+        // Dots hervorheben
+        row.querySelectorAll('.color-dot').forEach(dot => {
+          const r = dot.previousElementSibling; // das zugehörige Radio
+          dot.classList.toggle('border-slate-700', r?.checked);
+          dot.classList.toggle('dark:border-white', r?.checked);
+          dot.classList.toggle('scale-110', r?.checked);
+          dot.classList.toggle('border-transparent', !r?.checked);
+        });
+        updatePreviewBadge(radio);
       }
 
       // ── Neue Tab-Zeile hinzufügen ──────────────────────────────────────────
       function addLagerTabRow() {
-        // Leer-Hinweis ausblenden
         const empty = document.getElementById('lagerTabsEmpty');
         if (empty) empty.remove();
-
         const container = document.getElementById('lagerTabsContainer');
-        const colorOpts = [['blue','Blau'],['violet','Violett'],['emerald','Grün'],['amber','Gelb'],['rose','Rosa'],['slate','Grau'],['orange','Orange'],['cyan','Cyan']]
-          .map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+        const colorDots = ['blue','violet','emerald','amber','rose','slate','orange','cyan'].map((c,i) =>
+          `<label class="cursor-pointer">
+            <input type="radio" name="tab_color_new_${Date.now()}_fake" value="${c}"
+              class="sr-only color-radio" ${i===0?'checked':''} onchange="selectColor(this)">
+            <input type="hidden" name="tab_color" value="${i===0?c:''}">
+            <span class="color-dot block w-6 h-6 rounded-full border-2 ${i===0?'border-slate-700 scale-110':'border-transparent'} transition-all"
+              style="background:${COLOR_HEX[c]}"></span>
+          </label>`
+        ).join('');
 
         const row = document.createElement('div');
-        row.className = 'lager-tab-row flex flex-col md:grid gap-2 items-start md:items-center bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-3 md:p-0 md:bg-transparent md:border-0 md:rounded-none';
-        row.style.gridTemplateColumns = '2rem 2fr 3fr 1fr 5rem 2rem';
-        row.setAttribute('draggable', 'true');
+        row.className = 'lager-tab-row bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4 space-y-3';
+        row.setAttribute('draggable','true');
         row.innerHTML = `
-          <span class="drag-handle hidden md:flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing text-xl select-none" title="Reihenfolge verschieben">⠿</span>
-          <div class="flex gap-2 w-full md:contents">
-            <input type="text" name="tab_icon" value="📦" maxlength="4" placeholder="📦"
-              class="w-14 shrink-0 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none"
-              oninput="updatePreviewBadge(this)">
-            <input type="text" name="tab_label" required placeholder="z.B. Aluminium"
-              class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              oninput="autoFillKey(this); updatePreviewBadge(this)">
+          <div class="flex items-center gap-3">
+            <span class="drag-handle text-slate-300 dark:text-slate-500 hover:text-slate-500 cursor-grab active:cursor-grabbing text-xl select-none leading-none">⠿</span>
+            <span class="tab-preview flex-1 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border-2 w-fit border-blue-500 text-blue-600">📦 …</span>
+            <button type="button" onclick="removeLagerTabRow(this)"
+              class="ml-auto text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
           </div>
-          <input type="text" name="tab_key" placeholder="aluminium"
-            class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none">
-          <select name="tab_color"
-            class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            style="color-scheme:dark" onchange="updatePreviewBadge(this)">${colorOpts}</select>
-          <span class="tab-preview px-2.5 py-1 rounded-full text-xs font-semibold border-2 border-blue-500 text-blue-600">📦 …</span>
-          <button type="button" onclick="removeLagerTabRow(this)"
-            class="self-start md:self-auto text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition" title="Tab löschen">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-          </button>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Icon</label>
+              <div class="flex gap-2">
+                <input type="text" name="tab_icon" value="📦" maxlength="4" placeholder="📦"
+                  class="w-16 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-2 py-2 text-base text-center focus:ring-2 focus:ring-blue-500 outline-none"
+                  oninput="updatePreviewBadge(this)" readonly>
+                <button type="button" onclick="openEmojiPicker(this)"
+                  class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-left">
+                  😊 Emoji wählen…
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Bezeichnung *</label>
+              <input type="text" name="tab_label" required placeholder="z.B. Aluminium"
+                class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                oninput="autoFillKey(this); updatePreviewBadge(this)">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Key</label>
+              <input type="text" name="tab_key" placeholder="aluminium"
+                class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Farbe</label>
+              <div class="flex gap-1.5 flex-wrap">${colorDots}</div>
+            </div>
+          </div>
         `;
         container.appendChild(row);
         row.querySelector('input[name="tab_label"]').focus();
@@ -1213,18 +1399,18 @@
       function removeLagerTabRow(btn) {
         const row   = btn.closest('.lager-tab-row');
         const label = row.querySelector('input[name="tab_label"]')?.value?.trim();
-        if (label && !confirm(`Tab „${label}" wirklich löschen?\n\nDies entfernt den Tab aus der Liste. Bereits eingelagerte Artikel dieses Typs bleiben in der Datenbank, sind aber in keinem Tab mehr sichtbar.`)) return;
+        if (label && !confirm(`Tab „${label}" wirklich löschen?\n\nBereits eingelagerte Artikel dieses Typs bleiben in der Datenbank, sind aber in keinem Tab mehr sichtbar.`)) return;
         row.remove();
-        if (document.querySelectorAll('.lager-tab-row').length === 0) {
+        if (!document.querySelector('.lager-tab-row')) {
           const p = document.createElement('p');
           p.id = 'lagerTabsEmpty';
           p.className = 'text-sm text-slate-400 dark:text-slate-500 italic py-2';
-          p.textContent = 'Noch keine eigenen Tabs angelegt. Klicke auf „+ Tab hinzufügen".';
+          p.textContent = 'Noch keine eigenen Tabs. Klicke auf „+ Tab hinzufügen".';
           document.getElementById('lagerTabsContainer').appendChild(p);
         }
       }
 
-      // ── Key auto-generieren aus Label ─────────────────────────────────────
+      // ── Key auto-generieren ────────────────────────────────────────────────
       function autoFillKey(labelInput) {
         const row      = labelInput.closest('.lager-tab-row');
         const keyInput = row.querySelector('input[name="tab_key"]');
@@ -1237,35 +1423,29 @@
         if (e.target.name === 'tab_key') e.target.dataset.userEdited = '1';
       });
 
-      // ── Drag & Drop Reihenfolge ────────────────────────────────────────────
+      // ── Drag & Drop ────────────────────────────────────────────────────────
       let _dragSrc = null;
       function initDragDrop() {
         document.querySelectorAll('.lager-tab-row[draggable]').forEach(row => {
           row.addEventListener('dragstart', e => {
-            _dragSrc = row;
-            e.dataTransfer.effectAllowed = 'move';
-            row.style.opacity = '0.4';
+            _dragSrc = row; e.dataTransfer.effectAllowed = 'move'; row.style.opacity = '0.4';
           });
           row.addEventListener('dragend', () => {
             row.style.opacity = '';
             document.querySelectorAll('.lager-tab-row').forEach(r => r.classList.remove('ring-2','ring-blue-400'));
           });
           row.addEventListener('dragover', e => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
+            e.preventDefault(); e.dataTransfer.dropEffect = 'move';
             if (row !== _dragSrc) row.classList.add('ring-2','ring-blue-400');
           });
           row.addEventListener('dragleave', () => row.classList.remove('ring-2','ring-blue-400'));
           row.addEventListener('drop', e => {
-            e.preventDefault();
-            row.classList.remove('ring-2','ring-blue-400');
+            e.preventDefault(); row.classList.remove('ring-2','ring-blue-400');
             if (_dragSrc && _dragSrc !== row) {
-              const container = document.getElementById('lagerTabsContainer');
-              const rows = [...container.querySelectorAll('.lager-tab-row')];
-              const srcIdx  = rows.indexOf(_dragSrc);
-              const destIdx = rows.indexOf(row);
-              if (srcIdx < destIdx) container.insertBefore(_dragSrc, row.nextSibling);
-              else                  container.insertBefore(_dragSrc, row);
+              const cont = document.getElementById('lagerTabsContainer');
+              const all  = [...cont.querySelectorAll('.lager-tab-row')];
+              if (all.indexOf(_dragSrc) < all.indexOf(row)) cont.insertBefore(_dragSrc, row.nextSibling);
+              else cont.insertBefore(_dragSrc, row);
             }
           });
         });
