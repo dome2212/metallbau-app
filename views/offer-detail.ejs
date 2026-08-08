@@ -1,0 +1,303 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+  <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+    <div>
+      <a href="/documents/offers" class="text-xs text-gray-400 hover:text-blue-600 dark:text-slate-500 dark:hover:text-blue-400 mb-1 inline-flex items-center gap-1">
+        ← Zurück zur Übersicht
+      </a>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
+        📋 <%= offer.doc_number %>
+      </h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        <%= offer.company_name || offer.contact_person || 'Privat' %> ·
+        <%= new Date(offer.created_at).toLocaleDateString('de-DE') %>
+      </p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <a href="/documents/offers/<%= offer.id %>/pdf-download" download
+        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600">
+        ⬇️ PDF herunterladen
+      </a>
+      <% if (offer.status !== 'ANGENOMMEN') { %>
+      <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
+        <input type="hidden" name="offer_id" value="<%= offer.id %>">
+        <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold">🔄 In Rechnung umwandeln</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- ── Erfolgs-Banner ─────────────────────────────────────────────────────── -->
+  <% if (savedMsg === 'nachtrag') { %>
+  <div class="px-4 md:px-6 mb-3">
+    <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300 font-semibold">
+      ✅ Nachtrag wurde angelegt. Freigabe-Link bereit.
+    </div>
+  </div>
+  <% } %>
+
+  <div class="px-4 md:px-6 pb-10 w-full max-w-5xl mx-auto space-y-6">
+
+    <!-- ── Angebots-Positionen ────────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 class="text-base font-bold text-gray-800 dark:text-gray-100">Angebotspositionen</h2>
+        <% if (offer.status === 'ANGENOMMEN') { %>
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Angenommen</span>
+        <% } else if (offer.status === 'ABGELEHNT') { %>
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Abgelehnt</span>
+        <% } else { %>
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Offen / Gesendet</span>
+        <% } %>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[500px]">
+          <thead class="bg-gray-50 dark:bg-slate-700 text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-slate-600">
+            <tr>
+              <th class="px-4 py-3">Beschreibung</th>
+              <th class="px-4 py-3 text-right">Menge</th>
+              <th class="px-4 py-3">Einheit</th>
+              <% if (canSeeMoney) { %>
+              <th class="px-4 py-3 text-right">EP €</th>
+              <th class="px-4 py-3 text-right">GP €</th>
+              <% } %>
+            </tr>
+          </thead>
+          <tbody>
+            <% items.forEach(item => { %>
+            <tr class="border-b dark:border-slate-700 text-sm">
+              <td class="px-4 py-3 text-gray-800 dark:text-gray-100"><%= item.description %></td>
+              <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"><%= Number(item.quantity).toLocaleString('de-DE') %></td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400"><%= item.unit %></td>
+              <% if (canSeeMoney) { %>
+              <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"><%= Number(item.price).toFixed(2) %></td>
+              <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100"><%= (Number(item.quantity) * Number(item.price)).toFixed(2) %></td>
+              <% } %>
+            </tr>
+            <% }); %>
+          </tbody>
+          <% if (canSeeMoney) { %>
+          <tfoot class="border-t-2 border-gray-200 dark:border-slate-600">
+            <tr class="text-sm">
+              <td colspan="4" class="px-4 py-2 text-right text-gray-500 dark:text-gray-400">Netto:</td>
+              <td class="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-100"><%= Number(offer.subtotal || 0).toFixed(2) %> €</td>
+            </tr>
+            <tr class="text-sm">
+              <td colspan="4" class="px-4 py-1 text-right text-gray-400 dark:text-gray-500">MwSt. <%= Number(offer.tax_rate || 19).toFixed(0) %>%:</td>
+              <td class="px-4 py-1 text-right text-gray-500 dark:text-gray-400"><%= Number(offer.tax_amount || 0).toFixed(2) %> €</td>
+            </tr>
+            <tr class="text-base font-bold">
+              <td colspan="4" class="px-4 py-3 text-right text-gray-800 dark:text-gray-100">Gesamt (Brutto):</td>
+              <td class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400"><%= Number(offer.total_amount || 0).toFixed(2) %> €</td>
+            </tr>
+          </tfoot>
+          <% } %>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ NACHTRÄGE ════════════════════════════════════════════════════════════ -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-gray-800 dark:text-gray-100">📝 Nachtrags-Management</h2>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Zusatzleistungen direkt zum Angebot erfassen und vom Kunden freigeben lassen</p>
+        </div>
+        <button onclick="document.getElementById('nachtragModal').classList.remove('hidden')"
+          class="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-semibold whitespace-nowrap">
+          + Nachtrag anlegen
+        </button>
+      </div>
+
+      <% if (nachtraege.length === 0) { %>
+      <div class="text-center py-10">
+        <p class="text-3xl mb-2">📋</p>
+        <p class="text-sm text-gray-400 dark:text-slate-500">Noch keine Nachträge für dieses Angebot</p>
+      </div>
+      <% } else { %>
+      <div class="divide-y divide-gray-100 dark:divide-slate-700">
+        <% nachtraege.forEach(n => {
+          const statusColor = n.status === 'Freigegeben' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : n.status === 'Gesendet'    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                            : n.status === 'Abgelehnt'   ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                            : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400';
+          const freigabeUrl = baseUrl + '/documents/nachtrag/approve/' + n.freigabe_token;
+        %>
+        <div class="px-5 py-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100"><%= n.titel %></span>
+                <span class="px-2 py-0.5 text-xs font-semibold rounded-full <%= statusColor %>"><%= n.status %></span>
+                <% if (canSeeMoney) { %>
+                <span class="text-sm font-semibold text-orange-600 dark:text-orange-400"><%= Number(n.betrag_netto).toFixed(2) %> € netto</span>
+                <% } %>
+              </div>
+              <% if (n.beschreibung) { %><p class="text-xs text-gray-500 dark:text-gray-400 mb-2"><%= n.beschreibung %></p><% } %>
+
+              <!-- Positionen -->
+              <% if (n.items && n.items.length > 0) { %>
+              <div class="overflow-x-auto mb-2">
+                <table class="w-full text-xs text-left min-w-[400px]">
+                  <thead class="text-gray-400 dark:text-gray-500">
+                    <tr><th class="pb-1 pr-4">Beschreibung</th><th class="pb-1 pr-4 text-right">Menge</th><th class="pb-1 pr-4">Einheit</th><% if (canSeeMoney) { %><th class="pb-1 text-right">GP €</th><% } %></tr>
+                  </thead>
+                  <tbody class="text-gray-600 dark:text-gray-300">
+                    <% n.items.forEach(i => { %>
+                    <tr>
+                      <td class="py-0.5 pr-4"><%= i.beschreibung %></td>
+                      <td class="py-0.5 pr-4 text-right"><%= Number(i.menge).toLocaleString('de-DE') %></td>
+                      <td class="py-0.5 pr-4"><%= i.einheit %></td>
+                      <% if (canSeeMoney) { %><td class="py-0.5 text-right font-semibold"><%= (Number(i.menge)*Number(i.preis)).toFixed(2) %></td><% } %>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+              <% } %>
+
+              <!-- Freigabe-Link -->
+              <% if (n.status !== 'Freigegeben' && n.status !== 'Abgelehnt') { %>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <input type="text" value="<%= freigabeUrl %>" readonly id="fl_<%= n.id %>"
+                  class="flex-1 text-xs border border-gray-200 dark:border-slate-600 rounded px-2 py-1 bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400 min-w-0 max-w-md">
+                <button onclick="navigator.clipboard.writeText(document.getElementById('fl_<%= n.id %>').value).then(()=>alert('Link kopiert!'))"
+                  class="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded border border-blue-200 dark:border-blue-700 whitespace-nowrap">
+                  📋 Link kopieren
+                </button>
+                <% if (n.status === 'Entwurf') { %>
+                <form action="/documents/nachtraege/<%= n.id %>/status" method="POST" class="inline">
+                  <input type="hidden" name="status" value="Gesendet">
+                  <input type="hidden" name="document_id" value="<%= offer.id %>">
+                  <button type="submit" class="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded border border-blue-700 whitespace-nowrap">✉️ Als gesendet markieren</button>
+                </form>
+                <% } %>
+              </div>
+              <% } %>
+              <% if (n.status === 'Freigegeben' && n.freigegeben_am) { %>
+              <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✅ Freigegeben am <%= new Date(n.freigegeben_am).toLocaleDateString('de-DE') %></p>
+              <% } %>
+              <p class="text-[10px] text-gray-400 mt-1">Erstellt von <%= n.ersteller || '–' %> · <%= new Date(n.created_at).toLocaleDateString('de-DE') %></p>
+            </div>
+
+            <!-- Aktionen -->
+            <div class="flex-shrink-0 flex flex-col gap-1">
+              <% if (n.status === 'Entwurf') { %>
+              <form action="/documents/nachtraege/<%= n.id %>/status" method="POST" class="inline">
+                <input type="hidden" name="status" value="Abgelehnt">
+                <input type="hidden" name="document_id" value="<%= offer.id %>">
+                <button type="submit" class="text-xs px-2 py-1 bg-gray-50 hover:bg-red-50 text-red-500 rounded border border-gray-200 dark:border-slate-600 w-full">Ablehnen</button>
+              </form>
+              <% } %>
+              <form action="/documents/nachtraege/<%= n.id %>/delete" method="POST" onsubmit="return confirm('Nachtrag wirklich löschen?');" class="inline">
+                <input type="hidden" name="document_id" value="<%= offer.id %>">
+                <button type="submit" class="text-xs px-2 py-1 bg-gray-50 hover:bg-red-50 text-red-500 rounded border border-gray-200 dark:border-slate-600 w-full">🗑️ Löschen</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+      <% } %>
+    </div>
+
+  </div>
+</main>
+
+<!-- ══ MODAL: NACHTRAG ANLEGEN ════════════════════════════════════════════════ -->
+<div id="nachtragModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+     onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">📝 Nachtrag anlegen</h2>
+      <button onclick="document.getElementById('nachtragModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <form action="/documents/offers/<%= offer.id %>/nachtraege/create" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Nachtrag-Titel *</label>
+        <input type="text" name="titel" required placeholder="z.B. Zusätzliche Zaunfelder Westseite"
+          class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Begründung / Beschreibung</label>
+        <textarea name="beschreibung" rows="2" placeholder="Warum entsteht dieser Nachtrag? (optional)"
+          class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 dark:text-gray-100 resize-none focus:ring-2 focus:ring-orange-500 outline-none"></textarea>
+      </div>
+
+      <!-- Positions-Tabelle -->
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <label class="text-xs font-semibold text-gray-600 dark:text-gray-400">Positionen</label>
+          <button type="button" onclick="addNachtragRow()" class="text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded border dark:border-slate-600">+ Zeile</button>
+        </div>
+        <!-- Spalten-Header -->
+        <div class="grid grid-cols-12 gap-1 mb-1 px-0.5">
+          <span class="col-span-5 text-[10px] text-gray-400 uppercase font-semibold">Beschreibung</span>
+          <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Menge</span>
+          <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Einheit</span>
+          <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Preis €</span>
+          <span class="col-span-1"></span>
+        </div>
+        <div id="nachtragItemsContainer" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Summe -->
+      <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg px-4 py-2 text-sm flex justify-between items-center">
+        <span class="text-gray-600 dark:text-gray-300 font-medium">Netto-Summe:</span>
+        <span id="nachtragTotal" class="font-bold text-orange-700 dark:text-orange-400">0,00 €</span>
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="document.getElementById('nachtragModal').classList.add('hidden')"
+          class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold transition">📝 Nachtrag speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── Nachtrag-Modal Zeile ──────────────────────────────────────────────────────
+function addNachtragRow() {
+  const container = document.getElementById('nachtragItemsContainer');
+  const id = 'nr_' + Date.now();
+  const units = ['Stk','m','Std','kg','m²','Psch'].map(u=>`<option>${u}</option>`).join('');
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${id}" class="grid grid-cols-12 gap-1 items-center">
+      <input type="text" name="item_beschreibung" required placeholder="Beschreibung"
+        class="col-span-5 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
+      <input type="number" name="item_menge" value="1" step="0.01" min="0"
+        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
+      <select name="item_einheit"
+        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">${units}</select>
+      <input type="number" name="item_preis" value="" step="0.01" min="0" placeholder="0.00"
+        class="nr-preis col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
+      <button type="button" onclick="document.getElementById('${id}').remove();updateNachtragTotal()"
+        class="col-span-1 text-red-400 hover:text-red-600 font-bold text-sm text-center">✕</button>
+    </div>
+  `);
+}
+function updateNachtragTotal() {
+  const rows = document.querySelectorAll('#nachtragItemsContainer > div');
+  let sum = 0;
+  rows.forEach(r => {
+    const m = parseFloat(r.querySelectorAll('input[type="number"]')[0]?.value || 0);
+    const p = parseFloat(r.querySelectorAll('input[type="number"]')[1]?.value || 0);
+    sum += m * p;
+  });
+  const el = document.getElementById('nachtragTotal');
+  if (el) el.textContent = sum.toLocaleString('de-DE', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+}
+// Beim Öffnen eine leere Zeile anlegen
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('[onclick="document.getElementById(\'nachtragModal\').classList.remove(\'hidden\')"]');
+  if (btn) btn.addEventListener('click', () => {
+    const c = document.getElementById('nachtragItemsContainer');
+    if (c && c.children.length === 0) addNachtragRow();
+  });
+});
+</script>

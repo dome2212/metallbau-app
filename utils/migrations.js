@@ -264,6 +264,121 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 004 ── Lager: mindestbestand-Spalte + Entnahmen + Reststücke ─────────────
+  {
+    id: 4,
+    description: 'Lager: mindestbestand, lager_entnahmen, lager_reststuecke',
+    async up() {
+      // Mindestbestand-Spalte auf lager_items nachrüsten
+      await safeRaw(`ALTER TABLE lager_items ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} mindestbestand NUMERIC(12,3) DEFAULT 0`);
+      await safeRaw(`ALTER TABLE lager_items ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} lagerort TEXT`);
+
+      // Materialentnahmen (Verbrauch pro Auftrag)
+      await safeRaw(`CREATE TABLE IF NOT EXISTS lager_entnahmen (
+        id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        lager_item_id INT NOT NULL,
+        project_id    INT,
+        user_id       INT,
+        menge         NUMERIC(12,3) NOT NULL,
+        einheit       TEXT DEFAULT 'Stk',
+        notiz         TEXT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Reststücke
+      await safeRaw(`CREATE TABLE IF NOT EXISTS lager_reststuecke (
+        id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        material_type TEXT NOT NULL DEFAULT 'baustahl',
+        bezeichnung   TEXT NOT NULL,
+        profil        TEXT,
+        laenge        TEXT,
+        menge         NUMERIC(12,3) DEFAULT 1,
+        einheit       TEXT DEFAULT 'Stk',
+        lagerort      TEXT,
+        notiz         TEXT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    }
+  },
+
+  // ── 003 ── Interner Baustellen-Chat ──────────────────────────────────────────
+  {
+    id: 3,
+    description: 'Interner Baustellen-Chat (project_chat)',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS project_chat (
+        id         ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        project_id INT NOT NULL,
+        user_id    INT NOT NULL,
+        message    TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    }
+  },
+
+  // ── 005 ── Kalkulationsvorlagen + Nachträge + Stahlpreise ─────────────────────
+  {
+    id: 5,
+    description: 'Kalkulationsvorlagen, Nachtraege, Stahlpreise',
+    async up() {
+
+      // Kalkulationsvorlagen (Baugruppen-Stamm)
+      await safeRaw(`CREATE TABLE IF NOT EXISTS offer_templates (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        name        TEXT NOT NULL,
+        beschreibung TEXT,
+        kategorie   TEXT DEFAULT 'Allgemein',
+        created_by  INT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Positionen der Vorlage
+      await safeRaw(`CREATE TABLE IF NOT EXISTS offer_template_items (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        template_id INT NOT NULL,
+        beschreibung TEXT NOT NULL,
+        menge       NUMERIC(12,3) DEFAULT 1,
+        einheit     TEXT DEFAULT 'Stk',
+        preis       NUMERIC(12,2) DEFAULT 0,
+        sort_order  INT DEFAULT 0
+      )`);
+
+      // Nachträge zu einem Angebot / Auftrag
+      await safeRaw(`CREATE TABLE IF NOT EXISTS offer_nachtraege (
+        id              ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        document_id     INT NOT NULL,
+        titel           TEXT NOT NULL,
+        beschreibung    TEXT,
+        betrag_netto    NUMERIC(12,2) DEFAULT 0,
+        status          TEXT DEFAULT 'Entwurf',
+        freigabe_token  TEXT,
+        freigegeben_am  TIMESTAMP,
+        created_by      INT,
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Positionen eines Nachtrags
+      await safeRaw(`CREATE TABLE IF NOT EXISTS offer_nachtrag_items (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        nachtrag_id INT NOT NULL,
+        beschreibung TEXT NOT NULL,
+        menge       NUMERIC(12,3) DEFAULT 1,
+        einheit     TEXT DEFAULT 'Stk',
+        preis       NUMERIC(12,2) DEFAULT 0
+      )`);
+
+      // Stahlpreise-Cache (täglich aktualisiert)
+      await safeRaw(`CREATE TABLE IF NOT EXISTS steel_prices (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        material    TEXT NOT NULL,
+        preis_100kg NUMERIC(10,2),
+        quelle      TEXT DEFAULT 'manuell',
+        gueltig_am  TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

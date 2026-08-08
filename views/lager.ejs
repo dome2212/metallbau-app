@@ -2,87 +2,176 @@
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────────── -->
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
     <div>
-      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">🏭 Lagerliste</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">Eingangsmaterial aus Lieferscheinen – Baustahl &amp; Edelstahl</p>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">🏭 Lagerverwaltung</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Bestand · Entnahmen · Reststücke</p>
     </div>
-    <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-      <button onclick="openScanModal()"
-        class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-2">
-        📷 Lieferschein scannen
-      </button>
-      <button onclick="openAddModal()"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow text-sm flex items-center justify-center gap-2">
-        + Manuell hinzufügen
-      </button>
+    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+      <% if (tab === 'baustahl' || tab === 'edelstahl') { %>
+        <button onclick="openScanModal()"
+          class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          📷 Lieferschein
+        </button>
+        <button onclick="openAddModal()"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          + Material einlagern
+        </button>
+        <button onclick="openEntnahmeModal()"
+          class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          ↓ Entnahme buchen
+        </button>
+      <% } %>
+      <% if (tab === 'entnahmen') { %>
+        <button onclick="openEntnahmeModal()"
+          class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          ↓ Entnahme buchen
+        </button>
+      <% } %>
+      <% if (tab === 'reste') { %>
+        <button onclick="openRestModal()"
+          class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          + Reststück einlagern
+        </button>
+      <% } %>
     </div>
   </div>
 
-  <!-- Tabs -->
+  <!-- ── Scan-Erfolgs-Banner ──────────────────────────────────────────────── -->
+  <% if (scanBs > 0 || scanEs > 0) { %>
+  <div class="px-4 md:px-6 mb-3">
+    <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 flex items-start gap-3">
+      <span class="text-green-500 text-xl mt-0.5">✅</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-green-800 dark:text-green-300">Lieferschein erfolgreich eingelagert</p>
+        <div class="flex flex-wrap gap-3 mt-1">
+          <% if (scanBs > 0) { %>
+          <a href="/lager?tab=baustahl" class="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline">
+            🔩 <strong><%= scanBs %></strong> Position<%= scanBs === 1 ? '' : 'en' %> → Baustahl
+          </a>
+          <% } %>
+          <% if (scanEs > 0) { %>
+          <a href="/lager?tab=edelstahl" class="text-xs text-violet-600 dark:text-violet-400 font-medium hover:underline">
+            ✨ <strong><%= scanEs %></strong> Position<%= scanEs === 1 ? '' : 'en' %> → Edelstahl
+          </a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- ── Low-Stock-Banner ──────────────────────────────────────────────────── -->
+  <%
+    const lowStockItems = items.filter(i => Number(i.mindestbestand) > 0 && Number(i.menge) <= Number(i.mindestbestand));
+  %>
+  <% if ((tab === 'baustahl' || tab === 'edelstahl') && lowStockItems.length > 0) { %>
+  <div class="px-4 md:px-6 mb-3">
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-3 flex items-start gap-3">
+      <span class="text-amber-500 text-xl mt-0.5">⚠️</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">
+          <%= lowStockItems.length %> Artikel <%= lowStockItems.length === 1 ? 'ist' : 'sind' %> unter Mindestbestand
+        </p>
+        <p class="text-xs text-amber-700 dark:text-amber-400 mt-0.5 truncate">
+          <%= lowStockItems.map(i => i.bezeichnung + (i.profil ? ' ' + i.profil : '')).join(' · ') %>
+        </p>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- ── Tabs ──────────────────────────────────────────────────────────────── -->
   <div class="px-4 md:px-6 mb-4">
-    <div class="flex gap-2 border-b border-gray-200 dark:border-slate-700">
+    <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700">
       <a href="/lager?tab=baustahl"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition
-               <%= tab === 'baustahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' %>">
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+               <%= tab === 'baustahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         🔩 Baustahl
       </a>
       <a href="/lager?tab=edelstahl"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition
-               <%= tab === 'edelstahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' %>">
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+               <%= tab === 'edelstahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         ✨ Edelstahl
+      </a>
+      <a href="/lager?tab=entnahmen"
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+               <%= tab === 'entnahmen' ? 'border-amber-600 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        📤 Entnahmen
+      </a>
+      <a href="/lager?tab=reste"
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+               <%= tab === 'reste' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        ✂️ Reststücke
       </a>
     </div>
   </div>
 
-  <!-- Tabelle -->
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TAB: BAUSTAHL / EDELSTAHL
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <% if (tab === 'baustahl' || tab === 'edelstahl') { %>
   <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
       <% if (items && items.length > 0) { %>
       <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse min-w-[700px]">
+        <table class="w-full text-left border-collapse min-w-[800px]">
           <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
             <tr>
               <th class="px-4 py-3">Bezeichnung</th>
               <th class="px-4 py-3">Profil</th>
               <th class="px-4 py-3">Abmessung</th>
-              <th class="px-4 py-3">Menge</th>
-              <th class="px-4 py-3">Einheit</th>
-              <th class="px-4 py-3">Lieferschein-Nr.</th>
-              <th class="px-4 py-3">Lieferdatum</th>
-              <th class="px-4 py-3">Notiz</th>
+              <th class="px-4 py-3">Bestand</th>
+              <th class="px-4 py-3">Mindestbest.</th>
+              <th class="px-4 py-3">Lagerort</th>
+              <th class="px-4 py-3">Lieferschein</th>
+              <th class="px-4 py-3">Datum</th>
               <th class="px-4 py-3 text-right">Aktion</th>
             </tr>
           </thead>
           <tbody>
-            <% items.forEach(item => { %>
-            <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm">
-              <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100"><%= item.bezeichnung %></td>
+            <% items.forEach(item => {
+              const isLow = Number(item.mindestbestand) > 0 && Number(item.menge) <= Number(item.mindestbestand);
+              const isCritical = Number(item.mindestbestand) > 0 && Number(item.menge) === 0;
+            %>
+            <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm
+                       <%= isCritical ? 'bg-red-50/60 dark:bg-red-900/10' : isLow ? 'bg-amber-50/60 dark:bg-amber-900/10' : '' %>">
+              <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
+                <% if (isLow) { %><span class="text-amber-500 mr-1" title="Unter Mindestbestand">⚠️</span><% } %>
+                <%= item.bezeichnung %>
+              </td>
               <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><%= item.profil || '-' %></td>
               <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><%= item.abmessung || '-' %></td>
-              <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">
-                <%= Number(item.menge || 0).toLocaleString('de-DE') %>
+              <td class="px-4 py-3 font-semibold
+                         <%= isCritical ? 'text-red-600 dark:text-red-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200' %>">
+                <%= Number(item.menge || 0).toLocaleString('de-DE') %> <span class="font-normal text-gray-400"><%= item.einheit || '' %></span>
               </td>
-              <td class="px-4 py-3 text-gray-500 dark:text-gray-400"><%= item.einheit || '-' %></td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                <% if (Number(item.mindestbestand) > 0) { %>
+                  <span class="<%= isLow ? 'text-amber-600 dark:text-amber-400 font-semibold' : '' %>">
+                    <%= Number(item.mindestbestand).toLocaleString('de-DE') %> <%= item.einheit || '' %>
+                  </span>
+                <% } else { %>–<% } %>
+              </td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs"><%= item.lagerort || '-' %></td>
               <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs"><%= item.lieferschein_nr || '-' %></td>
               <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
                 <%= item.lieferdatum ? new Date(item.lieferdatum).toLocaleDateString('de-DE') : '-' %>
               </td>
-              <td class="px-4 py-3 text-gray-400 text-xs max-w-[160px] truncate"><%= item.notiz || '' %></td>
               <td class="px-4 py-3 text-right">
-                <div class="flex items-center justify-end gap-2">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button onclick="openEntnahmeModalFor(<%= item.id %>, <%= JSON.stringify(item.bezeichnung + (item.profil?' '+item.profil:'')).replace(/\"/g,'&quot;') %>, '<%= item.einheit %>')"
+                    class="px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 rounded text-xs font-semibold transition"
+                    title="Entnahme buchen">↓</button>
                   <button onclick="openEditModal(this)"
                     data-item="<%= JSON.stringify(item).replace(/\"/g, '&quot;') %>"
-                    class="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition">
-                    ✏️
-                  </button>
+                    class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition">✏️</button>
                   <form action="/lager/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" class="inline">
                     <input type="hidden" name="id" value="<%= item.id %>">
                     <input type="hidden" name="tab" value="<%= tab %>">
-                    <button type="submit"
-                      class="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">
-                      🗑️
-                    </button>
+                    <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">🗑️</button>
                   </form>
                 </div>
               </td>
@@ -95,82 +184,204 @@
       <div class="text-center py-16">
         <p class="text-4xl mb-3">📭</p>
         <p class="text-gray-500 dark:text-gray-400 font-medium">Keine Einträge vorhanden</p>
-        <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
-          Lieferschein fotografieren oder Eintrag manuell hinzufügen
-        </p>
+        <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Lieferschein fotografieren oder Eintrag manuell hinzufügen</p>
       </div>
       <% } %>
     </div>
   </div>
+  <% } %>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TAB: ENTNAHMEN
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <% if (tab === 'entnahmen') { %>
+  <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <% if (entnahmen && entnahmen.length > 0) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[700px]">
+          <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
+            <tr>
+              <th class="px-4 py-3">Material</th>
+              <th class="px-4 py-3">Menge</th>
+              <th class="px-4 py-3">Auftrag</th>
+              <th class="px-4 py-3">Mitarbeiter</th>
+              <th class="px-4 py-3">Notiz</th>
+              <th class="px-4 py-3">Datum</th>
+              <th class="px-4 py-3 text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% entnahmen.forEach(e => { %>
+            <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm">
+              <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
+                <%= e.mat_bezeichnung || '–' %><% if (e.mat_profil) { %> <span class="text-gray-400 font-normal"><%= e.mat_profil %></span><% } %>
+              </td>
+              <td class="px-4 py-3 text-amber-600 dark:text-amber-400 font-semibold">
+                − <%= Number(e.menge).toLocaleString('de-DE') %> <%= e.einheit %>
+              </td>
+              <td class="px-4 py-3 text-gray-600 dark:text-gray-300 text-xs">
+                <% if (e.project_title) { %>
+                  <a href="/projects/<%= e.project_id %>" class="text-blue-600 hover:underline"><%= e.project_title %></a>
+                <% } else { %>–<% } %>
+              </td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs"><%= e.username || '–' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs max-w-[160px] truncate"><%= e.notiz || '' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs"><%= new Date(e.created_at).toLocaleString('de-DE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) %></td>
+              <td class="px-4 py-3 text-right">
+                <form action="/lager/entnahme/delete" method="POST"
+                  onsubmit="return confirm('Entnahme stornieren? Der Bestand wird wiederhergestellt.');" class="inline">
+                  <input type="hidden" name="id" value="<%= e.id %>">
+                  <button type="submit" class="px-2 py-1 bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">
+                    Stornieren
+                  </button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } else { %>
+      <div class="text-center py-16">
+        <p class="text-4xl mb-3">📤</p>
+        <p class="text-gray-500 dark:text-gray-400 font-medium">Noch keine Entnahmen gebucht</p>
+        <p class="text-sm text-gray-400 mt-1">Materialverbrauch per "Entnahme buchen" einem Auftrag zuordnen</p>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TAB: RESTSTÜCKE
+  ═══════════════════════════════════════════════════════════════════════════ -->
+  <% if (tab === 'reste') { %>
+  <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <% if (reste && reste.length > 0) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[700px]">
+          <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
+            <tr>
+              <th class="px-4 py-3">Typ</th>
+              <th class="px-4 py-3">Bezeichnung</th>
+              <th class="px-4 py-3">Profil</th>
+              <th class="px-4 py-3">Länge / Maß</th>
+              <th class="px-4 py-3">Menge</th>
+              <th class="px-4 py-3">Lagerort</th>
+              <th class="px-4 py-3">Notiz</th>
+              <th class="px-4 py-3">Eingelagert</th>
+              <th class="px-4 py-3 text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% reste.forEach(r => { %>
+            <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm">
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold
+                  <%= r.material_type === 'edelstahl' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' %>">
+                  <%= r.material_type === 'edelstahl' ? '✨ Edelstahl' : '🔩 Baustahl' %>
+                </span>
+              </td>
+              <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100"><%= r.bezeichnung %></td>
+              <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><%= r.profil || '-' %></td>
+              <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><%= r.laenge || '-' %></td>
+              <td class="px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400">
+                <%= Number(r.menge).toLocaleString('de-DE') %> <%= r.einheit %>
+              </td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs"><%= r.lagerort || '-' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs max-w-[140px] truncate"><%= r.notiz || '' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs"><%= new Date(r.created_at).toLocaleDateString('de-DE') %></td>
+              <td class="px-4 py-3 text-right">
+                <form action="/lager/rest/delete" method="POST" onsubmit="return confirm('Reststück wirklich löschen?');" class="inline">
+                  <input type="hidden" name="id" value="<%= r.id %>">
+                  <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">🗑️</button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } else { %>
+      <div class="text-center py-16">
+        <p class="text-4xl mb-3">✂️</p>
+        <p class="text-gray-500 dark:text-gray-400 font-medium">Keine Reststücke eingelagert</p>
+        <p class="text-sm text-gray-400 mt-1">Verschnitt und Reststücke hier erfassen, um Neukäufe zu vermeiden</p>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
 </main>
 
 <!-- ═══════════════════════════════════════════
-     MODAL: MANUELL HINZUFÜGEN
+     MODAL: MATERIAL EINLAGERN
 ═══════════════════════════════════════════ -->
 <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
      onclick="closeModal('addModal', event)">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6" onclick="event.stopPropagation()">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">+ Lager-Eintrag hinzufügen</h2>
-      <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">✕</button>
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">+ Material einlagern</h2>
+      <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/add" method="POST" class="space-y-3">
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Material-Typ *</label>
-          <select name="material_type" id="addMaterialType" class="form-input w-full">
+          <label class="lbl">Material-Typ *</label>
+          <select name="material_type" id="addMaterialType" class="fi w-full">
             <option value="baustahl" <%= tab === 'baustahl' ? 'selected' : '' %>>🔩 Baustahl</option>
             <option value="edelstahl" <%= tab === 'edelstahl' ? 'selected' : '' %>>✨ Edelstahl</option>
           </select>
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Bezeichnung *</label>
-          <input type="text" name="bezeichnung" required placeholder="z.B. Flachstahl, Rohr, Winkel…" class="form-input w-full">
+          <label class="lbl">Bezeichnung *</label>
+          <input type="text" name="bezeichnung" required placeholder="z.B. Flachstahl, Rohr, Winkel…" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Profil</label>
-          <input type="text" name="profil" placeholder="z.B. 40x5, 60x60x4" class="form-input w-full">
+          <label class="lbl">Profil</label>
+          <input type="text" name="profil" placeholder="z.B. 40x5" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Abmessung/Länge</label>
-          <input type="text" name="abmessung" placeholder="z.B. 6000mm" class="form-input w-full">
+          <label class="lbl">Abmessung / Länge</label>
+          <input type="text" name="abmessung" placeholder="z.B. 6000 mm" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Menge *</label>
-          <input type="text" name="menge" required placeholder="0" class="form-input w-full">
+          <label class="lbl">Menge *</label>
+          <input type="text" name="menge" required placeholder="0" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Einheit</label>
-          <select name="einheit" class="form-input w-full">
-            <option>Stk</option>
-            <option>m</option>
-            <option>kg</option>
-            <option>m²</option>
-            <option>Psch</option>
+          <label class="lbl">Einheit</label>
+          <select name="einheit" class="fi w-full">
+            <option>Stk</option><option>m</option><option>kg</option><option>m²</option><option>Psch</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Lieferschein-Nr.</label>
-          <input type="text" name="lieferschein_nr" placeholder="LS-12345" class="form-input w-full">
+          <label class="lbl">Mindestbestand</label>
+          <input type="text" name="mindestbestand" placeholder="0 = kein Limit" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Lieferdatum</label>
-          <input type="date" name="lieferdatum" class="form-input w-full">
+          <label class="lbl">Lagerort</label>
+          <input type="text" name="lagerort" placeholder="z.B. Regal A3" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Lieferschein-Nr.</label>
+          <input type="text" name="lieferschein_nr" placeholder="LS-12345" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Lieferdatum</label>
+          <input type="date" name="lieferdatum" class="fi w-full">
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Notiz</label>
-          <input type="text" name="notiz" placeholder="Optionale Bemerkung" class="form-input w-full">
+          <label class="lbl">Notiz</label>
+          <input type="text" name="notiz" placeholder="Optionale Bemerkung" class="fi w-full">
         </div>
       </div>
       <div class="flex gap-3 pt-2">
-        <button type="button" onclick="closeModal('addModal')"
-          class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-          Abbrechen
-        </button>
-        <button type="submit"
-          class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">
-          Speichern
-        </button>
+        <button type="button" onclick="closeModal('addModal')" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">Speichern</button>
       </div>
     </form>
   </div>
@@ -181,69 +392,179 @@
 ═══════════════════════════════════════════ -->
 <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
      onclick="closeModal('editModal', event)">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6" onclick="event.stopPropagation()">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
       <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">✏️ Eintrag bearbeiten</h2>
-      <button onclick="closeModal('editModal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">✕</button>
+      <button onclick="closeModal('editModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/edit" method="POST" class="space-y-3">
       <input type="hidden" name="id" id="editId">
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Material-Typ *</label>
-          <select name="material_type" id="editMaterialType" class="form-input w-full">
+          <label class="lbl">Material-Typ *</label>
+          <select name="material_type" id="editMaterialType" class="fi w-full">
             <option value="baustahl">🔩 Baustahl</option>
             <option value="edelstahl">✨ Edelstahl</option>
           </select>
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Bezeichnung *</label>
-          <input type="text" name="bezeichnung" id="editBezeichnung" required class="form-input w-full">
+          <label class="lbl">Bezeichnung *</label>
+          <input type="text" name="bezeichnung" id="editBezeichnung" required class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Profil</label>
-          <input type="text" name="profil" id="editProfil" class="form-input w-full">
+          <label class="lbl">Profil</label>
+          <input type="text" name="profil" id="editProfil" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Abmessung/Länge</label>
-          <input type="text" name="abmessung" id="editAbmessung" class="form-input w-full">
+          <label class="lbl">Abmessung / Länge</label>
+          <input type="text" name="abmessung" id="editAbmessung" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Menge *</label>
-          <input type="text" name="menge" id="editMenge" required class="form-input w-full">
+          <label class="lbl">Menge *</label>
+          <input type="text" name="menge" id="editMenge" required class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Einheit</label>
-          <select name="einheit" id="editEinheit" class="form-input w-full">
-            <option>Stk</option>
-            <option>m</option>
-            <option>kg</option>
-            <option>m²</option>
-            <option>Psch</option>
+          <label class="lbl">Einheit</label>
+          <select name="einheit" id="editEinheit" class="fi w-full">
+            <option>Stk</option><option>m</option><option>kg</option><option>m²</option><option>Psch</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Lieferschein-Nr.</label>
-          <input type="text" name="lieferschein_nr" id="editLsnr" class="form-input w-full">
+          <label class="lbl">Mindestbestand</label>
+          <input type="text" name="mindestbestand" id="editMindestbestand" placeholder="0" class="fi w-full">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Lieferdatum</label>
-          <input type="date" name="lieferdatum" id="editLieferdatum" class="form-input w-full">
+          <label class="lbl">Lagerort</label>
+          <input type="text" name="lagerort" id="editLagerort" placeholder="z.B. Regal A3" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Lieferschein-Nr.</label>
+          <input type="text" name="lieferschein_nr" id="editLsnr" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Lieferdatum</label>
+          <input type="date" name="lieferdatum" id="editLieferdatum" class="fi w-full">
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Notiz</label>
-          <input type="text" name="notiz" id="editNotiz" class="form-input w-full">
+          <label class="lbl">Notiz</label>
+          <input type="text" name="notiz" id="editNotiz" class="fi w-full">
         </div>
       </div>
       <div class="flex gap-3 pt-2">
-        <button type="button" onclick="closeModal('editModal')"
-          class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-          Abbrechen
-        </button>
-        <button type="submit"
-          class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">
-          Speichern
-        </button>
+        <button type="button" onclick="closeModal('editModal')" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">Speichern</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: ENTNAHME BUCHEN
+═══════════════════════════════════════════ -->
+<div id="entnahmeModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+     onclick="closeModal('entnahmeModal', event)">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">📤 Entnahme buchen</h2>
+      <button onclick="closeModal('entnahmeModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <form action="/lager/entnahme" method="POST" class="space-y-3">
+      <div>
+        <label class="lbl">Material *</label>
+        <select name="lager_item_id" id="entnahmeMaterialSelect" required class="fi w-full">
+          <option value="">– Material auswählen –</option>
+          <% allItems.forEach(i => { %>
+          <option value="<%= i.id %>"
+            data-einheit="<%= i.einheit %>"
+            data-bestand="<%= Number(i.menge).toLocaleString('de-DE') %>">
+            <%= i.bezeichnung %><% if (i.profil) { %> · <%= i.profil %><% } %>
+            (<%= Number(i.menge).toLocaleString('de-DE') %> <%= i.einheit %>)
+            – <%= i.material_type === 'edelstahl' ? '✨' : '🔩' %>
+          </option>
+          <% }) %>
+        </select>
+        <p id="entnahmeBestandHint" class="text-xs text-gray-400 mt-1 hidden">Aktueller Bestand: <strong id="entnahmeBestandVal"></strong></p>
+      </div>
+      <div>
+        <label class="lbl">Auftrag (optional)</label>
+        <select name="project_id" class="fi w-full">
+          <option value="">– Keinem Auftrag zugeordnet –</option>
+          <% projects.forEach(p => { %>
+          <option value="<%= p.id %>"><%= p.title %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="lbl">Menge *</label>
+          <input type="text" name="menge" required placeholder="0" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Notiz</label>
+          <input type="text" name="notiz" placeholder="Optional" class="fi w-full">
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('entnahmeModal')" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition">Buchen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: RESTSTÜCK EINLAGERN
+═══════════════════════════════════════════ -->
+<div id="restModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+     onclick="closeModal('restModal', event)">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-5">
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">✂️ Reststück einlagern</h2>
+      <button onclick="closeModal('restModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <form action="/lager/rest/add" method="POST" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="lbl">Material-Typ *</label>
+          <select name="material_type" class="fi w-full">
+            <option value="baustahl">🔩 Baustahl</option>
+            <option value="edelstahl">✨ Edelstahl</option>
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label class="lbl">Bezeichnung *</label>
+          <input type="text" name="bezeichnung" required placeholder="z.B. Flachstahl, Rohr…" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Profil</label>
+          <input type="text" name="profil" placeholder="z.B. 40x5" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Länge / Maß</label>
+          <input type="text" name="laenge" placeholder="z.B. 1200 mm" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Menge</label>
+          <input type="text" name="menge" value="1" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Einheit</label>
+          <select name="einheit" class="fi w-full">
+            <option>Stk</option><option>m</option><option>kg</option><option>m²</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Lagerort</label>
+          <input type="text" name="lagerort" placeholder="z.B. Regal B2" class="fi w-full">
+        </div>
+        <div>
+          <label class="lbl">Notiz</label>
+          <input type="text" name="notiz" placeholder="Optional" class="fi w-full">
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('restModal')" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition">Einlagern</button>
       </div>
     </form>
   </div>
@@ -257,10 +578,8 @@
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
       <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">📷 Lieferschein scannen (KI)</h2>
-      <button onclick="closeScanModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">✕</button>
+      <button onclick="closeScanModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
-
-    <!-- Upload-Bereich -->
     <div id="scanUploadArea"
          class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 transition mb-4"
          onclick="document.getElementById('scanFileInput').click()"
@@ -273,7 +592,6 @@
     <div id="scanPreviewWrap" class="hidden mb-4">
       <img id="scanPreview" src="" alt="Vorschau" class="max-h-48 rounded-lg mx-auto object-contain border border-gray-200 dark:border-slate-600">
     </div>
-
     <div id="scanStatus" class="hidden text-center py-4">
       <div class="inline-flex items-center gap-2 text-purple-600 dark:text-purple-400 font-medium text-sm">
         <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -283,43 +601,35 @@
         KI analysiert Lieferschein…
       </div>
     </div>
-
-    <!-- Erkannte Positionen -->
     <div id="scanResults" class="hidden">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">📋 Erkannte Positionen</h3>
         <span id="scanCountBadge" class="text-xs bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full font-semibold"></span>
       </div>
+      <!-- Aufschlüsselung Baustahl / Edelstahl -->
+      <div id="scanSummaryBar" class="hidden flex gap-4 mb-3 px-1"></div>
       <div id="scanItemsList" class="space-y-2 mb-4 max-h-64 overflow-y-auto pr-1"></div>
-
       <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-4 text-xs text-amber-700 dark:text-amber-400">
-        ⚠️ Bitte überprüfe die KI-Ergebnisse vor dem Speichern. Der Material-Typ (Baustahl/Edelstahl) wird automatisch erkannt, kann aber manuell geändert werden.
+        ⚠️ Bitte überprüfe die KI-Ergebnisse vor dem Speichern. Material-Typ je Position ändern falls nötig.
       </div>
-
       <form action="/lager/scan-save" method="POST" id="scanSaveForm">
         <input type="hidden" name="tab" value="<%= tab %>">
         <input type="hidden" name="items" id="scanItemsJson">
         <div class="flex gap-3">
-          <button type="button" onclick="closeScanModal()"
-            class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
-            Abbrechen
-          </button>
-          <button type="submit" onclick="prepareScanSave()"
-            class="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold transition">
-            ✓ Alle speichern
-          </button>
+          <button type="button" onclick="closeScanModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
+          <button type="submit" onclick="prepareScanSave()" class="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold transition">✓ Alle speichern</button>
         </div>
       </form>
     </div>
-
     <div id="scanError" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 text-sm text-red-600 dark:text-red-400"></div>
   </div>
 </div>
 
 <style>
-  .form-input {
-    @apply rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition;
-  }
+  .fi  { @apply rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition; }
+  .lbl { @apply block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1; }
+  /* Alias für alten Namen */
+  .form-input { @apply fi; }
 </style>
 
 <script>
@@ -328,35 +638,60 @@
     if (event && event.target !== document.getElementById(id)) return;
     document.getElementById(id).classList.add('hidden');
   }
-  function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+  function openAddModal()      { document.getElementById('addModal').classList.remove('hidden'); }
+  function openRestModal()     { document.getElementById('restModal').classList.remove('hidden'); }
+  function openEntnahmeModal() {
+    document.getElementById('entnahmeModal').classList.remove('hidden');
+  }
+  function openEntnahmeModalFor(itemId, label, einheit) {
+    openEntnahmeModal();
+    const sel = document.getElementById('entnahmeMaterialSelect');
+    if (sel) sel.value = itemId;
+    updateEntnahmeHint();
+  }
 
-  function openEditModal(btn) {
-    // Daten sicher aus data-item-Attribut lesen (EJS-escaped via <%= %>)
-    const item = JSON.parse(btn.dataset.item);
-    document.getElementById('editId').value           = item.id;
-    document.getElementById('editMaterialType').value = item.material_type || 'baustahl';
-    document.getElementById('editBezeichnung').value  = item.bezeichnung || '';
-    document.getElementById('editProfil').value       = item.profil || '';
-    document.getElementById('editAbmessung').value    = item.abmessung || '';
-    document.getElementById('editMenge').value        = item.menge || '';
-    document.getElementById('editEinheit').value      = item.einheit || 'Stk';
-    document.getElementById('editLsnr').value         = item.lieferschein_nr || '';
-    document.getElementById('editNotiz').value        = item.notiz || '';
-    // Datum formatieren für <input type="date">
-    if (item.lieferdatum) {
-      try {
-        const d = new Date(item.lieferdatum);
-        document.getElementById('editLieferdatum').value = d.toISOString().split('T')[0];
-      } catch(_) { document.getElementById('editLieferdatum').value = ''; }
+  // Bestand-Hint im Entnahme-Modal aktuell halten
+  document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('entnahmeMaterialSelect');
+    if (sel) sel.addEventListener('change', updateEntnahmeHint);
+  });
+  function updateEntnahmeHint() {
+    const sel = document.getElementById('entnahmeMaterialSelect');
+    const hint = document.getElementById('entnahmeBestandHint');
+    const val  = document.getElementById('entnahmeBestandVal');
+    if (!sel || !hint || !val) return;
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.bestand) {
+      val.textContent = opt.dataset.bestand + ' ' + (opt.dataset.einheit || '');
+      hint.classList.remove('hidden');
     } else {
-      document.getElementById('editLieferdatum').value = '';
+      hint.classList.add('hidden');
     }
+  }
+
+  // ── Edit-Modal ──────────────────────────────────────────────────────────────
+  function openEditModal(btn) {
+    const item = JSON.parse(btn.dataset.item);
+    document.getElementById('editId').value            = item.id;
+    document.getElementById('editMaterialType').value  = item.material_type || 'baustahl';
+    document.getElementById('editBezeichnung').value   = item.bezeichnung || '';
+    document.getElementById('editProfil').value        = item.profil || '';
+    document.getElementById('editAbmessung').value     = item.abmessung || '';
+    document.getElementById('editMenge').value         = item.menge || '';
+    document.getElementById('editEinheit').value       = item.einheit || 'Stk';
+    document.getElementById('editLsnr').value          = item.lieferschein_nr || '';
+    document.getElementById('editNotiz').value         = item.notiz || '';
+    document.getElementById('editMindestbestand').value = item.mindestbestand || '';
+    document.getElementById('editLagerort').value      = item.lagerort || '';
+    if (item.lieferdatum) {
+      try { document.getElementById('editLieferdatum').value = new Date(item.lieferdatum).toISOString().split('T')[0]; }
+      catch(_) { document.getElementById('editLieferdatum').value = ''; }
+    } else { document.getElementById('editLieferdatum').value = ''; }
     document.getElementById('editModal').classList.remove('hidden');
   }
 
   // ── Scan-Modal ──────────────────────────────────────────────────────────────
   let scannedItems = [];
-
   function openScanModal() {
     scannedItems = [];
     document.getElementById('scanModal').classList.remove('hidden');
@@ -367,47 +702,34 @@
     document.getElementById('scanUploadArea').classList.remove('hidden');
     document.getElementById('scanFileInput').value = '';
   }
-
   function closeScanModal(event) {
     if (event && event.target !== document.getElementById('scanModal')) return;
     document.getElementById('scanModal').classList.add('hidden');
   }
-
   function handleScanDrop(e) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) handleScanFile(file);
   }
-
   function handleScanFile(file) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
-      document.getElementById('scanPreview').src = e.target.result;
-      document.getElementById('scanPreviewWrap').classList.remove('hidden');
-    };
+    reader.onload = e => { document.getElementById('scanPreview').src = e.target.result; document.getElementById('scanPreviewWrap').classList.remove('hidden'); };
     reader.readAsDataURL(file);
     runScan(file);
   }
-
   async function runScan(file) {
     document.getElementById('scanUploadArea').classList.add('hidden');
     document.getElementById('scanStatus').classList.remove('hidden');
     document.getElementById('scanResults').classList.add('hidden');
     document.getElementById('scanError').classList.add('hidden');
-
     const formData = new FormData();
     formData.append('image', file);
-
     try {
       const res  = await fetch('/lager/scan', { method: 'POST', body: formData });
       const data = await res.json();
       document.getElementById('scanStatus').classList.add('hidden');
-
-      if (!res.ok || data.error) {
-        showScanError(data.error || 'Unbekannter Fehler');
-        return;
-      }
+      if (!res.ok || data.error) { showScanError(data.error || 'Unbekannter Fehler'); return; }
       scannedItems = data.items || [];
       renderScanResults();
     } catch (err) {
@@ -415,79 +737,53 @@
       showScanError('Netzwerkfehler: ' + err.message);
     }
   }
-
   function renderScanResults() {
     const list = document.getElementById('scanItemsList');
     document.getElementById('scanCountBadge').textContent = scannedItems.length + ' Position(en)';
 
+    // Zusammenfassung: Baustahl vs. Edelstahl zählen
+    const nBs = scannedItems.filter(i => i.material_type !== 'edelstahl').length;
+    const nEs = scannedItems.filter(i => i.material_type === 'edelstahl').length;
+    const summaryBar = document.getElementById('scanSummaryBar');
+    if (scannedItems.length > 0) {
+      summaryBar.innerHTML =
+        (nBs > 0 ? `<span class="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-full">🔩 ${nBs} Baustahl</span>` : '') +
+        (nEs > 0 ? `<span class="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30 px-2.5 py-1 rounded-full">✨ ${nEs} Edelstahl</span>` : '');
+      summaryBar.classList.remove('hidden');
+    } else {
+      summaryBar.classList.add('hidden');
+    }
+
     if (!scannedItems.length) {
-      list.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Keine Positionen erkannt. Bitte manuell hinzufügen.</p>';
+      list.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Keine Positionen erkannt.</p>';
     } else {
       list.innerHTML = scannedItems.map((item, i) => `
         <div class="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 border border-gray-200 dark:border-slate-600">
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="col-span-2 flex items-center gap-2 mb-1">
-              <select onchange="scannedItems[${i}].material_type=this.value"
-                class="text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-1">
-                <option value="baustahl" ${item.material_type === 'baustahl' ? 'selected' : ''}>🔩 Baustahl</option>
-                <option value="edelstahl" ${item.material_type === 'edelstahl' ? 'selected' : ''}>✨ Edelstahl</option>
+              <select onchange="scannedItems[${i}].material_type=this.value;renderScanResults()" class="text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-1">
+                <option value="baustahl" ${item.material_type!=='edelstahl'?'selected':''}>🔩 Baustahl</option>
+                <option value="edelstahl" ${item.material_type==='edelstahl'?'selected':''}>✨ Edelstahl</option>
               </select>
               <input type="text" value="${esc(item.bezeichnung)}" onchange="scannedItems[${i}].bezeichnung=this.value"
-                class="flex-1 text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 py-1 font-semibold"
-                placeholder="Bezeichnung">
+                class="flex-1 text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 py-1 font-semibold">
             </div>
-            <div>
-              <span class="text-gray-400">Profil:</span>
-              <input type="text" value="${esc(item.profil||'')}" onchange="scannedItems[${i}].profil=this.value"
-                class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-            </div>
-            <div>
-              <span class="text-gray-400">Abmessung:</span>
-              <input type="text" value="${esc(item.abmessung||'')}" onchange="scannedItems[${i}].abmessung=this.value"
-                class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-            </div>
-            <div>
-              <span class="text-gray-400">Menge:</span>
-              <input type="number" value="${item.menge||0}" onchange="scannedItems[${i}].menge=parseFloat(this.value)||0"
-                class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-            </div>
-            <div>
-              <span class="text-gray-400">Einheit:</span>
-              <select onchange="scannedItems[${i}].einheit=this.value"
-                class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-                ${['Stk','m','kg','m²','Psch'].map(u => `<option ${(item.einheit||'Stk')===u?'selected':''}>${u}</option>`).join('')}
-              </select>
-            </div>
-            <div class="col-span-2 flex gap-2">
-              <div class="flex-1">
-                <span class="text-gray-400">LS-Nr.:</span>
-                <input type="text" value="${esc(item.lieferschein_nr||'')}" onchange="scannedItems[${i}].lieferschein_nr=this.value"
-                  class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-              </div>
-              <div class="flex-1">
-                <span class="text-gray-400">Datum:</span>
-                <input type="text" value="${esc(item.lieferdatum||'')}" onchange="scannedItems[${i}].lieferdatum=this.value"
-                  placeholder="YYYY-MM-DD"
-                  class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">
-              </div>
-            </div>
+            <div><span class="text-gray-400">Profil:</span><input type="text" value="${esc(item.profil||'')}" onchange="scannedItems[${i}].profil=this.value" class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5"></div>
+            <div><span class="text-gray-400">Abmaß:</span><input type="text" value="${esc(item.abmessung||'')}" onchange="scannedItems[${i}].abmessung=this.value" class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5"></div>
+            <div><span class="text-gray-400">Menge:</span><input type="number" value="${item.menge||0}" onchange="scannedItems[${i}].menge=parseFloat(this.value)||0" class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5"></div>
+            <div><span class="text-gray-400">Einheit:</span><select onchange="scannedItems[${i}].einheit=this.value" class="w-full text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 mt-0.5">${['Stk','m','kg','m²','Psch'].map(u=>`<option ${(item.einheit||'Stk')===u?'selected':''}>${u}</option>`).join('')}</select></div>
           </div>
         </div>`).join('');
     }
     document.getElementById('scanResults').classList.remove('hidden');
   }
-
-  function prepareScanSave() {
-    document.getElementById('scanItemsJson').value = JSON.stringify(scannedItems);
-  }
-
+  function prepareScanSave() { document.getElementById('scanItemsJson').value = JSON.stringify(scannedItems); }
   function showScanError(msg) {
     const el = document.getElementById('scanError');
     el.textContent = '❌ ' + msg;
     el.classList.remove('hidden');
     document.getElementById('scanUploadArea').classList.remove('hidden');
   }
-
   function esc(str) {
     return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }

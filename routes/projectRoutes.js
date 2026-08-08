@@ -231,7 +231,7 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, chatRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
@@ -251,6 +251,10 @@ router.get('/:id', async (req, res) => {
              FROM time_logs tl JOIN users u ON tl.user_id = u.id
              WHERE tl.project_id = ?
              ORDER BY tl.timestamp ASC`,
+        [id]
+      ),
+      dbQuery(
+        'SELECT project_chat.*, users.username FROM project_chat JOIN users ON project_chat.user_id = users.id WHERE project_chat.project_id = ? ORDER BY project_chat.created_at ASC',
         [id]
       )
     ]);
@@ -302,6 +306,7 @@ router.get('/:id', async (req, res) => {
       notes:        notesRes.rows        || [],
       tasks:        tasksRes.rows        || [],
       users:        usersRes.rows        || [],
+      chatMessages: chatRes.rows         || [],
       projectHours,
       projectTotalHours
     });
@@ -324,6 +329,7 @@ router.post('/delete', async (req, res) => {
     await dbQuery('DELETE FROM project_measurements WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM project_sketches     WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM project_files        WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_chat         WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM projects             WHERE id = ?',         [id]);
     res.redirect('/projects');
   } catch (err) {
@@ -372,6 +378,62 @@ router.post('/measurements/delete', async (req, res) => {
   const { measurement_id, project_id } = req.body;
   try { await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]); } catch (_) {}
   res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// INTERNER BAUSTELLEN-CHAT
+// ==========================================
+// Nachricht senden (JSON-API für Live-Polling)
+router.post('/:id/chat/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { message } = req.body;
+  if (!message || !String(message).trim()) return res.status(400).json({ error: 'Nachricht darf nicht leer sein.' });
+  try {
+    const r = await dbQuery(
+      'INSERT INTO project_chat (project_id, user_id, message) VALUES (?, ?, ?)',
+      [projectId, req.user.id, String(message).trim()]
+    );
+    // Neue Nachricht zurückgeben inkl. username
+    const newMsg = await dbQuery(
+      'SELECT project_chat.*, users.username FROM project_chat JOIN users ON project_chat.user_id = users.id WHERE project_chat.id = ?',
+      [r.lastID || r.rows?.[0]?.id]
+    );
+    res.json({ ok: true, msg: newMsg.rows[0] || null });
+  } catch (err) {
+    console.error('Chat-Fehler:', err.message);
+    res.status(500).json({ error: 'Fehler beim Speichern.' });
+  }
+});
+
+// Nachrichten laden (Polling, nach lastId)
+router.get('/:id/chat/messages', async (req, res) => {
+  const projectId = req.params.id;
+  const after = parseInt(req.query.after || '0', 10);
+  try {
+    const result = await dbQuery(
+      'SELECT project_chat.*, users.username FROM project_chat JOIN users ON project_chat.user_id = users.id WHERE project_chat.project_id = ? AND project_chat.id > ? ORDER BY project_chat.created_at ASC',
+      [projectId, after]
+    );
+    res.json({ msgs: result.rows || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Laden.' });
+  }
+});
+
+// Nachricht löschen (nur eigene oder Admin/Chef)
+router.post('/chat/delete', async (req, res) => {
+  const { msg_id, project_id } = req.body;
+  try {
+    const row = await dbQuery('SELECT user_id FROM project_chat WHERE id = ?', [msg_id]);
+    const owner = row.rows[0];
+    if (!owner) return res.json({ ok: true });
+    const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+    if (!isAdmin && owner.user_id !== req.user.id) return res.status(403).json({ error: 'Zugriff verweigert.' });
+    await dbQuery('DELETE FROM project_chat WHERE id = ?', [msg_id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Fehler beim Löschen.' });
+  }
 });
 
 // ==========================================

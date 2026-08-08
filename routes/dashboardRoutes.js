@@ -155,7 +155,7 @@ router.get('/', async (req, res) => {
              AND pt.due_date < date('now')
            ORDER BY pt.due_date ASC LIMIT 5`;
 
-      const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes, overdueTasksRes] = await Promise.all([
+      const [offerRes, invoiceRes, customerRes, activeProjectsRes, overdueRes, openTasksRes, recentDocsRes, tickerRes, settingsRes, overdueTasksRes, lowStockRes] = await Promise.all([
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'`),
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
         dbQuery(`SELECT COUNT(*) as count FROM customers`),
@@ -167,7 +167,10 @@ router.get('/', async (req, res) => {
           ORDER BY documents.id DESC LIMIT 5`),
         dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10'),
         dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId]),
-        dbQuery(sqlOverdueTasks)
+        dbQuery(sqlOverdueTasks),
+        dbQuery(`SELECT id, material_type, bezeichnung, profil, menge, einheit, mindestbestand
+                 FROM lager_items WHERE mindestbestand > 0 AND menge <= mindestbestand
+                 ORDER BY (mindestbestand - menge) DESC LIMIT 10`)
       ]);
 
       const { getFirma: _getDashFirma2 } = require('../utils/companySettings');
@@ -200,7 +203,8 @@ router.get('/', async (req, res) => {
         try { widgetSettings = JSON.parse(settingsRes.rows[0].settings_json); } catch (_) {}
       }
 
-      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings, overdueTasks: overdueTasksRes.rows || [] });
+      const lowStockItems = lowStockRes.rows || [];
+      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings, overdueTasks: overdueTasksRes.rows || [], lowStockItems });
     }
   } catch (err) {
     console.error('Fehler im Dashboard:', err.message);

@@ -135,6 +135,13 @@
       </a>
       <% } %>
 
+      <% if (_show('staffplan')) { %>
+      <a href="/admin/staffplan" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">📅</span>
+        Personalplanung
+      </a>
+      <% } %>
+
       <% if (_show('customers') && _perm('customers', true, false)) { %>
       <a href="/customers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
         <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">👤</span>
