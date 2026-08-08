@@ -799,6 +799,7 @@
 
     const btn = document.getElementById('chatSendBtn');
     btn.disabled = true;
+    const savedText = input.value;
     input.value = '';
     input.style.height = 'auto';
 
@@ -806,14 +807,24 @@
       const res  = await fetch(`/projects/${PROJECT_ID}/chat/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ message: text })
       });
       const data = await res.json();
       if (data.ok && data.msg) {
         appendMsg(data.msg);
         scrollToBottom();
+      } else {
+        // Fehler: Text zurückschreiben und Meldung zeigen
+        input.value = savedText;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        showToast(data.error || 'Nachricht konnte nicht gesendet werden.', 'error');
       }
-    } catch (_) {}
+    } catch (err) {
+      input.value = savedText;
+      showToast('Verbindungsfehler – bitte nochmal versuchen.', 'error');
+    }
     btn.disabled = false;
     input.focus();
   };

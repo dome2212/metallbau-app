@@ -389,19 +389,37 @@ router.post('/:id/chat/add', async (req, res) => {
   const { message } = req.body;
   if (!message || !String(message).trim()) return res.status(400).json({ error: 'Nachricht darf nicht leer sein.' });
   try {
+    const trimmed = String(message).trim();
     const r = await dbQuery(
       'INSERT INTO project_chat (project_id, user_id, message) VALUES (?, ?, ?)',
-      [projectId, req.user.id, String(message).trim()]
+      [projectId, req.user.id, trimmed]
     );
-    // Neue Nachricht zurückgeben inkl. username
-    const newMsg = await dbQuery(
-      'SELECT project_chat.*, users.username FROM project_chat JOIN users ON project_chat.user_id = users.id WHERE project_chat.id = ?',
-      [r.lastID || r.rows?.[0]?.id]
-    );
-    res.json({ ok: true, msg: newMsg.rows[0] || null });
+    const newId = r.lastID || r.rows?.[0]?.id;
+
+    // Nachricht holen – falls ID nicht ermittelbar, zuletzt eingefügte via Subquery
+    let msgRow = null;
+    if (newId) {
+      const q = await dbQuery(
+        'SELECT project_chat.*, users.username FROM project_chat JOIN users ON project_chat.user_id = users.id WHERE project_chat.id = ?',
+        [newId]
+      );
+      msgRow = q.rows?.[0] || null;
+    }
+    // Fallback: direkt aus den bekannten Werten konstruieren
+    if (!msgRow) {
+      msgRow = {
+        id:         newId || Date.now(),
+        project_id: projectId,
+        user_id:    req.user.id,
+        message:    trimmed,
+        username:   req.user.username,
+        created_at: new Date().toISOString(),
+      };
+    }
+    res.json({ ok: true, msg: msgRow });
   } catch (err) {
     console.error('Chat-Fehler:', err.message);
-    res.status(500).json({ error: 'Fehler beim Speichern.' });
+    res.status(500).json({ error: 'Fehler beim Speichern: ' + err.message });
   }
 });
 
