@@ -5,7 +5,7 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "npm audit --audit-level=moderate && node server.js",
+    "start": "node server.js",
     "start:force": "node server.js",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
@@ -15,7 +15,7 @@
     "@google/genai": "^2.15.0",
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "ejs": "^3.1.9",
@@ -24,9 +24,9 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "^9.0.5",
     "pdfkit": "^0.13.0",
     "pg": "^8.11.3",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^6.0.1"
   }
 }

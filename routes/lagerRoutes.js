@@ -2,6 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const multer   = require('multer');
 const { dbQuery } = require('../utils/db');
+const { getFirma } = require('../utils/companySettings');
 
 // Bild im Speicher halten (für KI-Vision-Analyse)
 const upload = multer({
@@ -65,10 +66,15 @@ async function callVision(apiKey, systemPrompt, b64, mimeType) {
 // ==========================================
 router.get('/', async (req, res) => {
   try {
-    const tab = req.query.tab === 'edelstahl' ? 'edelstahl'
-              : req.query.tab === 'schrauben' ? 'schrauben'
-              : req.query.tab === 'entnahmen' ? 'entnahmen'
-              : req.query.tab === 'reste'     ? 'reste'
+    // Custom-Tabs aus Firmeneinstellungen laden
+    const firma = await getFirma();
+    let customTabs = [];
+    try { customTabs = JSON.parse(firma.lager_custom_tabs || '[]'); } catch(e) {}
+    const customTabKeys = customTabs.map(t => t.key);
+
+    const requestedTab = req.query.tab || 'baustahl';
+    const tab = ['edelstahl','schrauben','entnahmen','reste', ...customTabKeys].includes(requestedTab)
+              ? requestedTab
               : 'baustahl';
 
     let items = [], entnahmen = [], reste = [], projects = [];
@@ -112,6 +118,7 @@ router.get('/', async (req, res) => {
     res.render('lager', {
       items, entnahmen, reste, tab, projects,
       allItems: allItemsRes.rows || [],
+      customTabs,
       scanBs: parseInt(req.query.scan_bs) || 0,
       scanEs: parseInt(req.query.scan_es) || 0,
       moved:  req.query.moved === '1'
@@ -140,7 +147,9 @@ router.post('/add', async (req, res) => {
        parseFloat(String(mindestbestand || '0').replace(',', '.')) || 0,
        lagerort || null]
     );
-    const validTabs = ['baustahl','edelstahl','schrauben'];
+    const firma2 = await getFirma();
+    const customKeys = JSON.parse(firma2.lager_custom_tabs || '[]').map(t => t.key);
+    const validTabs = ['baustahl','edelstahl','schrauben', ...customKeys];
     const redirectTab = validTabs.includes(material_type) ? material_type : 'baustahl';
     res.redirect('/lager?tab=' + redirectTab);
   } catch (err) {
@@ -167,7 +176,9 @@ router.post('/edit', async (req, res) => {
        parseFloat(String(mindestbestand || '0').replace(',', '.')) || 0,
        lagerort || null, id]
     );
-    const validTabs = ['baustahl','edelstahl','schrauben'];
+    const firma2 = await getFirma();
+    const customKeys = JSON.parse(firma2.lager_custom_tabs || '[]').map(t => t.key);
+    const validTabs = ['baustahl','edelstahl','schrauben', ...customKeys];
     const redirectTab = validTabs.includes(material_type) ? material_type : 'baustahl';
     res.redirect('/lager?tab=' + redirectTab);
   } catch (err) {
@@ -181,7 +192,9 @@ router.post('/edit', async (req, res) => {
 // ==========================================
 router.post('/move', async (req, res) => {
   const { id, new_type, from_tab } = req.body;
-  const validTypes = ['baustahl', 'edelstahl', 'schrauben'];
+  const firma2 = await getFirma();
+  const customKeys2 = JSON.parse(firma2.lager_custom_tabs || '[]').map(t => t.key);
+  const validTypes = ['baustahl', 'edelstahl', 'schrauben', ...customKeys2];
   if (!validTypes.includes(new_type)) return res.status(400).send('Ungültiger Typ.');
   try {
     await dbQuery('UPDATE lager_items SET material_type = ? WHERE id = ?', [new_type, id]);

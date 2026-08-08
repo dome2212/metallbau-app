@@ -336,4 +336,36 @@ router.post('/panel/notifications', requireAdmin, async (req, res) => {
   }
 });
 
+// ── POST: Lager-Tabs ─────────────────────────────────────────────────────────
+router.post('/panel/lager', requireAdmin, async (req, res) => {
+  try {
+    // Tabs kommen als Felder: tab_key[], tab_label[], tab_icon[], tab_color[]
+    const keys   = [].concat(req.body.tab_key   || []);
+    const labels = [].concat(req.body.tab_label  || []);
+    const icons  = [].concat(req.body.tab_icon   || []);
+    const colors = [].concat(req.body.tab_color  || []);
+
+    const tabs = [];
+    for (let i = 0; i < keys.length; i++) {
+      const key = (keys[i] || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const label = (labels[i] || '').trim();
+      if (!key || !label) continue;
+      // key darf keine reservierten Tab-Namen überschreiben
+      const reserved = ['baustahl','edelstahl','schrauben','entnahmen','reste'];
+      if (reserved.includes(key)) continue;
+      tabs.push({
+        key,
+        label,
+        icon:  (icons[i]  || '📦').trim(),
+        color: (colors[i] || 'blue').trim(),
+      });
+    }
+
+    await setFirmaValue('lager_custom_tabs', JSON.stringify(tabs));
+    res.redirect('/admin/panel?tab=lager&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
 module.exports = router;

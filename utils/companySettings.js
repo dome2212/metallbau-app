@@ -85,6 +85,10 @@ const DEFAULTS = {
 
   // ── Sidebar & App ──────────────────────────────────────────────
   sidebar_footer_text: '@Domenic Rosic', // Fußzeile der Sidebar
+
+  // ── Lager-Tabs ─────────────────────────────────────────────────
+  // JSON-Array: [{"key":"aluminium","label":"Aluminium","icon":"🔷","color":"blue"}]
+  lager_custom_tabs: '[]',
 };
 
 // Einfacher In-Memory-Cache (wird bei jeder Änderung geleert)

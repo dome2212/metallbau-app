@@ -4,13 +4,18 @@
 <main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
 
   <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+  <%
+    // Custom-Tab-Keys für Bedingungs-Checks
+    const customTabKeys = (customTabs || []).map(t => t.key);
+    const isStockTab = tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben' || customTabKeys.includes(tab);
+  %>
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
     <div>
       <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">🏭 Lagerverwaltung</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400">Baustahl · Edelstahl · Schrauben · Entnahmen · Reststücke</p>
     </div>
     <div class="flex flex-wrap gap-2 w-full md:w-auto">
-      <% if (tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben') { %>
+      <% if (isStockTab) { %>
         <% if (tab !== 'schrauben') { %>
         <button onclick="openScanModal()"
           class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
@@ -25,8 +30,7 @@
           class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
           ↓ Entnahme buchen
         </button>
-      <% } %>
-      <% if (tab === 'entnahmen') { %>
+      <% } else if (tab === 'entnahmen') { %>
         <button onclick="openEntnahmeModal()"
           class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
           ↓ Entnahme buchen
@@ -97,29 +101,38 @@
 
   <!-- ── Tabs ──────────────────────────────────────────────────────────────── -->
   <div class="px-4 md:px-6 mb-4">
-    <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700">
+    <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700 overflow-x-auto">
       <a href="/lager?tab=baustahl"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'baustahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         🔩 Baustahl
       </a>
       <a href="/lager?tab=edelstahl"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'edelstahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         ✨ Edelstahl
       </a>
       <a href="/lager?tab=schrauben"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'schrauben' ? 'border-orange-600 text-orange-600 dark:text-orange-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         🔧 Schrauben
       </a>
+      <% /* ── Custom-Tabs ────────────────────────────────────── */ %>
+      <% const colorMap = { blue:'border-blue-600 text-blue-600 dark:text-blue-400', violet:'border-violet-600 text-violet-600 dark:text-violet-400', emerald:'border-emerald-600 text-emerald-600 dark:text-emerald-400', amber:'border-amber-600 text-amber-600 dark:text-amber-400', rose:'border-rose-600 text-rose-600 dark:text-rose-400', slate:'border-slate-600 text-slate-600 dark:text-slate-400', orange:'border-orange-600 text-orange-600 dark:text-orange-400', cyan:'border-cyan-600 text-cyan-600 dark:text-cyan-400' }; %>
+      <% for (const ct of (customTabs || [])) { %>
+      <a href="/lager?tab=<%= ct.key %>"
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
+               <%= tab === ct.key ? (colorMap[ct.color] || colorMap.blue) : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        <%= ct.icon %> <%= ct.label %>
+      </a>
+      <% } %>
       <a href="/lager?tab=entnahmen"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'entnahmen' ? 'border-amber-600 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         📤 Entnahmen
       </a>
       <a href="/lager?tab=reste"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px
+        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'reste' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
         ✂️ Reststücke
       </a>
@@ -380,6 +393,9 @@
             <option value="baustahl"  <%= tab === 'baustahl'  ? 'selected' : '' %>>🔩 Baustahl</option>
             <option value="edelstahl" <%= tab === 'edelstahl' ? 'selected' : '' %>>✨ Edelstahl</option>
             <option value="schrauben" <%= tab === 'schrauben' ? 'selected' : '' %>>🔧 Schrauben & Kleinteile</option>
+            <% for (const ct of (customTabs || [])) { %>
+            <option value="<%= ct.key %>" <%= tab === ct.key ? 'selected' : '' %>><%= ct.icon %> <%= ct.label %></option>
+            <% } %>
           </select>
         </div>
 
@@ -520,6 +536,9 @@
             <option value="baustahl">🔩 Baustahl</option>
             <option value="edelstahl">✨ Edelstahl</option>
             <option value="schrauben">🔧 Schrauben & Kleinteile</option>
+            <% for (const ct of (customTabs || [])) { %>
+            <option value="<%= ct.key %>"><%= ct.icon %> <%= ct.label %></option>
+            <% } %>
           </select>
         </div>
 
