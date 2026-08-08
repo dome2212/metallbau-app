@@ -367,39 +367,110 @@
      onclick="closeModal('addModal', event)">
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">+ Material einlagern</h2>
+      <h2 id="addModalTitle" class="text-lg font-bold text-gray-800 dark:text-gray-100">+ Material einlagern</h2>
       <button onclick="closeModal('addModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/add" method="POST" class="space-y-3">
       <div class="grid grid-cols-2 gap-3">
+
+        <!-- Typ-Auswahl -->
         <div class="col-span-2">
           <label class="lbl">Material-Typ *</label>
-          <select name="material_type" id="addMaterialType" class="fi w-full">
-            <option value="baustahl" <%= tab === 'baustahl' ? 'selected' : '' %>>🔩 Baustahl</option>
+          <select name="material_type" id="addMaterialType" onchange="updateAddModalFields()" class="fi w-full">
+            <option value="baustahl"  <%= tab === 'baustahl'  ? 'selected' : '' %>>🔩 Baustahl</option>
             <option value="edelstahl" <%= tab === 'edelstahl' ? 'selected' : '' %>>✨ Edelstahl</option>
             <option value="schrauben" <%= tab === 'schrauben' ? 'selected' : '' %>>🔧 Schrauben & Kleinteile</option>
           </select>
         </div>
-        <div class="col-span-2">
-          <label class="lbl">Bezeichnung *</label>
-          <input type="text" name="bezeichnung" required placeholder="z.B. Flachstahl, Rohr, Winkel…" class="fi w-full">
+
+        <!-- ── STAHL-FELDER (Baustahl / Edelstahl) ──────────── -->
+        <div id="addStahlFelder" class="col-span-2 grid grid-cols-2 gap-3">
+          <div class="col-span-2">
+            <label class="lbl">Bezeichnung *</label>
+            <input type="text" name="bezeichnung" id="addBezeichnungStahl" placeholder="z.B. Flachstahl, Rohr, Winkel…" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Profil</label>
+            <input type="text" name="profil" id="addProfil" placeholder="z.B. 40×5" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Abmessung / Länge</label>
+            <input type="text" name="abmessung" id="addAbmessung" placeholder="z.B. 6000 mm" class="fi w-full">
+          </div>
         </div>
-        <div>
-          <label class="lbl">Profil</label>
-          <input type="text" name="profil" placeholder="z.B. 40x5" class="fi w-full">
+
+        <!-- ── SCHRAUBEN-FELDER ──────────────────────────────── -->
+        <div id="addSchraubenFelder" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+          <div class="col-span-2">
+            <label class="lbl">Bezeichnung *</label>
+            <input type="text" name="bezeichnung" id="addBezeichnungSchrauben" placeholder="z.B. Sechskantschraube, Inbus, Gewindestange…" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Gewinde (Profil)</label>
+            <select name="profil" id="addGewindeSel" class="fi w-full" onchange="addGewindeCustomCheck(this)">
+              <option value="">– wählen –</option>
+              <option>M3</option><option>M4</option><option>M5</option><option>M6</option>
+              <option>M8</option><option>M10</option><option>M12</option><option>M14</option>
+              <option>M16</option><option>M18</option><option>M20</option><option>M24</option>
+              <option value="__custom__">Eigenes…</option>
+            </select>
+            <input type="text" id="addGewindeCustom" name="profil_custom" placeholder="z.B. M7, 1/4&quot;" class="fi w-full mt-1 hidden">
+          </div>
+          <div>
+            <label class="lbl">Länge (Abmessung)</label>
+            <select name="abmessung" id="addLaengeSel" class="fi w-full" onchange="addLaengeCustomCheck(this)">
+              <option value="">– wählen –</option>
+              <option>6 mm</option><option>8 mm</option><option>10 mm</option><option>12 mm</option>
+              <option>16 mm</option><option>20 mm</option><option>25 mm</option><option>30 mm</option>
+              <option>35 mm</option><option>40 mm</option><option>50 mm</option><option>60 mm</option>
+              <option>70 mm</option><option>80 mm</option><option>100 mm</option><option>120 mm</option>
+              <option>150 mm</option><option>200 mm</option>
+              <option value="__custom__">Eigene…</option>
+            </select>
+            <input type="text" id="addLaengeCustom" name="abmessung_custom" placeholder="z.B. 45 mm, 1m" class="fi w-full mt-1 hidden">
+          </div>
+          <div>
+            <label class="lbl">Kopfform / Typ</label>
+            <select name="notiz" id="addKopfform" class="fi w-full">
+              <option value="">– optional –</option>
+              <option>Sechskant (DIN 933)</option>
+              <option>Sechskant mit Schaft (DIN 931)</option>
+              <option>Zylinderkopf Inbus (DIN 912)</option>
+              <option>Senkkopf Inbus (DIN 7991)</option>
+              <option>Flachkopf Inbus (ISO 7380)</option>
+              <option>Kreuzschlitz PH (DIN 965)</option>
+              <option>Linsenkopf Torx</option>
+              <option>Gewindestange (DIN 975)</option>
+              <option>Scheibe (DIN 125)</option>
+              <option>Scheibe groß (DIN 9021)</option>
+              <option>Sicherungsmutter (DIN 985)</option>
+              <option>Sechskantmutter (DIN 934)</option>
+              <option>Stockschraube</option>
+              <option>Ankerschraube</option>
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Güte / Material</label>
+            <select name="notiz2" id="addGuete" class="fi w-full">
+              <option value="">– optional –</option>
+              <option>4.6</option><option>4.8</option><option>5.6</option>
+              <option>8.8</option><option>10.9</option><option>12.9</option>
+              <option>A2 (V2A / 1.4301)</option>
+              <option>A4 (V4A / 1.4404)</option>
+              <option>verzinkt</option><option>blank</option><option>Edelstahl</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="lbl">Abmessung / Länge</label>
-          <input type="text" name="abmessung" placeholder="z.B. 6000 mm" class="fi w-full">
-        </div>
+
+        <!-- ── GEMEINSAME FELDER (immer sichtbar) ────────────── -->
         <div>
           <label class="lbl">Menge *</label>
           <input type="text" name="menge" required placeholder="0" class="fi w-full">
         </div>
         <div>
           <label class="lbl">Einheit</label>
-          <select name="einheit" class="fi w-full">
-            <option>Stk</option><option>m</option><option>kg</option><option>m²</option><option>Psch</option>
+          <select name="einheit" id="addEinheit" class="fi w-full">
+            <option>Stk</option><option>m</option><option>kg</option><option>Beutel</option><option>Psch</option>
           </select>
         </div>
         <div>
@@ -408,24 +479,22 @@
         </div>
         <div>
           <label class="lbl">Lagerort</label>
-          <input type="text" name="lagerort" placeholder="z.B. Regal A3" class="fi w-full">
+          <input type="text" name="lagerort" placeholder="z.B. Regal A3, Kiste B2" class="fi w-full">
         </div>
-        <div>
-          <label class="lbl">Lieferschein-Nr.</label>
-          <input type="text" name="lieferschein_nr" placeholder="LS-12345" class="fi w-full">
-        </div>
-        <div>
-          <label class="lbl">Lieferdatum</label>
-          <input type="date" name="lieferdatum" class="fi w-full">
-        </div>
-        <div class="col-span-2">
-          <label class="lbl">Notiz</label>
-          <input type="text" name="notiz" placeholder="Optionale Bemerkung" class="fi w-full">
+        <div id="addLieferscheinFelder" class="col-span-2 grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Lieferschein-Nr.</label>
+            <input type="text" name="lieferschein_nr" placeholder="LS-12345" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Lieferdatum</label>
+            <input type="date" name="lieferdatum" class="fi w-full">
+          </div>
         </div>
       </div>
       <div class="flex gap-3 pt-2">
         <button type="button" onclick="closeModal('addModal')" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Abbrechen</button>
-        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">Speichern</button>
+        <button type="submit" id="addSubmitBtn" onclick="prepareAddSubmit()" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">Speichern</button>
       </div>
     </form>
   </div>
@@ -444,26 +513,65 @@
     <form action="/lager/edit" method="POST" class="space-y-3">
       <input type="hidden" name="id" id="editId">
       <div class="grid grid-cols-2 gap-3">
+
         <div class="col-span-2">
           <label class="lbl">Material-Typ *</label>
-          <select name="material_type" id="editMaterialType" class="fi w-full">
+          <select name="material_type" id="editMaterialType" onchange="updateEditModalFields()" class="fi w-full">
             <option value="baustahl">🔩 Baustahl</option>
             <option value="edelstahl">✨ Edelstahl</option>
             <option value="schrauben">🔧 Schrauben & Kleinteile</option>
           </select>
         </div>
+
         <div class="col-span-2">
           <label class="lbl">Bezeichnung *</label>
           <input type="text" name="bezeichnung" id="editBezeichnung" required class="fi w-full">
         </div>
-        <div>
-          <label class="lbl">Profil</label>
-          <input type="text" name="profil" id="editProfil" class="fi w-full">
+
+        <!-- Stahl-Felder -->
+        <div id="editStahlFelder" class="col-span-2 grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Profil</label>
+            <input type="text" name="profil" id="editProfil" placeholder="z.B. 40×5" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Abmessung / Länge</label>
+            <input type="text" name="abmessung" id="editAbmessung" placeholder="z.B. 6000 mm" class="fi w-full">
+          </div>
         </div>
-        <div>
-          <label class="lbl">Abmessung / Länge</label>
-          <input type="text" name="abmessung" id="editAbmessung" class="fi w-full">
+
+        <!-- Schrauben-Felder -->
+        <div id="editSchraubenFelder" class="col-span-2 grid grid-cols-2 gap-3 hidden">
+          <div>
+            <label class="lbl">Gewinde (Profil)</label>
+            <input type="text" name="profil" id="editGewindeFeld" placeholder="z.B. M8, M12" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Länge (Abmessung)</label>
+            <input type="text" name="abmessung" id="editLaengeFeld" placeholder="z.B. 30 mm" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Kopfform / Typ (Notiz)</label>
+            <input type="text" name="notiz" id="editNotizSchrauben" placeholder="z.B. Sechskant DIN 933, Inbus" class="fi w-full">
+          </div>
+          <div>
+            <label class="lbl">Güte</label>
+            <select id="editGuete" class="fi w-full" onchange="document.getElementById('editGueteHidden').value=this.value">
+              <option value="">– optional –</option>
+              <option>8.8</option><option>10.9</option><option>12.9</option>
+              <option>A2 (V2A / 1.4301)</option><option>A4 (V4A / 1.4404)</option>
+              <option>verzinkt</option><option>blank</option>
+            </select>
+            <input type="hidden" name="notiz2" id="editGueteHidden">
+          </div>
         </div>
+
+        <!-- Notiz (Stahl) -->
+        <div id="editNotizStahlBox" class="col-span-2">
+          <label class="lbl">Notiz</label>
+          <input type="text" name="notiz" id="editNotiz" class="fi w-full">
+        </div>
+
         <div>
           <label class="lbl">Menge *</label>
           <input type="text" name="menge" id="editMenge" required class="fi w-full">
@@ -471,7 +579,7 @@
         <div>
           <label class="lbl">Einheit</label>
           <select name="einheit" id="editEinheit" class="fi w-full">
-            <option>Stk</option><option>m</option><option>kg</option><option>m²</option><option>Psch</option>
+            <option>Stk</option><option>m</option><option>kg</option><option>m²</option><option>Beutel</option><option>Psch</option>
           </select>
         </div>
         <div>
@@ -489,10 +597,6 @@
         <div>
           <label class="lbl">Lieferdatum</label>
           <input type="date" name="lieferdatum" id="editLieferdatum" class="fi w-full">
-        </div>
-        <div class="col-span-2">
-          <label class="lbl">Notiz</label>
-          <input type="text" name="notiz" id="editNotiz" class="fi w-full">
         </div>
       </div>
       <div class="flex gap-3 pt-2">
@@ -735,8 +839,89 @@
     if (event && event.target !== document.getElementById(id)) return;
     document.getElementById(id).classList.add('hidden');
   }
-  function openAddModal()      { document.getElementById('addModal').classList.remove('hidden'); }
+  function openAddModal() {
+    document.getElementById('addModal').classList.remove('hidden');
+    updateAddModalFields(); // Felder sofort nach aktuellem Typ ausrichten
+  }
   function openRestModal()     { document.getElementById('restModal').classList.remove('hidden'); }
+
+  // ── Dynamische Felder: Einlagern-Modal ──────────────────────────────────────
+  function updateAddModalFields() {
+    const typ  = document.getElementById('addMaterialType').value;
+    const isS  = typ === 'schrauben';
+    document.getElementById('addStahlFelder').classList.toggle('hidden', isS);
+    document.getElementById('addSchraubenFelder').classList.toggle('hidden', !isS);
+    document.getElementById('addLieferscheinFelder').classList.toggle('hidden', isS);
+    // Titel & Einheit anpassen
+    document.getElementById('addModalTitle').textContent = isS ? '🔧 Schraube / Kleinteil einlagern' : '+ Material einlagern';
+    const einheit = document.getElementById('addEinheit');
+    if (einheit) einheit.value = isS ? 'Stk' : 'Stk';
+    // required-Attribut auf das sichtbare Bezeichnungsfeld setzen
+    document.getElementById('addBezeichnungStahl').required    = !isS;
+    document.getElementById('addBezeichnungSchrauben').required = isS;
+  }
+  // Gewinde: "Eigenes…" zeigt Freitext
+  function addGewindeCustomCheck(sel) {
+    const custom = document.getElementById('addGewindeCustom');
+    if (sel.value === '__custom__') {
+      custom.classList.remove('hidden');
+      custom.name = 'profil'; sel.name = '_profil_sel_ignore';
+      custom.focus();
+    } else {
+      custom.classList.add('hidden');
+      custom.name = 'profil_custom'; sel.name = 'profil';
+    }
+  }
+  // Länge: "Eigene…" zeigt Freitext
+  function addLaengeCustomCheck(sel) {
+    const custom = document.getElementById('addLaengeCustom');
+    if (sel.value === '__custom__') {
+      custom.classList.remove('hidden');
+      custom.name = 'abmessung'; sel.name = '_abm_sel_ignore';
+      custom.focus();
+    } else {
+      custom.classList.add('hidden');
+      custom.name = 'abmessung_custom'; sel.name = 'abmessung';
+    }
+  }
+  // Beim Submit: Güte in Notiz einfließen lassen
+  function prepareAddSubmit() {
+    const typ = document.getElementById('addMaterialType').value;
+    if (typ !== 'schrauben') return;
+    const kopf  = document.getElementById('addKopfform').value;
+    const guete = document.getElementById('addGuete').value;
+    // Notiz = "Kopfform | Güte" (wird über name="notiz" gesendet)
+    // addKopfform hat bereits name="notiz" – Güte wird als notiz2 separat gesendet
+    // Bezeichnung: wenn leer den Gewinde+Länge-Wert vorbelegen
+    const bez = document.getElementById('addBezeichnungSchrauben');
+    if (!bez.value.trim()) {
+      const gw = document.getElementById('addGewindeSel').value !== '__custom__'
+                  ? document.getElementById('addGewindeSel').value
+                  : document.getElementById('addGewindeCustom').value;
+      const la = document.getElementById('addLaengeSel').value !== '__custom__'
+                  ? document.getElementById('addLaengeSel').value
+                  : document.getElementById('addLaengeCustom').value;
+      if (gw || la) bez.value = [gw, la].filter(Boolean).join(' × ');
+    }
+  }
+  document.addEventListener('DOMContentLoaded', updateAddModalFields);
+
+  // ── Dynamische Felder: Bearbeiten-Modal ─────────────────────────────────────
+  function updateEditModalFields() {
+    const typ = document.getElementById('editMaterialType').value;
+    const isS = typ === 'schrauben';
+    document.getElementById('editStahlFelder').classList.toggle('hidden', isS);
+    document.getElementById('editSchraubenFelder').classList.toggle('hidden', !isS);
+    document.getElementById('editNotizStahlBox').classList.toggle('hidden', isS);
+    // Profil/Abmessung-Werte zwischen den Feldern synchronisieren
+    if (isS) {
+      document.getElementById('editGewindeFeld').value = document.getElementById('editProfil').value || '';
+      document.getElementById('editLaengeFeld').value  = document.getElementById('editAbmessung').value || '';
+    } else {
+      document.getElementById('editProfil').value    = document.getElementById('editGewindeFeld').value || '';
+      document.getElementById('editAbmessung').value = document.getElementById('editLaengeFeld').value  || '';
+    }
+  }
 
   // ── Verschieben-Modal ────────────────────────────────────────────────────────
   const _typeLabel = { baustahl: '🔩 Baustahl', edelstahl: '✨ Edelstahl', schrauben: '🔧 Schrauben' };
@@ -822,19 +1007,31 @@
   // ── Edit-Modal ──────────────────────────────────────────────────────────────
   // Neue Variante: liest alle Felder sicher aus data-* Attributen
   function openEditModalEl(btn) {
-    const d = btn.dataset;
+    const d   = btn.dataset;
+    const typ    = decodeURIComponent(d.itemMaterial   || 'baustahl');
+    const profil = decodeURIComponent(d.itemProfil     || '');
+    const abm    = decodeURIComponent(d.itemAbmessung  || '');
+    const notiz  = decodeURIComponent(d.itemNotiz      || '');
+
     document.getElementById('editId').value             = d.itemId;
-    document.getElementById('editMaterialType').value   = decodeURIComponent(d.itemMaterial || 'baustahl');
+    document.getElementById('editMaterialType').value   = typ;
     document.getElementById('editBezeichnung').value    = decodeURIComponent(d.itemBezeichnung || '');
-    document.getElementById('editProfil').value         = decodeURIComponent(d.itemProfil || '');
-    document.getElementById('editAbmessung').value      = decodeURIComponent(d.itemAbmessung || '');
     document.getElementById('editMenge').value          = d.itemMenge || '';
     document.getElementById('editEinheit').value        = decodeURIComponent(d.itemEinheit || 'Stk');
     document.getElementById('editLsnr').value           = decodeURIComponent(d.itemLsnr || '');
-    document.getElementById('editNotiz').value          = decodeURIComponent(d.itemNotiz || '');
     document.getElementById('editMindestbestand').value = d.itemMindestbestand || '';
     document.getElementById('editLagerort').value       = decodeURIComponent(d.itemLagerort || '');
     document.getElementById('editLieferdatum').value    = d.itemLieferdatum || '';
+    // Stahl-Felder
+    document.getElementById('editProfil').value    = profil;
+    document.getElementById('editAbmessung').value = abm;
+    document.getElementById('editNotiz').value     = notiz;
+    // Schrauben-Felder
+    document.getElementById('editGewindeFeld').value    = profil;
+    document.getElementById('editLaengeFeld').value     = abm;
+    document.getElementById('editNotizSchrauben').value = notiz;
+    // Felder ein-/ausblenden je Typ
+    updateEditModalFields();
     document.getElementById('editModal').classList.remove('hidden');
   }
   // Alte Variante für Rückwärtskompatibilität (nicht mehr genutzt, bleibt aber erhalten)
