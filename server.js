@@ -387,9 +387,12 @@ app.get('/api/today-hours', async (req, res) => {
 // Kein JWT – gesichert per RFID_API_KEY in .env
 // ==========================================
 app.post('/api/rfid/stamp', async (req, res) => {
-  // API-Key prüfen (Header: X-RFID-Key)
+  // API-Key prüfen (Header: X-RFID-Key) – fail-closed
   const apiKey = process.env.RFID_API_KEY;
-  if (apiKey && req.headers['x-rfid-key'] !== apiKey) {
+  if (!apiKey) {
+    return res.status(503).json({ ok: false, error: 'RFID-Stempeluhr nicht konfiguriert.' });
+  }
+  if (req.headers['x-rfid-key'] !== apiKey) {
     return res.status(401).json({ ok: false, error: 'Ungültiger API-Key' });
   }
 
@@ -615,6 +618,59 @@ app.post('/api/ai/project-description', async (req, res) => {
   try {
     const text = await callAI(prompt);
     res.json({ description: text.trim().replace(/^["']|["']$/g, '') });
+  } catch (err) {
+    res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+  }
+});
+
+app.post('/api/ai/defect-analyze',
+  imageUploadMemory.single('image'),
+  async (req, res) => {
+    if (!process.env.OPENROUTER_API_KEY)
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+    if (!req.file)
+      return res.status(400).json({ error: 'Kein Bild übermittelt.' });
+
+    const apiKey   = process.env.OPENROUTER_API_KEY;
+    const b64      = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const hint     = (req.body.hint || '').trim();
+
+    const systemPrompt = `Du bist ein erfahrener Metallbau-Sachverständiger. Analysiere das Foto eines Bauteils oder einer Baustelle.
+Antworte auf Deutsch mit einem JSON-Objekt (kein Text davor oder danach):
+{
+  "title": "Kurzer Mangeltitel (max. 6 Wörter)",
+  "description": "Genaue Beschreibung des Mangels oder der Restarbeit (1-2 Sätze)",
+  "category": "Mangel" | "Restarbeit" | "Bestellung",
+  "severity": "gering" | "mittel" | "hoch"
+}
+${hint ? 'Zusätzlicher Hinweis vom Nutzer: ' + hint : ''}
+Falls kein Mangel erkennbar ist, setze title auf "Kein Mangel erkennbar" und category auf "Restarbeit".`;
+
+    try {
+      const reply = await callVisionAI(apiKey, systemPrompt, b64, mimeType);
+      const match = reply.match(/\{[\s\S]*?\}/);
+      if (!match) return res.status(500).json({ error: 'KI konnte kein Ergebnis extrahieren.' });
+      const result = JSON.parse(match[0]);
+      res.json({ result });
+    } catch (err) {
+      res.status(500).json({ error: 'KI-Bildanalyse fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
+    }
+  }
+);
+
+app.post('/api/ai/expand-position', async (req, res) => {
+  if (!process.env.OPENROUTER_API_KEY) return res.status(500).json({ error: 'OPENROUTER_API_KEY nicht konfiguriert.' });
+  const { keywords, context } = req.body;
+  if (!keywords) return res.status(400).json({ error: 'Keine Stichpunkte übermittelt.' });
+  const firma = await getFirma();
+  const prompt = `Du bist ein erfahrener Metallbauer bei "${firma.name}". Schreibe eine professionelle Leistungsbeschreibung für eine Angebotsposition auf Deutsch.
+Antworte NUR mit dem Beschreibungstext, ohne Einleitung, ohne Titel, ohne Anführungszeichen. Max. 2 Sätze. Sachlich und präzise.
+${context ? 'Projektkontext: ' + context : ''}
+Stichpunkte: ${keywords}`;
+  try {
+    const text = await callAI(prompt);
+    res.json({ text: text.trim().replace(/^["'„]|["'"]$/g, '') });
   } catch (err) {
     res.status(500).json({ error: 'KI-Anfrage fehlgeschlagen: ' + (err.message || 'Unbekannter Fehler') });
   }

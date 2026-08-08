@@ -231,6 +231,11 @@ router.get('/admin/monthly', async (req, res) => {
     }
 
     const targetUserId = req.query.user_id || userId;
+    if (req.query.user_id && String(req.query.user_id) !== String(userId)) {
+      if (role !== 'ADMIN' && role !== 'CHEF') {
+        return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Sie dürfen nur Ihre eigenen Zeitdaten abrufen.</p><a href="/">← Zurück</a>');
+      }
+    }
     const entriesRes   = await dbQuery(
       isPg
         ? `SELECT time_logs.*, projects.title as project_title,
@@ -295,6 +300,11 @@ router.get('/admin/monthly', async (req, res) => {
 router.get('/admin/export-csv', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
+    if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+        return res.status(403).json({ error: 'Zugriff verweigert' });
+      }
+    }
     const month        = req.query.month   || new Date().toISOString().slice(0, 7);
 
     const logsRes = await dbQuery(
@@ -335,6 +345,11 @@ router.get('/admin/export-csv', async (req, res) => {
 router.get('/admin/export-pdf', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
+    if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+        return res.status(403).json({ error: 'Zugriff verweigert' });
+      }
+    }
     const month        = req.query.month   || new Date().toISOString().slice(0, 7);
     const dailyHours   = parseFloat(req.query.daily_hours || '8');
 

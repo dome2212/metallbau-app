@@ -2,6 +2,7 @@ const { Pool } = require('pg');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 let db;
 
@@ -824,12 +825,20 @@ if (process.env.DATABASE_URL) {
       db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
         if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
       });
-      // Chef-User lokal prüfen/anlegen
-      db.get(`SELECT * FROM users WHERE role = 'CHEF'`, (err, row) => {
+      // Chef-User lokal prüfen/anlegen (nur wenn noch kein CHEF existiert)
+      db.get(`SELECT id FROM users WHERE role = 'CHEF'`, (err, row) => {
         if (!row) {
-          const hashedPassword = bcrypt.hashSync('chef123', 10);
-          db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'CHEF'], (err) => {
-            if (!err) console.log("✅ Lokaler Chef-User 'chef' erfolgreich erstellt!");
+          const tempPassword = crypto.randomBytes(9).toString('base64url');
+          const hashedPassword = bcrypt.hashSync(tempPassword, 10);
+          db.run(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`, ['chef', hashedPassword, 'CHEF'], (insertErr) => {
+            if (!insertErr) {
+              console.log('==========================================');
+              console.log('🔑 Standard-Chef angelegt!');
+              console.log('   User: chef');
+              console.log('   PW:   ' + tempPassword);
+              console.log('   ⚠️  Bitte SOFORT nach dem ersten Login ändern!');
+              console.log('==========================================');
+            }
           });
         }
       });

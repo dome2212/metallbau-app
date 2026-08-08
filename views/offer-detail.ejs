@@ -70,7 +70,14 @@
           <tbody>
             <% items.forEach(item => { %>
             <tr class="border-b dark:border-slate-700 text-sm">
-              <td class="px-4 py-3 text-gray-800 dark:text-gray-100"><%= item.description %></td>
+              <td class="px-4 py-3 text-gray-800 dark:text-gray-100 group relative">
+                <span><%= item.description %></span>
+                <button type="button"
+                  onclick="openExpandModal(this)"
+                  data-text="<%= (item.description||'').replace(/\"/g,'&quot;') %>"
+                  title="Leistungsbeschreibung mit KI ausformulieren"
+                  class="ml-1.5 text-[10px] text-violet-500 hover:text-violet-700 dark:text-violet-400 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity align-middle">✨ KI</button>
+              </td>
               <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"><%= Number(item.quantity).toLocaleString('de-DE') %></td>
               <td class="px-4 py-3 text-gray-500 dark:text-gray-400"><%= item.unit %></td>
               <% if (canSeeMoney) { %>
@@ -236,7 +243,7 @@
         </div>
         <!-- Spalten-Header -->
         <div class="grid grid-cols-12 gap-1 mb-1 px-0.5">
-          <span class="col-span-5 text-[10px] text-gray-400 uppercase font-semibold">Beschreibung</span>
+          <span class="col-span-5 text-[10px] text-gray-400 uppercase font-semibold">Beschreibung <span class="text-violet-400 normal-case font-normal">✨ KI</span></span>
           <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Menge</span>
           <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Einheit</span>
           <span class="col-span-2 text-[10px] text-gray-400 uppercase font-semibold">Preis €</span>
@@ -261,26 +268,6 @@
 </div>
 
 <script>
-// ── Nachtrag-Modal Zeile ──────────────────────────────────────────────────────
-function addNachtragRow() {
-  const container = document.getElementById('nachtragItemsContainer');
-  const id = 'nr_' + Date.now();
-  const units = ['Stk','m','Std','kg','m²','Psch'].map(u=>`<option>${u}</option>`).join('');
-  container.insertAdjacentHTML('beforeend', `
-    <div id="${id}" class="grid grid-cols-12 gap-1 items-center">
-      <input type="text" name="item_beschreibung" required placeholder="Beschreibung"
-        class="col-span-5 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
-      <input type="number" name="item_menge" value="1" step="0.01" min="0"
-        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
-      <select name="item_einheit"
-        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">${units}</select>
-      <input type="number" name="item_preis" value="" step="0.01" min="0" placeholder="0.00"
-        class="nr-preis col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
-      <button type="button" onclick="document.getElementById('${id}').remove();updateNachtragTotal()"
-        class="col-span-1 text-red-400 hover:text-red-600 font-bold text-sm text-center">✕</button>
-    </div>
-  `);
-}
 function updateNachtragTotal() {
   const rows = document.querySelectorAll('#nachtragItemsContainer > div');
   let sum = 0;
@@ -300,4 +287,132 @@ document.addEventListener('DOMContentLoaded', () => {
     if (c && c.children.length === 0) addNachtragRow();
   });
 });
+
+// ── Nachtrag-Zeile mit ✨ KI-Button ──────────────────────────────────────────
+function addNachtragRow() {
+  const container = document.getElementById('nachtragItemsContainer');
+  const id = 'nr_' + Date.now();
+  const units = ['Stk','m','Std','kg','m²','Psch'].map(u=>`<option>${u}</option>`).join('');
+  container.insertAdjacentHTML('beforeend', `
+    <div id="${id}" class="grid grid-cols-12 gap-1 items-center">
+      <div class="col-span-5 relative">
+        <input type="text" name="item_beschreibung" required placeholder="Beschreibung"
+          class="w-full border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100 pr-7" oninput="updateNachtragTotal()">
+        <button type="button" title="Leistungsbeschreibung mit KI ausformulieren"
+          onclick="expandNachtragField(this)"
+          class="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 hover:text-violet-600 leading-none px-0.5">✨</button>
+      </div>
+      <input type="number" name="item_menge" value="1" step="0.01" min="0"
+        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
+      <select name="item_einheit"
+        class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">${units}</select>
+      <input type="number" name="item_preis" value="" step="0.01" min="0" placeholder="0.00"
+        class="nr-preis col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100" oninput="updateNachtragTotal()">
+      <button type="button" onclick="document.getElementById('${id}').remove();updateNachtragTotal()"
+        class="col-span-1 text-red-400 hover:text-red-600 font-bold text-sm text-center">✕</button>
+    </div>
+  `);
+}
+
+// ── KI-Expand: Stichpunkt → Leistungsbeschreibung ────────────────────────────
+let _expandTarget = null; // Referenz auf das Input-Feld das befüllt werden soll
+
+function openExpandModal(btn) {
+  const currentText = btn.dataset.text || btn.closest('tr')?.querySelector('span')?.textContent?.trim() || '';
+  document.getElementById('expandInput').value = currentText;
+  document.getElementById('expandResult').value = '';
+  document.getElementById('expandStatus').textContent = '';
+  document.getElementById('expandAcceptBtn').disabled = true;
+  _expandTarget = null; // Nur-Lese-Ansicht: kein Feld zum Befüllen
+  document.getElementById('expandModal').classList.remove('hidden');
+}
+
+function expandNachtragField(btn) {
+  const input = btn.previousElementSibling;
+  document.getElementById('expandInput').value = input.value;
+  document.getElementById('expandResult').value = '';
+  document.getElementById('expandStatus').textContent = '';
+  document.getElementById('expandAcceptBtn').disabled = true;
+  _expandTarget = input;
+  document.getElementById('expandModal').classList.remove('hidden');
+  document.getElementById('expandInput').focus();
+}
+
+async function runExpand() {
+  const keywords = document.getElementById('expandInput').value.trim();
+  if (!keywords) return;
+  const statusEl = document.getElementById('expandStatus');
+  const resultEl = document.getElementById('expandResult');
+  const runBtn   = document.getElementById('expandRunBtn');
+  statusEl.textContent = '⏳ KI formuliert…';
+  resultEl.value = '';
+  document.getElementById('expandAcceptBtn').disabled = true;
+  runBtn.disabled = true;
+
+  try {
+    const res  = await fetch('/api/ai/expand-position', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ keywords })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      statusEl.textContent = '❌ ' + (data.error || 'Fehler');
+    } else {
+      resultEl.value = data.text;
+      statusEl.textContent = '✅ Text bereit';
+      document.getElementById('expandAcceptBtn').disabled = false;
+    }
+  } catch (e) {
+    statusEl.textContent = '❌ Netzwerkfehler';
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function acceptExpand() {
+  const text = document.getElementById('expandResult').value.trim();
+  if (!text) return;
+  if (_expandTarget) {
+    _expandTarget.value = text;
+    _expandTarget.dispatchEvent(new Event('input'));
+  }
+  document.getElementById('expandModal').classList.add('hidden');
+}
 </script>
+
+<!-- ── MODAL: KI-Leistungsbeschreibung ──────────────────────────────────────── -->
+<div id="expandModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+     onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center">
+      <h2 class="text-base font-bold text-gray-800 dark:text-gray-100">✨ KI-Leistungsbeschreibung</h2>
+      <button onclick="document.getElementById('expandModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Stichpunkte / Kurzbezeichnung</label>
+      <input id="expandInput" type="text" placeholder="z.B. Geländer verzinkt Montage 3m"
+        class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 outline-none"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();runExpand();}">
+    </div>
+    <button id="expandRunBtn" type="button" onclick="runExpand()"
+      class="w-full py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition">
+      ✨ Beschreibung generieren
+    </button>
+    <div>
+      <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Ergebnis <span id="expandStatus" class="font-normal text-gray-400 ml-1"></span></label>
+      <textarea id="expandResult" rows="3"
+        class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 dark:text-gray-100 resize-none outline-none"
+        placeholder="Die KI-Beschreibung erscheint hier…"></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button type="button" onclick="document.getElementById('expandModal').classList.add('hidden')"
+        class="flex-1 py-2 rounded-xl border border-gray-200 dark:border-slate-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition">Schließen</button>
+      <button id="expandAcceptBtn" type="button" onclick="acceptExpand()" disabled
+        class="flex-1 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">
+        ✓ Übernehmen
+      </button>
+    </div>
+  </div>
+</div>

@@ -581,7 +581,7 @@ router.get('/nachtrag/approve/:token', async (req, res) => {
     res.send(`<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nachtrag freigeben – ${firma.nameKurz || 'Metallbau'}</title>
+<title>Nachtrag freigeben – ${(firma.nameKurz || 'Metallbau').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</title>
 <style>
   body{font-family:-apple-system,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#1f2328;background:#f9fafb}
   h1{font-size:1.3rem;margin-bottom:4px}p{color:#57606a;font-size:.9rem}
@@ -594,8 +594,8 @@ router.get('/nachtrag/approve/:token', async (req, res) => {
   .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600;background:#fef9c3;color:#92400e}
 </style></head>
 <body>
-  <p style="color:#6b7280;font-size:.8rem;margin-bottom:4px">${firma.nameKurz || 'Metallbau-Betrieb'} · Angebot ${n.doc_number}</p>
-  <h1>📋 Nachtrag: ${n.titel}</h1>
+  <p style="color:#6b7280;font-size:.8rem;margin-bottom:4px">${(firma.nameKurz || 'Metallbau-Betrieb').replace(/</g,'&lt;').replace(/>/g,'&gt;')} · Angebot ${(n.doc_number||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+  <h1>📋 Nachtrag: ${n.titel.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</h1>
   <span class="badge">Ausstehende Freigabe</span>
   ${n.beschreibung ? `<p style="margin-top:12px">${n.beschreibung.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : ''}
   <table>

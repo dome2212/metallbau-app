@@ -494,15 +494,23 @@ metallbau-app/
 
 ## 🔐 Standard-Login
 
-Nach dem ersten Start wird automatisch ein Admin-Nutzer angelegt:
+Beim ersten Start wird automatisch ein Chef-Nutzer angelegt, falls noch keiner existiert.
+Das **zufällig generierte Passwort** wird **einmalig in der Konsole** ausgegeben:
 
-| Feld | Wert |
-|---|---|
-| Benutzername | `chef` |
-| Passwort | `chef123` |
+```
+==========================================
+🔑 Standard-Chef angelegt!
+   User: chef
+   PW:   <zufälliges Passwort>
+   ⚠️  Bitte SOFORT nach dem ersten Login ändern!
+==========================================
+```
 
-> ⚠️ **Passwort nach dem ersten Login sofort ändern!**  
-> Unter `/admin/users` → Passwort eines Mitarbeiters ändern.
+> ⚠️ **Passwort nach dem ersten Login sofort ändern!**
+> Unter `/admin/users` → Passwort des Mitarbeiters ändern.
+
+> 💡 Es gibt **keine hartcodierten Standard-Zugangsdaten** mehr.
+> Falls du das Passwort verloren hast, lösche den `chef`-Eintrag in der Datenbank – beim nächsten Start wird ein neues generiert.
 
 ---
 

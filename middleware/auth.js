@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'geheimes_metallbau_passwort_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET ist nicht gesetzt. Server wird nicht gestartet.');
+  process.exit(1);
+}
 
 // ── Rollen-Hierarchie ──────────────────────────────────────────────────────
 // CHEF     → alles sehen und machen (inkl. Geldsummen)

@@ -340,7 +340,36 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Foto-Nachweis (optional)</label>
-            <input type="file" name="photo" accept="image/*" class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+            <div class="flex items-center gap-2 flex-wrap">
+              <input id="taskPhotoInput" type="file" name="photo" accept="image/*"
+                class="flex-1 min-w-0 text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                onchange="onTaskPhotoSelected(this)">
+              <button type="button" id="kiDefectBtn"
+                onclick="runDefectAnalysis()"
+                class="hidden shrink-0 text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded font-semibold transition">
+                🔍 KI-Analyse
+              </button>
+            </div>
+            <!-- KI-Vorschlag-Banner -->
+            <div id="kiDefectSuggestion" class="hidden mt-2 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 rounded-lg px-3 py-2 text-xs space-y-1">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold text-violet-700 dark:text-violet-300" id="kiDefectStatus">⏳ Analysiere…</span>
+                <button type="button" onclick="document.getElementById('kiDefectSuggestion').classList.add('hidden')"
+                  class="text-violet-400 hover:text-violet-600 leading-none text-sm">✕</button>
+              </div>
+              <div id="kiDefectBody" class="hidden space-y-1">
+                <p class="text-slate-600 dark:text-slate-300"><strong id="kiDefectTitle"></strong></p>
+                <p class="text-slate-500 dark:text-slate-400" id="kiDefectDesc"></p>
+                <div class="flex gap-2 pt-1">
+                  <span id="kiDefectCat" class="px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"></span>
+                  <span id="kiDefectSev" class="px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"></span>
+                </div>
+                <button type="button" onclick="acceptDefectSuggestion()"
+                  class="w-full mt-1 py-1.5 rounded bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition">
+                  ✓ Vorschlag übernehmen
+                </button>
+              </div>
+            </div>
           </div>
           <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded transition">Aufgabe hinzufügen</button>
           <button type="button" onclick="openKiChecklistModal()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium px-4 py-2 rounded transition">✨ KI-Checkliste vorschlagen</button>
@@ -1368,6 +1397,73 @@ async function acceptKiChecklist() {
     alert('Fehler beim Speichern: ' + err.message);
     acceptBtn.disabled = false; acceptBtn.textContent = '✅ Ausgewählte übernehmen';
   }
+}
+
+// ── KI-Mängelanalyse ────────────────────────────────────────────────────────
+let _kiDefectResult = null;
+
+function onTaskPhotoSelected(input) {
+  const btn = document.getElementById('kiDefectBtn');
+  btn.classList.toggle('hidden', !input.files || input.files.length === 0);
+  // Vorheriges Ergebnis ausblenden wenn neues Foto gewählt
+  document.getElementById('kiDefectSuggestion').classList.add('hidden');
+  _kiDefectResult = null;
+}
+
+async function runDefectAnalysis() {
+  const input = document.getElementById('taskPhotoInput');
+  if (!input.files || input.files.length === 0) return;
+
+  const suggEl   = document.getElementById('kiDefectSuggestion');
+  const statusEl = document.getElementById('kiDefectStatus');
+  const bodyEl   = document.getElementById('kiDefectBody');
+  const btn      = document.getElementById('kiDefectBtn');
+
+  suggEl.classList.remove('hidden');
+  bodyEl.classList.add('hidden');
+  statusEl.textContent = '⏳ KI analysiert Foto…';
+  btn.disabled = true;
+
+  const formData = new FormData();
+  formData.append('image', input.files[0]);
+  // Hinweis aus dem Titel-Feld mitgeben falls ausgefüllt
+  const titleInput = document.querySelector('input[name="title"]');
+  if (titleInput && titleInput.value.trim()) formData.append('hint', titleInput.value.trim());
+
+  try {
+    const res  = await fetch('/api/ai/defect-analyze', { method: 'POST', credentials: 'same-origin', body: formData });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      statusEl.textContent = '❌ ' + (data.error || 'Fehler bei der Analyse');
+      return;
+    }
+    _kiDefectResult = data.result;
+    statusEl.textContent = '✅ Analyse abgeschlossen';
+    document.getElementById('kiDefectTitle').textContent = data.result.title || '';
+    document.getElementById('kiDefectDesc').textContent  = data.result.description || '';
+    document.getElementById('kiDefectCat').textContent   = data.result.category || '';
+    const sevMap = { 'gering': 'Schweregrad: gering', 'mittel': 'Schweregrad: mittel', 'hoch': '⚠️ Schweregrad: hoch' };
+    document.getElementById('kiDefectSev').textContent   = sevMap[data.result.severity] || data.result.severity || '';
+    bodyEl.classList.remove('hidden');
+  } catch (e) {
+    statusEl.textContent = '❌ Netzwerkfehler';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function acceptDefectSuggestion() {
+  if (!_kiDefectResult) return;
+  const titleInput = document.querySelector('input[name="title"]');
+  const descInput  = document.querySelector('textarea[name="description"]');
+  const catSelect  = document.querySelector('select[name="category"]');
+  if (titleInput && _kiDefectResult.title)       titleInput.value = _kiDefectResult.title;
+  if (descInput  && _kiDefectResult.description) descInput.value  = _kiDefectResult.description;
+  if (catSelect  && _kiDefectResult.category) {
+    const opt = Array.from(catSelect.options).find(o => o.value === _kiDefectResult.category);
+    if (opt) catSelect.value = _kiDefectResult.category;
+  }
+  document.getElementById('kiDefectSuggestion').classList.add('hidden');
 }
 </script>
 <% } %>
