@@ -491,11 +491,13 @@
       <!-- Baustellen-Abschlussfotos Sektion -->
       <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📸 Baustellen-Abschlussfotos</h2>
-        
+
         <!-- Upload-Formular für Fotos -->
         <form action="/projects/<%= project.id %>/photos/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
           <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Fertiges Baustellenfoto hochladen (JPG, PNG)</label>
           <input type="file" name="photo" accept="image/*" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+          <input type="text" name="caption" placeholder="Beschriftung / Kommentar (optional)"
+            class="w-full text-xs border border-slate-300 dark:border-slate-500 dark:bg-slate-600 dark:text-gray-100 rounded px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
           <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Foto hochladen</button>
         </form>
 
@@ -504,20 +506,30 @@
           <% if (photos && photos.length > 0) { %>
             <% photos.forEach(photo => { %>
               <div class="relative bg-slate-50 dark:bg-slate-700 rounded border dark:border-slate-600 p-2 flex flex-col items-center group">
-                
-                <!-- Löschen-Button mit X -->
+
+                <!-- Löschen-Button -->
                 <form action="/projects/photos/delete" method="POST" onsubmit="return confirm('Foto wirklich löschen?');" class="absolute top-3 right-3 z-10">
                   <input type="hidden" name="photo_id" value="<%= photo.id %>">
                   <input type="hidden" name="project_id" value="<%= project.id %>">
-                  <button type="submit" class="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow transition opacity-80 group-hover:opacity-100" title="Foto löschen">
-                    &times;
-                  </button>
+                  <button type="submit" class="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow transition opacity-80 group-hover:opacity-100" title="Foto löschen">&times;</button>
                 </form>
 
                 <a href="<%= photo.file_url %>" target="_blank" class="w-full">
                   <img src="<%= photo.file_url %>" alt="Baustellenfoto" class="w-full h-32 object-cover rounded hover:opacity-90 transition">
                 </a>
-                <span class="text-xs text-slate-500 dark:text-slate-400 mt-2 truncate w-full text-center"><%= photo.original_name %></span>
+
+                <!-- Beschriftung anzeigen / bearbeiten -->
+                <% if (photo.caption) { %>
+                  <p class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 text-center w-full px-1 leading-snug"><%= photo.caption %></p>
+                <% } %>
+                <form action="/projects/photos/caption" method="POST" class="w-full mt-1">
+                  <input type="hidden" name="photo_id" value="<%= photo.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <input type="text" name="caption" value="<%= photo.caption || '' %>"
+                    placeholder="Beschriftung…"
+                    class="w-full text-[10px] border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500 truncate">
+                  <button type="submit" class="mt-1 w-full text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded py-0.5 transition">💾 Speichern</button>
+                </form>
               </div>
             <% }) %>
           <% } else { %>
@@ -580,6 +592,110 @@
           <p class="text-sm text-slate-400 dark:text-slate-500">Keine spezifischen Termine für diesen Kunden im Kalender gefunden.</p>
         <% } %>
       </div>
+</div>
+
+<!-- ── Projektstatus-Verlauf ───────────────────────────────────────── -->
+<div class="px-4 md:px-6 pb-4 max-w-7xl mx-auto w-full">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 mb-4">📋 Statusverlauf</h2>
+    <% if (statusLog && statusLog.length > 0) { %>
+      <ol class="relative border-l border-slate-200 dark:border-slate-700 ml-2 space-y-4">
+        <% statusLog.forEach((entry, idx) => { %>
+          <li class="ml-4">
+            <div class="absolute -left-1.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-800 <%= idx === statusLog.length - 1 ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600' %>"></div>
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <% if (entry.old_status) { %>
+                <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium"><%= entry.old_status %></span>
+                <span class="text-slate-400">→</span>
+              <% } %>
+              <span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-semibold"><%= entry.new_status %></span>
+              <span class="text-xs text-slate-400 dark:text-slate-500">
+                von <strong class="text-slate-600 dark:text-slate-300"><%= entry.changed_by %></strong>
+                · <%= new Date(entry.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+              </span>
+            </div>
+          </li>
+        <% }) %>
+      </ol>
+    <% } else { %>
+      <p class="text-sm text-slate-400 dark:text-slate-500 italic">Noch keine Statusänderungen aufgezeichnet.</p>
+    <% } %>
+  </div>
+</div>
+
+<!-- ── Materialentnahme ────────────────────────────────────────────── -->
+<div class="px-4 md:px-6 pb-4 max-w-7xl mx-auto w-full">
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+    <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🏗️ Materialentnahme</h2>
+
+    <!-- Entnahme-Formular -->
+    <% if (lagerItems && lagerItems.length > 0) { %>
+      <form action="/projects/<%= project.id %>/material/add" method="POST"
+        class="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Material</label>
+          <select name="lager_item_id" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">— Material wählen —</option>
+            <% lagerItems.forEach(item => { %>
+              <option value="<%= item.id %>">
+                <%= item.bezeichnung %><%= item.profil ? ' · ' + item.profil : '' %>
+                (Bestand: <%= parseFloat(item.menge).toLocaleString('de-DE') %> <%= item.einheit %>)
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Menge</label>
+          <input type="number" name="menge" step="0.001" min="0.001" required placeholder="z.B. 2.5"
+            class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notiz (optional)</label>
+          <input type="text" name="notiz" placeholder="z.B. Pfosten Tor"
+            class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="sm:col-span-4 flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">Material entnehmen</button>
+        </div>
+      </form>
+    <% } else { %>
+      <p class="text-sm text-slate-400 dark:text-slate-500 italic">Kein Lagerbestand vorhanden. Zuerst Artikel im <a href="/lager" class="text-blue-600 hover:underline">Lager</a> anlegen.</p>
+    <% } %>
+
+    <!-- Entnahme-Protokoll -->
+    <% if (entnahmen && entnahmen.length > 0) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[400px]">
+          <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400 uppercase">
+            <tr>
+              <th class="px-3 py-2 text-left">Material</th>
+              <th class="px-3 py-2 text-right">Menge</th>
+              <th class="px-3 py-2 text-left hidden sm:table-cell">Notiz</th>
+              <th class="px-3 py-2 text-right hidden sm:table-cell">Datum</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% entnahmen.forEach(e => { %>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                <td class="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">
+                  <%= e.bezeichnung %><% if (e.profil) { %> <span class="text-slate-400 font-normal">· <%= e.profil %></span><% } %>
+                </td>
+                <td class="px-3 py-2 text-right text-slate-800 dark:text-gray-100 font-semibold">
+                  <%= parseFloat(e.menge).toLocaleString('de-DE') %> <%= e.einheit %>
+                </td>
+                <td class="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell"><%= e.notiz || '–' %></td>
+                <td class="px-3 py-2 text-right text-slate-400 dark:text-slate-500 hidden sm:table-cell text-xs">
+                  <%= new Date(e.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch kein Material für dieses Projekt entnommen.</p>
+    <% } %>
+  </div>
 </div>
 
 <!-- ── Stunden & Nachkalkulation ──────────────────────────────────── -->

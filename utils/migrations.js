@@ -379,6 +379,23 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 006 ── Projektstatus-Log + Foto-Beschriftung ─────────────────────────────
+  {
+    id: 6,
+    description: 'Projektstatus-Log und Foto-Beschriftung',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS project_status_log (
+        id         ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        project_id INT NOT NULL,
+        old_status TEXT,
+        new_status TEXT NOT NULL,
+        changed_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`ALTER TABLE project_photos ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} caption TEXT`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

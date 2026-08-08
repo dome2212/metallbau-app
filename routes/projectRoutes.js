@@ -191,7 +191,15 @@ router.post('/update-status', async (req, res) => {
   if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id, status } = req.body;
   try {
+    const cur = await dbQuery('SELECT status FROM projects WHERE id = ?', [id]);
+    const oldStatus = cur.rows[0]?.status || null;
     await dbQuery('UPDATE projects SET status = ? WHERE id = ?', [status, id]);
+    if (oldStatus !== status) {
+      await dbQuery(
+        'INSERT INTO project_status_log (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+        [id, oldStatus, status, req.user.username]
+      );
+    }
     res.redirect('back');
   } catch (err) {
     res.status(500).send('Fehler beim Aktualisieren des Status');
@@ -207,10 +215,18 @@ router.post('/:id/edit', async (req, res) => {
   const { title, description, total_price, status } = req.body;
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
   try {
+    const cur = await dbQuery('SELECT status FROM projects WHERE id = ?', [id]);
+    const oldStatus = cur.rows[0]?.status || null;
     await dbQuery(
       'UPDATE projects SET title = ?, description = ?, total_price = ?, status = ? WHERE id = ?',
       [title, description || null, parsedPrice, status || 'In Planung', id]
     );
+    if (oldStatus !== (status || 'In Planung')) {
+      await dbQuery(
+        'INSERT INTO project_status_log (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+        [id, oldStatus, status || 'In Planung', req.user.username]
+      );
+    }
     res.redirect(`/projects/${id}`);
   } catch (err) {
     res.status(500).send('Fehler beim Speichern der Änderungen');
@@ -231,7 +247,7 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, statusLogRes, lagerRes, entnahmenRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
@@ -251,6 +267,12 @@ router.get('/:id', async (req, res) => {
              FROM time_logs tl JOIN users u ON tl.user_id = u.id
              WHERE tl.project_id = ?
              ORDER BY tl.timestamp ASC`,
+        [id]
+      ),
+      dbQuery('SELECT * FROM project_status_log WHERE project_id = ? ORDER BY created_at ASC', [id]),
+      dbQuery('SELECT id, bezeichnung, profil, menge, einheit, material_type FROM lager_items ORDER BY bezeichnung ASC'),
+      dbQuery(
+        'SELECT lager_entnahmen.*, lager_items.bezeichnung, lager_items.profil FROM lager_entnahmen JOIN lager_items ON lager_entnahmen.lager_item_id = lager_items.id WHERE lager_entnahmen.project_id = ? ORDER BY lager_entnahmen.created_at DESC',
         [id]
       )
     ]);
@@ -303,7 +325,10 @@ router.get('/:id', async (req, res) => {
       tasks:        tasksRes.rows        || [],
       users:        usersRes.rows        || [],
       projectHours,
-      projectTotalHours
+      projectTotalHours,
+      statusLog:    statusLogRes.rows    || [],
+      lagerItems:   lagerRes.rows        || [],
+      entnahmen:    entnahmenRes.rows    || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -324,6 +349,8 @@ router.post('/delete', async (req, res) => {
     await dbQuery('DELETE FROM project_measurements WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM project_sketches     WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM project_files        WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM project_status_log   WHERE project_id = ?', [id]);
+    await dbQuery('DELETE FROM lager_entnahmen      WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM projects             WHERE id = ?',         [id]);
     res.redirect('/projects');
   } catch (err) {
@@ -337,13 +364,22 @@ router.post('/delete', async (req, res) => {
 router.post('/:id/photos/upload', upload.single('photo'), async (req, res) => {
   const projectId = req.params.id;
   if (!req.file) return res.redirect(`/projects/${projectId}`);
+  const caption = (req.body.caption || '').trim() || null;
   try {
     await dbQuery(
-      `INSERT INTO project_photos (project_id, file_url, original_name) VALUES (?, ?, ?)`,
-      [projectId, req.file.path, req.file.originalname]
+      `INSERT INTO project_photos (project_id, file_url, original_name, caption) VALUES (?, ?, ?, ?)`,
+      [projectId, req.file.path, req.file.originalname, caption]
     );
   } catch (err) { console.error('Fehler beim Foto-Upload:', err.message); }
   res.redirect(`/projects/${projectId}`);
+});
+
+router.post('/photos/caption', async (req, res) => {
+  const { photo_id, project_id, caption } = req.body;
+  try {
+    await dbQuery('UPDATE project_photos SET caption = ? WHERE id = ?', [(caption || '').trim() || null, photo_id]);
+  } catch (_) {}
+  res.redirect(`/projects/${project_id}`);
 });
 
 router.post('/photos/delete', async (req, res) => {
@@ -372,6 +408,28 @@ router.post('/measurements/delete', async (req, res) => {
   const { measurement_id, project_id } = req.body;
   try { await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]); } catch (_) {}
   res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// MATERIALENTNAHME AUS PROJEKT
+// ==========================================
+router.post('/:id/material/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { lager_item_id, menge, notiz } = req.body;
+  const mengeNum = parseFloat(String(menge || '0').replace(',', '.'));
+  if (!lager_item_id || mengeNum <= 0) return res.redirect(`/projects/${projectId}`);
+  try {
+    // Lagerbestand prüfen
+    const item = await dbQuery('SELECT menge, einheit FROM lager_items WHERE id = ?', [lager_item_id]);
+    if (!item.rows[0]) return res.redirect(`/projects/${projectId}`);
+    const neuerBestand = parseFloat(item.rows[0].menge) - mengeNum;
+    await dbQuery(
+      'INSERT INTO lager_entnahmen (lager_item_id, project_id, user_id, menge, einheit, notiz) VALUES (?, ?, ?, ?, ?, ?)',
+      [lager_item_id, projectId, req.user.id, mengeNum, item.rows[0].einheit, (notiz || '').trim() || null]
+    );
+    await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [Math.max(0, neuerBestand), lager_item_id]);
+  } catch (err) { console.error('Fehler bei Materialentnahme:', err.message); }
+  res.redirect(`/projects/${projectId}`);
 });
 
 // ==========================================
