@@ -52,62 +52,15 @@ const dbQuery = (sql, params = []) => {
 };
 
 // ==========================================
-// AUTOMATISCHE TABELLEN-ERSTELLUNG
+// DATENBANK-MIGRATIONEN
+// Alle Schema-Definitionen leben in utils/migrations.js.
+// Dort neue Tabellen oder Spalten hinzufügen – nicht hier.
 // ==========================================
-dbQuery(`CREATE TABLE IF NOT EXISTS articles (id SERIAL PRIMARY KEY, title TEXT NOT NULL, unit TEXT, unit_price NUMERIC(10,2) DEFAULT 0, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS project_photos (id SERIAL PRIMARY KEY, project_id INT, file_url TEXT NOT NULL, original_name TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS project_measurements (id SERIAL PRIMARY KEY, project_id INT, component_name TEXT NOT NULL, width TEXT, height TEXT, angle TEXT, quantity INT DEFAULT 1, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS project_notes (id SERIAL PRIMARY KEY, project_id INT, note_text TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`ALTER TABLE project_notes ADD COLUMN IF NOT EXISTS audio_url TEXT`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS vacations (id SERIAL PRIMARY KEY, user_id INT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, reason TEXT, type TEXT DEFAULT 'Urlaub', file_url TEXT, status TEXT DEFAULT 'Beantragt', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS project_tasks (id SERIAL PRIMARY KEY, project_id INT NOT NULL, title TEXT NOT NULL, description TEXT, category TEXT DEFAULT 'Restarbeit', status TEXT DEFAULT 'Offen', photo_url TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS due_date TEXT`).catch(() => {})
-dbQuery(`ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS assigned_to INT`).catch(() => {})
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS angle TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS width TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS height TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1`).catch(() => {});
-dbQuery(`ALTER TABLE project_measurements ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS file_url TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE vacations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'Urlaub'`).catch(() => {});
-dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS customer_id INT`).catch(() => {});
-dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)`).catch(() => {});
-dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)`).catch(() => {});
-dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS note TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE time_logs ADD COLUMN IF NOT EXISTS project_id INT`).catch(() => {});
-dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lat NUMERIC(10,8)`).catch(() => {});
-dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_lng NUMERIC(11,8)`).catch(() => {});
-dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_radius INT DEFAULT 200`).catch(() => {});
-dbQuery(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS site_note TEXT`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS project_sketches (id SERIAL PRIMARY KEY, project_id INT NOT NULL, title TEXT, image_data TEXT NOT NULL, created_by TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS tickers (id SERIAL PRIMARY KEY, message TEXT NOT NULL, author TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS appointment_users (appointment_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (appointment_id, user_id))`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) DEFAULT 19`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS tax_amount NUMERIC(12,2) DEFAULT 0`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS due_date TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status_note TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS dunning_level INT DEFAULT 0`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS document_items (id SERIAL PRIMARY KEY, document_id INT NOT NULL, description TEXT, quantity NUMERIC(10,3) DEFAULT 1, unit TEXT DEFAULT 'Stk', price NUMERIC(12,2) DEFAULT 0)`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_allowance INT DEFAULT 30`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_api_key TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS qualifications TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS driving_license TEXT`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notes TEXT`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS company_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dark_mode INT DEFAULT 0`).catch(() => {});
-dbQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS rfid_uid TEXT`).catch(() => {});
-dbQuery(`CREATE TABLE IF NOT EXISTS staff_assignments (
-  id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL,
-  project_id INT,
-  assignment_date TEXT NOT NULL,
-  note TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)`).catch(() => {});
+const { runMigrations } = require('./utils/migrations');
+runMigrations().catch(err => {
+  console.error('❌ Datenbank-Migration fehlgeschlagen:', err.message);
+  process.exit(1);
+});
 
 // Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
@@ -140,6 +93,7 @@ const articleRoutes            = require('./routes/articleRoutes');
 const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 const reportsRoutes            = require('./routes/reportsRoutes');
 const tickerRoutes             = require('./routes/tickerRoutes');
+const lagerRoutes              = require('./routes/lagerRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -263,6 +217,9 @@ app.use('/articles', articleRoutes);
 // Berichte & Auswertungen
 app.use('/reports', reportsRoutes);
 app.use('/ticker',  tickerRoutes);
+
+// Lagerliste (Baustahl & Edelstahl)
+app.use('/lager', lagerRoutes);
 
 // ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)

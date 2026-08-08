@@ -3,7 +3,7 @@
 
 <!-- Geo-Fencing Projekt-Daten als JSON für clientseitiges JS -->
 <script>
-const GEO_PROJECTS = <%- JSON.stringify(typeof geoProjects !== 'undefined' ? geoProjects : []) %>;
+const GEO_PROJECTS = <%- JSON.stringify(typeof geoProjects !== 'undefined' ? geoProjects : []).replace(/<\/script>/gi, '<\\/script>') %>;
 const IS_STAMPED_IN = <%= isStampedIn ? 'true' : 'false' %>;
 const ACTIVE_PROJECT_ID = <%- JSON.stringify(typeof activeProjectId !== 'undefined' ? activeProjectId : null) %>;
 </script>

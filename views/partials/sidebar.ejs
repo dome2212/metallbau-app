@@ -99,6 +99,13 @@
     </a>
     <% } %>
 
+    <% if (_show('lager') && _perm('lager', true, true)) { %>
+    <a href="/lager" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🏭</span>
+      Lagerliste
+    </a>
+    <% } %>
+
     <% if (_show('vacations') && _perm('vacations', true, true)) { %>
     <a href="/vacations" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
       <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 text-base">🌴</span>
@@ -298,6 +305,7 @@
     { key: 'projects',           label: '🏗️ Aufträge & Baustellen' },
     { key: 'calendar',           label: '📅 Kalender' },
     { key: 'timetracking',       label: '⏱️ Zeiterfassung' },
+    { key: 'lager',              label: '🏭 Lagerliste' },
     { key: 'vacations',          label: '🌴 Urlaub & Abwesenheit' },
     { key: 'admin_users',        label: '👥 Mitarbeiter-Logins (Admin)' },
     { key: 'admin_timetracking', label: '📋 Arbeitszeiten-Übersicht (Admin)' },

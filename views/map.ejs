@@ -69,7 +69,8 @@
 
 <script>
 // -- Projektdaten vom Server --------------------------------------------------
-const PROJECTS = <%- JSON.stringify(projects) %>;
+// JSON.stringify kann "</script>" enthalten → durch Unicode-Escape ersetzen
+const PROJECTS = <%- JSON.stringify(projects).replace(/<\/script>/gi, '<\\/script>') %>;
 const FIRM_LAT = 51.3069467;
 const FIRM_LNG = 6.9483845;
 

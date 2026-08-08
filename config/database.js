@@ -804,6 +804,22 @@ if (process.env.DATABASE_URL) {
         )
       `);
 
+      db.run(`
+        CREATE TABLE IF NOT EXISTS lager_items (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          material_type   TEXT NOT NULL DEFAULT 'baustahl',
+          bezeichnung     TEXT NOT NULL,
+          profil          TEXT,
+          abmessung       TEXT,
+          menge           REAL DEFAULT 0,
+          einheit         TEXT DEFAULT 'Stk',
+          lieferschein_nr TEXT,
+          lieferdatum     TEXT,
+          notiz           TEXT,
+          created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
       db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
         if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");

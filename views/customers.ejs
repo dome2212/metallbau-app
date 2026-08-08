@@ -54,7 +54,9 @@
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end gap-1.5">
                       <a href="/customers/<%= c.id %>/projects" class="btn btn-ghost py-1.5 px-2.5 text-xs">Projekte</a>
-                      <button onclick='openEditModal(<%- JSON.stringify(c) %>)' class="btn py-1.5 px-2.5 text-xs text-amber-600 border border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-900/20">Bearbeiten</button>
+                      <button onclick='openEditModal(this)'
+                        data-customer="<%= JSON.stringify(c).replace(/\"/g, '&quot;') %>"
+                        class="btn py-1.5 px-2.5 text-xs text-amber-600 border border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-900/20">Bearbeiten</button>
                       <form action="/customers/delete" method="POST" onsubmit="return confirm('Kunde wirklich löschen?');" class="inline">
                         <input type="hidden" name="id" value="<%= c.id %>">
                         <button type="submit" class="btn py-1.5 px-2.5 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
@@ -138,15 +140,18 @@
   function toggleModal(id) {
     document.getElementById(id).classList.toggle('hidden');
   }
-  function openEditModal(customer) {
-    document.getElementById('edit_id').value           = customer.id;
-    document.getElementById('edit_company_name').value = customer.company_name  || '';
+  function openEditModal(btn) {
+    // Daten aus data-customer-Attribut lesen – JSON.parse ist sicher, da der
+    // Wert serverseitig per EJS-Escaping (<%= %>) in das Attribut geschrieben wurde.
+    const customer = JSON.parse(btn.dataset.customer);
+    document.getElementById('edit_id').value             = customer.id;
+    document.getElementById('edit_company_name').value   = customer.company_name   || '';
     document.getElementById('edit_contact_person').value = customer.contact_person || '';
-    document.getElementById('edit_phone').value        = customer.phone         || '';
-    document.getElementById('edit_email').value        = customer.email         || '';
-    document.getElementById('edit_street').value       = customer.street        || '';
-    document.getElementById('edit_zip').value          = customer.zip           || '';
-    document.getElementById('edit_city').value         = customer.city          || '';
+    document.getElementById('edit_phone').value          = customer.phone          || '';
+    document.getElementById('edit_email').value          = customer.email          || '';
+    document.getElementById('edit_street').value         = customer.street         || '';
+    document.getElementById('edit_zip').value            = customer.zip            || '';
+    document.getElementById('edit_city').value           = customer.city           || '';
     document.getElementById('editCustomerModal').classList.remove('hidden');
   }
 </script>
