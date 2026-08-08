@@ -827,10 +827,50 @@
 </div>
 
 <style>
-  .fi  { @apply rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition; }
-  .lbl { @apply block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1; }
-  /* Alias für alten Namen */
-  .form-input { @apply fi; }
+  /* ── Formular-Inputs & Selects (Dark-Mode-sicher, kein @apply da CDN) ─── */
+  .fi {
+    display: block;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1.5px solid #e5e7eb;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .fi:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  }
+  /* Dark-Mode */
+  .dark .fi {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+    border-color: #475569;
+    color-scheme: dark;
+  }
+  .dark .fi:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96,165,250,0.2);
+  }
+  .dark .fi option {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+  }
+  /* Label */
+  .lbl {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 0.25rem;
+  }
+  .dark .lbl { color: #94a3b8; }
+  .form-input { /* Alias */ }
 </style>
 
 <script>
