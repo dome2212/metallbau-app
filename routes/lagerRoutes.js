@@ -113,7 +113,8 @@ router.get('/', async (req, res) => {
       items, entnahmen, reste, tab, projects,
       allItems: allItemsRes.rows || [],
       scanBs: parseInt(req.query.scan_bs) || 0,
-      scanEs: parseInt(req.query.scan_es) || 0
+      scanEs: parseInt(req.query.scan_es) || 0,
+      moved:  req.query.moved === '1'
     });
   } catch (err) {
     console.error('Lagerliste Fehler:', err);
@@ -172,6 +173,22 @@ router.post('/edit', async (req, res) => {
   } catch (err) {
     console.error('Lager-Edit Fehler:', err);
     res.status(500).send('Fehler beim Aktualisieren');
+  }
+});
+
+// ==========================================
+// EINTRAG VERSCHIEBEN (material_type ändern)
+// ==========================================
+router.post('/move', async (req, res) => {
+  const { id, new_type, from_tab } = req.body;
+  const validTypes = ['baustahl', 'edelstahl', 'schrauben'];
+  if (!validTypes.includes(new_type)) return res.status(400).send('Ungültiger Typ.');
+  try {
+    await dbQuery('UPDATE lager_items SET material_type = ? WHERE id = ?', [new_type, id]);
+    res.redirect('/lager?tab=' + new_type + '&moved=1');
+  } catch (err) {
+    console.error('Lager-Move Fehler:', err);
+    res.status(500).send('Fehler beim Verschieben');
   }
 });
 

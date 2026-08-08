@@ -41,6 +41,16 @@
     </div>
   </div>
 
+  <!-- ── Verschoben-Banner ────────────────────────────────────────────────── -->
+  <% if (typeof moved !== 'undefined' && moved) { %>
+  <div class="px-4 md:px-6 mb-3">
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-xl px-4 py-3 flex items-center gap-3">
+      <span class="text-blue-500 text-xl">↗️</span>
+      <p class="text-sm font-semibold text-blue-800 dark:text-blue-300">Eintrag erfolgreich verschoben.</p>
+    </div>
+  </div>
+  <% } %>
+
   <!-- ── Scan-Erfolgs-Banner ──────────────────────────────────────────────── -->
   <% if (scanBs > 0 || scanEs > 0) { %>
   <div class="px-4 md:px-6 mb-3">
@@ -176,7 +186,7 @@
                     onclick="openEntnahmeModalForEl(this)"
                     class="px-2 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 rounded text-xs font-semibold transition"
                     title="Entnahme buchen">↓</button>
-                  <!-- Bearbeiten-Button: JSON via encodeURIComponent absichern -->
+                  <!-- Bearbeiten-Button -->
                   <button
                     data-item-id="<%= item.id %>"
                     data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
@@ -191,7 +201,16 @@
                     data-item-mindestbestand="<%= item.mindestbestand || 0 %>"
                     data-item-lagerort="<%= encodeURIComponent(item.lagerort || '') %>"
                     onclick="openEditModalEl(this)"
-                    class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition">✏️</button>
+                    class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition"
+                    title="Bearbeiten">✏️</button>
+                  <!-- Verschieben-Button -->
+                  <button
+                    data-item-id="<%= item.id %>"
+                    data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
+                    data-item-material="<%= item.material_type || 'baustahl' %>"
+                    onclick="openMoveModal(this)"
+                    class="px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 rounded text-xs font-semibold transition"
+                    title="In anderen Tab verschieben">↗</button>
                   <form action="/lager/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" class="inline">
                     <input type="hidden" name="id" value="<%= item.id %>">
                     <input type="hidden" name="tab" value="<%= tab %>">
@@ -651,6 +670,58 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════
+     MODAL: VERSCHIEBEN
+═══════════════════════════════════════════ -->
+<div id="moveModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+     onclick="if(event.target===this)closeMoveModal()">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold text-gray-800 dark:text-gray-100">↗ Eintrag verschieben</h2>
+      <button onclick="closeMoveModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    </div>
+
+    <!-- Bezeichnung anzeigen -->
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Eintrag:</p>
+    <p id="moveItemLabel" class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-4 truncate"></p>
+
+    <!-- Aktueller Typ -->
+    <p class="text-xs text-gray-400 dark:text-gray-500 mb-3">
+      Aktuell: <span id="moveCurrentType" class="font-semibold text-gray-600 dark:text-gray-300"></span>
+      &nbsp;→&nbsp; Verschieben nach:
+    </p>
+
+    <form action="/lager/move" method="POST" class="space-y-3">
+      <input type="hidden" name="id" id="moveItemId">
+      <!-- Ziel-Typ-Buttons -->
+      <div class="grid grid-cols-3 gap-2">
+        <button type="submit" name="new_type" value="baustahl"
+          id="moveBtnBaustahl"
+          class="py-3 rounded-xl border-2 text-sm font-semibold transition flex flex-col items-center gap-1">
+          <span class="text-lg">🔩</span>
+          <span>Baustahl</span>
+        </button>
+        <button type="submit" name="new_type" value="edelstahl"
+          id="moveBtnEdelstahl"
+          class="py-3 rounded-xl border-2 text-sm font-semibold transition flex flex-col items-center gap-1">
+          <span class="text-lg">✨</span>
+          <span>Edelstahl</span>
+        </button>
+        <button type="submit" name="new_type" value="schrauben"
+          id="moveBtnSchrauben"
+          class="py-3 rounded-xl border-2 text-sm font-semibold transition flex flex-col items-center gap-1">
+          <span class="text-lg">🔧</span>
+          <span>Schrauben</span>
+        </button>
+      </div>
+      <button type="button" onclick="closeMoveModal()"
+        class="w-full py-2 rounded-xl border border-gray-200 dark:border-slate-600 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition">
+        Abbrechen
+      </button>
+    </form>
+  </div>
+</div>
+
 <style>
   .fi  { @apply rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition; }
   .lbl { @apply block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1; }
@@ -666,6 +737,50 @@
   }
   function openAddModal()      { document.getElementById('addModal').classList.remove('hidden'); }
   function openRestModal()     { document.getElementById('restModal').classList.remove('hidden'); }
+
+  // ── Verschieben-Modal ────────────────────────────────────────────────────────
+  const _typeLabel = { baustahl: '🔩 Baustahl', edelstahl: '✨ Edelstahl', schrauben: '🔧 Schrauben' };
+  const _typeColor = {
+    baustahl:  { active: 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300', idle: 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600' },
+    edelstahl: { active: 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300', idle: 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:border-violet-300 dark:hover:border-violet-600' },
+    schrauben: { active: 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300', idle: 'border-gray-200 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:border-orange-300 dark:hover:border-orange-600' },
+  };
+
+  function openMoveModal(btn) {
+    const id          = btn.dataset.itemId;
+    const bezeichnung = decodeURIComponent(btn.dataset.itemBezeichnung || '');
+    const currentType = btn.dataset.itemMaterial || 'baustahl';
+
+    document.getElementById('moveItemId').value        = id;
+    document.getElementById('moveItemLabel').textContent = bezeichnung;
+    document.getElementById('moveCurrentType').textContent = _typeLabel[currentType] || currentType;
+
+    // Buttons einfärben: aktuelle Kategorie deaktivieren, Rest normal
+    ['baustahl', 'edelstahl', 'schrauben'].forEach(t => {
+      const btn = document.getElementById('moveBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (!btn) return;
+      const isCurrentType = t === currentType;
+      // Klassen zurücksetzen
+      btn.className = btn.className
+        .replace(/border-\S+/g, '').replace(/bg-\S+/g, '').replace(/text-\S+/g, '')
+        .replace(/\s+/g, ' ').trim();
+      if (isCurrentType) {
+        btn.className += ' py-3 rounded-xl border-2 text-sm font-semibold flex flex-col items-center gap-1 opacity-40 cursor-not-allowed';
+        btn.disabled = true;
+        btn.title = 'Bereits in dieser Kategorie';
+      } else {
+        btn.className += ' py-3 rounded-xl border-2 text-sm font-semibold flex flex-col items-center gap-1 transition cursor-pointer ' + (_typeColor[t]?.idle || '');
+        btn.disabled = false;
+        btn.title = 'Verschieben nach ' + (_typeLabel[t] || t);
+      }
+    });
+
+    document.getElementById('moveModal').classList.remove('hidden');
+  }
+  function closeMoveModal() {
+    document.getElementById('moveModal').classList.add('hidden');
+  }
+
   function openEntnahmeModal() {
     document.getElementById('entnahmeModal').classList.remove('hidden');
   }
