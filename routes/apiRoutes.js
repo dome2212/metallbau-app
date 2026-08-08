@@ -536,7 +536,7 @@ router.patch('/vacations/:id/status', apiAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 
 const photoUpload = multer({
   storage: new CloudinaryStorage({
