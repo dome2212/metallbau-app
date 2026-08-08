@@ -43,12 +43,14 @@ router.post('/add', async (req, res) => {
     }
   } catch (_) {}
 
-  res.redirect('/ticker');
+  const back = req.headers.referer || '/ticker';
+  res.redirect(back);
 });
 
 router.post('/delete', requireAdmin, async (req, res) => {
   await dbQuery('DELETE FROM tickers WHERE id = ?', [req.body.id]);
-  res.redirect('/ticker');
+  const back = req.headers.referer || '/ticker';
+  res.redirect(back);
 });
 
 module.exports = router;

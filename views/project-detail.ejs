@@ -775,7 +775,7 @@
     wrapper.className = `flex gap-2 items-end ${isMine ? 'flex-row-reverse' : ''}`;
     wrapper.innerHTML = `
       <div class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white ${isMine ? 'bg-blue-500' : 'bg-slate-400 dark:bg-slate-600'}">
-        ${esc(msg.username.charAt(0).toUpperCase())}
+        ${esc((msg.username || '?').charAt(0).toUpperCase())}
       </div>
       <div class="max-w-[72%] group relative">
         <div class="rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-gray-100 rounded-bl-sm'}">
@@ -804,14 +804,15 @@
     input.style.height = 'auto';
 
     try {
-      const res  = await fetch(`/projects/${PROJECT_ID}/chat/add`, {
+      const resp = await fetch(`/projects/${PROJECT_ID}/chat/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({ message: text })
       });
-      const data = await res.json();
-      if (data.ok && data.msg) {
+      let data;
+      try { data = await resp.json(); } catch (_) { data = {}; }
+      if (resp.ok && data.ok && data.msg) {
         appendMsg(data.msg);
         scrollToBottom();
       } else {
@@ -819,7 +820,7 @@
         input.value = savedText;
         input.style.height = 'auto';
         input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-        showToast(data.error || 'Nachricht konnte nicht gesendet werden.', 'error');
+        showToast(data.error || 'Nachricht konnte nicht gesendet werden. (Status ' + resp.status + ')', 'error');
       }
     } catch (err) {
       input.value = savedText;
