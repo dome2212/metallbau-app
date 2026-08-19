@@ -1126,7 +1126,7 @@
                   <% ex.forEach(function(e) { %>
                     <tr class="border-t dark:border-slate-700">
                       <td class="py-2"><%= e.title %><% if (e.note) { %><div class="text-xs text-slate-400"><%= e.note %></div><% } %></td>
-                      <td class="py-2 text-right font-semibold"><%= Number(e.amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) €</td>
+                      <td class="py-2 text-right font-semibold"><%= Number(e.amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
                       <td class="py-2 text-right">
                         <form action="/projects/extras/delete" method="POST" onsubmit="return confirm('Nachtrag löschen?');" class="inline">
                           <input type="hidden" name="extra_id" value="<%= e.id %>"><input type="hidden" name="project_id" value="<%= project.id %>">
@@ -1136,7 +1136,7 @@
                     </tr>
                   <% }) %>
                 </tbody>
-                <tfoot><tr class="border-t-2 dark:border-slate-600 font-bold"><td class="py-2">Summe Nachträge</td><td class="py-2 text-right text-rose-600"><%= extrasSum.toLocaleString('de-DE',{minimumFractionDigits:2}) €</td><td></td></tr></tfoot>
+                <tfoot><tr class="border-t-2 dark:border-slate-600 font-bold"><td class="py-2">Summe Nachträge</td><td class="py-2 text-right text-rose-600"><%= extrasSum.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td><td></td></tr></tfoot>
               </table>
             <% } else { %>
               <p class="text-xs text-slate-400 italic">Keine Nachträge erfasst.</p>
@@ -1167,14 +1167,14 @@
                 const _db = _erloes - _mat - _lohn;
               %>
               <div class="grid grid-cols-2 gap-2 text-sm">
-                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">Angebot</div><div class="font-bold"><%= _tp.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
-                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">+ Nachträge</div><div class="font-bold"><%= _exs.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
-                <div class="bg-orange-50 dark:bg-orange-900/20 rounded p-2"><div class="text-xs text-slate-500">− Material</div><div class="font-bold"><%= _mat.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
-                <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded p-2"><div class="text-xs text-slate-500">− Lohn (≈<%= _hrs %> Std × 55€)</div><div class="font-bold"><%= _lohn.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
+                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">Angebot</div><div class="font-bold"><%= _tp.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</div></div>
+                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">+ Nachträge</div><div class="font-bold"><%= _exs.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</div></div>
+                <div class="bg-orange-50 dark:bg-orange-900/20 rounded p-2"><div class="text-xs text-slate-500">− Material</div><div class="font-bold"><%= _mat.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</div></div>
+                <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded p-2"><div class="text-xs text-slate-500">− Lohn (≈<%= _hrs %> Std × 55€)</div><div class="font-bold"><%= _lohn.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</div></div>
               </div>
               <div class="rounded-lg p-3 text-center <%= _db >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' : 'bg-red-50 dark:bg-red-900/30 text-red-800' %>">
                 <div class="text-xs uppercase tracking-wide opacity-80">Deckungsbeitrag</div>
-                <div class="text-xl font-extrabold"><%= _db.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div>
+                <div class="text-xl font-extrabold"><%= _db.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</div>
               </div>
               <p class="text-[11px] text-slate-400">Richtwert Lohn 55 €/Std. Keine verbindliche Kalkulation.</p>
             </div>
