@@ -365,7 +365,7 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, statusLogRes, lagerRes, entnahmenRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, statusLogRes, lagerRes, entnahmenRes, sketchesRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
@@ -399,7 +399,8 @@ router.get('/:id', async (req, res) => {
          WHERE le.project_id = ?
          ORDER BY le.created_at DESC`,
         [id]
-      )
+      ),
+      dbQuery('SELECT * FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id])
     ]);
 
     // Stunden pro Mitarbeiter berechnen (IN/OUT-Paar-Logik)
@@ -453,7 +454,8 @@ router.get('/:id', async (req, res) => {
       projectTotalHours,
       statusLog:    statusLogRes.rows    || [],
       lagerItems:   lagerRes.rows        || [],
-      entnahmen:    entnahmenRes.rows    || []
+      entnahmen:    entnahmenRes.rows    || [],
+      sketches:     sketchesRes.rows     || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -532,6 +534,37 @@ router.post('/:id/measurements/add', async (req, res) => {
 router.post('/measurements/delete', async (req, res) => {
   const { measurement_id, project_id } = req.body;
   try { await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]); } catch (_) {}
+  res.redirect(`/projects/${project_id}`);
+});
+
+// ==========================================
+// SKIZZEN / FREIHAND-ZEICHNUNG (Digitales Aufmaß)
+// ==========================================
+router.post('/:id/sketches/add', async (req, res) => {
+  const projectId = req.params.id;
+  const { title, image_data } = req.body;
+  if (!image_data || !String(image_data).startsWith('data:image/')) {
+    return res.status(400).json({ ok: false, error: 'Ungültige Bilddaten' });
+  }
+  if (String(image_data).length > 3_500_000) {
+    return res.status(400).json({ ok: false, error: 'Zeichnung zu groß (max. ca. 2,5 MB)' });
+  }
+  try {
+    const createdBy = (req.user && (req.user.username || req.user.name)) || 'Unbekannt';
+    await dbQuery(
+      `INSERT INTO project_sketches (project_id, title, image_data, created_by) VALUES (?, ?, ?, ?)`,
+      [projectId, (title || 'Skizze').trim().slice(0, 120) || 'Skizze', image_data, createdBy]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Skizze:', err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/sketches/delete', async (req, res) => {
+  const { sketch_id, project_id } = req.body;
+  try { await dbQuery('DELETE FROM project_sketches WHERE id = ?', [sketch_id]); } catch (_) {}
   res.redirect(`/projects/${project_id}`);
 });
 
