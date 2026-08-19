@@ -64,6 +64,9 @@
             <a href="#sec-termine" class="nav-chip">📅 Termine</a>
             <a href="#sec-material" class="nav-chip">🏗️ Material</a>
             <a href="#sec-stunden" class="nav-chip">⏱️ Stunden</a>
+            <a href="#sec-checkliste" class="nav-chip">✅ Checkliste</a>
+            <a href="#sec-nachtraege" class="nav-chip">💶 Nachträge</a>
+            <a href="#sec-abnahme" class="nav-chip">✍️ Abnahme</a>
             <a href="#sec-status" class="nav-chip">📋 Status</a>
           </div>
         </div>
@@ -271,20 +274,30 @@
       <div class="sec-body">
       <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Digitales Aufmaß (Baustelle)</h2>
+
+        <!-- Aufmaß-Vorlagen -->
+        <div class="flex flex-wrap gap-2">
+          <span class="text-xs text-slate-500 dark:text-slate-400 self-center">Vorlage:</span>
+          <button type="button" class="aufmass-tpl px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-200 dark:border-emerald-700" data-name="Handlauf" data-w="" data-h="">Handlauf</button>
+          <button type="button" class="aufmass-tpl px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-200 dark:border-emerald-700" data-name="Pfosten" data-w="80" data-h="1000">Pfosten</button>
+          <button type="button" class="aufmass-tpl px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-200 dark:border-emerald-700" data-name="Füllung" data-w="" data-h="">Füllung</button>
+          <button type="button" class="aufmass-tpl px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-200 dark:border-emerald-700" data-name="Torflügel" data-w="" data-h="">Torflügel</button>
+          <button type="button" class="aufmass-tpl px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold border border-emerald-200 dark:border-emerald-700" data-name="Stufen" data-w="300" data-h="180">Stufen</button>
+        </div>
         
-        <!-- Eingabeformular -->
-        <form action="/projects/<%= project.id %>/measurements/add" method="POST" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
+        <!-- Eingabeformular (große Touch-Felder) -->
+        <form id="aufmassForm" action="/projects/<%= project.id %>/measurements/add" method="POST" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end bg-slate-50 dark:bg-slate-700 p-4 rounded-xl border dark:border-slate-600">
           <div class="md:col-span-3">
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Bauteil / Element *</label>
-            <input type="text" name="component_name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white" placeholder="z.B. Pfosten links" required>
+            <input type="text" id="mComponent" name="component_name" class="w-full text-base border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-3 bg-white" placeholder="z.B. Pfosten links" required>
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Breite (mm)</label>
-            <input type="text" name="width" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white" placeholder="z.B. 1200">
+            <input type="text" id="mWidth" name="width" inputmode="decimal" class="w-full text-base border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-3 bg-white" placeholder="z.B. 1200">
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Höhe / Länge (mm)</label>
-            <input type="text" name="height" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white" placeholder="z.B. 900">
+            <input type="text" id="mHeight" name="height" inputmode="decimal" class="w-full text-base border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-3 bg-white" placeholder="z.B. 900">
           </div>
           <div class="md:col-span-1">
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Winkel (°)</label>
@@ -1040,6 +1053,192 @@
             </div><!-- /sec-body -->
 </section>
 
+
+      <!-- ========== CHECKLISTE ========== -->
+      <section id="sec-checkliste" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-checkliste" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30">✅ Montage-Checkliste</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+        <div class="sec-body">
+          <div class="card-clean space-y-4">
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-xs text-slate-500">Vorlage laden (nur wenn Liste leer):</span>
+              <form action="/projects/<%= project.id %>/checklist/seed" method="POST" class="inline"><input type="hidden" name="template" value="gelaender"><button class="px-2 py-1 text-xs rounded bg-slate-100 dark:bg-slate-700 font-medium">Geländer</button></form>
+              <form action="/projects/<%= project.id %>/checklist/seed" method="POST" class="inline"><input type="hidden" name="template" value="tor"><button class="px-2 py-1 text-xs rounded bg-slate-100 dark:bg-slate-700 font-medium">Tor</button></form>
+              <form action="/projects/<%= project.id %>/checklist/seed" method="POST" class="inline"><input type="hidden" name="template" value="treppe"><button class="px-2 py-1 text-xs rounded bg-slate-100 dark:bg-slate-700 font-medium">Treppe</button></form>
+              <form action="/projects/<%= project.id %>/checklist/seed" method="POST" class="inline"><input type="hidden" name="template" value="zaun"><button class="px-2 py-1 text-xs rounded bg-slate-100 dark:bg-slate-700 font-medium">Zaun</button></form>
+              <form action="/projects/<%= project.id %>/checklist/seed" method="POST" class="inline"><input type="hidden" name="template" value="standard"><button class="px-2 py-1 text-xs rounded bg-slate-100 dark:bg-slate-700 font-medium">Standard</button></form>
+            </div>
+            <form action="/projects/<%= project.id %>/checklist/add" method="POST" class="flex gap-2">
+              <input type="text" name="label" placeholder="Neuer Punkt…" class="flex-1 text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2">
+              <button class="px-3 py-2 bg-teal-600 text-white text-xs font-semibold rounded">+ Hinzufügen</button>
+            </form>
+            <% const cl = typeof checklist !== 'undefined' && checklist ? checklist : []; %>
+            <% if (cl.length) { %>
+              <ul class="space-y-2">
+                <% cl.forEach(function(item) { %>
+                  <li class="flex items-center gap-2 p-2 rounded-lg <%= Number(item.done) ? 'bg-teal-50 dark:bg-teal-900/20' : 'bg-slate-50 dark:bg-slate-700/40' %>">
+                    <form action="/projects/checklist/toggle" method="POST" class="flex items-center gap-2 flex-1">
+                      <input type="hidden" name="item_id" value="<%= item.id %>">
+                      <input type="hidden" name="project_id" value="<%= project.id %>">
+                      <input type="hidden" name="done" value="<%= Number(item.done) ? '0' : '1' %>">
+                      <button type="submit" class="w-6 h-6 rounded border flex items-center justify-center text-sm <%= Number(item.done) ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300 dark:border-slate-500' %>"><%= Number(item.done) ? '✓' : '' %></button>
+                      <span class="text-sm <%= Number(item.done) ? 'line-through text-slate-400' : 'text-slate-800 dark:text-gray-100' %>"><%= item.label %></span>
+                    </form>
+                    <form action="/projects/checklist/delete" method="POST" onsubmit="return confirm('Punkt löschen?');">
+                      <input type="hidden" name="item_id" value="<%= item.id %>">
+                      <input type="hidden" name="project_id" value="<%= project.id %>">
+                      <button class="text-red-500 text-xs px-2">✕</button>
+                    </form>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } else { %>
+              <p class="text-xs text-slate-400 italic">Noch keine Checkliste – Vorlage wählen oder Punkt hinzufügen.</p>
+            <% } %>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== NACHTRÄGE ========== -->
+      <section id="sec-nachtraege" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-nachtraege" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30">💶 Nachträge / Mehrpreis</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+        <div class="sec-body">
+          <div class="card-clean space-y-4">
+            <form action="/projects/<%= project.id %>/extras/add" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <input type="text" name="title" required placeholder="Beschreibung *" class="sm:col-span-2 text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2">
+              <input type="text" name="amount" inputmode="decimal" placeholder="Betrag €" class="text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2">
+              <button class="bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded px-3 py-2">+ Nachtrag</button>
+              <input type="text" name="note" placeholder="Notiz (optional)" class="sm:col-span-4 text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2">
+            </form>
+            <% const ex = typeof extras !== 'undefined' && extras ? extras : []; %>
+            <% let extrasSum = 0; ex.forEach(e => { extrasSum += Number(e.amount||0); }); %>
+            <% if (ex.length) { %>
+              <table class="w-full text-sm">
+                <thead><tr class="text-xs text-slate-500 uppercase"><th class="text-left py-1">Titel</th><th class="text-right py-1">Betrag</th><th></th></tr></thead>
+                <tbody>
+                  <% ex.forEach(function(e) { %>
+                    <tr class="border-t dark:border-slate-700">
+                      <td class="py-2"><%= e.title %><% if (e.note) { %><div class="text-xs text-slate-400"><%= e.note %></div><% } %></td>
+                      <td class="py-2 text-right font-semibold"><%= Number(e.amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) €</td>
+                      <td class="py-2 text-right">
+                        <form action="/projects/extras/delete" method="POST" onsubmit="return confirm('Nachtrag löschen?');" class="inline">
+                          <input type="hidden" name="extra_id" value="<%= e.id %>"><input type="hidden" name="project_id" value="<%= project.id %>">
+                          <button class="text-red-600 text-xs">Löschen</button>
+                        </form>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+                <tfoot><tr class="border-t-2 dark:border-slate-600 font-bold"><td class="py-2">Summe Nachträge</td><td class="py-2 text-right text-rose-600"><%= extrasSum.toLocaleString('de-DE',{minimumFractionDigits:2}) €</td><td></td></tr></tfoot>
+              </table>
+            <% } else { %>
+              <p class="text-xs text-slate-400 italic">Keine Nachträge erfasst.</p>
+            <% } %>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ABNAHME + SHARE + WHATSAPP + DECKUNG ========== -->
+      <section id="sec-abnahme" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-abnahme" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30">✍️ Abnahme · Link · WhatsApp · Deckung</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+        <div class="sec-body space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Deckungsbeitrag -->
+            <div class="card-clean space-y-2">
+              <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">📊 Deckungsbeitrag (grob)</h3>
+              <%
+                const _tp = parseFloat(project.total_price || 0) || 0;
+                const _mat = (typeof entnahmen !== 'undefined' && entnahmen) ? entnahmen.reduce((s,e)=>s+Number(e.gesamtpreis||0),0) : 0;
+                const _exs = (typeof extras !== 'undefined' && extras) ? extras.reduce((s,e)=>s+Number(e.amount||0),0) : 0;
+                const _hrs = parseFloat(typeof projectTotalHours !== 'undefined' ? projectTotalHours : 0) || 0;
+                const _lohn = _hrs * 55; // Richtwert 55 €/Std – intern anpassbar
+                const _erloes = _tp + _exs;
+                const _db = _erloes - _mat - _lohn;
+              %>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">Angebot</div><div class="font-bold"><%= _tp.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
+                <div class="bg-slate-50 dark:bg-slate-700/40 rounded p-2"><div class="text-xs text-slate-500">+ Nachträge</div><div class="font-bold"><%= _exs.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
+                <div class="bg-orange-50 dark:bg-orange-900/20 rounded p-2"><div class="text-xs text-slate-500">− Material</div><div class="font-bold"><%= _mat.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
+                <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded p-2"><div class="text-xs text-slate-500">− Lohn (≈<%= _hrs %> Std × 55€)</div><div class="font-bold"><%= _lohn.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div></div>
+              </div>
+              <div class="rounded-lg p-3 text-center <%= _db >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200' : 'bg-red-50 dark:bg-red-900/30 text-red-800' %>">
+                <div class="text-xs uppercase tracking-wide opacity-80">Deckungsbeitrag</div>
+                <div class="text-xl font-extrabold"><%= _db.toLocaleString('de-DE',{minimumFractionDigits:2}) €</div>
+              </div>
+              <p class="text-[11px] text-slate-400">Richtwert Lohn 55 €/Std. Keine verbindliche Kalkulation.</p>
+            </div>
+
+            <!-- WhatsApp + Share -->
+            <div class="card-clean space-y-3">
+              <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">💬 WhatsApp-Vorlagen</h3>
+              <%
+                const _waTitle = encodeURIComponent(project.title || '');
+                const _waStatus = encodeURIComponent(project.status || '');
+                const _waAddr = encodeURIComponent([project.street, project.zip, project.city].filter(Boolean).join(', '));
+              %>
+              <div class="flex flex-col gap-2">
+                <a class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold text-center" target="_blank"
+                  href="https://wa.me/?text=<%= encodeURIComponent('Guten Tag, wir möchten einen Aufmaß-Termin für „'+(project.title||'')+'“ vereinbaren. Wann würde es Ihnen passen?') %>">📅 Aufmaß terminieren</a>
+                <a class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold text-center" target="_blank"
+                  href="https://wa.me/?text=<%= encodeURIComponent('Guten Tag, die Montage für „'+(project.title||'')+'“ ist für demnächst geplant. Wir melden uns mit der Uhrzeit.') %>">🔧 Montage ankündigen</a>
+                <a class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold text-center" target="_blank"
+                  href="https://wa.me/?text=<%= encodeURIComponent('Guten Tag, anbei / soeben erhalten Sie die Rechnung zu „'+(project.title||'')+'“. Bei Fragen sind wir erreichbar.') %>">🧾 Rechnung Hinweis</a>
+              </div>
+              <hr class="border-slate-200 dark:border-slate-600">
+              <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">🔗 Kunden-Link (ohne Login)</h3>
+              <p class="text-xs text-slate-500">Status & Fotos für den Kunden freigeben.</p>
+              <button type="button" id="btnShareToken" class="w-full px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">Link erzeugen / erneuern</button>
+              <div id="shareLinkBox" class="hidden text-xs break-all bg-slate-50 dark:bg-slate-700 p-2 rounded"></div>
+              <% if (project.share_token) { %>
+                <a class="text-xs text-blue-600 underline break-all" target="_blank" href="/public/project/<%= project.share_token %>">Aktueller Link öffnen</a>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Unterschrift -->
+          <div class="card-clean space-y-3">
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">✍️ Digitale Kundenabnahme</h3>
+            <% if (project.acceptance_signature) { %>
+              <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3">
+                <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">✓ Abgenommen<%= project.acceptance_name ? ' von '+project.acceptance_name : '' %></p>
+                <p class="text-xs text-slate-500"><%= project.acceptance_at ? String(project.acceptance_at).slice(0,16).replace('T',' ') : '' %></p>
+                <img src="<%= project.acceptance_signature %>" alt="Unterschrift" class="mt-2 max-h-24 bg-white rounded border">
+                <form action="/projects/<%= project.id %>/acceptance/clear" method="POST" class="mt-2" onsubmit="return confirm('Abnahme zurücksetzen?');">
+                  <button class="text-xs text-red-600">Zurücksetzen</button>
+                </form>
+              </div>
+            <% } else { %>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-slate-500">Name des Kunden</label>
+                  <input type="text" id="acceptName" class="w-full text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2" placeholder="Max Mustermann">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500">Unterschrift (Finger / Maus)</label>
+                  <canvas id="signCanvas" width="400" height="140" class="w-full border dark:border-slate-600 rounded bg-white touch-none" style="touch-action:none"></canvas>
+                  <div class="flex gap-2 mt-1">
+                    <button type="button" id="signClear" class="text-xs px-2 py-1 border rounded">Leeren</button>
+                    <button type="button" id="signSave" class="text-xs px-3 py-1 bg-green-600 text-white rounded font-semibold">Abnahme speichern</button>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </section>
+
+
     </div><!-- /max-w-7xl content -->
 
 
@@ -1072,6 +1271,93 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
     });
   });
+})();
+</script>
+
+
+<script>
+(function(){
+  // Aufmaß-Vorlagen
+  document.querySelectorAll('.aufmass-tpl').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = document.getElementById('mComponent');
+      const w = document.getElementById('mWidth');
+      const h = document.getElementById('mHeight');
+      if (n) n.value = btn.dataset.name || '';
+      if (w && btn.dataset.w) w.value = btn.dataset.w;
+      if (h && btn.dataset.h) h.value = btn.dataset.h;
+      if (n) n.focus();
+    });
+  });
+
+  // Share token
+  const shareBtn = document.getElementById('btnShareToken');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      shareBtn.disabled = true;
+      try {
+        const res = await fetch('/projects/<%= project.id %>/share-token', { method: 'POST', headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Fehler');
+        const box = document.getElementById('shareLinkBox');
+        const full = location.origin + data.url;
+        box.textContent = full;
+        box.classList.remove('hidden');
+        try { await navigator.clipboard.writeText(full); shareBtn.textContent = 'Link kopiert ✓'; } catch(_) { shareBtn.textContent = 'Link erzeugt'; }
+      } catch (e) {
+        alert(e.message || e);
+        shareBtn.disabled = false;
+      }
+    });
+  }
+
+  // Signature pad
+  const canvas = document.getElementById('signCanvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    let drawing = false, last = null;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    function pos(e) {
+      const r = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+    }
+    function start(e) { e.preventDefault(); drawing = true; last = pos(e); }
+    function move(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    }
+    function end() { drawing = false; }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+    document.getElementById('signClear').onclick = () => { ctx.clearRect(0,0,canvas.width,canvas.height); };
+    document.getElementById('signSave').onclick = () => {
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width; blank.height = canvas.height;
+      if (canvas.toDataURL() === blank.toDataURL()) { alert('Bitte unterschreiben'); return; }
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/projects/<%= project.id %>/acceptance';
+      const n = document.createElement('input'); n.name = 'acceptance_name'; n.value = (document.getElementById('acceptName').value || 'Kunde');
+      const s = document.createElement('input'); s.name = 'acceptance_signature'; s.value = canvas.toDataURL('image/png');
+      form.appendChild(n); form.appendChild(s);
+      document.body.appendChild(form);
+      form.submit();
+    };
+  }
 })();
 </script>
 

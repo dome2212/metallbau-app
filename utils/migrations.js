@@ -444,6 +444,46 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 010 ── Skizzen-Tool: editierbare Zeichnungsdaten (Striche/Text als JSON) ──
+  {
+    id: 10,
+    description: 'project_sketches – Spalte drawing_json für editierbare Skizzen (Vektordaten)',
+    async up() {
+      await safeRaw(`ALTER TABLE project_sketches ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} drawing_json TEXT`);
+    }
+  },
+
+  // ── 011 ── Feature-Pack: Abnahme, Nachträge, Checkliste, Share, Fotokategorie
+  {
+    id: 11,
+    description: 'Abnahme-Unterschrift, Projekt-Nachträge, Checkliste, Share-Token, Foto-Kategorie, Task due_date',
+    async up() {
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} share_token TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_signature TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_name TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_at TIMESTAMP`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE project_photos ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} category TEXT DEFAULT 'sonstiges'`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE project_tasks ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} due_date DATE`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE project_tasks ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} assigned_to INTEGER`); } catch (_) {}
+      await safeRaw(`CREATE TABLE IF NOT EXISTS project_extras (
+        id ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        project_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        amount NUMERIC(12,2) DEFAULT 0,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE TABLE IF NOT EXISTS project_checklist (
+        id ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        project_id INTEGER NOT NULL,
+        label TEXT NOT NULL,
+        done INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
@@ -459,6 +499,7 @@ async function runMigrations() {
   const appliedIds = new Set((applied.rows || []).map(r => Number(r.id)));
 
   let ran = 0;
+
   for (const migration of MIGRATIONS) {
     if (appliedIds.has(migration.id)) continue;
     try {
