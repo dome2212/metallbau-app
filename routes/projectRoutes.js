@@ -542,20 +542,20 @@ router.post('/measurements/delete', async (req, res) => {
 // ==========================================
 router.post('/:id/sketches/add', async (req, res) => {
   const projectId = req.params.id;
-  const { title, image_data } = req.body;
+  const { title, image_data, drawing_json } = req.body;
   if (!image_data || !String(image_data).startsWith('data:image/')) {
     return res.status(400).json({ ok: false, error: 'Ungültige Bilddaten' });
   }
-  if (String(image_data).length > 3_500_000) {
-    return res.status(400).json({ ok: false, error: 'Zeichnung zu groß (max. ca. 2,5 MB)' });
+  if (String(image_data).length > 10_000_000) {
+    return res.status(400).json({ ok: false, error: 'Zeichnung zu groß (max. ca. 7 MB). Bitte Hintergrundfoto entfernen oder Skizze vereinfachen.' });
   }
   try {
     const createdBy = (req.user && (req.user.username || req.user.name)) || 'Unbekannt';
-    await dbQuery(
-      `INSERT INTO project_sketches (project_id, title, image_data, created_by) VALUES (?, ?, ?, ?)`,
-      [projectId, (title || 'Skizze').trim().slice(0, 120) || 'Skizze', image_data, createdBy]
+    const result = await dbQuery(
+      `INSERT INTO project_sketches (project_id, title, image_data, drawing_json, created_by) VALUES (?, ?, ?, ?, ?)`,
+      [projectId, (title || 'Skizze').trim().slice(0, 120) || 'Skizze', image_data, drawing_json || null, createdBy]
     );
-    return res.json({ ok: true });
+    return res.json({ ok: true, id: result.lastID });
   } catch (err) {
     console.error('Fehler beim Speichern der Skizze:', err.message);
     return res.status(500).json({ ok: false, error: err.message });
