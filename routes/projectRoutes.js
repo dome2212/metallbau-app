@@ -365,7 +365,7 @@ router.get('/:id', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
 
-    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, statusLogRes, lagerRes, entnahmenRes, sketchesRes, extrasRes, checklistRes] = await Promise.all([
+    const [filesRes, appRes, photosRes, measurementsRes, notesRes, tasksRes, usersRes, hoursRes, statusLogRes, lagerRes, entnahmenRes, sketchesRes] = await Promise.all([
       dbQuery('SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC', [id]),
       dbQuery('SELECT * FROM appointments WHERE customer_id = ? ORDER BY start_date DESC', [project.customer_id]),
       dbQuery('SELECT * FROM project_photos WHERE project_id = ? ORDER BY created_at DESC', [id]),
@@ -400,9 +400,7 @@ router.get('/:id', async (req, res) => {
          ORDER BY le.created_at DESC`,
         [id]
       ),
-      dbQuery('SELECT * FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id]),
-      dbQuery('SELECT * FROM project_extras WHERE project_id = ? ORDER BY created_at DESC', [id]).catch(() => ({ rows: [] })),
-      dbQuery('SELECT * FROM project_checklist WHERE project_id = ? ORDER BY sort_order ASC, id ASC', [id]).catch(() => ({ rows: [] }))
+      dbQuery('SELECT * FROM project_sketches WHERE project_id = ? ORDER BY created_at DESC', [id])
     ]);
 
     // Stunden pro Mitarbeiter berechnen (IN/OUT-Paar-Logik)
@@ -457,9 +455,7 @@ router.get('/:id', async (req, res) => {
       statusLog:    statusLogRes.rows    || [],
       lagerItems:   lagerRes.rows        || [],
       entnahmen:    entnahmenRes.rows    || [],
-      sketches:     sketchesRes.rows     || [],
-      extras:       (extrasRes && extrasRes.rows)     || [],
-      checklist:    (checklistRes && checklistRes.rows) || []
+      sketches:     sketchesRes.rows     || []
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
@@ -1137,86 +1133,6 @@ router.post('/:id/generate-quote-with-images', imageUpload.array('images', 3), a
 
 
 // ==========================================
-// PROJEKT-NACHTRÄGE (Mehrpreis)
-// ==========================================
-router.post('/:id/extras/add', async (req, res) => {
-  const projectId = req.params.id;
-  const { title, amount, note } = req.body;
-  if (!title || !String(title).trim()) return res.redirect(`/projects/${projectId}`);
-  const amt = parseFloat(String(amount || '0').replace(',', '.')) || 0;
-  try {
-    await dbQuery(
-      `INSERT INTO project_extras (project_id, title, amount, note) VALUES (?, ?, ?, ?)`,
-      [projectId, String(title).trim().slice(0, 200), amt, (note || '').trim() || null]
-    );
-  } catch (err) { console.error('extras/add:', err.message); }
-  res.redirect(`/projects/${projectId}#sec-nachtraege`);
-});
-
-router.post('/extras/delete', async (req, res) => {
-  const { extra_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_extras WHERE id = ?', [extra_id]); } catch (_) {}
-  res.redirect(`/projects/${project_id}#sec-nachtraege`);
-});
-
-// ==========================================
-// MONTAGE-CHECKLISTE
-// ==========================================
-router.post('/:id/checklist/seed', async (req, res) => {
-  const projectId = req.params.id;
-  const { template } = req.body;
-  const TEMPLATES = {
-    gelaender: ['Aufmaß geprüft', 'Material bestellt', 'Fertigung abgeschlossen', 'Oberfläche/Beschichtung', 'Montage vor Ort', 'Dübel/Befestigung geprüft', 'Abdeckkappen montiert', 'Kundenabnahme'],
-    tor: ['Aufmaß geprüft', 'Beschlag/Antrieb bestellt', 'Fertigung Flügel/Zarge', 'Beschichtung', 'Montage', 'Einstellung/Funktionstest', 'Einweisung Kunde', 'Abnahme'],
-    treppe: ['Aufmaß / Steigung geprüft', 'Material bestellt', 'Wangen/Stufen gefertigt', 'Geländer gefertigt', 'Beschichtung', 'Montage', 'Trittsicherheit geprüft', 'Abnahme'],
-    zaun: ['Aufmaß / Gelände', 'Pfosten gesetzt', 'Füllung montiert', 'Tore/Türen', 'Beschichtung nachgebessert', 'Abnahme'],
-    standard: ['Aufmaß', 'Material', 'Fertigung', 'Oberfläche', 'Montage', 'Reinigung', 'Abnahme']
-  };
-  const items = TEMPLATES[template] || TEMPLATES.standard;
-  try {
-    // bestehende optionale leere Liste: wir hängen nur an wenn leer
-    const cur = await dbQuery('SELECT COUNT(*) as c FROM project_checklist WHERE project_id = ?', [projectId]);
-    const count = Number((cur.rows[0] && (cur.rows[0].c ?? cur.rows[0].count)) || 0);
-    if (count === 0) {
-      for (let i = 0; i < items.length; i++) {
-        await dbQuery(
-          `INSERT INTO project_checklist (project_id, label, done, sort_order) VALUES (?, ?, 0, ?)`,
-          [projectId, items[i], i]
-        );
-      }
-    }
-  } catch (err) { console.error('checklist/seed:', err.message); }
-  res.redirect(`/projects/${projectId}#sec-checkliste`);
-});
-
-router.post('/:id/checklist/add', async (req, res) => {
-  const projectId = req.params.id;
-  const { label } = req.body;
-  if (!label || !String(label).trim()) return res.redirect(`/projects/${projectId}#sec-checkliste`);
-  try {
-    await dbQuery(
-      `INSERT INTO project_checklist (project_id, label, done, sort_order) VALUES (?, ?, 0, 99)`,
-      [projectId, String(label).trim().slice(0, 200)]
-    );
-  } catch (err) { console.error('checklist/add:', err.message); }
-  res.redirect(`/projects/${projectId}#sec-checkliste`);
-});
-
-router.post('/checklist/toggle', async (req, res) => {
-  const { item_id, project_id, done } = req.body;
-  try {
-    await dbQuery('UPDATE project_checklist SET done = ? WHERE id = ?', [done === '1' || done === 'true' || done === true ? 1 : 0, item_id]);
-  } catch (_) {}
-  res.redirect(`/projects/${project_id}#sec-checkliste`);
-});
-
-router.post('/checklist/delete', async (req, res) => {
-  const { item_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_checklist WHERE id = ?', [item_id]); } catch (_) {}
-  res.redirect(`/projects/${project_id}#sec-checkliste`);
-});
-
-// ==========================================
 // KUNDEN-ABNAHME MIT UNTERSCHRIFT
 // ==========================================
 router.post('/:id/acceptance', async (req, res) => {
@@ -1243,20 +1159,6 @@ router.post('/:id/acceptance/clear', async (req, res) => {
     );
   } catch (_) {}
   res.redirect(`/projects/${projectId}#sec-abnahme`);
-});
-
-// ==========================================
-// ÖFFENTLICHER KUNDEN-LINK (Token erzeugen)
-// ==========================================
-router.post('/:id/share-token', async (req, res) => {
-  const projectId = req.params.id;
-  try {
-    const token = require('crypto').randomBytes(16).toString('hex');
-    await dbQuery('UPDATE projects SET share_token = ? WHERE id = ?', [token, projectId]);
-    return res.json({ ok: true, token, url: `/public/project/${token}` });
-  } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
-  }
 });
 
 

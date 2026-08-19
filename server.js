@@ -162,54 +162,6 @@ app.use('/', authRoutes);
 // ==========================================
 // ALLE FOLGENDEN ROUTEN ERFORDERN LOGIN
 // ==========================================
-
-// ── Öffentliche Projekt-Ansicht (Kunden-Link, ohne Login) ───────────────
-app.get('/public/project/:token', async (req, res) => {
-  try {
-    const { dbQuery } = require('./utils/db');
-    const token = req.params.token;
-    const pRes = await dbQuery(
-      `SELECT projects.*, customers.company_name, customers.contact_person, customers.city
-       FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
-       WHERE projects.share_token = ?`,
-      [token]
-    );
-    const project = pRes.rows && pRes.rows[0];
-    if (!project) return res.status(404).send('Link ungültig oder abgelaufen.');
-    const [photos, statusLog] = await Promise.all([
-      dbQuery('SELECT file_url, original_name, category, created_at FROM project_photos WHERE project_id = ? ORDER BY created_at DESC LIMIT 24', [project.id]).catch(() => ({ rows: [] })),
-      dbQuery('SELECT old_status, new_status, changed_by, created_at FROM project_status_log WHERE project_id = ? ORDER BY created_at DESC LIMIT 15', [project.id]).catch(() => ({ rows: [] }))
-    ]);
-    const firma = res.locals.firma || {};
-    res.send(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${project.title} – Status</title>
-<style>
-body{font-family:system-ui,sans-serif;background:#f1f5f9;margin:0;padding:16px;color:#0f172a}
-.card{background:#fff;border-radius:12px;padding:16px;margin:0 auto 12px;max-width:560px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-h1{font-size:1.25rem;margin:0 0 4px} .muted{color:#64748b;font-size:.85rem}
-.badge{display:inline-block;background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:999px;font-size:.8rem;font-weight:600}
-.photo{width:100%;border-radius:8px;margin-top:8px;max-height:220px;object-fit:cover}
-.timeline{border-left:3px solid #cbd5e1;margin:8px 0 0 6px;padding-left:12px}
-.timeline div{margin-bottom:8px;font-size:.85rem}
-</style></head><body>
-<div class="card">
-  <div class="muted">${firma.nameKurz || firma.name || 'Metallbau'}</div>
-  <h1>${String(project.title).replace(/</g,'&lt;')}</h1>
-  <p class="muted">${project.company_name || project.contact_person || ''} ${project.city ? '· '+project.city : ''}</p>
-  <p><span class="badge">${project.status || '–'}</span></p>
-  ${project.description ? `<p class="muted">${String(project.description).replace(/</g,'&lt;')}</p>` : ''}
-  ${project.acceptance_at ? `<p style="color:#059669;font-weight:600">✓ Abgenommen am ${String(project.acceptance_at).slice(0,16).replace('T',' ')}${project.acceptance_name ? ' von '+String(project.acceptance_name).replace(/</g,'&lt;') : ''}</p>` : ''}
-</div>
-${(statusLog.rows||[]).length ? `<div class="card"><strong>Statusverlauf</strong><div class="timeline">${(statusLog.rows||[]).map(s=>`<div><strong>${s.new_status||''}</strong><br><span class="muted">${String(s.created_at||'').slice(0,16).replace('T',' ')}</span></div>`).join('')}</div></div>` : ''}
-${(photos.rows||[]).length ? `<div class="card"><strong>Fotos</strong>${(photos.rows||[]).map(p=>`<img class="photo" src="${p.file_url}" alt="">`).join('')}</div>` : ''}
-<p class="muted" style="text-align:center;max-width:560px;margin:16px auto">Nur Ansicht – bitte nicht weitergeben, wenn der Link intern ist.</p>
-</body></html>`);
-  } catch (err) {
-    console.error('public project:', err.message);
-    res.status(500).send('Fehler');
-  }
-});
-
 app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
