@@ -50,11 +50,44 @@
       </div>
     </header>
 
-    <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6">
-      
+    <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-8">
+
+      <!-- ========== SCHNELL-NAVIGATION ========== -->
+      <nav class="sticky top-16 md:top-2 z-20 -mx-1 px-1">
+        <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur border dark:border-slate-700 shadow-sm rounded-xl p-2 overflow-x-auto">
+          <div class="flex gap-1.5 min-w-max">
+            <a href="#sec-uebersicht" class="nav-chip">📋 Übersicht</a>
+            <a href="#sec-aufmass" class="nav-chip">📐 Aufmaß</a>
+            <a href="#sec-aufgaben" class="nav-chip">🛠️ Aufgaben</a>
+            <a href="#sec-notizen" class="nav-chip">📝 Notizen</a>
+            <a href="#sec-fotos" class="nav-chip">📸 Fotos</a>
+            <a href="#sec-termine" class="nav-chip">📅 Termine</a>
+            <a href="#sec-material" class="nav-chip">🏗️ Material</a>
+            <a href="#sec-stunden" class="nav-chip">⏱️ Stunden</a>
+            <a href="#sec-status" class="nav-chip">📋 Status</a>
+          </div>
+        </div>
+      </nav>
+      <style>
+        .nav-chip{padding:0.375rem 0.75rem;border-radius:0.5rem;font-size:0.75rem;font-weight:600;background:#f1f5f9;color:#334155;transition:background .15s,color .15s;display:inline-block;text-decoration:none}
+        .nav-chip:hover{background:#dbeafe;color:#1d4ed8}
+        .dark .nav-chip{background:#334155;color:#e2e8f0}
+        .dark .nav-chip:hover{background:#475569;color:#fff}
+        .sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:0.35rem;white-space:nowrap}
+        .card-clean{background:#fff;border-radius:0.75rem;box-shadow:0 1px 2px rgb(0 0 0/0.05);border:1px solid #f1f5f9;padding:1rem}
+        @media(min-width:768px){.card-clean{padding:1.5rem}}
+        .dark .card-clean{background:#1e293b;border-color:#334155}
+      </style>
+
+      <!-- ========== 1 ÜBERSICHT ========== -->
+      <section id="sec-uebersicht" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">1 · Übersicht</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Kundendaten & Details -->
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+        <div class="card-clean space-y-4">
           <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📋 Projektdetails</h2>
           <div>
             <span class="text-xs text-slate-400 dark:text-slate-500 block">Kunde / Baustelle</span>
@@ -184,7 +217,7 @@
         </div>
 
         <!-- Technische Zeichnungen & Dateien -->
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+        <div class="card-clean space-y-4">
           <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Technische Zeichnungen & Pläne</h2>
           
           <!-- Upload-Formular -->
@@ -218,11 +251,15 @@
           </div>
         </div>
       </div>
+      </section>
 
-      <!-- ========================================== -->
-      <!-- DIGITALES AUFMASS -->
-      <!-- ========================================== -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+      <!-- ========== 2 AUFMASS ========== -->
+      <section id="sec-aufmass" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30">2 · Aufmaß &amp; Skizzen</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Digitales Aufmaß (Baustelle)</h2>
         
         <!-- Eingabeformular -->
@@ -300,7 +337,7 @@
         <!-- ===== FREIHAND-SKIZZE / ZEICHNEN IM AUFMASS ===== -->
         <div class="mt-6 pt-4 border-t dark:border-slate-700 space-y-3">
           <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">✏️ Skizze zeichnen &amp; Text einfügen</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Freihand zeichnen, Maße als Text platzieren und die Skizze speichern. Ideal für Baustellen-Aufmaß per Tablet/Handy.</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Freihand zeichnen, Maße als Text platzieren und die Skizze speichern. Optional über ein Baustellenfoto zeichnen. Ideal für Baustellen-Aufmaß per Tablet/Handy.</p>
 
           <div class="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-slate-700 p-3 rounded border dark:border-slate-600">
             <button type="button" id="sketch-tool-pen" class="sketch-tool px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white" data-tool="pen" title="Stift">✏️ Stift</button>
@@ -327,10 +364,21 @@
             <span class="w-px h-6 bg-slate-300 dark:bg-slate-500 mx-1"></span>
             <button type="button" id="sketch-undo" class="px-3 py-1.5 rounded text-xs font-medium bg-white dark:bg-slate-800 border dark:border-slate-600 text-slate-700 dark:text-slate-200">↩ Rückgängig</button>
             <button type="button" id="sketch-clear" class="px-3 py-1.5 rounded text-xs font-medium bg-white dark:bg-slate-800 border dark:border-slate-600 text-red-600">🗑 Leeren</button>
+            <label class="px-3 py-1.5 rounded text-xs font-medium bg-white dark:bg-slate-800 border dark:border-slate-600 text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600">
+              📷 Foto als Hintergrund
+              <input type="file" id="sketch-bg-input" accept="image/*" class="hidden">
+            </label>
           </div>
 
-          <div class="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white" style="touch-action: none;">
-            <canvas id="sketchCanvas" width="900" height="520" class="w-full block cursor-crosshair" style="max-height: 70vh;"></canvas>
+          <div class="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white" id="sketch-wrap" style="touch-action: none;">
+            <canvas id="sketchCanvas" width="900" height="520" class="w-full block cursor-crosshair" style="touch-action:none; max-height: 70vh;"></canvas>
+            <div id="sketch-text-box" class="hidden absolute z-10 bg-white dark:bg-slate-800 border-2 border-blue-500 rounded shadow-lg p-2">
+              <input type="text" id="sketch-text-input" class="text-sm px-2 py-1.5 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded w-44" placeholder="Text eingeben (z.B. 1250 mm)...">
+              <div class="flex gap-1 mt-1.5">
+                <button type="button" id="sketch-text-ok" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-2 py-1.5 rounded">Einfügen</button>
+                <button type="button" id="sketch-text-cancel" class="bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-gray-200 text-xs px-2 py-1.5 rounded">Abbr.</button>
+              </div>
+            </div>
           </div>
 
           <div class="flex flex-wrap items-end gap-3">
@@ -338,7 +386,7 @@
               <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Titel der Skizze</label>
               <input type="text" id="sketch-title" maxlength="120" placeholder="z.B. Geländer Detail Ostseite" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white">
             </div>
-            <button type="button" id="sketch-save-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow transition">
+            <button type="button" id="sketch-save-btn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded shadow transition disabled:opacity-50 disabled:cursor-not-allowed">
               💾 Skizze speichern
             </button>
             <span id="sketch-status" class="text-xs text-slate-500 dark:text-slate-400"></span>
@@ -350,19 +398,22 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <% sketches.forEach(function(s) { %>
                   <div class="border dark:border-slate-600 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-700">
-                    <a href="<%= s.image_data %>" target="_blank" rel="noopener">
-                      <img src="<%= s.image_data %>" alt="<%= s.title || 'Skizze' %>" class="w-full h-36 object-contain bg-white">
-                    </a>
+                    <img src="<%= s.image_data %>" alt="<%= s.title || 'Skizze' %>" class="w-full h-36 object-contain bg-white cursor-pointer sketch-thumb">
                     <div class="p-2 flex items-start justify-between gap-2">
                       <div class="min-w-0">
                         <p class="text-sm font-medium text-slate-800 dark:text-gray-100 truncate"><%= s.title || 'Skizze' %></p>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400"><%= s.created_by || '' %> · <%= s.created_at ? String(s.created_at).slice(0,16).replace('T',' ') : '' %></p>
                       </div>
-                      <form action="/projects/sketches/delete" method="POST" onsubmit="return confirm('Skizze wirklich löschen?');">
-                        <input type="hidden" name="sketch_id" value="<%= s.id %>">
-                        <input type="hidden" name="project_id" value="<%= project.id %>">
-                        <button type="submit" class="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded text-xs">Löschen</button>
-                      </form>
+                      <div class="flex flex-col gap-1 shrink-0">
+                        <% if (s.drawing_json) { %>
+                          <button type="button" class="sketch-edit-btn text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded text-xs" data-json="<%- s.drawing_json.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') %>">Bearbeiten</button>
+                        <% } %>
+                        <form action="/projects/sketches/delete" method="POST" onsubmit="return confirm('Skizze wirklich löschen?');">
+                          <input type="hidden" name="sketch_id" value="<%= s.id %>">
+                          <input type="hidden" name="project_id" value="<%= project.id %>">
+                          <button type="submit" class="w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded text-xs">Löschen</button>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 <% }) %>
@@ -374,10 +425,15 @@
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- NEU: BAUSTELLEN-AUFGABEN & MÄNGEL TICKER -->
-      <!-- ========================================== -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+      </section>
+
+      <!-- ========== 3 AUFGABEN ========== -->
+      <section id="sec-aufgaben" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30">3 · Aufgaben &amp; Mängel</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🛠️ Baustellen-Aufgaben & Mängel</h2>
         
         <!-- Formular zum Hinzufügen einer neuen Aufgabe/Mängels -->
@@ -522,10 +578,15 @@
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- BAUSTELLEN-NOTIZBUCH                       -->
-      <!-- ========================================== -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+      </section>
+
+      <!-- ========== 4 NOTIZEN ========== -->
+      <section id="sec-notizen" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30">4 · Notizen</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📝 Baustellen-Notizbuch</h2>
 
         <!-- ── Text-Notiz ──────────────────────────────── -->
@@ -564,8 +625,15 @@
         </div>
       </div>
 
-      <!-- Baustellen-Abschlussfotos Sektion -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+      </section>
+
+      <!-- ========== 5 FOTOS ========== -->
+      <section id="sec-fotos" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30">5 · Fotos</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📸 Baustellen-Abschlussfotos</h2>
 
         <!-- Upload-Formular für Fotos -->
@@ -614,9 +682,16 @@
         </div>
       </div>
 
-      <!-- Verknüpfte Termine mit Wetter-Frühwarnung -->
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 mb-4">📅 Verknüpfte Termine – Wetter-Frühwarnung</h2>
+      </section>
+
+      <!-- ========== 6 TERMINE ========== -->
+      <section id="sec-termine" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30">6 · Termine</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+      <div class="card-clean">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 mb-4">📅 Verknüpfte Termine – Wetter-Frühwarnung</h2>
         <% if (appointments && appointments.length > 0) { %>
           <ul class="divide-y divide-slate-200 dark:divide-slate-700">
             <% appointments.forEach(app => { %>
@@ -670,9 +745,15 @@
       </div>
 </div>
 
-<!-- ── Projektstatus-Verlauf ───────────────────────────────────────── -->
-<div class="px-4 md:px-6 pb-4 max-w-7xl mx-auto w-full">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+      </section>
+
+      <!-- ========== 7 STATUS ========== -->
+      <section id="sec-status" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700">7 · Statusverlauf</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+  <div class="card-clean">
     <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 mb-4">📋 Statusverlauf</h2>
     <% if (statusLog && statusLog.length > 0) { %>
       <ol class="relative border-l border-slate-200 dark:border-slate-700 ml-2 space-y-4">
@@ -699,9 +780,15 @@
   </div>
 </div>
 
-<!-- ── Materialentnahme ────────────────────────────────────────────── -->
-<div class="px-4 md:px-6 pb-4 max-w-7xl mx-auto w-full">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6 space-y-4">
+      </section>
+
+      <!-- ========== 8 MATERIAL ========== -->
+      <section id="sec-material" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30">8 · Material</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+  <div class="card-clean space-y-4">
     <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🏗️ Materialentnahme</h2>
 
     <!-- Entnahme-Formular -->
@@ -801,14 +888,20 @@
   </div>
 </div>
 
-<!-- ── Stunden & Nachkalkulation ──────────────────────────────────── -->
+      </section>
+
+      <!-- ========== 9 STUNDEN ========== -->
 <%
   const _matKosten = typeof entnahmen !== 'undefined'
     ? entnahmen.reduce((s, e) => s + Number(e.gesamtpreis || 0), 0)
     : 0;
 %>
-<div class="px-4 md:px-6 pb-8 max-w-7xl mx-auto w-full">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4 md:p-6">
+      <section id="sec-stunden" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="sec-label text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30">9 · Stunden &amp; Kalkulation</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+        </div>
+  <div class="card-clean">
     <div class="flex items-center justify-between gap-3 border-b dark:border-slate-700 pb-3 mb-4">
       <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100">⏱️ Stunden &amp; Nachkalkulation</h2>
       <% if (typeof projectTotalHours !== 'undefined' && parseFloat(projectTotalHours) > 0) { %>
@@ -904,7 +997,9 @@
     <% } %>
 
   </div>
-</div>
+      </section>
+
+    </div><!-- /max-w-7xl content -->
 
 </main>
 
@@ -1525,6 +1620,11 @@ function acceptDefectSuggestion() {
     </button>
   </div>
 </div>
+<!-- SKIZZEN-LIGHTBOX -->
+<div id="sketchLightbox" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50" onclick="document.getElementById('sketchLightbox').classList.add('hidden')">
+  <img id="sketchLightboxImg" src="" alt="Skizze" class="max-w-full max-h-full rounded shadow-2xl bg-white">
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script>
   (function() {
@@ -1562,41 +1662,33 @@ function acceptDefectSuggestion() {
   const canvas = document.getElementById('sketchCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('sketch-wrap');
   const projectId = <%= project.id %>;
+  const statusEl = document.getElementById('sketch-status');
 
-  function fitCanvas() {
-    const parent = canvas.parentElement;
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = parent.clientWidth || 900;
-    const cssH = Math.min(520, Math.max(320, Math.round(cssW * 0.55)));
-    canvas.style.width = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, cssW, cssH);
-    if (history.length) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, cssW, cssH);
-      img.src = history[history.length - 1];
-    }
-  }
-
+  // ── Zustand: Vektor-Elemente statt Raster-Snapshots ──────────────
+  // (schneller, speicherschonender, korrektes Undo, sauberer Resize/Redraw,
+  //  und erlaubt späteres Weiterbearbeiten über drawing_json)
+  let elements   = [];   // { type:'path'|'erase'|'line'|'rect'|'text', ... }
+  let bgImage    = null; // optionales Hintergrundfoto (Baustellenfoto)
+  let previewEl  = null; // Vorschau für Linie/Rechteck während des Ziehens
+  let currentEl  = null; // aktueller Freihand-/Radier-Strich
+  let drawing    = false;
+  let startPos   = null;
+  let pendingTextPos = null;
   let tool = 'pen';
-  let drawing = false;
-  let startX = 0, startY = 0;
-  let snapshot = null;
-  let history = [];
-  const MAX_HISTORY = 25;
 
-  function pushHistory() {
-    try {
-      history.push(canvas.toDataURL('image/png'));
-      if (history.length > MAX_HISTORY) history.shift();
-    } catch (e) {}
-  }
+  const colorEl     = document.getElementById('sketch-color');
+  const sizeEl       = document.getElementById('sketch-size');
+  const sizeLabel     = document.getElementById('sketch-size-label');
+  const fontSizeEl   = document.getElementById('sketch-font-size');
+  sizeEl.addEventListener('input', () => { sizeLabel.textContent = sizeEl.value; });
 
+  const getColor = () => colorEl.value;
+  const getWidth = () => parseInt(sizeEl.value, 10) || 3;
+  const getFontSize = () => parseInt(fontSizeEl.value, 10) || 18;
+
+  // ── Werkzeugauswahl ──────────────────────────────────────────────
   function setActiveTool(name) {
     tool = name;
     document.querySelectorAll('.sketch-tool').forEach(btn => {
@@ -1608,158 +1700,281 @@ function acceptDefectSuggestion() {
     });
     canvas.style.cursor = (name === 'text') ? 'text' : 'crosshair';
   }
-
   document.querySelectorAll('.sketch-tool').forEach(btn => {
     btn.addEventListener('click', () => setActiveTool(btn.dataset.tool));
   });
 
-  const colorEl = document.getElementById('sketch-color');
-  const sizeEl = document.getElementById('sketch-size');
-  const sizeLabel = document.getElementById('sketch-size-label');
-  const fontSizeEl = document.getElementById('sketch-font-size');
-  sizeEl.addEventListener('input', () => { sizeLabel.textContent = sizeEl.value; });
-
-  function pos(e) {
-    const r = canvas.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: t.clientX - r.left, y: t.clientY - r.top };
-  }
-
-  function beginDraw(e) {
-    e.preventDefault();
-    const p = pos(e);
-    startX = p.x; startY = p.y;
-
-    if (tool === 'text') {
-      const text = prompt('Text eingeben (z.B. Maß 1250 mm):');
-      if (text && text.trim()) {
-        pushHistory();
-        ctx.save();
-        ctx.font = 'bold ' + (fontSizeEl.value || 18) + 'px system-ui, sans-serif';
-        ctx.textBaseline = 'top';
-        const metrics = ctx.measureText(text.trim());
-        const pad = 3;
-        const fs = parseInt(fontSizeEl.value || 18, 10);
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillRect(p.x - pad, p.y - pad, metrics.width + pad * 2, fs + pad * 2);
-        ctx.fillStyle = colorEl.value;
-        ctx.fillText(text.trim(), p.x, p.y);
-        ctx.restore();
-      }
-      return;
-    }
-
-    drawing = true;
-    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    pushHistory();
-    ctx.beginPath();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = (tool === 'eraser') ? '#ffffff' : colorEl.value;
-    ctx.lineWidth = (tool === 'eraser') ? Math.max(8, parseInt(sizeEl.value, 10) * 3) : parseInt(sizeEl.value, 10);
-    if (tool === 'pen' || tool === 'eraser') {
-      ctx.moveTo(p.x, p.y);
-    }
-  }
-
-  function moveDraw(e) {
-    if (!drawing) return;
-    e.preventDefault();
-    const p = pos(e);
-    if (tool === 'pen' || tool === 'eraser') {
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-    } else if (tool === 'line' || tool === 'rect') {
-      if (snapshot) ctx.putImageData(snapshot, 0, 0);
-      ctx.beginPath();
-      ctx.strokeStyle = colorEl.value;
-      ctx.lineWidth = parseInt(sizeEl.value, 10);
-      if (tool === 'line') {
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-      } else {
-        ctx.strokeRect(startX, startY, p.x - startX, p.y - startY);
-      }
-    }
-  }
-
-  function endDraw() {
-    if (!drawing) return;
-    drawing = false;
-    snapshot = null;
-  }
-
-  canvas.addEventListener('mousedown', beginDraw);
-  canvas.addEventListener('mousemove', moveDraw);
-  canvas.addEventListener('mouseup', endDraw);
-  canvas.addEventListener('mouseleave', endDraw);
-  canvas.addEventListener('touchstart', beginDraw, { passive: false });
-  canvas.addEventListener('touchmove', moveDraw, { passive: false });
-  canvas.addEventListener('touchend', endDraw);
-
-  document.getElementById('sketch-undo').addEventListener('click', () => {
-    if (history.length < 2) {
-      history = [];
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.width / dpr, cssH = canvas.height / dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cssW, cssH);
-      return;
-    }
-    history.pop();
-    const prev = history[history.length - 1];
-    const img = new Image();
-    img.onload = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.width / dpr, cssH = canvas.height / dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cssW, cssH);
-      ctx.drawImage(img, 0, 0, cssW, cssH);
-    };
-    img.src = prev;
-  });
-
-  document.getElementById('sketch-clear').addEventListener('click', () => {
-    if (!confirm('Canvas wirklich leeren?')) return;
-    pushHistory();
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = canvas.width / dpr, cssH = canvas.height / dpr;
+  // ── Canvas-Größe: hochauflösend (bis DPR 2) und responsiv ────────
+  // Interne Pixelgröße wird an die tatsächliche Anzeigebreite angepasst,
+  // die Vektor-Elemente werden bei jedem Resize einfach neu gezeichnet
+  // (kein Qualitätsverlust, kein "kaputtes" Bild bei Drehung des Tablets).
+  let cssW = 900, cssH = 520;
+  function resizeCanvas() {
+    const parentW = wrap.clientWidth || 900;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cssW = parentW;
+    cssH = Math.min(600, Math.max(320, Math.round(cssW * 0.58)));
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }
+
+  // ── Zeichnen ──────────────────────────────────────────────────────
+  function redraw() {
+    ctx.clearRect(0, 0, cssW, cssH);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, cssW, cssH);
+    if (bgImage) ctx.drawImage(bgImage, 0, 0, cssW, cssH);
+    elements.forEach(drawElement);
+    if (previewEl) drawElement(previewEl);
+  }
+
+  function strokePath(points) {
+    // sanft geglättete Linie durch quadratische Kurven statt eckiger Segmente
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length - 1; i++) {
+      const mx = (points[i].x + points[i + 1].x) / 2;
+      const my = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, mx, my);
+    }
+    if (points.length > 1) {
+      const last = points[points.length - 1];
+      ctx.lineTo(last.x, last.y);
+    }
+    ctx.stroke();
+  }
+
+  function drawElement(el) {
+    if (el.type === 'path' || el.type === 'erase') {
+      if (!el.points || el.points.length === 0) return;
+      ctx.save();
+      ctx.globalCompositeOperation = el.type === 'erase' ? 'destination-out' : 'source-over';
+      ctx.strokeStyle = el.color;
+      ctx.lineWidth = el.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (el.points.length === 1) {
+        ctx.fillStyle = el.color;
+        ctx.beginPath();
+        ctx.arc(el.points[0].x, el.points[0].y, el.width / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        strokePath(el.points);
+      }
+      ctx.restore();
+    } else if (el.type === 'line') {
+      ctx.save();
+      ctx.strokeStyle = el.color;
+      ctx.lineWidth = el.width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(el.x1, el.y1);
+      ctx.lineTo(el.x2, el.y2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (el.type === 'rect') {
+      ctx.save();
+      ctx.strokeStyle = el.color;
+      ctx.lineWidth = el.width;
+      ctx.strokeRect(el.x, el.y, el.w, el.h);
+      ctx.restore();
+    } else if (el.type === 'text') {
+      ctx.save();
+      ctx.font = `bold ${el.fontSize}px system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+      const metrics = ctx.measureText(el.text);
+      const pad = 3;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillRect(el.x - pad, el.y - pad, metrics.width + pad * 2, el.fontSize + pad * 2);
+      ctx.fillStyle = el.color;
+      ctx.fillText(el.text, el.x, el.y);
+      ctx.restore();
+    }
+  }
+
+  function getPos(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = cssW / rect.width;
+    const scaleY = cssH / rect.height;
+    return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+  }
+
+  // ── Text-Eingabebox (statt blockierendem prompt()) ───────────────
+  const textBox   = document.getElementById('sketch-text-box');
+  const textInput = document.getElementById('sketch-text-input');
+
+  function showTextBox(clientX, clientY) {
+    const wrapRect = wrap.getBoundingClientRect();
+    let left = clientX - wrapRect.left;
+    let top  = clientY - wrapRect.top;
+    left = Math.max(4, Math.min(left, wrapRect.width - 190));
+    top  = Math.max(4, Math.min(top, wrapRect.height - 84));
+    textBox.style.left = left + 'px';
+    textBox.style.top  = top + 'px';
+    textBox.classList.remove('hidden');
+    textInput.value = '';
+    textInput.focus();
+  }
+  function hideTextBox() { textBox.classList.add('hidden'); pendingTextPos = null; }
+
+  document.getElementById('sketch-text-ok').addEventListener('click', () => {
+    const val = textInput.value.trim();
+    if (val && pendingTextPos) {
+      elements.push({ type: 'text', x: pendingTextPos.x, y: pendingTextPos.y, text: val, color: getColor(), fontSize: getFontSize() });
+      redraw();
+    }
+    hideTextBox();
+  });
+  document.getElementById('sketch-text-cancel').addEventListener('click', hideTextBox);
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('sketch-text-ok').click(); }
+    if (e.key === 'Escape') hideTextBox();
   });
 
+  // ── Pointer-Events (vereinheitlicht Maus, Touch & Stift) ─────────
+  canvas.addEventListener('pointerdown', (e) => {
+    if (tool === 'text') {
+      pendingTextPos = getPos(e);
+      showTextBox(e.clientX, e.clientY);
+      return;
+    }
+    canvas.setPointerCapture(e.pointerId);
+    const p = getPos(e);
+    startPos = p;
+    drawing = true;
+    if (tool === 'line') {
+      previewEl = { type: 'line', x1: p.x, y1: p.y, x2: p.x, y2: p.y, color: getColor(), width: getWidth() };
+    } else if (tool === 'rect') {
+      previewEl = { type: 'rect', x: p.x, y: p.y, w: 0, h: 0, color: getColor(), width: getWidth() };
+    } else {
+      currentEl = {
+        type: tool === 'eraser' ? 'erase' : 'path',
+        points: [p],
+        color: getColor(),
+        width: tool === 'eraser' ? Math.max(10, getWidth() * 4) : getWidth()
+      };
+      elements.push(currentEl);
+    }
+    redraw();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const p = getPos(e);
+    if (tool === 'line' && previewEl) {
+      previewEl.x2 = p.x; previewEl.y2 = p.y;
+    } else if (tool === 'rect' && previewEl) {
+      previewEl.w = p.x - startPos.x;
+      previewEl.h = p.y - startPos.y;
+    } else if (currentEl) {
+      currentEl.points.push(p);
+    }
+    redraw();
+  });
+
+  function endStroke() {
+    if (!drawing) return;
+    drawing = false;
+    if ((tool === 'line' || tool === 'rect') && previewEl) {
+      elements.push(previewEl);
+      previewEl = null;
+    }
+    currentEl = null;
+    redraw();
+  }
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+
+  // ── Rückgängig / Leeren ──────────────────────────────────────────
+  document.getElementById('sketch-undo').addEventListener('click', () => {
+    elements.pop();
+    redraw();
+  });
+  document.getElementById('sketch-clear').addEventListener('click', () => {
+    if (elements.length === 0 && !bgImage) return;
+    if (!confirm('Skizze wirklich komplett leeren?')) return;
+    elements = [];
+    bgImage = null;
+    redraw();
+  });
+
+  // ── Hintergrundfoto laden (z.B. Baustellenfoto, darüber skizzieren) ──
+  document.getElementById('sketch-bg-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => { bgImage = img; redraw(); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  // ── Bestehende Skizze zum Weiterbearbeiten laden ─────────────────
+  document.querySelectorAll('.sketch-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      try {
+        const parsed = JSON.parse(btn.dataset.json);
+        elements = Array.isArray(parsed) ? parsed : [];
+        bgImage = null;
+        redraw();
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        statusEl.textContent = 'Skizze zum Bearbeiten geladen – nach Änderungen erneut speichern.';
+        statusEl.className = 'text-xs text-blue-600 dark:text-blue-400';
+      } catch (err) {
+        statusEl.textContent = 'Skizze konnte nicht zum Bearbeiten geladen werden.';
+        statusEl.className = 'text-xs text-red-600';
+      }
+    });
+  });
+
+  // ── Vollbildansicht gespeicherter Skizzen ────────────────────────
+  document.querySelectorAll('.sketch-thumb').forEach(img => {
+    img.addEventListener('click', () => {
+      document.getElementById('sketchLightboxImg').src = img.src;
+      document.getElementById('sketchLightbox').classList.remove('hidden');
+    });
+  });
+
+  // ── Speichern ─────────────────────────────────────────────────────
   document.getElementById('sketch-save-btn').addEventListener('click', async () => {
-    const status = document.getElementById('sketch-status');
+    if (elements.length === 0 && !bgImage) {
+      statusEl.textContent = 'Bitte zuerst etwas zeichnen.';
+      statusEl.className = 'text-xs text-amber-600';
+      return;
+    }
+    const btn = document.getElementById('sketch-save-btn');
     const title = (document.getElementById('sketch-title').value || 'Skizze').trim();
-    status.textContent = 'Speichere…';
-    status.className = 'text-xs text-slate-500';
+    btn.disabled = true;
+    statusEl.textContent = 'Speichere…';
+    statusEl.className = 'text-xs text-slate-500 dark:text-slate-400';
     try {
       const image_data = canvas.toDataURL('image/png');
       const res = await fetch('/projects/' + projectId + '/sketches/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ title, image_data })
+        body: JSON.stringify({ title, image_data, drawing_json: JSON.stringify(elements) })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || 'Speichern fehlgeschlagen');
-      status.textContent = 'Gespeichert – Seite wird neu geladen…';
-      status.className = 'text-xs text-emerald-600';
-      setTimeout(() => location.reload(), 600);
+      statusEl.textContent = 'Gespeichert – Seite wird neu geladen…';
+      statusEl.className = 'text-xs text-emerald-600';
+      setTimeout(() => location.reload(), 500);
     } catch (err) {
-      status.textContent = 'Fehler: ' + (err.message || err);
-      status.className = 'text-xs text-red-600';
+      statusEl.textContent = 'Fehler: ' + (err.message || err);
+      statusEl.className = 'text-xs text-red-600';
+      btn.disabled = false;
     }
   });
 
-  fitCanvas();
-  window.addEventListener('resize', () => {
-    if (!history.length) fitCanvas();
-  });
-  pushHistory();
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
   setActiveTool('pen');
 })();
 </script>
