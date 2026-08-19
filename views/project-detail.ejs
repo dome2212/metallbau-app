@@ -77,14 +77,21 @@
         .card-clean{background:#fff;border-radius:0.75rem;box-shadow:0 1px 2px rgb(0 0 0/0.05);border:1px solid #f1f5f9;padding:1rem}
         @media(min-width:768px){.card-clean{padding:1.5rem}}
         .dark .card-clean{background:#1e293b;border-color:#334155}
+        .sec-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:0.5rem;width:100%}
+        .sec-toggle .chev{transition:transform .2s;font-size:12px;color:#64748b}
+        .sec-collapsed .sec-toggle .chev{transform:rotate(-90deg)}
+        .sec-collapsed .sec-body{display:none}
+        .sec-collapsed .card-clean{padding-top:0.75rem;padding-bottom:0.75rem}
       </style>
 
       <!-- ========== 1 ÜBERSICHT ========== -->
       <section id="sec-uebersicht" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-uebersicht" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">1 · Übersicht</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Kundendaten & Details -->
         <div class="card-clean space-y-4">
@@ -251,14 +258,17 @@
           </div>
         </div>
       </div>
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 2 AUFMASS ========== -->
       <section id="sec-aufmass" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-aufmass" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30">2 · Aufmaß &amp; Skizzen</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Digitales Aufmaß (Baustelle)</h2>
         
@@ -425,14 +435,17 @@
         </div>
       </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 3 AUFGABEN ========== -->
       <section id="sec-aufgaben" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-aufgaben" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30">3 · Aufgaben &amp; Mängel</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🛠️ Baustellen-Aufgaben & Mängel</h2>
         
@@ -578,14 +591,17 @@
         </div>
       </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 4 NOTIZEN ========== -->
       <section id="sec-notizen" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-notizen" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30">4 · Notizen</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📝 Baustellen-Notizbuch</h2>
 
@@ -625,14 +641,17 @@
         </div>
       </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 5 FOTOS ========== -->
       <section id="sec-fotos" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-fotos" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30">5 · Fotos</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="card-clean space-y-4">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📸 Baustellen-Abschlussfotos</h2>
 
@@ -682,14 +701,17 @@
         </div>
       </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 6 TERMINE ========== -->
       <section id="sec-termine" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-termine" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30">6 · Termine</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
+      <div class="sec-body">
       <div class="card-clean">
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 mb-4">📅 Verknüpfte Termine – Wetter-Frühwarnung</h2>
         <% if (appointments && appointments.length > 0) { %>
@@ -745,15 +767,18 @@
       </div>
 </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 7 STATUS ========== -->
       <section id="sec-status" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-status" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700">7 · Statusverlauf</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
-  <div class="card-clean">
+      <div class="sec-body">
+      <div class="card-clean">
     <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 mb-4">📋 Statusverlauf</h2>
     <% if (statusLog && statusLog.length > 0) { %>
       <ol class="relative border-l border-slate-200 dark:border-slate-700 ml-2 space-y-4">
@@ -780,15 +805,18 @@
   </div>
 </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 8 MATERIAL ========== -->
       <section id="sec-material" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-material" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30">8 · Material</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
-  <div class="card-clean space-y-4">
+      <div class="sec-body">
+      <div class="card-clean space-y-4">
     <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🏗️ Materialentnahme</h2>
 
     <!-- Entnahme-Formular -->
@@ -841,6 +869,7 @@
               <th class="px-3 py-2 text-right hidden sm:table-cell">Gesamt</th>
               <th class="px-3 py-2 text-left hidden md:table-cell">Notiz</th>
               <th class="px-3 py-2 text-right hidden md:table-cell">Datum</th>
+              <th class="px-3 py-2 text-right">Aktion</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
@@ -866,6 +895,14 @@
                 <td class="px-3 py-2 text-right text-slate-400 dark:text-slate-500 hidden md:table-cell text-xs">
                   <%= new Date(e.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
                 </td>
+                <td class="px-3 py-2 text-right">
+                  <form action="/projects/material/delete" method="POST" class="inline"
+                    onsubmit="return confirm('Entnahme stornieren? Die Menge wird wieder ins Lager zurückgebucht.');">
+                    <input type="hidden" name="entnahme_id" value="<%= e.id %>">
+                    <input type="hidden" name="project_id" value="<%= project.id %>">
+                    <button type="submit" class="bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
+                  </form>
+                </td>
               </tr>
             <% }) %>
           </tbody>
@@ -888,7 +925,8 @@
   </div>
 </div>
 
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
       <!-- ========== 9 STUNDEN ========== -->
 <%
@@ -897,11 +935,13 @@
     : 0;
 %>
       <section id="sec-stunden" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-stunden" role="button" tabindex="0" aria-expanded="true">
           <span class="sec-label text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30">9 · Stunden &amp; Kalkulation</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
         </div>
-  <div class="card-clean">
+      <div class="sec-body">
+      <div class="card-clean">
     <div class="flex items-center justify-between gap-3 border-b dark:border-slate-700 pb-3 mb-4">
       <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100">⏱️ Stunden &amp; Nachkalkulation</h2>
       <% if (typeof projectTotalHours !== 'undefined' && parseFloat(projectTotalHours) > 0) { %>
@@ -997,9 +1037,43 @@
     <% } %>
 
   </div>
-      </section>
+            </div><!-- /sec-body -->
+</section>
 
     </div><!-- /max-w-7xl content -->
+
+
+<script>
+(function(){
+  const KEY = 'mb-project-sections';
+  function loadState(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function saveState(st){
+    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(e){}
+  }
+  const state = loadState();
+  document.querySelectorAll('section[id^="sec-"]').forEach(sec => {
+    const id = sec.id;
+    const toggle = sec.querySelector('.sec-toggle');
+    if (!toggle) return;
+    if (state[id] === 'collapsed') {
+      sec.classList.add('sec-collapsed');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    function flip(){
+      const collapsed = sec.classList.toggle('sec-collapsed');
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      state[id] = collapsed ? 'collapsed' : 'open';
+      saveState(state);
+    }
+    toggle.addEventListener('click', flip);
+    toggle.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
+    });
+  });
+})();
+</script>
 
 </main>
 

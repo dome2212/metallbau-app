@@ -592,6 +592,27 @@ router.post('/:id/material/add', async (req, res) => {
   res.redirect(`/projects/${projectId}`);
 });
 
+// Materialentnahme stornieren (Bestand zurückbuchen) — MARKER_MB_DELETE_2026
+router.post('/material/delete', async (req, res) => {
+  const { entnahme_id, project_id } = req.body;
+  if (!entnahme_id || !project_id) return res.redirect(project_id ? `/projects/${project_id}` : '/projects');
+  try {
+    const row = await dbQuery('SELECT id, lager_item_id, menge FROM lager_entnahmen WHERE id = ? AND project_id = ?', [entnahme_id, project_id]);
+    const e = row.rows && row.rows[0];
+    if (!e) return res.redirect(`/projects/${project_id}`);
+    // Bestand zurückbuchen
+    const item = await dbQuery('SELECT menge FROM lager_items WHERE id = ?', [e.lager_item_id]);
+    if (item.rows && item.rows[0]) {
+      const neu = parseFloat(item.rows[0].menge || 0) + parseFloat(e.menge || 0);
+      await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [neu, e.lager_item_id]);
+    }
+    await dbQuery('DELETE FROM lager_entnahmen WHERE id = ?', [entnahme_id]);
+  } catch (err) {
+    console.error('Fehler beim Stornieren der Materialentnahme:', err.message);
+  }
+  res.redirect(`/projects/${project_id}`);
+});
+
 // ==========================================
 // NOTIZEN HINZUFÜGEN / LÖSCHEN
 // ==========================================
