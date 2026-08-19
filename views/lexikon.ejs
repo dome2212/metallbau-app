@@ -1,0 +1,607 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 bg-slate-100 dark:bg-gray-900 min-h-screen pt-16 md:pt-6">
+  <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📖 Werkstatt-Lexikon</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Kernlochmaße, Blechdicken, Festigkeitsklassen, Biegeradien – immer zur Hand</p>
+    </div>
+    <!-- Filter-Tabs (werden per JS aus localStorage gefiltert) -->
+    <div class="flex flex-wrap gap-1.5" id="tab-bar">
+      <button onclick="showTab('gewinde')"     class="tab-btn active" data-tab="gewinde"     data-lex-tab>🔩 Gewinde</button>
+      <button onclick="showTab('blech')"       class="tab-btn" data-tab="blech"              data-lex-tab>📐 Blech & Biegen</button>
+      <button onclick="showTab('festigkeit')"  class="tab-btn" data-tab="festigkeit"         data-lex-tab>💪 Festigkeit</button>
+      <button onclick="showTab('schweiss')"    class="tab-btn" data-tab="schweiss"           data-lex-tab>🔥 Schweißen</button>
+      <button onclick="showTab('oberflaeche')" class="tab-btn" data-tab="oberflaeche"        data-lex-tab>🎨 Oberfläche</button>
+      <button onclick="showTab('passungen')"   class="tab-btn" data-tab="passungen"          data-lex-tab>🔧 Passungen</button>
+    </div>
+  </header>
+
+  <style>
+    .tab-btn { padding: 0.4rem 0.85rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; cursor:pointer; transition:all .15s; }
+    .tab-btn:hover { background:#e2e8f0; }
+    .tab-btn.active { background:#1e3a5f; color:#fff; border-color:#1e3a5f; }
+    .dark .tab-btn { background:#334155; color:#94a3b8; border-color:#475569; }
+    .dark .tab-btn.active { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+    .tab-section { display:none; }
+    .tab-section.active { display:block; }
+    .lex-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+    .lex-table th { background:#1e3a5f; color:#fff; padding:7px 10px; text-align:left; font-size:0.7rem; text-transform:uppercase; letter-spacing:.5px; }
+    .lex-table td { padding:6px 10px; border-bottom:1px solid #e2e8f0; }
+    .lex-table tr:nth-child(even) td { background:#f8fafc; }
+    .lex-table tr:hover td { background:#eff6ff; }
+    .dark .lex-table th { background:#1e40af; }
+    .dark .lex-table td { border-bottom-color:#334155; color:#cbd5e1; }
+    .dark .lex-table tr:nth-child(even) td { background:#1e293b; }
+    .dark .lex-table tr:hover td { background:#1e3a5f; }
+    .tag-ok { display:inline-block; padding:1px 6px; border-radius:9px; font-size:.65rem; font-weight:700; }
+    .hint { background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; font-size:.75rem; color:#713f12; margin-bottom:12px; }
+    .dark .hint { background:#422006; border-color:#713f12; color:#fbbf24; }
+    .section-title { font-size:.8rem; font-weight:700; color:#1e3a5f; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; padding-bottom:4px; border-bottom:2px solid #e2e8f0; }
+    .dark .section-title { color:#60a5fa; border-bottom-color:#334155; }
+    .card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:18px 20px; margin-bottom:18px; }
+    .dark .card { background:#1e293b; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media(max-width:640px){ .grid2 { grid-template-columns:1fr; } }
+  </style>
+
+  <div class="px-4 md:px-6 max-w-6xl mx-auto w-full pb-10">
+
+    <!-- ═══════════════════════════════════════════
+         TAB 1: GEWINDE & KERNLOCHMASSE
+         ═══════════════════════════════════════════ -->
+    <div id="tab-gewinde" class="tab-section active">
+
+      <div class="hint">💡 <strong>Faustregel Kernloch:</strong> Kerndurchmesser ≈ Gewindenenndurchmesser − Steigung. Für M10 (Steigung 1,5 mm) → 10 − 1,5 = <strong>8,5 mm</strong></div>
+
+      <div class="grid2">
+        <!-- Metrisch grob -->
+        <div class="card">
+          <div class="section-title">Metrisches Gewinde (ISO grob)</div>
+          <table class="lex-table">
+            <thead><tr><th>Gewinde</th><th>Steigung</th><th>Kernloch ⌀</th><th>Bohrer</th></tr></thead>
+            <tbody>
+              <tr><td><strong>M2</strong></td><td>0,4</td><td>1,6 mm</td><td>1,6 mm</td></tr>
+              <tr><td><strong>M2,5</strong></td><td>0,45</td><td>2,05 mm</td><td>2,05 mm</td></tr>
+              <tr><td><strong>M3</strong></td><td>0,5</td><td>2,5 mm</td><td>2,5 mm</td></tr>
+              <tr><td><strong>M4</strong></td><td>0,7</td><td>3,3 mm</td><td>3,3 mm</td></tr>
+              <tr><td><strong>M5</strong></td><td>0,8</td><td>4,2 mm</td><td>4,2 mm</td></tr>
+              <tr><td><strong>M6</strong></td><td>1,0</td><td>5,0 mm</td><td>5,0 mm</td></tr>
+              <tr><td><strong>M8</strong></td><td>1,25</td><td class="text-blue-700 font-bold">6,8 mm</td><td>6,8 mm</td></tr>
+              <tr><td><strong>M10</strong></td><td>1,5</td><td class="text-blue-700 font-bold">8,5 mm</td><td>8,5 mm</td></tr>
+              <tr><td><strong>M12</strong></td><td>1,75</td><td class="text-blue-700 font-bold">10,2 mm</td><td>10,2 mm</td></tr>
+              <tr><td><strong>M14</strong></td><td>2,0</td><td>12,0 mm</td><td>12,0 mm</td></tr>
+              <tr><td><strong>M16</strong></td><td>2,0</td><td>14,0 mm</td><td>14,0 mm</td></tr>
+              <tr><td><strong>M18</strong></td><td>2,5</td><td>15,5 mm</td><td>15,5 mm</td></tr>
+              <tr><td><strong>M20</strong></td><td>2,5</td><td>17,5 mm</td><td>17,5 mm</td></tr>
+              <tr><td><strong>M22</strong></td><td>2,5</td><td>19,5 mm</td><td>19,5 mm</td></tr>
+              <tr><td><strong>M24</strong></td><td>3,0</td><td>21,0 mm</td><td>21,0 mm</td></tr>
+              <tr><td><strong>M27</strong></td><td>3,0</td><td>24,0 mm</td><td>24,0 mm</td></tr>
+              <tr><td><strong>M30</strong></td><td>3,5</td><td>26,5 mm</td><td>26,5 mm</td></tr>
+              <tr><td><strong>M36</strong></td><td>4,0</td><td>32,0 mm</td><td>32,0 mm</td></tr>
+              <tr><td><strong>M42</strong></td><td>4,5</td><td>37,5 mm</td><td>37,5 mm</td></tr>
+              <tr><td><strong>M48</strong></td><td>5,0</td><td>43,0 mm</td><td>43,0 mm</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Metrisch fein + Durchgangslöcher -->
+        <div>
+          <div class="card">
+            <div class="section-title">Metrisch fein (Auswahl)</div>
+            <table class="lex-table">
+              <thead><tr><th>Gewinde</th><th>Steigung</th><th>Kernloch ⌀</th></tr></thead>
+              <tbody>
+                <tr><td>M8 × 1</td><td>1,0</td><td>7,0 mm</td></tr>
+                <tr><td>M10 × 1</td><td>1,0</td><td>9,0 mm</td></tr>
+                <tr><td>M10 × 1,25</td><td>1,25</td><td>8,75 mm</td></tr>
+                <tr><td>M12 × 1,5</td><td>1,5</td><td>10,5 mm</td></tr>
+                <tr><td>M16 × 1,5</td><td>1,5</td><td>14,5 mm</td></tr>
+                <tr><td>M20 × 1,5</td><td>1,5</td><td>18,5 mm</td></tr>
+                <tr><td>M24 × 2</td><td>2,0</td><td>22,0 mm</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="section-title">Durchgangslöcher (DIN 273)</div>
+            <table class="lex-table">
+              <thead><tr><th>Schraube</th><th>eng</th><th>mittel</th><th>weit</th></tr></thead>
+              <tbody>
+                <tr><td>M4</td><td>4,1</td><td>4,3</td><td>4,5</td></tr>
+                <tr><td>M5</td><td>5,2</td><td>5,5</td><td>5,8</td></tr>
+                <tr><td>M6</td><td>6,2</td><td>6,6</td><td>7,0</td></tr>
+                <tr><td>M8</td><td>8,4</td><td>9,0</td><td>10,0</td></tr>
+                <tr><td>M10</td><td>10,5</td><td>11,0</td><td>12,0</td></tr>
+                <tr><td>M12</td><td>13,0</td><td>13,5</td><td>14,5</td></tr>
+                <tr><td>M14</td><td>15,0</td><td>15,5</td><td>16,5</td></tr>
+                <tr><td>M16</td><td>17,0</td><td>17,5</td><td>18,5</td></tr>
+                <tr><td>M20</td><td>21,0</td><td>22,0</td><td>24,0</td></tr>
+                <tr><td>M24</td><td>25,0</td><td>26,0</td><td>28,0</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Senkungen -->
+      <div class="card">
+        <div class="section-title">Senkungsmaße für Senkkopfschrauben (90°)</div>
+        <table class="lex-table">
+          <thead><tr><th>Schraube</th><th>Bohrloch ⌀</th><th>Senkung ⌀</th><th>Senktiefe ca.</th></tr></thead>
+          <tbody>
+            <tr><td>M3</td><td>3,4</td><td>6,7</td><td>1,65 mm</td></tr>
+            <tr><td>M4</td><td>4,5</td><td>9,0</td><td>2,2 mm</td></tr>
+            <tr><td>M5</td><td>5,5</td><td>11,0</td><td>2,75 mm</td></tr>
+            <tr><td>M6</td><td>6,6</td><td>13,0</td><td>3,3 mm</td></tr>
+            <tr><td>M8</td><td>9,0</td><td>18,0</td><td>4,4 mm</td></tr>
+            <tr><td>M10</td><td>11,0</td><td>22,0</td><td>5,5 mm</td></tr>
+            <tr><td>M12</td><td>13,5</td><td>26,0</td><td>6,5 mm</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         TAB 2: BLECH & BIEGEN
+         ═══════════════════════════════════════════ -->
+    <div id="tab-blech" class="tab-section">
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">Blechdicken (EN 10131 – kaltgewalzt)</div>
+          <div class="hint">Nenndicke → Grenzabmaß ± in mm</div>
+          <table class="lex-table">
+            <thead><tr><th>Dicke (mm)</th><th>Grenzabmaß ±</th><th>Gängig für</th></tr></thead>
+            <tbody>
+              <tr><td>0,5</td><td>0,05</td><td>Verkleidungen, Dünnes Blech</td></tr>
+              <tr><td>0,75</td><td>0,06</td><td>Fassadenblech</td></tr>
+              <tr><td>1,0</td><td>0,07</td><td>Standardblech, Türen</td></tr>
+              <tr><td>1,25</td><td>0,08</td><td>Gehäuse</td></tr>
+              <tr><td>1,5</td><td>0,09</td><td>Geländer, Verkleidungen</td></tr>
+              <tr><td>2,0</td><td>0,10</td><td>Konsolen, Halter</td></tr>
+              <tr><td>2,5</td><td>0,12</td><td>Trägerplatten</td></tr>
+              <tr><td>3,0</td><td>0,14</td><td>Gitterroste, Winkel</td></tr>
+              <tr><td>4,0</td><td>0,16</td><td>Kraftaufnahme, Rahmen</td></tr>
+              <tr><td>5,0</td><td>0,18</td><td>Schwere Konstruktionen</td></tr>
+              <tr><td>6,0</td><td>0,20</td><td>Stahlbau</td></tr>
+              <tr><td>8,0</td><td>0,25</td><td>Fundamente, Auflager</td></tr>
+              <tr><td>10,0</td><td>0,30</td><td>Laschen, Verbindungsplatten</td></tr>
+              <tr><td>12,0</td><td>0,36</td><td>Schweißkonstruktionen</td></tr>
+              <tr><td>15,0</td><td>0,42</td><td>Schwerer Stahlbau</td></tr>
+              <tr><td>20,0</td><td>0,52</td><td>Fundamente, Unterlegplatten</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="section-title">Mindest-Innenradius beim Biegen (Baustahl S235/S355)</div>
+            <div class="hint">Quer zur Walzrichtung biegen → kleinerer Radius möglich</div>
+            <table class="lex-table">
+              <thead><tr><th>Dicke t</th><th>S235 r_min</th><th>S355 r_min</th></tr></thead>
+              <tbody>
+                <tr><td>1 mm</td><td>1 × t = 1 mm</td><td>1,5 × t = 1,5 mm</td></tr>
+                <tr><td>2 mm</td><td>1 × t = 2 mm</td><td>1,5 × t = 3 mm</td></tr>
+                <tr><td>3 mm</td><td>1 × t = 3 mm</td><td>1,5 × t = 4,5 mm</td></tr>
+                <tr><td>4 mm</td><td>1,5 × t = 6 mm</td><td>2 × t = 8 mm</td></tr>
+                <tr><td>5 mm</td><td>1,5 × t = 7,5 mm</td><td>2 × t = 10 mm</td></tr>
+                <tr><td>6 mm</td><td>2 × t = 12 mm</td><td>2,5 × t = 15 mm</td></tr>
+                <tr><td>8 mm</td><td>2 × t = 16 mm</td><td>2,5 × t = 20 mm</td></tr>
+                <tr><td>10 mm</td><td>2,5 × t = 25 mm</td><td>3 × t = 30 mm</td></tr>
+                <tr><td>12 mm</td><td>3 × t = 36 mm</td><td>3,5 × t = 42 mm</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="section-title">Zuschlagformel Biegelänge (90°-Biegung)</div>
+            <table class="lex-table">
+              <thead><tr><th>Dicke t</th><th>r = 1×t</th><th>r = 2×t</th><th>r = 3×t</th></tr></thead>
+              <tbody>
+                <tr><td colspan="4" class="text-xs text-slate-400 italic">Zuschlag Z = (r + k × t) × π/2 ; k = 0,33 (r=1t), 0,42 (r=2t), 0,45 (r=3t)</td></tr>
+                <tr><td>2 mm</td><td>4,5 mm</td><td>6,4 mm</td><td>8,3 mm</td></tr>
+                <tr><td>3 mm</td><td>6,7 mm</td><td>9,7 mm</td><td>12,5 mm</td></tr>
+                <tr><td>4 mm</td><td>8,9 mm</td><td>12,9 mm</td><td>16,6 mm</td></tr>
+                <tr><td>5 mm</td><td>11,1 mm</td><td>16,1 mm</td><td>20,8 mm</td></tr>
+                <tr><td>6 mm</td><td>13,4 mm</td><td>19,3 mm</td><td>24,9 mm</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         TAB 3: FESTIGKEITSKLASSEN
+         ═══════════════════════════════════════════ -->
+    <div id="tab-festigkeit" class="tab-section">
+      <div class="card">
+        <div class="section-title">Schrauben-Festigkeitsklassen (DIN EN ISO 898-1)</div>
+        <div class="hint">💡 1. Ziffer × 10 = Mindestzugfestigkeit in kN/cm². 2. Ziffer × 10 % = Streckgrenzen-Verhältnis</div>
+        <table class="lex-table">
+          <thead><tr><th>Klasse</th><th>Zugfestigkeit R_m</th><th>Streckgrenze R_eL</th><th>Typische Verwendung</th><th>Farbe / Kennzeichen</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag-ok" style="background:#f1f5f9;color:#475569">4.6</span></td><td>400 N/mm²</td><td>240 N/mm²</td><td>Leichte Konstruktionen, Holz-Metall</td><td>Keine (blanke Schraube)</td></tr>
+            <tr><td><span class="tag-ok" style="background:#dbeafe;color:#1e40af">4.8</span></td><td>420 N/mm²</td><td>340 N/mm²</td><td>Allg. Maschinenbau</td><td>Keine</td></tr>
+            <tr><td><span class="tag-ok" style="background:#dcfce7;color:#15803d">5.6</span></td><td>500 N/mm²</td><td>300 N/mm²</td><td>Stahlbau, Brücken</td><td>Keine</td></tr>
+            <tr><td><span class="tag-ok" style="background:#fef9c3;color:#854d0e"><strong>8.8</strong></span></td><td><strong>800 N/mm²</strong></td><td><strong>640 N/mm²</strong></td><td><strong>Standardschraube Stahlbau, allg. Metallbau</strong></td><td>Aufschrift „8.8" am Kopf</td></tr>
+            <tr><td><span class="tag-ok" style="background:#fed7aa;color:#9a3412"><strong>10.9</strong></span></td><td><strong>1000 N/mm²</strong></td><td><strong>900 N/mm²</strong></td><td><strong>Hochfest, Verbindungen mit Vorspannung</strong></td><td>Aufschrift „10.9", oft verzinkt</td></tr>
+            <tr><td><span class="tag-ok" style="background:#fee2e2;color:#991b1b"><strong>12.9</strong></span></td><td><strong>1200 N/mm²</strong></td><td><strong>1080 N/mm²</strong></td><td>Höchste Beanspruchung, Motorsport, Maschinen</td><td>Aufschrift „12.9", dunkel</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">Anzugsmomente 8.8 (trocken, μ = 0,12)</div>
+          <table class="lex-table">
+            <thead><tr><th>Schraube</th><th>Anzugsmoment</th><th>Vorspannkraft</th></tr></thead>
+            <tbody>
+              <tr><td>M4</td><td>3,0 Nm</td><td>4,0 kN</td></tr>
+              <tr><td>M5</td><td>6,0 Nm</td><td>6,4 kN</td></tr>
+              <tr><td>M6</td><td>10 Nm</td><td>9,0 kN</td></tr>
+              <tr><td>M8</td><td>25 Nm</td><td>16 kN</td></tr>
+              <tr><td>M10</td><td>49 Nm</td><td>26 kN</td></tr>
+              <tr><td>M12</td><td>86 Nm</td><td>37 kN</td></tr>
+              <tr><td>M14</td><td>135 Nm</td><td>51 kN</td></tr>
+              <tr><td>M16</td><td>210 Nm</td><td>67 kN</td></tr>
+              <tr><td>M20</td><td>410 Nm</td><td>104 kN</td></tr>
+              <tr><td>M24</td><td>710 Nm</td><td>150 kN</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">Anzugsmomente 10.9 (trocken, μ = 0,12)</div>
+          <table class="lex-table">
+            <thead><tr><th>Schraube</th><th>Anzugsmoment</th><th>Vorspannkraft</th></tr></thead>
+            <tbody>
+              <tr><td>M4</td><td>4,4 Nm</td><td>5,8 kN</td></tr>
+              <tr><td>M5</td><td>8,7 Nm</td><td>9,2 kN</td></tr>
+              <tr><td>M6</td><td>15 Nm</td><td>13 kN</td></tr>
+              <tr><td>M8</td><td>36 Nm</td><td>23 kN</td></tr>
+              <tr><td>M10</td><td>72 Nm</td><td>37 kN</td></tr>
+              <tr><td>M12</td><td>125 Nm</td><td>54 kN</td></tr>
+              <tr><td>M14</td><td>195 Nm</td><td>74 kN</td></tr>
+              <tr><td>M16</td><td>305 Nm</td><td>96 kN</td></tr>
+              <tr><td>M20</td><td>595 Nm</td><td>150 kN</td></tr>
+              <tr><td>M24</td><td>1030 Nm</td><td>215 kN</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Stahlgüten (Baustahl EN 10025)</div>
+        <table class="lex-table">
+          <thead><tr><th>Güte</th><th>Streckgrenze ≤16mm</th><th>Zugfestigkeit</th><th>Zähigkeit</th><th>Typischer Einsatz</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S235JR</strong></td><td>235 N/mm²</td><td>360–510 N/mm²</td><td>27J bei 20°C</td><td>Allg. Stahlbau, Geländer, Treppen</td></tr>
+            <tr><td><strong>S235J0</strong></td><td>235 N/mm²</td><td>360–510 N/mm²</td><td>27J bei 0°C</td><td>Außenbereiche</td></tr>
+            <tr><td><strong>S355JR</strong></td><td>355 N/mm²</td><td>510–680 N/mm²</td><td>27J bei 20°C</td><td>Tragende Konstruktionen, Kräne</td></tr>
+            <tr><td><strong>S355J2</strong></td><td>355 N/mm²</td><td>510–680 N/mm²</td><td>27J bei −20°C</td><td>Kältebereiche, Offshore</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         TAB 4: SCHWEISSEN
+         ═══════════════════════════════════════════ -->
+    <div id="tab-schweiss" class="tab-section">
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">MAG-Schweißen – Richtwerte (S235, Massivdraht G3Si1)</div>
+          <table class="lex-table">
+            <thead><tr><th>Blechdicke</th><th>Draht ⌀</th><th>Strom (A)</th><th>Spannung (V)</th><th>Gasgemisch</th></tr></thead>
+            <tbody>
+              <tr><td>1–2 mm</td><td>0,6 mm</td><td>40–80 A</td><td>15–18 V</td><td>M21 (82%Ar/18%CO₂)</td></tr>
+              <tr><td>2–3 mm</td><td>0,8 mm</td><td>80–120 A</td><td>17–20 V</td><td>M21</td></tr>
+              <tr><td>3–5 mm</td><td>0,8–1,0 mm</td><td>120–180 A</td><td>19–22 V</td><td>M21</td></tr>
+              <tr><td>5–8 mm</td><td>1,0 mm</td><td>160–220 A</td><td>21–25 V</td><td>M21 / M20</td></tr>
+              <tr><td>8–12 mm</td><td>1,0–1,2 mm</td><td>200–280 A</td><td>24–28 V</td><td>M20 (80%Ar/20%CO₂)</td></tr>
+              <tr><td>> 12 mm</td><td>1,2 mm</td><td>260–350 A</td><td>27–32 V</td><td>M20 / C1 (CO₂)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">WIG-Schweißen – Richtwerte (Edelstahl 1.4301)</div>
+          <table class="lex-table">
+            <thead><tr><th>Wanddicke</th><th>Wolfram ⌀</th><th>Strom (A)</th><th>Zusatz ⌀</th></tr></thead>
+            <tbody>
+              <tr><td>0,8–1,5 mm</td><td>1,0 mm</td><td>20–50 A</td><td>1,0 mm</td></tr>
+              <tr><td>1,5–2,5 mm</td><td>1,6 mm</td><td>50–90 A</td><td>1,6 mm</td></tr>
+              <tr><td>2,5–4 mm</td><td>2,0–2,4 mm</td><td>90–140 A</td><td>2,0–2,4 mm</td></tr>
+              <tr><td>4–6 mm</td><td>2,4 mm</td><td>130–190 A</td><td>2,4 mm</td></tr>
+              <tr><td>6–10 mm</td><td>3,2 mm</td><td>180–250 A</td><td>3,2 mm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">Nahtdicken (Kehlnaht a-Maß)</div>
+          <table class="lex-table">
+            <thead><tr><th>Blechdicke t</th><th>Nahtdicke a min</th><th>Empfehlung</th></tr></thead>
+            <tbody>
+              <tr><td>3 mm</td><td>2 mm</td><td>3 mm</td></tr>
+              <tr><td>4 mm</td><td>2 mm</td><td>3 mm</td></tr>
+              <tr><td>5 mm</td><td>2 mm</td><td>4 mm</td></tr>
+              <tr><td>6 mm</td><td>3 mm</td><td>4 mm</td></tr>
+              <tr><td>8 mm</td><td>3 mm</td><td>5 mm</td></tr>
+              <tr><td>10 mm</td><td>4 mm</td><td>6 mm</td></tr>
+              <tr><td>12 mm</td><td>4 mm</td><td>6 mm</td></tr>
+              <tr><td>15 mm</td><td>5 mm</td><td>8 mm</td></tr>
+              <tr><td>20 mm</td><td>5 mm</td><td>10 mm</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">Vorwärmtemperaturen (EN ISO 13916)</div>
+          <table class="lex-table">
+            <thead><tr><th>Stahl</th><th>Dicke</th><th>Vorwärmen auf</th></tr></thead>
+            <tbody>
+              <tr><td>S235</td><td>< 50 mm</td><td>nicht nötig</td></tr>
+              <tr><td>S355</td><td>< 25 mm</td><td>nicht nötig</td></tr>
+              <tr><td>S355</td><td>25–50 mm</td><td>100–150 °C</td></tr>
+              <tr><td>S355</td><td>> 50 mm</td><td>150–200 °C</td></tr>
+              <tr><td>S690</td><td>> 20 mm</td><td>100–200 °C</td></tr>
+              <tr><td>1.4301 (Edelstahl)</td><td>alle</td><td>nicht nötig (max 150°C)</td></tr>
+              <tr><td>Gusseisen</td><td>alle</td><td>300–600 °C</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         TAB 5: OBERFLÄCHE
+         ═══════════════════════════════════════════ -->
+    <div id="tab-oberflaeche" class="tab-section">
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">Korrosionsschutzsysteme (EN ISO 12944)</div>
+          <table class="lex-table">
+            <thead><tr><th>Kategorie</th><th>Umgebung</th><th>Trockenschichtdicke</th><th>Standzeit</th></tr></thead>
+            <tbody>
+              <tr><td><strong>C1</strong></td><td>Innen, beheizt, trocken</td><td>≥ 80 μm</td><td>15+ Jahre</td></tr>
+              <tr><td><strong>C2</strong></td><td>Innen, ungeheizt / ländlich außen</td><td>≥ 120 μm</td><td>10–15 Jahre</td></tr>
+              <tr><td><strong>C3</strong></td><td>Stadtluft, leichte Industrie</td><td>≥ 160 μm</td><td>10–15 Jahre</td></tr>
+              <tr><td><strong>C4</strong></td><td>Industrie, Küstenklima</td><td>≥ 200 μm</td><td>10–15 Jahre</td></tr>
+              <tr><td><strong>C5</strong></td><td>Marine, aggressive Industrie</td><td>≥ 280 μm</td><td>10–15 Jahre</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">Verzinkung – Schichtdicken (DIN EN ISO 1461)</div>
+          <table class="lex-table">
+            <thead><tr><th>Werkstückdicke</th><th>Mindestschichtdicke</th><th>Mittelwert</th></tr></thead>
+            <tbody>
+              <tr><td>< 1,5 mm</td><td>35 μm</td><td>45 μm</td></tr>
+              <tr><td>1,5–3 mm</td><td>45 μm</td><td>55 μm</td></tr>
+              <tr><td>3–6 mm</td><td>55 μm</td><td>70 μm</td></tr>
+              <tr><td>6–12 mm</td><td>70 μm</td><td>85 μm</td></tr>
+              <tr><td>> 12 mm</td><td>85 μm</td><td>100 μm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">RAL-Farben (häufig im Metallbau)</div>
+        <table class="lex-table">
+          <thead><tr><th>RAL</th><th>Name</th><th>Hex-Farbe</th><th>Typischer Einsatz</th></tr></thead>
+          <tbody>
+            <tr><td>RAL 7016</td><td>Anthrazitgrau</td><td style="font-family:monospace">#293133</td><td>Geländer, Fassaden</td></tr>
+            <tr><td>RAL 7035</td><td>Lichtgrau</td><td style="font-family:monospace">#D7D7D7</td><td>Maschinen, Gehäuse</td></tr>
+            <tr><td>RAL 9005</td><td>Tiefschwarz</td><td style="font-family:monospace">#0A0A0A</td><td>Tore, Zäune, Design</td></tr>
+            <tr><td>RAL 9006</td><td>Weißaluminium</td><td style="font-family:monospace">#A5A5A5</td><td>Fassaden, Treppen</td></tr>
+            <tr><td>RAL 9007</td><td>Graualuminium</td><td style="font-family:monospace">#8F8F8F</td><td>Aluminiumähnlich</td></tr>
+            <tr><td>RAL 9010</td><td>Reinweiß</td><td style="font-family:monospace">#F4F4F4</td><td>Innenausbau</td></tr>
+            <tr><td>RAL 6005</td><td>Moosgrün</td><td style="font-family:monospace">#2F4538</td><td>Zäune, Tore</td></tr>
+            <tr><td>RAL 3000</td><td>Feuerrot</td><td style="font-family:monospace">#AB2524</td><td>Signalfarbe, Schutzgeländer</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         TAB 6: PASSUNGEN & TOLERANZEN
+         ═══════════════════════════════════════════ -->
+    <div id="tab-passungen" class="tab-section">
+      <div class="hint">💡 Passungen definieren das Spiel oder Übermaß zwischen Welle (Kleinbuchstabe) und Bohrung (Großbuchstabe). H7/h6 = Schiebesitz, H7/k6 = leichter Haftsitz, H7/p6 = Presssitz.</div>
+      <div class="grid2">
+        <div class="card">
+          <div class="section-title">Häufige Passungssysteme (Einheitsbohrung H7)</div>
+          <table class="lex-table">
+            <thead><tr><th>Passung</th><th>Typ</th><th>Spiel/Übermaß</th><th>Anwendung</th></tr></thead>
+            <tbody>
+              <tr><td><strong>H7/f7</strong></td><td>Spielpassung</td><td>+ 0,03–0,09 mm</td><td>Gleitlager, Führungen</td></tr>
+              <tr><td><strong>H7/g6</strong></td><td>Spielpassung</td><td>+ 0,01–0,04 mm</td><td>Präzisionsführungen</td></tr>
+              <tr><td><strong>H7/h6</strong></td><td>Schiebesitz</td><td>0 bis + 0,025 mm</td><td>Austauschbare Teile</td></tr>
+              <tr><td><strong>H7/k6</strong></td><td>Haftsitz</td><td>± 0–0,018 mm</td><td>Zahnräder, Naben</td></tr>
+              <tr><td><strong>H7/m6</strong></td><td>Haftsitz</td><td>0 bis −0,025 mm</td><td>Feste Verbindungen</td></tr>
+              <tr><td><strong>H7/p6</strong></td><td>Presssitz</td><td>−0,01 bis −0,04 mm</td><td>Buchsen einpressen</td></tr>
+              <tr><td><strong>H7/s6</strong></td><td>Presssitz</td><td>−0,03 bis −0,07 mm</td><td>Permanente Verbindungen</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="section-title">ISO-Toleranzgrade (Auswahl)</div>
+          <table class="lex-table">
+            <thead><tr><th>IT-Grade</th><th>Toleranzfeld ⌀ 50 mm</th><th>Typisch für</th></tr></thead>
+            <tbody>
+              <tr><td>IT5</td><td>0,011 mm</td><td>Feinmechanik, Messwerkzeuge</td></tr>
+              <tr><td>IT6</td><td>0,016 mm</td><td>Präzisionsmaschinen</td></tr>
+              <tr><td>IT7</td><td>0,025 mm</td><td>Allg. Maschinenbau (Standard)</td></tr>
+              <tr><td>IT8</td><td>0,039 mm</td><td>Landmaschinen, Stahlbau</td></tr>
+              <tr><td>IT9</td><td>0,062 mm</td><td>Gröbere Passungen</td></tr>
+              <tr><td>IT11</td><td>0,160 mm</td><td>Freie Maße, Stahlbau</td></tr>
+              <tr><td>IT14</td><td>0,620 mm</td><td>Rohlinge, grobe Bearbeitung</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     LEXIKON-EINSTELLUNGEN – Schwebendes Zahnrad + Modal
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<!-- Schwebendes Zahnrad-Icon unten links -->
+<button id="lex-settings-fab"
+  onclick="openLexSettings()"
+  title="Lexikon-Einstellungen"
+  style="position:fixed;bottom:1.25rem;left:1.25rem;z-index:800;width:2.6rem;height:2.6rem;border-radius:50%;background:#1e3a5f;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25);transition:background .15s;"
+  onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#1e3a5f'">
+  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+  </svg>
+</button>
+
+<!-- Modal-Hintergrund -->
+<div id="lex-settings-overlay"
+  style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center;"
+  onclick="closeLexSettings(event)">
+
+  <!-- Modal-Box -->
+  <div id="lex-settings-modal"
+    style="background:#1e293b;color:#e2e8f0;border-radius:1rem 1rem 0 0;padding:1.5rem 1.25rem 2rem;width:100%;max-width:480px;box-shadow:0 -4px 24px rgba(0,0,0,.4);"
+    onclick="event.stopPropagation()">
+
+    <!-- Kopf -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem;">
+      <div>
+        <p style="font-weight:700;font-size:1rem;margin:0;">⚙️ Lexikon-Einstellungen</p>
+        <p style="font-size:.72rem;color:#94a3b8;margin:2px 0 0;">Wähle, welche Bereiche du sehen möchtest</p>
+      </div>
+      <button onclick="closeLexSettings()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.3rem;line-height:1;padding:2px 4px;" title="Schließen">✕</button>
+    </div>
+
+    <!-- Toggle-Liste -->
+    <div id="lex-toggle-list" style="display:flex;flex-direction:column;gap:.55rem;margin-bottom:1.2rem;"></div>
+
+    <!-- Aktionen -->
+    <div style="display:flex;gap:.6rem;">
+      <button onclick="lexSettingsSelectAll()"
+        style="flex:1;padding:.55rem;border-radius:.5rem;background:#334155;color:#94a3b8;border:1px solid #475569;font-size:.75rem;font-weight:600;cursor:pointer;">
+        Alle einblenden
+      </button>
+      <button onclick="applyLexSettings()"
+        style="flex:2;padding:.55rem;border-radius:.5rem;background:#1e3a5f;color:#fff;border:none;font-size:.8rem;font-weight:700;cursor:pointer;">
+        ✓ Übernehmen &amp; schließen
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Tab-Definitionen ──────────────────────────────────────────────────────
+  const LEX_TABS = [
+    { key: 'gewinde',     label: '🔩 Gewinde & Kernlochmaße' },
+    { key: 'blech',       label: '📐 Blech & Biegen' },
+    { key: 'festigkeit',  label: '💪 Festigkeitsklassen & Stahl' },
+    { key: 'schweiss',    label: '🔥 Schweißen' },
+    { key: 'oberflaeche', label: '🎨 Oberfläche & Korrosionsschutz' },
+    { key: 'passungen',   label: '🔧 Passungen & Toleranzen' },
+  ];
+
+  // Persistenz: welche Tabs sind VERSTECKT
+  function getLexHidden() {
+    try { return JSON.parse(localStorage.getItem('lexikon_hidden') || '[]'); } catch(e) { return []; }
+  }
+  function saveLexHidden(arr) {
+    try { localStorage.setItem('lexikon_hidden', JSON.stringify(arr)); } catch(e) {}
+  }
+
+  // ── Tab-Sichtbarkeit anwenden ─────────────────────────────────────────────
+  function applyLexVisibility() {
+    const hidden = getLexHidden();
+    let firstVisible = null;
+    LEX_TABS.forEach(t => {
+      const btn = document.querySelector('[data-tab="' + t.key + '"]');
+      if (!btn) return;
+      const isHidden = hidden.includes(t.key);
+      btn.style.display = isHidden ? 'none' : '';
+      if (!isHidden && !firstVisible) firstVisible = t.key;
+    });
+
+    // Wenn aktiver Tab jetzt versteckt ist → ersten sichtbaren aktivieren
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if (activeBtn && hidden.includes(activeBtn.dataset.tab)) {
+      if (firstVisible) showTab(firstVisible);
+    } else if (!activeBtn && firstVisible) {
+      showTab(firstVisible);
+    }
+  }
+
+  // ── Tab wechseln ──────────────────────────────────────────────────────────
+  function showTab(name) {
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const sec = document.getElementById('tab-' + name);
+    const btn = document.querySelector('[data-tab="' + name + '"]');
+    if (sec) sec.classList.add('active');
+    if (btn) btn.classList.add('active');
+    try { localStorage.setItem('lexikon_tab', name); } catch(e) {}
+  }
+
+  // ── Settings-Modal öffnen ────────────────────────────────────────────────
+  function openLexSettings() {
+    const hidden = getLexHidden();
+    const list = document.getElementById('lex-toggle-list');
+    list.innerHTML = LEX_TABS.map(t => {
+      const checked = !hidden.includes(t.key);
+      return `
+        <label style="display:flex;align-items:center;gap:.75rem;padding:.55rem .75rem;border-radius:.5rem;background:${checked ? '#1e3a5f' : '#0f172a'};border:1px solid ${checked ? '#2563eb' : '#334155'};cursor:pointer;transition:background .12s;" id="lex-lbl-${t.key}">
+          <input type="checkbox" data-lex-key="${t.key}" ${checked ? 'checked' : ''}
+            onchange="lexToggleHighlight('${t.key}', this.checked)"
+            style="width:1.1rem;height:1.1rem;accent-color:#2563eb;cursor:pointer;flex-shrink:0;">
+          <span style="font-size:.82rem;font-weight:600;">${t.label}</span>
+        </label>`;
+    }).join('');
+    const overlay = document.getElementById('lex-settings-overlay');
+    overlay.style.display = 'flex';
+  }
+
+  function lexToggleHighlight(key, checked) {
+    const lbl = document.getElementById('lex-lbl-' + key);
+    if (!lbl) return;
+    lbl.style.background = checked ? '#1e3a5f' : '#0f172a';
+    lbl.style.borderColor = checked ? '#2563eb' : '#334155';
+  }
+
+  function lexSettingsSelectAll() {
+    document.querySelectorAll('#lex-toggle-list input[data-lex-key]').forEach(cb => {
+      cb.checked = true;
+      lexToggleHighlight(cb.dataset.lexKey, true);
+    });
+  }
+
+  function closeLexSettings(e) {
+    if (e && e.target !== document.getElementById('lex-settings-overlay')) return;
+    document.getElementById('lex-settings-overlay').style.display = 'none';
+  }
+
+  function applyLexSettings() {
+    const hidden = [];
+    document.querySelectorAll('#lex-toggle-list input[data-lex-key]').forEach(cb => {
+      if (!cb.checked) hidden.push(cb.dataset.lexKey);
+    });
+    saveLexHidden(hidden);
+    applyLexVisibility();
+    document.getElementById('lex-settings-overlay').style.display = 'none';
+  }
+
+  // ── Beim Laden: letzten Tab + Sichtbarkeit wiederherstellen ──────────────
+  (function() {
+    applyLexVisibility();
+    try {
+      const t = localStorage.getItem('lexikon_tab');
+      const hidden = getLexHidden();
+      if (t && !hidden.includes(t)) showTab(t);
+    } catch(e) {}
+  })();
+</script>

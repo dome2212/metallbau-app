@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= typeof firma !== 'undefined' ? firma.nameKurz : 'Metallbau' %> – Management</title>
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Anti-flicker dark mode -->
+  <script>
+    (function() {
+      try {
+        const dmDefault = '<%= typeof firma !== "undefined" && firma.dark_mode_default === "true" ? "true" : "false" %>';
+        const stored = localStorage.getItem('darkMode');
+        const active = stored !== null ? stored === 'true' : dmDefault === 'true';
+        if (active) document.documentElement.classList.add('dark');
+      } catch(e) {}
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="<%= typeof firma !== 'undefined' && firma.color_primary ? firma.color_primary : '#2563eb' %>">
+
+  <% const _d = typeof firma !== 'undefined' ? firma : {}; %>
+  <style>
+    /* ── Basis ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body, input, button, select, textarea {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif,
+                   "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+    }
+
+    /* ── Design-Tokens ──────────────────────────────────────────────── */
+    :root {
+      --primary:          <%= _d.color_primary      || '#2563eb' %>;
+      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#2563eb' %> 80%, #000);
+      --sidebar-bg:       <%= _d.color_sidebar_bg   || '#0f172a' %>;
+      --sidebar-text:     <%= _d.color_sidebar_text || '#cbd5e1' %>;
+      --sidebar-hover:    <%= _d.color_sidebar_hover|| '#1e293b' %>;
+      --topbar-bg:        <%= _d.color_topbar_bg    || '#ffffff' %>;
+      --page-bg:          <%= _d.color_page_bg      || '#f1f5f9' %>;
+      --radius:           0.75rem;
+      --radius-lg:        1rem;
+      --shadow-card:      0 1px 3px 0 rgb(0 0 0/.08), 0 1px 2px -1px rgb(0 0 0/.08);
+      --shadow-card-hover:0 4px 16px 0 rgb(0 0 0/.12), 0 2px 6px -1px rgb(0 0 0/.08);
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────────────── */
+    #sidebar {
+      background-color: var(--sidebar-bg) !important;
+    }
+    #sidebar a {
+      color: var(--sidebar-text) !important;
+      transition: background .15s, color .15s, padding-left .15s;
+    }
+    #sidebar a:hover {
+      background-color: var(--sidebar-hover) !important;
+      color: #fff !important;
+    }
+    #sidebar a.active {
+      background-color: var(--primary) !important;
+      color: #fff !important;
+    }
+    .md\:hidden.bg-slate-900 { background-color: var(--sidebar-bg) !important; }
+
+    /* ── Cards ──────────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .2s;
+    }
+    .dark .card {
+      background: #1e293b;
+    }
+    .card:hover {
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-weight: 600;
+      font-size: .8125rem;
+      line-height: 1;
+      padding: .55rem 1rem;
+      border-radius: .6rem;
+      cursor: pointer;
+      transition: filter .15s, transform .1s, box-shadow .15s;
+      border: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 40%, transparent);
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-ghost {
+      background: transparent;
+      color: #64748b;
+      border: 1.5px solid #e2e8f0;
+    }
+    .btn-ghost:hover { background: #f8fafc; color: #1e293b; }
+    .dark .btn-ghost { border-color: #334155; color: #94a3b8; }
+    .dark .btn-ghost:hover { background: #1e293b; color: #e2e8f0; }
+
+    /* ── Inputs ─────────────────────────────────────────────────────── */
+    .input {
+      width: 100%;
+      padding: .55rem .85rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: .6rem;
+      font-size: .875rem;
+      background: #fff;
+      color: #1e293b;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+    }
+    .dark .input {
+      background: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+    .dark .input:focus {
+      border-color: var(--primary);
+    }
+
+    /* ── Badge ──────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: .6875rem;
+      font-weight: 600;
+      padding: .2rem .55rem;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+
+    /* ── Page layout ────────────────────────────────────────────────── */
+    .page-bg { background-color: var(--page-bg); }
+    .dark .page-bg { background-color: #0f172a; }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────── */
+    ::-webkit-scrollbar       { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+    /* ── Smooth transitions ─────────────────────────────────────────── */
+    html { scroll-behavior: smooth; }
+    * { -webkit-tap-highlight-color: transparent; }
+
+    /* ── Active nav highlight ───────────────────────────────────────── */
+    #sidebar a[href] {
+      position: relative;
+    }
+    /* ── Page Transition ────────────────────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    main { animation: fadeIn .22s ease both; }
+
+    /* ── Toast ──────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 5rem;
+      right: 1.25rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      pointer-events: none;
+    }
+    @media (min-width: 768px) {
+      #toast-container { bottom: 1.5rem; }
+    }
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .65rem 1rem;
+      border-radius: .75rem;
+      font-size: .8125rem;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(0,0,0,.18);
+      pointer-events: auto;
+      animation: toastIn .25s cubic-bezier(.34,1.56,.64,1) both;
+      max-width: 320px;
+    }
+    .toast.out { animation: toastOut .2s ease forwards; }
+    @keyframes toastIn {
+      from { opacity:0; transform:translateY(12px) scale(.95); }
+      to   { opacity:1; transform:translateY(0)    scale(1);   }
+    }
+    @keyframes toastOut {
+      to { opacity:0; transform:translateY(8px) scale(.95); }
+    }
+    .toast-success { background: #16a34a; }
+    .toast-error   { background: #dc2626; }
+    .toast-info    { background: #2563eb; }
+    .toast-warn    { background: #d97706; }
+
+    /* ── Bottom Nav (Mobil) ─────────────────────────────────────── */
+    #bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      display: flex;
+      align-items: stretch;
+      z-index: 45;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    @media (min-width: 768px) {
+      #bottom-nav { display: none !important; }
+    }
+    #bottom-nav a {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      font-size: .6rem;
+      font-weight: 600;
+      color: rgba(255,255,255,.45);
+      text-decoration: none;
+      transition: color .15s, background .15s;
+    }
+    #bottom-nav a.active,
+    #bottom-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+    #bottom-nav a svg { width: 1.25rem; height: 1.25rem; }
+  </style>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // ── Push-Benachrichtigungen: globale Helper ─────────────────────────────
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw     = atob(base64);
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+
+    async function isPushSubscribed() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      return !!sub;
+    }
+
+    async function enablePushNotifications() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Berechtigung wurde nicht erteilt.');
+      }
+      const keyRes = await fetch('/push/vapid-public-key');
+      const { key } = await keyRes.json();
+      if (!key) throw new Error('Push ist serverseitig nicht konfiguriert.');
+
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key)
+        });
+      }
+      await fetch('/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub)
+      });
+      return true;
+    }
+
+    async function disablePushNotifications() {
+      if (!('serviceWorker' in navigator)) return;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch('/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint })
+        });
+        await sub.unsubscribe();
+      }
+    }
+  </script>
+</head>
+
+<body class="page-bg text-slate-900 dark:text-slate-100 flex flex-col md:flex-row min-h-screen">
+
+<!-- ── Toast Container ───────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── Mobile Bottom Nav ─────────────────────────────────────────────── -->
+<nav id="bottom-nav" class="md:hidden" style="background:var(--sidebar-bg)">
+  <a href="/" id="bn-dashboard">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+    </svg>
+    Home
+  </a>
+  <a href="/projects" id="bn-projects">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+    </svg>
+    Aufträge
+  </a>
+  <a href="/timetracking" id="bn-time">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/>
+    </svg>
+    Zeit
+  </a>
+  <a href="/calendar" id="bn-calendar">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Kalender
+  </a>
+  <a href="/vacations" id="bn-vacations">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8-9h1M3 12H2m15.364-6.364l.707.707M5.636 18.364l-.707.707M18.364 18.364l.707-.707M5.636 5.636l-.707.707"/>
+    </svg>
+    Urlaub
+  </a>
+</nav>
+
+<script>
+  // ── Active Nav ─────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    const path = window.location.pathname;
+
+    // Sidebar
+    document.querySelectorAll('#sidebar a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href === '/' ? path === '/' : (href !== '/' && path.startsWith(href))) {
+        a.classList.add('active');
+      }
+    });
+
+    // Bottom nav
+    const bnMap = {
+      '/':             'bn-dashboard',
+      '/projects':     'bn-projects',
+      '/timetracking': 'bn-time',
+      '/calendar':     'bn-calendar',
+      '/vacations':    'bn-vacations',
+    };
+    Object.entries(bnMap).forEach(([route, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (route === '/' ? path === '/' : path.startsWith(route)) {
+        el.classList.add('active');
+      }
+    });
+
+    // Bottom nav auf Seiten mit Padding-Bottom anpassen
+    if (window.innerWidth < 768) {
+      document.querySelectorAll('main').forEach(m => {
+        m.style.paddingBottom = '4.5rem';
+      });
+    }
+  });
+
+  // ── Dark-Mode Toggle ───────────────────────────────────────────────────
+  function toggleDarkMode() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+    document.querySelectorAll('.dm-icon-sun, .dm-icon-moon').forEach(el => {
+      el.classList.toggle('hidden');
+    });
+    // Serverseitig speichern (best-effort)
+    fetch('/api/dark-mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dark: isDark })
+    }).catch(() => {});
+  }
+  // Richtiges Icon beim Laden setzen
+  document.addEventListener('DOMContentLoaded', () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    document.querySelectorAll('.dm-icon-sun').forEach(el => el.classList.toggle('hidden', !isDark));
+    document.querySelectorAll('.dm-icon-moon').forEach(el => el.classList.toggle('hidden', isDark));
+  });
+
+  // ── Toast API ──────────────────────────────────────────────────────────
+  function showToast(msg, type = 'success', duration = 3200) {
+    const icons = {
+      success: '✓',
+      error:   '✕',
+      info:    'ℹ',
+      warn:    '⚠',
+    };
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<span style="font-size:1rem;line-height:1">${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+    c.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('out');
+      setTimeout(() => t.remove(), 220);
+    }, duration);
+  }
+
+  // URL-Parameter ?toast= automatisch anzeigen
+  document.addEventListener('DOMContentLoaded', () => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('toast'))      showToast(decodeURIComponent(p.get('toast')), p.get('toastType') || 'success');
+    if (p.get('error'))      showToast(decodeURIComponent(p.get('error')), 'error');
+    if (p.get('success'))    showToast(decodeURIComponent(p.get('success')), 'success');
+  });
+</script>

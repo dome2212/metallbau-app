@@ -1,0 +1,21 @@
+name: Dependency Updates
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sundays
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dependabot/fetch-metadata@v1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      
+      - name: Enable auto-merge for Dependabot PRs
+        if: github.actor == 'dependabot[bot]'
+        run: echo "Auto-merge enabled for dependency updates"

@@ -1,0 +1,185 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 md:ml-72 min-h-screen page-bg dark:bg-slate-900 pt-14 md:pt-0">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+
+    <!-- Page Header -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">🔧 Aufgaben</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+        <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+          Aufgaben für Werkstatt, Fahrzeuge & mehr an Mitarbeiter verteilen
+        <% } else { %>
+          Deine zugewiesenen Aufgaben für Werkstatt, Auto & mehr
+        <% } %>
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+      <!-- Neue Aufgabe anlegen -->
+      <div class="lg:col-span-4 card p-5">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
+          Neue Aufgabe
+        </h2>
+        <form action="/tasks/add" method="POST" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Titel</label>
+            <input type="text" name="title" required placeholder="z. B. Werkstatt aufräumen" class="input text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Beschreibung</label>
+            <textarea name="description" rows="3" placeholder="Details zur Aufgabe…" class="input text-sm"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Bereich</label>
+              <select name="category" class="input text-sm">
+                <option value="Werkstatt">🏭 Werkstatt</option>
+                <option value="Auto">🚐 Auto / Fuhrpark</option>
+                <option value="Baustelle">🏗️ Baustelle</option>
+                <option value="Sonstiges">📌 Sonstiges</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Priorität</label>
+              <select name="priority" class="input text-sm">
+                <option value="Normal">Normal</option>
+                <option value="Hoch">🔴 Hoch</option>
+                <option value="Niedrig">🔵 Niedrig</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Mitarbeiter</label>
+            <select name="assigned_to" class="input text-sm">
+              <option value="">👥 Alle Mitarbeiter</option>
+              <% users.forEach(u => { %>
+                <option value="<%= u.id %>"><%= u.username %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Fällig am</label>
+            <input type="date" name="due_date" class="input text-sm">
+          </div>
+          <button type="submit" class="btn w-full font-semibold text-white py-2.5" style="background:var(--primary)">
+            Aufgabe zuweisen
+          </button>
+        </form>
+      </div>
+      <% } %>
+
+      <!-- Aufgabenliste -->
+      <div class="<%= (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') ? 'lg:col-span-8' : 'lg:col-span-12' %> space-y-3">
+
+        <% const openTasks = tasks.filter(t => t.status !== 'Erledigt'); %>
+        <% const doneTasks = tasks.filter(t => t.status === 'Erledigt'); %>
+
+        <div class="card p-0 overflow-hidden">
+          <div class="px-4 md:px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Offene Aufgaben</h2>
+            <span class="badge bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"><%= openTasks.length %></span>
+          </div>
+
+          <% if (openTasks.length === 0) { %>
+            <p class="text-sm text-slate-400 dark:text-slate-500 italic px-4 md:px-5 py-6 text-center">Keine offenen Aufgaben 🎉</p>
+          <% } else { %>
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+              <% openTasks.forEach(t => { %>
+                <%
+                  const catIcon = { 'Werkstatt': '🏭', 'Auto': '🚐', 'Baustelle': '🏗️', 'Sonstiges': '📌' }[t.category] || '📌';
+                  const isOverdue = t.due_date && t.due_date !== '' && new Date(t.due_date) < new Date(new Date().toDateString());
+                  const prioColor = t.priority === 'Hoch' ? 'text-red-600 dark:text-red-400' : t.priority === 'Niedrig' ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400';
+                %>
+                <div class="px-4 md:px-5 py-3.5 flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                  <div class="flex items-start gap-3 min-w-0">
+                    <span class="text-lg shrink-0 mt-0.5"><%= catIcon %></span>
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold text-slate-800 dark:text-slate-100"><%= t.title %></p>
+                      <% if (t.description) { %>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"><%= t.description %></p>
+                      <% } %>
+                      <div class="flex items-center gap-2 flex-wrap mt-1.5">
+                        <span class="badge bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"><%= t.category %></span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">
+                          👤 <%= t.assigned_to_name || 'Alle Mitarbeiter' %>
+                        </span>
+                        <% if (t.due_date) { %>
+                          <span class="text-xs <%= isOverdue ? 'text-red-600 font-semibold' : 'text-slate-400' %>">
+                            📅 <%= t.due_date %><%= isOverdue ? ' (überfällig)' : '' %>
+                          </span>
+                        <% } %>
+                        <% if (t.priority && t.priority !== 'Normal') { %>
+                          <span class="text-xs font-semibold <%= prioColor %>"><%= t.priority %></span>
+                        <% } %>
+                      </div>
+                      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+                        <p class="text-[10px] text-slate-400 mt-1">von <%= t.assigned_by_name || '–' %> · <%= new Date(t.created_at).toLocaleDateString('de-DE') %></p>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <form action="/tasks/status" method="POST">
+                      <input type="hidden" name="id" value="<%= t.id %>">
+                      <input type="hidden" name="status" value="Erledigt">
+                      <button type="submit" class="btn text-xs font-semibold px-3 py-2 text-white" style="background:#16a34a">
+                        ✓ Erledigt
+                      </button>
+                    </form>
+                    <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+                      <form action="/tasks/delete" method="POST" onsubmit="return confirm('Aufgabe wirklich löschen?')">
+                        <input type="hidden" name="id" value="<%= t.id %>">
+                        <button type="submit" class="btn btn-ghost text-xs px-2.5 py-2 text-red-500">🗑️</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <div class="card p-0 overflow-hidden">
+          <div class="px-4 md:px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Erledigte Aufgaben</h2>
+            <span class="badge bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"><%= doneTasks.length %></span>
+          </div>
+          <% if (doneTasks.length === 0) { %>
+            <p class="text-sm text-slate-400 dark:text-slate-500 italic px-4 md:px-5 py-6 text-center">Noch keine erledigten Aufgaben.</p>
+          <% } else { %>
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+              <% doneTasks.slice(0, 20).forEach(t => { %>
+                <%
+                  const catIcon = { 'Werkstatt': '🏭', 'Auto': '🚐', 'Baustelle': '🏗️', 'Sonstiges': '📌' }[t.category] || '📌';
+                %>
+                <div class="px-4 md:px-5 py-3 flex items-center justify-between gap-3 opacity-70">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="text-base shrink-0"><%= catIcon %></span>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-slate-600 dark:text-slate-300 line-through truncate"><%= t.title %></p>
+                      <p class="text-[10px] text-slate-400">👤 <%= t.assigned_to_name || 'Alle Mitarbeiter' %><% if (t.completed_at) { %> · erledigt am <%= new Date(t.completed_at).toLocaleDateString('de-DE') %><% } %></p>
+                    </div>
+                  </div>
+                  <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+                    <form action="/tasks/delete" method="POST" onsubmit="return confirm('Aufgabe wirklich löschen?')">
+                      <input type="hidden" name="id" value="<%= t.id %>">
+                      <button type="submit" class="btn btn-ghost text-xs px-2.5 py-1.5 text-red-500 shrink-0">🗑️</button>
+                    </form>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

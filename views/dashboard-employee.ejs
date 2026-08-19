@@ -1,0 +1,390 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
+
+  <div class="px-4 md:px-6 mb-6 pt-2 flex items-start justify-between gap-3 flex-wrap">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⏱️ Mein Monatsüberblick</h1>
+      <span class="text-xs text-slate-400 font-medium"><%= stats.monthLabel %></span>
+    </div>
+    <div class="flex items-center gap-2 mt-1">
+      <span class="text-xs text-slate-500 dark:text-slate-400">Heute:</span>
+      <span id="dash-worked-today-badge" class="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-0.5 rounded-full">–</span>
+      <button id="emp-layout-btn" onclick="empToggleDragMode()"
+        class="btn btn-ghost text-xs px-3 py-2 shrink-0">
+        🧩 Layout
+      </button>
+    </div>
+  </div>
+
+  <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-8">
+
+    <!-- Schnell-Stempel Widget -->
+    <div class="emp-dash-section card border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-slate-300 dark:border-slate-600' %> p-4 md:p-5" data-section="stempel-widget">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Status:
+            <span class="<%= stats.isStampedIn ? 'text-green-600' : 'text-slate-500' %> font-bold">
+              <%= stats.isStampedIn ? '🟢 Eingestempelt' : '⚪ Nicht eingestempelt' %>
+            </span>
+          </p>
+          <p class="text-xs text-slate-400 mt-0.5">Heute: <strong id="dash-worked-today">–</strong></p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <% if (!stats.isStampedIn) { %>
+            <form action="/timetracking/stamp" method="POST" id="dash-stamp-in-form">
+              <input type="hidden" name="type" value="IN">
+              <input type="hidden" name="latitude" id="dash-lat">
+              <input type="hidden" name="longitude" id="dash-lng">
+              <button type="button" onclick="dashStampIn()" id="dash-stamp-in-btn"
+                class="btn font-bold px-5 py-2.5" style="background:#16a34a;color:#fff;">
+                🟢 Einstempeln
+              </button>
+            </form>
+            <p id="dash-gps-status" class="text-xs text-slate-400 italic mt-1 hidden"></p>
+          <% } else { %>
+            <form action="/timetracking/stamp" method="POST">
+              <input type="hidden" name="type" value="OUT">
+              <button type="submit" class="btn font-bold px-5 py-2.5" style="background:#dc2626;color:#fff;">
+                🔴 Ausstempeln
+              </button>
+            </form>
+          <% } %>
+          <a href="/timetracking" class="btn btn-ghost text-sm font-medium px-3 py-2.5">
+            Details →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ampel-Karte -->
+    <div class="emp-dash-section card border-l-4 <%= stats.trafficBorder %> p-4 md:p-5 <%= stats.trafficBg %>" data-section="ampel">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl"><%= stats.trafficLight %></span>
+          <div>
+            <p class="text-sm font-bold <%= stats.trafficColor %>"><%= stats.trafficText %></p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Monatsfortschritt: <strong><%= stats.progressPct %> %</strong> von Soll-Stunden</p>
+          </div>
+        </div>
+        <div class="w-full sm:w-48">
+          <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2.5">
+            <div class="h-2.5 rounded-full transition-all" style="width:<%= stats.progressPct %>%;background:<%= stats.progressColor %>"></div>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1 text-right"><%= stats.monthTotalHours %> / <%= stats.targetHours %> Std.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistik-Karten -->
+    <div class="emp-dash-section grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6" data-section="statistik">
+
+      <div class="card p-4 md:p-6 border-l-4 border-indigo-500">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Diese Woche</p>
+        <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.weekTotalHours %> Std.</p>
+        <p class="text-xs text-slate-400 mt-1">Mo – heute</p>
+      </div>
+
+      <div class="card p-4 md:p-6 border-l-4 border-blue-600">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stunden diesen Monat</p>
+        <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.monthTotalHours %> Std.</p>
+        <p class="text-xs text-slate-400 mt-1">Soll: <%= stats.targetHours %> Std.</p>
+      </div>
+
+      <div class="card p-4 md:p-6 border-l-4 <%= stats.isStampedIn ? 'border-green-500' : 'border-amber-500' %>">
+        <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aktueller Status</p>
+        <p class="text-lg md:text-xl font-bold mt-2 <%= stats.isStampedIn ? 'text-green-600' : 'text-amber-600' %>">
+          <%= stats.isStampedIn ? '🟢 Aktuell eingestempelt' : '🔴 Aktuell ausgestempelt' %>
+        </p>
+        <a href="/timetracking" class="text-xs text-blue-600 hover:underline mt-2 inline-block font-semibold">Zur Stempeluhr &rarr;</a>
+      </div>
+
+    </div>
+
+    <!-- Meine Aufgaben -->
+    <div class="emp-dash-section card p-4 md:p-5" data-section="meine-aufgaben">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+          🔧 Meine Aufgaben
+        </h2>
+        <a href="/tasks" class="text-xs text-blue-600 hover:underline font-semibold">Alle ansehen →</a>
+      </div>
+      <% if (typeof myTasks !== 'undefined' && myTasks.length > 0) { %>
+        <ul class="space-y-2">
+          <% myTasks.forEach(t => { %>
+            <%
+              const catIcon = { 'Werkstatt': '🏭', 'Auto': '🚐', 'Baustelle': '🏗️', 'Sonstiges': '📌' }[t.category] || '📌';
+              const isOverdue = t.due_date && t.due_date !== '' && new Date(t.due_date) < new Date(new Date().toDateString());
+            %>
+            <li class="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg px-3.5 py-2.5">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate"><%= catIcon %> <%= t.title %></p>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  von <%= t.assigned_by_name || '–' %>
+                  <% if (t.due_date) { %> · <span class="<%= isOverdue ? 'text-red-500 font-semibold' : '' %>">fällig: <%= t.due_date %></span><% } %>
+                </p>
+              </div>
+              <form action="/tasks/status" method="POST" class="shrink-0">
+                <input type="hidden" name="id" value="<%= t.id %>">
+                <input type="hidden" name="status" value="Erledigt">
+                <button type="submit" class="btn text-xs font-semibold px-3 py-1.5 text-white" style="background:#16a34a">✓</button>
+              </form>
+            </li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p class="text-sm text-slate-400 italic">Keine offenen Aufgaben 🎉</p>
+      <% } %>
+    </div>
+
+    <!-- Firmen-Ticker -->
+    <div class="emp-dash-section bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-xl p-4 md:p-5" data-section="schwarzes-brett">
+      <h2 class="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3">
+        📢 Schwarzes Brett – Nachrichten vom Chef
+      </h2>
+      <% if (tickers && tickers.length > 0) { %>
+        <ul class="space-y-2">
+          <% tickers.forEach(t => { %>
+            <li class="bg-white dark:bg-slate-700 border border-amber-200 dark:border-slate-600 rounded-lg px-4 py-3">
+              <p class="text-sm text-gray-800 dark:text-gray-200"><%= t.message %></p>
+              <p class="text-[10px] text-gray-400 mt-1">
+                von <strong><%= t.author %></strong> ·
+                <%= new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+              </p>
+            </li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p class="text-sm text-amber-700 dark:text-amber-400 italic">Keine aktuellen Nachrichten.</p>
+      <% } %>
+    </div>
+
+    <!-- Letzte Stempel-Aktivitäten -->
+    <div class="emp-dash-section card overflow-hidden" data-section="stempel-eintraege">
+      <div class="px-4 md:px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Meine letzten Stempel-Einträge diesen Monat</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[500px]">
+          <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 uppercase text-xs">
+            <tr>
+              <th class="p-4">Aktion</th>
+              <th class="p-4">Zeitpunkt</th>
+              <th class="p-4">Notiz</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% if (typeof recentLogs !== 'undefined' && recentLogs.length > 0) { %>
+              <% recentLogs.forEach(log => { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td class="p-4 font-semibold">
+                    <% if (log.type === 'IN') { %>
+                      <span class="text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs">Eingestempelt (IN)</span>
+                    <% } else { %>
+                      <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs">Ausgestempelt (OUT)</span>
+                    <% } %>
+                  </td>
+                  <td class="p-4 text-xs md:text-sm"><%= new Date(log.timestamp).toLocaleString('de-DE') %></td>
+                  <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<style>
+  .emp-dash-section { transition: outline .15s, opacity .15s; }
+  .emp-drag-mode .emp-dash-section {
+    outline: 2px dashed #94a3b8;
+    outline-offset: 3px;
+    cursor: grab;
+    border-radius: .75rem;
+  }
+  .emp-drag-mode .emp-dash-section:active { cursor: grabbing; }
+  .emp-drag-mode .emp-dash-section.drag-over {
+    outline: 2.5px solid #3b82f6;
+    background: rgba(59,130,246,.06);
+  }
+  #emp-drag-banner {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #1e293b; color: #e2e8f0;
+    text-align: center; padding: .6rem 1rem;
+    font-size: .8rem; font-weight: 600; z-index: 200;
+    border-top: 2px solid #3b82f6;
+    display: none;
+  }
+  @media (min-width: 768px) {
+    #emp-drag-banner { left: 18rem; }
+  }
+</style>
+
+<div id="emp-drag-banner">🧩 Layout-Modus aktiv — Blöcke verschieben, dann erneut auf „Layout" klicken zum Speichern</div>
+
+<script>
+// ── Employee Dashboard Drag & Drop ─────────────────────────────────────
+const EMP_LS_KEY = 'emp_dash_order';
+let empDragMode  = false;
+let empDragSrc   = null;
+
+function empApplyOrder() {
+  const saved = localStorage.getItem(EMP_LS_KEY);
+  if (!saved) return;
+  try {
+    const order = JSON.parse(saved);
+    const container = document.querySelector('.space-y-6');
+    if (!container) return;
+    order.forEach(key => {
+      const el = container.querySelector(`[data-section="${key}"]`);
+      if (el) container.appendChild(el);
+    });
+  } catch (_) {}
+}
+
+function empSaveOrder() {
+  const container = document.querySelector('.space-y-6');
+  if (!container) return;
+  const order = [...container.querySelectorAll('.emp-dash-section')].map(el => el.dataset.section);
+  localStorage.setItem(EMP_LS_KEY, JSON.stringify(order));
+}
+
+function empToggleDragMode() {
+  empDragMode = !empDragMode;
+  const container = document.querySelector('.space-y-6');
+  const btn     = document.getElementById('emp-layout-btn');
+  const banner  = document.getElementById('emp-drag-banner');
+  if (empDragMode) {
+    container.classList.add('emp-drag-mode');
+    btn.style.background = '#3b82f6';
+    btn.style.color = '#fff';
+    banner.style.display = 'block';
+    document.querySelectorAll('.emp-dash-section').forEach(el => {
+      el.setAttribute('draggable', 'true');
+    });
+  } else {
+    container.classList.remove('emp-drag-mode');
+    btn.style.background = '';
+    btn.style.color = '';
+    banner.style.display = 'none';
+    document.querySelectorAll('.emp-dash-section').forEach(el => {
+      el.setAttribute('draggable', 'false');
+      el.classList.remove('drag-over');
+    });
+    empSaveOrder();
+    showToast('Layout gespeichert ✓', 'success', 2000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  empApplyOrder();
+
+  // Heute gearbeitete Stunden laden
+  fetch('/api/today-hours')
+    .then(r => r.json())
+    .then(d => {
+      const el1 = document.getElementById('dash-worked-today');
+      const el2 = document.getElementById('dash-worked-today-badge');
+      if (el1) el1.textContent = d.label || '–';
+      if (el2) el2.textContent = d.label || '–';
+    }).catch(() => {});
+
+  document.querySelectorAll('.emp-dash-section').forEach(el => {
+    // Desktop Drag events
+    el.addEventListener('dragstart', e => {
+      if (!empDragMode) { e.preventDefault(); return; }
+      empDragSrc = el;
+      setTimeout(() => el.style.opacity = '.45', 0);
+    });
+    el.addEventListener('dragend', () => {
+      el.style.opacity = '';
+      document.querySelectorAll('.emp-dash-section').forEach(s => s.classList.remove('drag-over'));
+    });
+    el.addEventListener('dragover', e => {
+      if (!empDragMode || el === empDragSrc) return;
+      e.preventDefault();
+      document.querySelectorAll('.emp-dash-section').forEach(s => s.classList.remove('drag-over'));
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('drop', e => {
+      if (!empDragMode || el === empDragSrc) return;
+      e.preventDefault();
+      const container = document.querySelector('.space-y-6');
+      const els = [...container.querySelectorAll('.emp-dash-section')];
+      const srcIdx = els.indexOf(empDragSrc);
+      const tgtIdx = els.indexOf(el);
+      if (srcIdx < tgtIdx) container.insertBefore(empDragSrc, el.nextSibling);
+      else container.insertBefore(empDragSrc, el);
+      el.classList.remove('drag-over');
+    });
+
+    // Touch events
+    let touchStartY = 0;
+    el.addEventListener('touchstart', e => {
+      if (!empDragMode) return;
+      empDragSrc = el;
+      touchStartY = e.touches[0].clientY;
+      el.style.opacity = '.55';
+    }, { passive: true });
+    el.addEventListener('touchend', e => {
+      if (!empDragMode) return;
+      el.style.opacity = '';
+      const touch = e.changedTouches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.emp-dash-section');
+      if (target && target !== empDragSrc) {
+        const container = document.querySelector('.space-y-6');
+        const els = [...container.querySelectorAll('.emp-dash-section')];
+        const srcIdx = els.indexOf(empDragSrc);
+        const tgtIdx = els.indexOf(target);
+        if (srcIdx < tgtIdx) container.insertBefore(empDragSrc, target.nextSibling);
+        else container.insertBefore(empDragSrc, target);
+      }
+      document.querySelectorAll('.emp-dash-section').forEach(s => s.classList.remove('drag-over'));
+    });
+  });
+});
+
+function dashStampIn() {
+  const btn    = document.getElementById('dash-stamp-in-btn');
+  const status = document.getElementById('dash-gps-status');
+
+  if (!navigator.geolocation) {
+    document.getElementById('dash-stamp-in-form').submit();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '📡 GPS wird ermittelt…';
+  status.textContent = 'GPS-Standort wird ermittelt…';
+  status.classList.remove('hidden');
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('dash-lat').value = pos.coords.latitude;
+      document.getElementById('dash-lng').value = pos.coords.longitude;
+      status.textContent = '📍 Standort erfasst – wird eingestempelt…';
+      document.getElementById('dash-stamp-in-form').submit();
+    },
+    () => {
+      status.textContent = '⚠️ GPS nicht verfügbar – wird trotzdem versucht…';
+      status.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = '🟢 Einstempeln';
+      document.getElementById('dash-stamp-in-form').submit();
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+</script>
+
+</body>
+</html>

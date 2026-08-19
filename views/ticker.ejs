@@ -1,0 +1,64 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto md:ml-72 page-bg min-h-screen pt-16 md:pt-6">
+
+  <div class="px-4 md:px-6 mb-6 pt-2">
+    <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">📌 Pinnwand &amp; Infos</h1>
+    <p class="text-sm text-slate-500 dark:text-slate-400">Interne Meldungen und Informationen für das Team</p>
+  </div>
+
+  <div class="px-4 md:px-6 max-w-3xl mx-auto w-full space-y-4 pb-8">
+
+    <!-- Neue Meldung verfassen -->
+    <div class="card p-5">
+      <h2 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Neue Meldung verfassen</h2>
+      <form action="/ticker/add" method="POST" class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          name="message"
+          required
+          placeholder="z.B. Montag Betriebsausflug – Werkstatt geschlossen!"
+          class="input flex-1"
+        >
+        <button type="submit" class="btn btn-primary whitespace-nowrap">
+          📌 Pinnen
+        </button>
+      </form>
+    </div>
+
+    <!-- Alle Meldungen -->
+    <div class="space-y-3">
+      <% if (tickers && tickers.length > 0) { %>
+        <% tickers.forEach(t => { %>
+          <div class="card p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="space-y-1 flex-1">
+              <p class="text-slate-800 dark:text-gray-100 font-medium text-sm"><%= t.message %></p>
+              <p class="text-xs text-slate-400">
+                von <strong><%= t.author || 'Unbekannt' %></strong>
+                &middot;
+                <%= t.formatted_date || new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
+              </p>
+            </div>
+            <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+              <form action="/ticker/delete" method="POST" onsubmit="return confirm('Meldung wirklich löschen?');" class="shrink-0">
+                <input type="hidden" name="id" value="<%= t.id %>">
+                <button type="submit" class="btn text-xs px-3 py-1.5" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;">
+                  🗑️ Löschen
+                </button>
+              </form>
+            <% } %>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <div class="card p-8 text-center text-slate-400 dark:text-slate-500 text-sm italic">
+          Noch keine Meldungen auf der Pinnwand.
+        </div>
+      <% } %>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>
