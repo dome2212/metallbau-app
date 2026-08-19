@@ -453,16 +453,6 @@ const MIGRATIONS = [
     }
   },
 
-  {
-    id: 11,
-    description: 'Kunden-Abnahme Unterschrift an projects',
-    async up() {
-      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_signature TEXT`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_name TEXT`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_at TIMESTAMP`); } catch (_) {}
-    }
-  },
-
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

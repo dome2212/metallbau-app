@@ -64,7 +64,6 @@
             <a href="#sec-termine" class="nav-chip">📅 Termine</a>
             <a href="#sec-material" class="nav-chip">🏗️ Material</a>
             <a href="#sec-stunden" class="nav-chip">⏱️ Stunden</a>
-            <a href="#sec-abnahme" class="nav-chip">✍️ Abnahme</a>
             <a href="#sec-status" class="nav-chip">📋 Status</a>
           </div>
         </div>
@@ -1041,46 +1040,6 @@
             </div><!-- /sec-body -->
 </section>
 
-
-      <!-- ========== KUNDEN-ABNAHME ========== -->
-      <section id="sec-abnahme" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-abnahme" role="button" tabindex="0" aria-expanded="true">
-          <span class="sec-label text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30">✍️ Kunden-Abnahme</span>
-          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-          <span class="chev" aria-hidden="true">▼</span>
-        </div>
-        <div class="sec-body">
-          <div class="card-clean space-y-3">
-            <h3 class="text-sm font-semibold text-slate-800 dark:text-gray-100">Digitale Unterschrift</h3>
-            <% if (project.acceptance_signature) { %>
-              <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg p-3">
-                <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">✓ Abgenommen<%= project.acceptance_name ? ' von ' + project.acceptance_name : '' %></p>
-                <p class="text-xs text-slate-500"><%= project.acceptance_at ? String(project.acceptance_at).slice(0,16).replace('T',' ') : '' %></p>
-                <img src="<%= project.acceptance_signature %>" alt="Unterschrift" class="mt-2 max-h-24 bg-white rounded border">
-                <form action="/projects/<%= project.id %>/acceptance/clear" method="POST" class="mt-2" onsubmit="return confirm('Abnahme zurücksetzen?');">
-                  <button type="submit" class="text-xs text-red-600">Zurücksetzen</button>
-                </form>
-              </div>
-            <% } else { %>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label class="text-xs text-slate-500">Name des Kunden</label>
-                  <input type="text" id="acceptName" class="w-full text-sm border dark:border-slate-600 dark:bg-slate-800 rounded px-3 py-2" placeholder="Max Mustermann">
-                </div>
-                <div>
-                  <label class="text-xs text-slate-500">Unterschrift (Finger / Maus)</label>
-                  <canvas id="signCanvas" width="400" height="140" class="w-full border dark:border-slate-600 rounded bg-white" style="touch-action:none"></canvas>
-                  <div class="flex gap-2 mt-1">
-                    <button type="button" id="signClear" class="text-xs px-2 py-1 border rounded">Leeren</button>
-                    <button type="button" id="signSave" class="text-xs px-3 py-1 bg-green-600 text-white rounded font-semibold">Abnahme speichern</button>
-                  </div>
-                </div>
-              </div>
-            <% } %>
-          </div>
-        </div>
-      </section>
-
     </div><!-- /max-w-7xl content -->
 
 
@@ -1113,59 +1072,6 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
     });
   });
-})();
-</script>
-
-
-<script>
-(function(){
-  const canvas = document.getElementById('signCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let drawing = false, last = null;
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  function pos(e) {
-    const r = canvas.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
-  }
-  function start(e) { e.preventDefault(); drawing = true; last = pos(e); }
-  function move(e) {
-    if (!drawing) return;
-    e.preventDefault();
-    const p = pos(e);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    last = p;
-  }
-  function end() { drawing = false; }
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  canvas.addEventListener('mouseup', end);
-  canvas.addEventListener('mouseleave', end);
-  canvas.addEventListener('touchstart', start, { passive: false });
-  canvas.addEventListener('touchmove', move, { passive: false });
-  canvas.addEventListener('touchend', end);
-  const clr = document.getElementById('signClear');
-  const sav = document.getElementById('signSave');
-  if (clr) clr.onclick = () => ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (sav) sav.onclick = () => {
-    const blank = document.createElement('canvas');
-    blank.width = canvas.width; blank.height = canvas.height;
-    if (canvas.toDataURL() === blank.toDataURL()) { alert('Bitte unterschreiben'); return; }
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/projects/<%= project.id %>/acceptance';
-    const n = document.createElement('input'); n.name = 'acceptance_name'; n.value = (document.getElementById('acceptName').value || 'Kunde');
-    const s = document.createElement('input'); s.name = 'acceptance_signature'; s.value = canvas.toDataURL('image/png');
-    form.appendChild(n); form.appendChild(s);
-    document.body.appendChild(form);
-    form.submit();
-  };
 })();
 </script>
 
