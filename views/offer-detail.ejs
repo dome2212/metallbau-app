@@ -297,7 +297,9 @@ function addNachtragRow() {
     <div id="${id}" class="grid grid-cols-12 gap-1 items-center">
       <div class="col-span-5 relative">
         <input type="text" name="item_beschreibung" required placeholder="Beschreibung"
-          class="w-full border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100 pr-7" oninput="updateNachtragTotal()">
+          class="w-full border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100 pr-14" oninput="updateNachtragTotal()">
+        <button type="button" onclick="openSnippetMenu(this)" title="Textbaustein einfügen"
+          class="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-blue-600 leading-none px-0.5">📎</button>
         <button type="button" title="Leistungsbeschreibung mit KI ausformulieren"
           onclick="expandNachtragField(this)"
           class="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-violet-400 hover:text-violet-600 leading-none px-0.5">✨</button>

@@ -251,6 +251,64 @@
     #bottom-nav a svg { width: 1.25rem; height: 1.25rem; }
   </style>
 
+  <script src="/js/offline-queue.js" defer></script>
+
+  <script>
+    // ── Textbausteine (z.B. „Bauseits") global verfügbar machen ──────────────
+    window.TEXT_SNIPPETS = <%- JSON.stringify((() => { try { return JSON.parse((typeof firma !== 'undefined' && firma.text_snippets) || '[]'); } catch (e) { return []; } })()) %>;
+
+    // Öffnet ein kleines Auswahlmenü direkt unter dem Button und fügt den
+    // gewählten Textbaustein in das direkt davor stehende Eingabefeld ein.
+    // Aufruf: <input ...><button type="button" onclick="openSnippetMenu(this)">📎</button>
+    function openSnippetMenu(btn) {
+      document.querySelectorAll('.snippet-menu').forEach(m => m.remove());
+      if (!window.TEXT_SNIPPETS || window.TEXT_SNIPPETS.length === 0) {
+        if (typeof showToast === 'function') showToast('Keine Textbausteine hinterlegt (Admin → Textbausteine).', 'info');
+        return;
+      }
+      const targetInput = btn.previousElementSibling;
+
+      const menu = document.createElement('div');
+      menu.className = 'snippet-menu';
+      menu.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;' +
+        'border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);min-width:180px;max-width:260px;overflow:hidden;';
+      if (document.documentElement.classList.contains('dark')) {
+        menu.style.background = '#1e293b';
+        menu.style.borderColor = '#334155';
+      }
+      window.TEXT_SNIPPETS.forEach(sn => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.textContent = sn.label;
+        item.style.cssText = 'display:block;width:100%;text-align:left;padding:.5rem .75rem;font-size:.8rem;' +
+          'background:transparent;border:none;cursor:pointer;color:inherit;';
+        item.onmouseenter = () => item.style.background = 'rgba(37,99,235,.1)';
+        item.onmouseleave = () => item.style.background = 'transparent';
+        item.onclick = () => {
+          if (targetInput) {
+            const sep = targetInput.value && !targetInput.value.endsWith(' ') && !targetInput.value.endsWith('\n') ? ' ' : '';
+            targetInput.value = (targetInput.value || '') + sep + sn.text;
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          menu.remove();
+        };
+        menu.appendChild(item);
+      });
+      document.body.appendChild(menu);
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+      menu.style.left = (window.scrollX + rect.left) + 'px';
+      setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+          if (!menu.contains(e.target) && e.target !== btn) {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+          }
+        });
+      }, 0);
+    }
+  </script>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -1,9 +1,12 @@
-const CACHE_NAME = 'metallbau-v2';
+const CACHE_NAME = 'metallbau-v3';
 const OFFLINE_URLS = [
   '/',
   '/timetracking',
+  '/heute',
+  '/lager/inventur',
   '/manifest.json',
   '/offline.html',
+  '/js/offline-queue.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -106,12 +109,53 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Sync offline stamps when back online
+// Sync offline stamps / generic queued requests when back online
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-stamps') {
     event.waitUntil(syncOfflineStamps());
   }
+  if (event.tag === 'sync-queue') {
+    event.waitUntil(syncGenericQueue());
+  }
 });
+
+// ── Generische Offline-Warteschlange (Inventur, Lager, Aufgaben, …) ─────────
+// Wird von Public/js/offline-queue.js befüllt (Store 'requestQueue' in
+// derselben IndexedDB 'metallbau-offline'). Der Service Worker übernimmt hier
+// nur die Nachsendung im Hintergrund, wenn ein Background-Sync-Event kommt
+// (z.B. wenn die App im Hintergrund/geschlossen war, während wieder Netz da war).
+async function syncGenericQueue() {
+  return new Promise((resolve) => {
+    const req = indexedDB.open('metallbau-offline', 2);
+    req.onsuccess = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('requestQueue')) return resolve();
+      const tx = db.transaction('requestQueue', 'readwrite');
+      const store = tx.objectStore('requestQueue');
+      const getAll = store.getAll();
+      getAll.onsuccess = async () => {
+        for (const entry of getAll.result) {
+          try {
+            const params = new URLSearchParams();
+            Object.entries(entry.body || {}).forEach(([k, v]) => {
+              if (Array.isArray(v)) v.forEach(vv => params.append(k, vv));
+              else params.append(k, v);
+            });
+            const res = await fetch(entry.url, {
+              method: entry.method || 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: params
+            });
+            if (res.ok || res.status < 500) store.delete(entry.id);
+          } catch (_) { /* immer noch offline, beim nächsten Sync erneut versuchen */ }
+        }
+        resolve();
+      };
+      getAll.onerror = () => resolve();
+    };
+    req.onerror = () => resolve();
+  });
+}
 
 async function syncOfflineStamps() {
   return new Promise((resolve) => {

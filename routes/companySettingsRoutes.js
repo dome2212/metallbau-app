@@ -368,4 +368,30 @@ router.post('/panel/lager', requireAdmin, async (req, res) => {
   }
 });
 
+// ==========================================
+// TEXTBAUSTEINE (Angebot & Auftrag) SPEICHERN
+// ==========================================
+router.post('/panel/textbausteine', requireAdmin, async (req, res) => {
+  try {
+    const keys  = [].concat(req.body.snippet_key   || []);
+    const labels = [].concat(req.body.snippet_label || []);
+    const texts = [].concat(req.body.snippet_text  || []);
+
+    const snippets = [];
+    for (let i = 0; i < labels.length; i++) {
+      const label = (labels[i] || '').trim();
+      const text  = (texts[i]  || '').trim();
+      if (!label || !text) continue;
+      let key = (keys[i] || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      if (!key) key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      snippets.push({ key, label, text });
+    }
+
+    await setFirmaValue('text_snippets', JSON.stringify(snippets));
+    res.redirect('/admin/panel?tab=textbausteine&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
 module.exports = router;

@@ -89,6 +89,16 @@ const DEFAULTS = {
   // ── Lager-Tabs ─────────────────────────────────────────────────
   // JSON-Array: [{"key":"aluminium","label":"Aluminium","icon":"🔷","color":"blue"}]
   lager_custom_tabs: '[]',
+
+  // ── Textbausteine (Angebot & Auftrag) ────────────────────────────
+  // JSON-Array: [{"key":"bauseits","label":"Bauseits","text":"…"}]
+  text_snippets: JSON.stringify([
+    {
+      key: 'bauseits',
+      label: 'Bauseits',
+      text: 'Bauseits zu erbringen: Stromanschluss (230V) in Reichweite, Aufstellfläche eben und tragfähig, freie Zufahrt für Anlieferung und Montage.'
+    }
+  ]),
 };
 
 // Einfacher In-Memory-Cache (wird bei jeder Änderung geleert)

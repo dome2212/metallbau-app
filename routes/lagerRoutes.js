@@ -539,4 +539,130 @@ router.post('/scan-save', async (req, res) => {
   }
 });
 
+// ==========================================
+// INVENTUR-MODUS
+// ==========================================
+
+// Aktive Inventur für einen Tab holen (oder null)
+async function getOffeneInventur(tab) {
+  const r = await dbQuery(
+    `SELECT * FROM lager_inventuren WHERE tab = ? AND status = 'offen' ORDER BY started_at DESC LIMIT 1`,
+    [tab]
+  );
+  return r.rows[0] || null;
+}
+
+// Übersicht / Start
+router.get('/inventur', async (req, res) => {
+  try {
+    const firma = await getFirma();
+    let customTabs = [];
+    try { customTabs = JSON.parse(firma.lager_custom_tabs || '[]'); } catch (e) {}
+    const customTabKeys = customTabs.map(t => t.key);
+    const requestedTab = req.query.tab || 'baustahl';
+    const tab = ['edelstahl', 'schrauben', ...customTabKeys].includes(requestedTab) ? requestedTab : 'baustahl';
+
+    let inventur = await getOffeneInventur(tab);
+    let positionen = [];
+
+    if (inventur) {
+      const r = await dbQuery(
+        `SELECT lip.*, li.bezeichnung, li.profil, li.abmessung, li.einheit, li.lagerort
+         FROM lager_inventur_positionen lip
+         JOIN lager_items li ON lip.lager_item_id = li.id
+         WHERE lip.inventur_id = ?
+         ORDER BY lip.gezaehlt ASC, li.bezeichnung ASC`,
+        [inventur.id]
+      );
+      positionen = r.rows || [];
+    }
+
+    res.render('lager-inventur', {
+      tab, customTabs, inventur, positionen,
+      done: req.query.done === '1'
+    });
+  } catch (err) {
+    console.error('Inventur-Übersicht Fehler:', err);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+// Neue Inventur starten (alle Positionen des Tabs als "ungezählt" anlegen)
+router.post('/inventur/start', async (req, res) => {
+  const { tab } = req.body;
+  try {
+    const existing = await getOffeneInventur(tab || 'baustahl');
+    if (existing) return res.redirect('/lager/inventur?tab=' + (tab || 'baustahl'));
+
+    const invRes = await dbQuery(
+      `INSERT INTO lager_inventuren (tab, status, started_by) VALUES (?, 'offen', ?)`,
+      [tab || 'baustahl', req.user?.id || null]
+    );
+    const inventurId = invRes.lastID;
+
+    const items = await dbQuery(`SELECT id, menge FROM lager_items WHERE material_type = ?`, [tab || 'baustahl']);
+    for (const item of items.rows || []) {
+      await dbQuery(
+        `INSERT INTO lager_inventur_positionen (inventur_id, lager_item_id, soll_menge, gezaehlt) VALUES (?, ?, ?, 0)`,
+        [inventurId, item.id, item.menge || 0]
+      );
+    }
+    res.redirect('/lager/inventur?tab=' + (tab || 'baustahl'));
+  } catch (err) {
+    console.error('Inventur-Start Fehler:', err);
+    res.status(500).send('Fehler beim Starten der Inventur');
+  }
+});
+
+// Eine Position zählen (Ist-Menge erfassen) – wird auch offline in die Queue gelegt
+router.post('/inventur/count', async (req, res) => {
+  const { position_id, ist_menge, notiz } = req.body;
+  try {
+    await dbQuery(
+      `UPDATE lager_inventur_positionen
+         SET ist_menge = ?, gezaehlt = 1, notiz = ?, counted_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [parseFloat(String(ist_menge).replace(',', '.')) || 0, notiz || null, position_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Inventur-Count Fehler:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Inventur abschließen: Differenzen in lager_items.menge übernehmen
+router.post('/inventur/finish', async (req, res) => {
+  const { inventur_id, tab } = req.body;
+  try {
+    const posRes = await dbQuery(
+      `SELECT * FROM lager_inventur_positionen WHERE inventur_id = ? AND gezaehlt = 1`,
+      [inventur_id]
+    );
+    for (const pos of posRes.rows || []) {
+      await dbQuery(`UPDATE lager_items SET menge = ? WHERE id = ?`, [pos.ist_menge, pos.lager_item_id]);
+    }
+    await dbQuery(
+      `UPDATE lager_inventuren SET status = 'abgeschlossen', finished_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [inventur_id]
+    );
+    res.redirect('/lager/inventur?tab=' + (tab || 'baustahl') + '&done=1');
+  } catch (err) {
+    console.error('Inventur-Finish Fehler:', err);
+    res.status(500).send('Fehler beim Abschließen der Inventur');
+  }
+});
+
+// Inventur abbrechen (verwerfen, keine Änderungen an lager_items)
+router.post('/inventur/cancel', async (req, res) => {
+  const { inventur_id, tab } = req.body;
+  try {
+    await dbQuery(`DELETE FROM lager_inventur_positionen WHERE inventur_id = ?`, [inventur_id]);
+    await dbQuery(`DELETE FROM lager_inventuren WHERE id = ?`, [inventur_id]);
+    res.redirect('/lager/inventur?tab=' + (tab || 'baustahl'));
+  } catch (err) {
+    res.status(500).send('Fehler beim Abbrechen');
+  }
+});
+
 module.exports = router;

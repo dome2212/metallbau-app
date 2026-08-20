@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Heute – <%= firma.nameKurz %></title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/img/icon-192.png">
+  <meta name="theme-color" content="<%= firma.color_primary || '#2563eb' %>">
+  <script>
+    (function() {
+      try {
+        var d = localStorage.getItem('darkMode');
+        if (d === 'true' || (d === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system, 'Inter', system-ui, sans-serif; background:#f1f5f9; color:#1e293b; min-height:100vh; }
+    html.dark body { background:#0f172a; color:#e2e8f0; }
+    .topbar { background: var(--primary, <%= firma.color_primary || '#2563eb' %>); color:#fff; padding:1rem 1rem 1.25rem; }
+    .topbar h1 { margin:0; font-size:1.15rem; font-weight:800; }
+    .topbar p { margin:.15rem 0 0; font-size:.8rem; opacity:.9; }
+    .wrap { padding: .9rem; max-width:560px; margin:0 auto; }
+    .card { background:#fff; border-radius:14px; padding:1rem; margin-bottom:.75rem; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    html.dark .card { background:#1e293b; }
+    .card h2 { margin:0 0 .3rem; font-size:1rem; font-weight:700; }
+    .card .meta { font-size:.8rem; color:#64748b; margin:.15rem 0; }
+    html.dark .card .meta { color:#94a3b8; }
+    .badge { display:inline-block; font-size:.7rem; font-weight:600; padding:.15rem .5rem; border-radius:999px; background:#dbeafe; color:#1e40af; }
+    html.dark .badge { background:#1e3a5f; color:#93c5fd; }
+    .actions { display:flex; gap:.5rem; margin-top:.7rem; flex-wrap:wrap; }
+    .btn { flex:1; min-width:110px; text-align:center; padding:.6rem .5rem; border-radius:10px; font-size:.8rem; font-weight:600; text-decoration:none; border:none; }
+    .btn-primary { background: var(--primary, <%= firma.color_primary || '#2563eb' %>); color:#fff; }
+    .btn-secondary { background:#f1f5f9; color:#334155; }
+    html.dark .btn-secondary { background:#334155; color:#e2e8f0; }
+    .empty { text-align:center; padding:3rem 1rem; color:#94a3b8; }
+    .empty .emoji { font-size:2.5rem; margin-bottom:.5rem; }
+    .backlink { display:inline-block; color:#fff; opacity:.85; font-size:.8rem; text-decoration:none; margin-top:.5rem; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🏗️ Heutige Baustellen</h1>
+    <p><%= new Date(todayStr).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) %></p>
+    <a class="backlink" href="/">← zur App</a>
+  </div>
+
+  <div class="wrap">
+    <% if (!sites || sites.length === 0) { %>
+      <div class="empty">
+        <div class="emoji">☕</div>
+        <p>Für heute ist keine Baustelle eingeplant.</p>
+      </div>
+    <% } else { %>
+      <% for (const s of sites) { %>
+      <div class="card">
+        <h2><%= s.project_title || 'Ohne Projekt' %></h2>
+        <% if (isAdmin && s.username) { %><p class="meta">👤 <%= s.username %></p><% } %>
+        <% if (s.company_name) { %><p class="meta">🏢 <%= s.company_name %></p><% } %>
+        <% if (s.street || s.city) { %>
+          <p class="meta">📍 <%= [s.street, [s.zip, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') %></p>
+        <% } %>
+        <% if (s.site_note) { %><p class="meta">📝 <%= s.site_note %></p><% } %>
+        <% if (s.note) { %><p class="meta">💬 <%= s.note %></p><% } %>
+        <% if (s.status) { %><span class="badge"><%= s.status %></span><% } %>
+
+        <div class="actions">
+          <% if (s.site_lat && s.site_lng) { %>
+            <a class="btn btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=<%= s.site_lat %>,<%= s.site_lng %>" target="_blank" rel="noopener">🧭 Navigation</a>
+          <% } else if (s.street || s.city) { %>
+            <a class="btn btn-primary" href="https://www.google.com/maps/dir/?api=1&destination=<%= encodeURIComponent([s.street, s.zip, s.city].filter(Boolean).join(' ')) %>" target="_blank" rel="noopener">🧭 Navigation</a>
+          <% } %>
+          <% if (s.phone) { %>
+            <a class="btn btn-secondary" href="tel:<%= s.phone.replace(/\s+/g,'') %>">📞 Anrufen</a>
+          <% } %>
+          <a class="btn btn-secondary" href="/timetracking">⏱️ Stempeln</a>
+        </div>
+      </div>
+      <% } %>
+    <% } %>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

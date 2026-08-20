@@ -248,4 +248,53 @@ router.post('/api/user-settings', async (req, res) => {
   }
 });
 
+// ==========================================
+// „HEUTIGE BAUSTELLEN" – schnelle Übersicht für Homescreen-Shortcut/Widget
+// ==========================================
+// Hinweis: Ein PWA kann kein natives Android-Homescreen-Widget (das ohne App-
+// Öffnen Inhalte anzeigt) bereitstellen – das ist technisch nur mit einer
+// nativen App-Hülle möglich. Diese Route ist bewusst super schlank gehalten
+// (kein Sidebar, kaum CSS), damit sie über den PWA-Shortcut "Heutige
+// Baustellen" (Icon lange gedrückt halten) in unter 1 Sekunde offen ist –
+// das kommt dem Widget-Gefühl am nächsten.
+router.get('/heute', async (req, res) => {
+  const userId = req.user.id;
+  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // Eigene Personalplanung für heute (falls zugewiesen)
+    const assignSql = `
+      SELECT sa.*, p.title as project_title, p.site_note, p.site_lat, p.site_lng, p.status,
+             c.company_name, c.street, c.zip, c.city, c.phone
+      FROM staff_assignments sa
+      LEFT JOIN projects  p ON sa.project_id  = p.id
+      LEFT JOIN customers c ON p.customer_id  = c.id
+      WHERE sa.assignment_date = ? AND sa.user_id = ?
+      ORDER BY p.title ASC`;
+    const assignRes = await dbQuery(assignSql, [todayStr, userId]);
+    let sites = assignRes.rows || [];
+
+    // Chef/Admin ohne eigene Zuweisung: alle laufenden Baustellen von heute zeigen
+    if (isAdmin && sites.length === 0) {
+      const allSql = `
+        SELECT sa.*, p.title as project_title, p.site_note, p.site_lat, p.site_lng, p.status,
+               c.company_name, c.street, c.zip, c.city, c.phone, u.username
+        FROM staff_assignments sa
+        LEFT JOIN projects  p ON sa.project_id  = p.id
+        LEFT JOIN customers c ON p.customer_id  = c.id
+        LEFT JOIN users     u ON sa.user_id     = u.id
+        WHERE sa.assignment_date = ?
+        ORDER BY p.title ASC`;
+      const allRes = await dbQuery(allSql, [todayStr]);
+      sites = allRes.rows || [];
+    }
+
+    res.render('today-widget', { sites, isAdmin, todayStr });
+  } catch (err) {
+    console.error('Fehler bei /heute:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
 module.exports = router;

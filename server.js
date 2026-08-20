@@ -94,6 +94,7 @@ const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 const reportsRoutes            = require('./routes/reportsRoutes');
 const tickerRoutes             = require('./routes/tickerRoutes');
 const lagerRoutes              = require('./routes/lagerRoutes');
+const colorsRoutes              = require('./routes/colorsRoutes');
 const pushRoutes                = require('./routes/pushRoutes');
 const taskRoutes                = require('./routes/taskRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
@@ -222,6 +223,7 @@ app.use('/ticker',  tickerRoutes);
 
 // Lagerliste (Baustahl & Edelstahl)
 app.use('/lager', lagerRoutes);
+app.use('/farben', colorsRoutes);
 
 // Push-Benachrichtigungen (Subscription verwalten)
 app.use('/push', pushRoutes);

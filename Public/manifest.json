@@ -19,6 +19,27 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Heutige Baustellen",
+      "short_name": "Heute",
+      "description": "Zeigt sofort deine heutigen Baustellen-Einsätze",
+      "url": "/heute",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Zeiterfassung",
+      "short_name": "Stempeln",
+      "url": "/timetracking",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Inventur",
+      "short_name": "Inventur",
+      "url": "/lager/inventur",
+      "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }
 

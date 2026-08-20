@@ -862,8 +862,12 @@ function addVorlageRow(b = '', m = 1, e = 'Stk', p = '') {
   const units = ['Stk','m','Std','kg','m²','Psch'].map(u=>`<option ${u===e?'selected':''}>${u}</option>`).join('');
   container.insertAdjacentHTML('beforeend', `
     <div id="${id}" class="grid grid-cols-12 gap-1 items-center">
-      <input type="text" name="item_beschreibung" value="${b.replace(/"/g,'&quot;')}" placeholder="Beschreibung" required
-        class="col-span-5 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">
+      <div class="col-span-5 flex gap-1">
+        <input type="text" name="item_beschreibung" value="${b.replace(/"/g,'&quot;')}" placeholder="Beschreibung" required
+          class="flex-1 min-w-0 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">
+        <button type="button" onclick="openSnippetMenu(this)" title="Textbaustein einfügen"
+          class="flex-shrink-0 px-1.5 rounded border border-gray-200 dark:border-slate-600 text-xs text-slate-400 hover:text-blue-600">📎</button>
+      </div>
       <input type="number" name="item_menge" value="${m}" step="0.01" min="0" placeholder="1"
         class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">
       <select name="item_einheit" class="col-span-2 border border-gray-200 dark:border-slate-600 rounded px-2 py-1.5 text-xs bg-white dark:bg-slate-700 dark:text-gray-100">${units}</select>

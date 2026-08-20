@@ -1131,5 +1131,36 @@ router.post('/:id/generate-quote-with-images', imageUpload.array('images', 3), a
   }
 });
 
+
+// ==========================================
+// KUNDEN-ABNAHME MIT UNTERSCHRIFT
+// ==========================================
+router.post('/:id/acceptance', async (req, res) => {
+  const projectId = req.params.id;
+  const { acceptance_name, acceptance_signature } = req.body;
+  if (!acceptance_signature || !String(acceptance_signature).startsWith('data:image/')) {
+    return res.status(400).send('Unterschrift fehlt');
+  }
+  try {
+    await dbQuery(
+      `UPDATE projects SET acceptance_name = ?, acceptance_signature = ?, acceptance_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [(acceptance_name || '').trim().slice(0, 120) || 'Kunde', acceptance_signature, projectId]
+    );
+  } catch (err) { console.error('acceptance:', err.message); }
+  res.redirect(`/projects/${projectId}#sec-abnahme`);
+});
+
+router.post('/:id/acceptance/clear', async (req, res) => {
+  const projectId = req.params.id;
+  try {
+    await dbQuery(
+      `UPDATE projects SET acceptance_name = NULL, acceptance_signature = NULL, acceptance_at = NULL WHERE id = ?`,
+      [projectId]
+    );
+  } catch (_) {}
+  res.redirect(`/projects/${projectId}#sec-abnahme`);
+});
+
+
 module.exports = router;
 

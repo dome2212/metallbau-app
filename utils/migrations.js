@@ -453,6 +453,101 @@ const MIGRATIONS = [
     }
   },
 
+  {
+    id: 11,
+    description: 'Kunden-Abnahme Unterschrift an projects',
+    async up() {
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_signature TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_name TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} acceptance_at TIMESTAMP`); } catch (_) {}
+    }
+  },
+
+  // ── 012 ── Inventur-Modus: Inventurläufe + gezählte Positionen ──────────────
+  {
+    id: 12,
+    description: 'Inventur-Modus: lager_inventuren + lager_inventur_positionen',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS lager_inventuren (
+        id           ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        tab          TEXT NOT NULL DEFAULT 'baustahl',
+        status       TEXT NOT NULL DEFAULT 'offen',
+        started_by   INTEGER,
+        started_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at  TIMESTAMP,
+        notiz        TEXT
+      )`);
+
+      await safeRaw(`CREATE TABLE IF NOT EXISTS lager_inventur_positionen (
+        id             ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        inventur_id    INTEGER NOT NULL,
+        lager_item_id  INTEGER NOT NULL,
+        soll_menge     NUMERIC(12,3) DEFAULT 0,
+        ist_menge      NUMERIC(12,3),
+        gezaehlt       INTEGER DEFAULT 0,
+        notiz          TEXT,
+        counted_at     TIMESTAMP
+      )`);
+    }
+  },
+
+  // ── 013 ── Farben-Bibliothek: RAL-Farben mit Foto-Muster ────────────────────
+  {
+    id: 13,
+    description: 'Farben-Bibliothek: ral_colors Tabelle + Standard-RAL-Farben seeden',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS ral_colors (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        ral_code    TEXT NOT NULL,
+        name        TEXT,
+        hex         TEXT NOT NULL,
+        foto_url    TEXT,
+        notiz       TEXT,
+        favorit     INTEGER DEFAULT 0,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Häufig im Metallbau genutzte RAL-Klassik-Farben vorbefüllen (nur wenn Tabelle leer ist)
+      const existing = await raw('SELECT COUNT(*) as c FROM ral_colors');
+      const count = parseInt((existing.rows && existing.rows[0] && existing.rows[0].c) || 0, 10);
+      if (count === 0) {
+        const seed = [
+          ['RAL 9005', 'Tiefschwarz',        '#0A0A0A'],
+          ['RAL 9010', 'Reinweiß',           '#F2F0E6'],
+          ['RAL 9016', 'Verkehrsweiß',       '#F4F4F4'],
+          ['RAL 9006', 'Weißaluminium',      '#A5A8A6'],
+          ['RAL 9007', 'Graualuminium',      '#8B8C86'],
+          ['RAL 9002', 'Grauweiß',           '#D6D5C9'],
+          ['RAL 9004', 'Signalschwarz',      '#282A2C'],
+          ['RAL 7016', 'Anthrazitgrau',      '#383E42'],
+          ['RAL 7035', 'Lichtgrau',          '#C6C7C4'],
+          ['RAL 7024', 'Graphitgrau',        '#4A4E51'],
+          ['RAL 7021', 'Schwarzgrau',        '#23272A'],
+          ['RAL 7001', 'Silbergrau',         '#8F999F'],
+          ['RAL 7040', 'Fenstergrau',        '#9DA3A6'],
+          ['RAL 6005', 'Moosgrün',           '#0F4336'],
+          ['RAL 6009', 'Tannengrün',         '#27352A'],
+          ['RAL 5010', 'Enzianblau',         '#0E4C92'],
+          ['RAL 5011', 'Stahlblau',          '#232C3B'],
+          ['RAL 3000', 'Feuerrot',           '#AB2524'],
+          ['RAL 3003', 'Rubinrot',           '#7B1B1E'],
+          ['RAL 3020', 'Verkehrsrot',        '#C1121C'],
+          ['RAL 1015', 'Hellelfenbein',      '#E6D2B5'],
+          ['RAL 1013', 'Perlweiß',           '#E9E5CE'],
+          ['RAL 8017', 'Schokoladenbraun',   '#442F29'],
+          ['RAL 8014', 'Sepiabraun',         '#382C1E'],
+          ['RAL 8022', 'Schwarzbraun',       '#1A1718'],
+        ];
+        for (const [ral_code, name, hex] of seed) {
+          await raw(
+            'INSERT INTO ral_colors (ral_code, name, hex) VALUES (?, ?, ?)',
+            [ral_code, name, hex]
+          );
+        }
+      }
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
