@@ -129,22 +129,53 @@
     const form = e.target;
     if (form.dataset.offline !== 'true') return;
 
-    // Wenn der Browser sicher online ist: normal absenden lassen
-    if (navigator.onLine) return;
-
+    // Immer abfangen und selbst per fetch senden – „navigator.onLine"
+    // erkennt nur die Netzwerkschnittstelle, nicht ob wirklich eine Verbindung
+    // zum Server besteht (typisch auf der Baustelle: WLAN zeigt „verbunden",
+    // kommt aber nichts durch). Nur so wird die Eingabe in JEDEM Fall gesichert.
     e.preventDefault();
     const data = serializeForm(form);
-    const entry = {
-      url: form.action || window.location.href,
-      method: (form.method || 'POST').toUpperCase(),
-      body: data,
-      createdAt: new Date().toISOString(),
-      label: form.dataset.offlineLabel || 'Eintrag'
-    };
+    const url = form.action || window.location.href;
+    const method = (form.method || 'POST').toUpperCase();
+    const label = form.dataset.offlineLabel || 'Eintrag';
+
+    // Wenn der Browser sicher weiß, dass kein Netz da ist: direkt in die
+    // Warteschlange legen, ohne den (sicher erfolglosen) Versuch zu senden.
+    if (!navigator.onLine) {
+      return queueAndNotify(form, url, method, data, label);
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: toUrlEncoded(data),
+        credentials: 'same-origin',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok || res.status < 400) {
+        // Erfolgreich gesendet → wie beim normalen Formular weiterleiten
+        window.location.href = res.url || form.dataset.offlineRedirect || window.location.href;
+        return;
+      }
+      throw new Error('Serverfehler ' + res.status);
+    } catch (err) {
+      // Fehlgeschlagen (Timeout, kein echtes Netz trotz "online", Serverfehler)
+      // → nichts verloren gehen lassen, sondern in die Warteschlange legen
+      await queueAndNotify(form, url, method, data, label);
+    }
+  }
+
+  async function queueAndNotify(form, url, method, data, label) {
+    const entry = { url, method, body: data, createdAt: new Date().toISOString(), label };
     try {
       await queueRequest(entry);
       await refreshBadge();
-      toast('📡 Offline gespeichert: ' + entry.label + ' – wird automatisch hochgeladen, sobald wieder Internet da ist.', 'info');
+      toast('📡 Offline gespeichert: ' + label + ' – wird automatisch hochgeladen, sobald wieder Internet da ist.', 'info');
       if (form.dataset.offlineRedirect) {
         window.location.href = form.dataset.offlineRedirect;
       } else if (typeof form.reset === 'function') {

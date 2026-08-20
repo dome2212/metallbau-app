@@ -271,7 +271,7 @@
 
   <script>
     // ── Textbausteine (z.B. „Bauseits") global verfügbar machen ──────────────
-    window.TEXT_SNIPPETS = <%- JSON.stringify((() => { try { return JSON.parse((typeof firma !== 'undefined' && firma.text_snippets) || '[]'); } catch (e) { return []; } })()) %>;
+    window.TEXT_SNIPPETS = <%- JSON.stringify((() => { try { return JSON.parse((typeof firma !== 'undefined' && firma.text_snippets) || '[]'); } catch (e) { return []; } })()).replace(/</g, '\\u003c') %>;
 
     // Öffnet ein kleines Auswahlmenü direkt unter dem Button und fügt den
     // gewählten Textbaustein in das direkt davor stehende Eingabefeld ein.
@@ -282,7 +282,12 @@
         if (typeof showToast === 'function') showToast('Keine Textbausteine hinterlegt (Admin → Textbausteine).', 'info');
         return;
       }
-      const targetInput = btn.previousElementSibling;
+      // Robust: das nächstgelegene Eingabefeld VOR dem Button suchen (auch
+      // wenn dazwischen noch andere Buttons stehen, z.B. die KI-Ausformulieren-Funktion)
+      let targetInput = btn.previousElementSibling;
+      while (targetInput && !['INPUT', 'TEXTAREA'].includes(targetInput.tagName)) {
+        targetInput = targetInput.previousElementSibling;
+      }
 
       const menu = document.createElement('div');
       menu.className = 'snippet-menu';

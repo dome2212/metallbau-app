@@ -330,7 +330,7 @@ function openExpandModal(btn) {
 }
 
 function expandNachtragField(btn) {
-  const input = btn.previousElementSibling;
+  const input = btn.closest('.col-span-5, div').querySelector('input[name="item_beschreibung"]');
   document.getElementById('expandInput').value = input.value;
   document.getElementById('expandResult').value = '';
   document.getElementById('expandStatus').textContent = '';

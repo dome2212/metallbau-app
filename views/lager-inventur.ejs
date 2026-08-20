@@ -78,7 +78,7 @@
               · Soll: <%= parseFloat(pos.soll_menge).toLocaleString('de-DE') %> <%= pos.einheit %>
             </p>
           </div>
-          <form class="inventur-count-form flex items-center gap-1.5 flex-shrink-0" data-offline="true" data-offline-label="Inventur-Zählung"
+          <form class="inventur-count-form flex items-center gap-1.5 flex-shrink-0" data-offline-label="Inventur-Zählung"
             action="/lager/inventur/count" method="POST">
             <input type="hidden" name="position_id" value="<%= pos.id %>">
             <button type="button" onclick="stepQty(this, -1)"
@@ -137,22 +137,56 @@
   document.addEventListener('submit', async function (e) {
     const form = e.target;
     if (!form.classList.contains('inventur-count-form')) return;
-    if (!navigator.onLine) return; // Offline: der globale offline-queue.js Handler übernimmt
-
     e.preventDefault();
+
     const fd = new FormData(form);
+    const bodyObj = {};
+    for (const [k, v] of fd.entries()) bodyObj[k] = v;
+
     try {
-      const res = await fetch(form.action, { method: 'POST', body: new URLSearchParams(fd) });
-      if (res.ok) {
-        const row = form.closest('.inventur-row');
-        row.classList.add('opacity-60');
-        const btn = form.querySelector('button[type="submit"]');
-        btn.textContent = '✓ Erfasst';
-        btn.className = 'ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
-        if (typeof showToast === 'function') showToast('Gespeichert', 'success', 1200);
-      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(bodyObj),
+        credentials: 'same-origin',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error('Serverfehler ' + res.status);
+
+      const row = form.closest('.inventur-row');
+      row.classList.add('opacity-60');
+      const btn = form.querySelector('button[type="submit"]');
+      btn.textContent = '✓ Erfasst';
+      btn.className = 'ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+      if (typeof showToast === 'function') showToast('Gespeichert', 'success', 1200);
     } catch (err) {
-      if (typeof showToast === 'function') showToast('Fehler beim Speichern – wird offline zwischengespeichert.', 'error');
+      // Kein Netz oder Timeout → wirklich in die Offline-Warteschlange legen
+      // (nicht nur eine Meldung anzeigen), damit die Zählung nicht verloren geht.
+      if (window.offlineQueue) {
+        try {
+          await window.offlineQueue.queueRequest({
+            url: form.action,
+            method: 'POST',
+            body: bodyObj,
+            createdAt: new Date().toISOString(),
+            label: form.dataset.offlineLabel || 'Inventur-Zählung'
+          });
+          await window.offlineQueue.refreshBadge();
+          const row = form.closest('.inventur-row');
+          row.classList.add('opacity-60');
+          const btn = form.querySelector('button[type="submit"]');
+          btn.textContent = '📡 Offline erfasst';
+          btn.className = 'ml-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+          if (typeof showToast === 'function') showToast('📡 Offline gespeichert – wird automatisch hochgeladen', 'info');
+        } catch (err2) {
+          if (typeof showToast === 'function') showToast('Fehler beim Speichern: ' + err2.message, 'error');
+        }
+      } else if (typeof showToast === 'function') {
+        showToast('Fehler beim Speichern – bitte später erneut versuchen.', 'error');
+      }
     }
   });
 </script>
