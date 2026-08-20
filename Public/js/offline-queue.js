@@ -165,6 +165,9 @@
     syncing = true;
     try {
       const queue = await getQueue();
+      if (queue.length === 0) return; // nichts zu tun → keine Meldung anzeigen
+
+      let uploaded = 0;
       for (const entry of queue) {
         try {
           const res = await fetch(entry.url, {
@@ -174,6 +177,7 @@
           });
           if (res.ok || res.status < 500) {
             await removeFromQueue(entry.id);
+            uploaded++;
           }
         } catch (_) {
           // immer noch offline → Rest der Queue abbrechen, später erneut versuchen
@@ -182,7 +186,7 @@
       }
       await refreshBadge();
       const remaining = await getQueue();
-      if (remaining.length === 0) {
+      if (uploaded > 0 && remaining.length === 0) {
         toast('✅ Alle offline gespeicherten Einträge wurden hochgeladen.', 'success');
       }
     } finally {
