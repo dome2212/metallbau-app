@@ -30,12 +30,13 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       <% for (const c of items) { %>
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
-        <!-- Vorschau: Foto wenn vorhanden, sonst Hex-Farbfläche -->
-        <div class="relative h-28 w-full" style="background-color: <%= c.hex %>;">
+        <!-- Vorschau: Foto wenn vorhanden, sonst Hex-Farbfläche (Klick = Vollbild) -->
+        <div class="relative h-28 w-full cursor-pointer" style="background-color: <%= c.hex %>;"
+          onclick="openFullscreen('<%= c.hex %>', '<%= c.foto_url ? c.foto_url : '' %>', '<%= c.ral_code %>', '<%= (c.name||'').replace(/'/g,"\\'") %>')">
           <% if (c.foto_url) { %>
             <img src="<%= c.foto_url %>" alt="<%= c.ral_code %> Muster" class="absolute inset-0 w-full h-full object-cover">
           <% } %>
-          <button onclick="toggleFav(<%= c.id %>)"
+          <button onclick="event.stopPropagation(); toggleFav(<%= c.id %>)"
             class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/80 dark:bg-slate-900/70 flex items-center justify-center text-sm shadow">
             <%= c.favorit ? '⭐' : '☆' %>
           </button>
@@ -134,7 +135,44 @@
     </div>
   </div>
 
+  <!-- ── Vollbild-Vorschau: Farbe/Foto über das ganze Display ─────────────── -->
+  <div id="fullscreenPreview" class="hidden fixed inset-0 z-[60] flex flex-col" onclick="if (event.target === this) closeFullscreen()">
+    <button onclick="closeFullscreen()"
+      class="absolute top-4 right-4 z-10 w-11 h-11 rounded-full bg-white/90 dark:bg-slate-900/80 text-slate-800 dark:text-gray-100 flex items-center justify-center text-xl shadow-lg">
+      ✕
+    </button>
+    <div id="fullscreenColorArea" class="flex-1 w-full"></div>
+    <div class="bg-white dark:bg-slate-800 px-5 py-4 text-center">
+      <p id="fullscreenCode" class="text-lg font-bold text-gray-800 dark:text-gray-100"></p>
+      <p id="fullscreenName" class="text-sm text-gray-500 dark:text-gray-400"></p>
+    </div>
+  </div>
+
 </main>
+
+<script>
+  function openFullscreen(hex, fotoUrl, ralCode, name) {
+    const overlay = document.getElementById('fullscreenPreview');
+    const area = document.getElementById('fullscreenColorArea');
+    area.style.backgroundColor = hex;
+    area.innerHTML = fotoUrl
+      ? `<img src="${fotoUrl}" alt="${ralCode}" class="w-full h-full object-contain">`
+      : '';
+    document.getElementById('fullscreenCode').textContent = ralCode;
+    document.getElementById('fullscreenName').textContent = name || '';
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeFullscreen() {
+    document.getElementById('fullscreenPreview').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeFullscreen();
+  });
+</script>
 
 <script>
   function uploadFoto(id, input) {
