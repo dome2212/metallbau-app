@@ -130,10 +130,11 @@ router.get('/calendar', async (req, res) => {
     return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
   }
   try {
-    const [customersRes, usersRes, allVacRes] = await Promise.all([
+    const [customersRes, usersRes, allVacRes, projectsRes] = await Promise.all([
       dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC'),
       dbQuery('SELECT id, username FROM users ORDER BY username ASC'),
-      dbQuery('SELECT id, user_id, type, status, start_date, end_date FROM vacations ORDER BY start_date ASC')
+      dbQuery('SELECT id, user_id, type, status, start_date, end_date FROM vacations ORDER BY start_date ASC'),
+      dbQuery(`SELECT id, title, customer_id FROM projects WHERE status NOT IN ('Abgeschlossen') ORDER BY title ASC`)
     ]);
     const calMonth = req.query.cal_month || new Date().toISOString().slice(0, 7);
     const cal = buildCalendar(calMonth, allVacRes.rows || [], usersRes.rows || []);
@@ -141,6 +142,7 @@ router.get('/calendar', async (req, res) => {
     res.render('calendar', {
       customers:   customersRes.rows || [],
       users:       usersRes.rows     || [],
+      projects:    projectsRes.rows  || [],
       currentUser: req.user,
       ...cal,
     });
@@ -196,12 +198,16 @@ router.get('/api/appointments', async (req, res) => {
     const baseQuery = `
       SELECT appointments.id, appointments.title, appointments.start_date as start,
              appointments.end_date as end, appointments.description,
+             appointments.project_id,
              customers.company_name, customers.contact_person,
-             projects.site_lat, projects.site_lng
+             p2.title as project_title,
+             COALESCE(p2.site_lat, p_by_customer.site_lat) as site_lat,
+             COALESCE(p2.site_lng, p_by_customer.site_lng) as site_lng
       FROM appointments
       LEFT JOIN customers ON appointments.customer_id = customers.id
-      LEFT JOIN projects  ON projects.customer_id = appointments.customer_id
-        AND projects.site_lat IS NOT NULL AND projects.site_lng IS NOT NULL
+      LEFT JOIN projects  p2 ON p2.id = appointments.project_id
+      LEFT JOIN projects  p_by_customer ON p_by_customer.customer_id = appointments.customer_id
+        AND p_by_customer.site_lat IS NOT NULL AND p_by_customer.site_lng IS NOT NULL
     `;
     const allAppts = (await dbQuery(baseQuery)).rows || [];
 
@@ -244,13 +250,17 @@ router.get('/api/appointments', async (req, res) => {
         backgroundColor = '#fee2e2'; borderColor = '#dc2626'; textColor = '#7f1d1d';
       } else if (w && w.warningLevel === 'warn') {
         backgroundColor = '#fef9c3'; borderColor = '#ca8a04'; textColor = '#713f12';
+      } else if (app.project_id) {
+        backgroundColor = '#dcfce7'; borderColor = '#16a34a'; textColor = '#14532d';
       } else {
         backgroundColor = '#dbeafe'; borderColor = '#2563eb'; textColor = '#1e3a5f';
       }
 
+      const displayTitle = app.project_id ? `🏗️ ${app.title}` : app.title;
+
       return {
         id:    app.id,
-        title: app.title,
+        title: displayTitle,
         start: app.start,
         end:   app.end,
         description:     app.description,
@@ -261,7 +271,9 @@ router.get('/api/appointments', async (req, res) => {
           weather:      w || null,
           description:  app.description,
           customerName: app.company_name || app.contact_person || 'Privat',
-          assignedUsers: assigned
+          assignedUsers: assigned,
+          projectId:    app.project_id || null,
+          projectTitle: app.project_title || null
         }
       };
     });
@@ -277,7 +289,7 @@ router.get('/api/appointments', async (req, res) => {
 // TERMIN ANLEGEN (mit optionaler Mitarbeiter-Zuweisung)
 // ==========================================
 router.post('/api/appointments/add', requireAdmin, async (req, res) => {
-  const { title, customer_id, start_date, end_date, description } = req.body;
+  const { title, customer_id, project_id, start_date, end_date, description } = req.body;
   // user_ids kommt als Array oder einzelner Wert (Checkboxen)
   let userIds = req.body.user_ids;
   if (!userIds) userIds = [];
@@ -285,8 +297,8 @@ router.post('/api/appointments/add', requireAdmin, async (req, res) => {
 
   try {
     const result = await dbQuery(
-      `INSERT INTO appointments (title, customer_id, start_date, end_date, description) VALUES (?, ?, ?, ?, ?)`,
-      [title, customer_id || null, start_date, end_date || null, description || null]
+      `INSERT INTO appointments (title, customer_id, project_id, start_date, end_date, description) VALUES (?, ?, ?, ?, ?, ?)`,
+      [title, customer_id || null, project_id || null, start_date, end_date || null, description || null]
     );
     const appointmentId = result.lastID;
 

@@ -290,6 +290,48 @@ router.get('/heute', async (req, res) => {
       sites = allRes.rows || [];
     }
 
+    // ── Zusätzlich: Baustellen-Termine aus dem Kalender für heute ──────────
+    // (Termine mit zugeordnetem Projekt, deren Startzeit auf heute fällt)
+    const apptSql = `
+      SELECT a.id, a.title as note, a.description, a.start_date,
+             p.id as project_id, p.title as project_title, p.site_note, p.site_lat, p.site_lng, p.status,
+             c.company_name, c.street, c.zip, c.city, c.phone
+      FROM appointments a
+      JOIN projects  p ON a.project_id  = p.id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE a.project_id IS NOT NULL
+        AND substr(a.start_date, 1, 10) = ?`;
+    const apptRes = await dbQuery(apptSql, [todayStr]);
+    let apptSites = apptRes.rows || [];
+
+    if (apptSites.length > 0) {
+      // Zuweisungen laden, um Mitarbeiter-Sicht zu filtern (leer = für alle sichtbar)
+      const apptIds = apptSites.map(a => a.id);
+      const placeholders = apptIds.map(() => '?').join(',');
+      const assignedUsersRes = await dbQuery(
+        `SELECT appointment_id, user_id FROM appointment_users WHERE appointment_id IN (${placeholders})`,
+        apptIds
+      ).catch(() => ({ rows: [] }));
+      const apptAssignMap = {};
+      for (const row of (assignedUsersRes.rows || [])) {
+        if (!apptAssignMap[row.appointment_id]) apptAssignMap[row.appointment_id] = [];
+        apptAssignMap[row.appointment_id].push(Number(row.user_id));
+      }
+
+      apptSites = apptSites.filter(a => {
+        if (isAdmin) return true;
+        const assigned = apptAssignMap[a.id] || [];
+        return assigned.length === 0 || assigned.includes(Number(userId));
+      });
+
+      // Duplikate vermeiden: kein doppelter Eintrag, wenn für dasselbe Projekt
+      // heute bereits eine Personalplanung existiert
+      const alreadyPlannedProjectIds = new Set(sites.map(s => s.project_id).filter(Boolean));
+      apptSites = apptSites.filter(a => !alreadyPlannedProjectIds.has(a.project_id));
+
+      sites = sites.concat(apptSites);
+    }
+
     res.render('today-widget', { sites, isAdmin, todayStr });
   } catch (err) {
     console.error('Fehler bei /heute:', err.message);
