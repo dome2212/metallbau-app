@@ -254,6 +254,22 @@
   <script src="/js/offline-queue.js" defer></script>
 
   <script>
+    // ── Offline-Banner: online/offline live erkennen ──────────────────────────
+    function updateOfflineBanner() {
+      const banner = document.getElementById('offline-banner');
+      if (!banner) return;
+      if (navigator.onLine) {
+        banner.classList.add('hidden');
+      } else {
+        banner.classList.remove('hidden');
+      }
+    }
+    window.addEventListener('online', updateOfflineBanner);
+    window.addEventListener('offline', updateOfflineBanner);
+    document.addEventListener('DOMContentLoaded', updateOfflineBanner);
+  </script>
+
+  <script>
     // ── Textbausteine (z.B. „Bauseits") global verfügbar machen ──────────────
     window.TEXT_SNIPPETS = <%- JSON.stringify((() => { try { return JSON.parse((typeof firma !== 'undefined' && firma.text_snippets) || '[]'); } catch (e) { return []; } })()) %>;
 
@@ -374,6 +390,16 @@
 </head>
 
 <body class="page-bg text-slate-900 dark:text-slate-100 flex flex-col md:flex-row min-h-screen">
+
+<!-- ── Offline-Hinweis: zeigt an, wenn gerade eine gespeicherte statt eine
+     live geladene Ansicht angezeigt wird ─────────────────────────────── -->
+<div id="offline-banner" class="hidden fixed left-0 right-0 z-[31] bg-amber-500 text-white text-[11px] md:text-xs font-semibold text-center py-1 px-3">
+  📡 Offline – zuletzt gespeicherter Stand. Änderungen werden automatisch hochgeladen, sobald wieder Internet da ist.
+</div>
+<style>
+  #offline-banner { top: 56px; } /* unterhalb der mobilen Top-Bar (h-14) */
+  @media (min-width: 768px) { #offline-banner { top: 0; } }
+</style>
 
 <!-- ── Toast Container ───────────────────────────────────────────────── -->
 <div id="toast-container"></div>

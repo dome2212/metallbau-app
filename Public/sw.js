@@ -1,6 +1,14 @@
-const CACHE_NAME = 'metallbau-v3';
+const CACHE_NAME = 'metallbau-v4';
+const STATIC_CACHE_NAME = 'metallbau-static-v4';
+
+// Seiten, die sofort beim Installieren vorab gecacht werden, damit die App
+// auch ganz ohne vorherigen Besuch offline startet (z.B. nach Neuinstallation).
 const OFFLINE_URLS = [
   '/',
+  '/dashboard',
+  '/projects',
+  '/customers',
+  '/lager',
   '/timetracking',
   '/heute',
   '/lager/inventur',
@@ -9,9 +17,17 @@ const OFFLINE_URLS = [
   '/js/offline-queue.js',
 ];
 
+// Statische Fremd-Ressourcen (Schriften, Tailwind), die sich kaum ändern –
+// hier "cache-first", damit die App auch offline korrekt aussieht.
+const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.tailwindcss.com'];
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_URLS).catch(() => {}))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(OFFLINE_URLS.map(url => cache.add(url).catch(() => {
+        // einzelne Seite evtl. nicht erreichbar (z.B. noch nicht eingeloggt) → ignorieren
+      })))
+    )
   );
   self.skipWaiting();
 });
@@ -19,7 +35,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== STATIC_CACHE_NAME).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -46,7 +62,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Für alle anderen Requests: Network first, Cache fallback → offline.html
+  // Statische Fremd-Ressourcen (Google Fonts, Tailwind CDN): cache-first,
+  // damit die App auch offline sofort korrekt aussieht und schneller lädt.
+  if (STATIC_HOSTS.includes(url.hostname)) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(response => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE_NAME).then(cache => cache.put(event.request, clone)).catch(() => {});
+          }
+          return response;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+
+  // Für alle anderen Requests (eigene Seiten, Kunden-/Projekt-/Lagerdaten, …):
+  // Network first, Cache-Fallback → so ist jede zuletzt geladene Seite auch
+  // ganz ohne Internet einsehbar (z.B. Projekt- und Kundendaten unterwegs).
   event.respondWith(
     fetch(event.request).then(response => {
       if (event.request.method === 'GET' && response.status === 200) {
