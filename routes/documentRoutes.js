@@ -5,6 +5,7 @@ const { dbQuery }                    = require('../utils/db');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }                   = require('../utils/companySettings');
 const { generateDocumentPDF }        = require('../utils/pdfGenerator');
+const { buildDatevCsv }               = require('../utils/datevExport');
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -243,6 +244,47 @@ router.get('/invoices', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices:', err.message);
     res.status(500).send('Fehler beim Laden der Rechnungen.');
+  }
+});
+
+// GET: DATEV-Export (Buchungsstapel) für einen Zeitraum herunterladen
+router.get('/invoices/datev-export', requireAdmin, async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'documents', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
+  try {
+    const heute = new Date();
+    const ersterDesMonats = new Date(heute.getFullYear(), heute.getMonth(), 1).toISOString().split('T')[0];
+    const von = (req.query.von || ersterDesMonats).toString();
+    const bis = (req.query.bis || heute.toISOString().split('T')[0]).toString();
+
+    const invoicesRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.customer_number,
+             d.doc_number AS invoice_number
+      FROM documents d
+      LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.doc_type = 'INVOICE'
+        AND date(d.created_at) >= date(?)
+        AND date(d.created_at) <= date(?)
+      ORDER BY d.created_at ASC`, [von, bis]);
+
+    const invoices = invoicesRes.rows || [];
+    if (!invoices.length) {
+      return res.status(404).send('<h1>Keine Rechnungen im gewählten Zeitraum gefunden.</h1><a href="/documents/invoices">← Zurück</a>');
+    }
+
+    const csv = buildDatevCsv(invoices, firma, { von, bis });
+    const dateiname = `EXTF_Buchungsstapel_${von.replace(/-/g, '')}_${bis.replace(/-/g, '')}.csv`;
+
+    // DATEV erwartet die Datei in Windows-1252/ISO-8859-1 (nicht UTF-8)
+    const buffer = Buffer.from(csv, 'latin1');
+    res.setHeader('Content-Type', 'text/csv; charset=windows-1252');
+    res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('Fehler bei GET /documents/invoices/datev-export:', err.message);
+    res.status(500).send('Fehler beim Erstellen des DATEV-Exports.');
   }
 });
 

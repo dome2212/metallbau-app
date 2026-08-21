@@ -232,6 +232,20 @@ router.post('/panel/pdf', requireAdmin, async (req, res) => {
   }
 });
 
+// ── POST: DATEV-Export ────────────────────────────────────────────────────────
+router.post('/panel/datev', requireAdmin, async (req, res) => {
+  try {
+    await saveFields(req.body, [
+      'datev_berater_nr','datev_mandanten_nr','datev_skr','datev_sachkontenlaenge',
+      'datev_erloeskonto_19','datev_erloeskonto_7','datev_erloeskonto_0',
+      'datev_debitoren_basis','datev_wj_beginn'
+    ]);
+    res.redirect('/admin/panel?tab=datev&saved=1');
+  } catch (err) {
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
 // ── POST: Arbeitszeit ─────────────────────────────────────────────────────────
 router.post('/panel/worktime', requireAdmin, async (req, res) => {
   try {

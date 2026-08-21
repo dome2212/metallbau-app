@@ -95,6 +95,7 @@
     <form action="/customers/add" method="POST" class="space-y-3">
       <input type="text" name="company_name" placeholder="Firmenname" class="input">
       <input type="text" name="contact_person" placeholder="Ansprechpartner" class="input">
+      <input type="text" name="customer_number" placeholder="Kundennummer (DATEV-Debitor, optional)" class="input">
       <input type="text" name="phone" placeholder="Telefonnummer" class="input">
       <input type="email" name="email" placeholder="E-Mail" class="input">
       <input type="text" name="street" placeholder="Straße & Hausnummer" class="input">
@@ -121,6 +122,7 @@
       <input type="hidden" name="id" id="edit_id">
       <input type="text" name="company_name" id="edit_company_name" placeholder="Firmenname" class="input">
       <input type="text" name="contact_person" id="edit_contact_person" placeholder="Ansprechpartner" class="input">
+      <input type="text" name="customer_number" id="edit_customer_number" placeholder="Kundennummer (DATEV-Debitor, optional)" class="input">
       <input type="text" name="phone" id="edit_phone" placeholder="Telefonnummer" class="input">
       <input type="email" name="email" id="edit_email" placeholder="E-Mail" class="input">
       <input type="text" name="street" id="edit_street" placeholder="Straße & Hausnummer" class="input">
@@ -147,6 +149,7 @@
     document.getElementById('edit_id').value             = customer.id;
     document.getElementById('edit_company_name').value   = customer.company_name   || '';
     document.getElementById('edit_contact_person').value = customer.contact_person || '';
+    document.getElementById('edit_customer_number').value = customer.customer_number || '';
     document.getElementById('edit_phone').value          = customer.phone          || '';
     document.getElementById('edit_email').value          = customer.email          || '';
     document.getElementById('edit_street').value         = customer.street         || '';

@@ -77,6 +77,17 @@ const DEFAULTS = {
   date_format:         'de-DE',    // Datumsformat (Locale)
   timezone:            'Europe/Berlin',
 
+  // ── DATEV-Export ───────────────────────────────────────────────
+  datev_berater_nr:    '',         // DATEV-Beraternummer (1001–9999999)
+  datev_mandanten_nr:  '',         // DATEV-Mandantennummer (1–99999)
+  datev_skr:           'SKR03',    // Kontenrahmen: SKR03 oder SKR04
+  datev_sachkontenlaenge: '4',     // Länge der Sachkonten (meist 4)
+  datev_erloeskonto_19:  '',       // Erlöskonto 19% MwSt. (SKR03: 8400, SKR04: 4400)
+  datev_erloeskonto_7:   '',       // Erlöskonto 7% MwSt. (SKR03: 8300, SKR04: 4300)
+  datev_erloeskonto_0:   '',       // Erlöskonto 0% MwSt. (steuerfrei)
+  datev_debitoren_basis: '10000',  // Basis-Kontonummer für Debitoren (+ Kundennummer)
+  datev_wj_beginn:       '0101',   // Wirtschaftsjahr-Beginn TTMM, Standard 1. Januar
+
   // ── Dashboard KPI-Schwellen ────────────────────────────────────
   kpi_overdue_warn:    '3',        // Ab X überfälligen Rechnungen: gelb
   kpi_overdue_danger:  '6',        // Ab X überfälligen Rechnungen: rot

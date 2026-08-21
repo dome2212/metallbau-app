@@ -35,11 +35,11 @@ router.get('/', async (req, res) => {
 // KUNDE ANLEGEN
 // ==========================================
 router.post('/add', async (req, res) => {
-  const { company_name, contact_person, email, phone, street, zip, city } = req.body;
+  const { company_name, contact_person, email, phone, street, zip, city, customer_number } = req.body;
   try {
     await dbQuery(
-      `INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null]
+      `INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city, customer_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, customer_number || null]
     );
     res.redirect('/customers');
   } catch (err) {
@@ -51,11 +51,11 @@ router.post('/add', async (req, res) => {
 // KUNDE BEARBEITEN
 // ==========================================
 router.post('/edit', async (req, res) => {
-  const { id, company_name, contact_person, email, phone, street, zip, city } = req.body;
+  const { id, company_name, contact_person, email, phone, street, zip, city, customer_number } = req.body;
   try {
     await dbQuery(
-      `UPDATE customers SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ? WHERE id = ?`,
-      [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, id]
+      `UPDATE customers SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?, customer_number = ? WHERE id = ?`,
+      [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, customer_number || null, id]
     );
     res.redirect('/customers');
   } catch (err) {

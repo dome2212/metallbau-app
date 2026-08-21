@@ -53,9 +53,13 @@ if (process.env.DATABASE_URL) {
       street TEXT,
       zip TEXT,
       city TEXT,
+      customer_number TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌ Fehler customers:", err.message); });
+  `, (err) => {
+    if (err) console.error("❌ Fehler customers:", err.message);
+    else db.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_number TEXT`, () => {});
+  });
 
   db.query(`
     CREATE TABLE IF NOT EXISTS time_logs (
@@ -510,9 +514,11 @@ if (process.env.DATABASE_URL) {
           street TEXT,
           zip TEXT,
           city TEXT,
+          customer_number TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+      db.run(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_number TEXT`, () => {});
 
       db.run(`
         CREATE TABLE IF NOT EXISTS time_logs (
