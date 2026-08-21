@@ -48,7 +48,7 @@
               <span><%= bal.used %>/<%= bal.allowance %></span>
             </div>
             <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
-              <form action="/admin/users/set-vacation-allowance" method="POST" class="flex items-center gap-1.5">
+              <form action="/vacations/set-allowance" method="POST" class="flex items-center gap-1.5">
                 <input type="hidden" name="user_id" value="<%= u.id %>">
                 <input type="number" name="vacation_allowance" value="<%= bal.allowance %>" min="0" max="365"
                   class="input text-xs py-1" style="width:4.5rem">
