@@ -657,13 +657,52 @@
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📸 Baustellen-Abschlussfotos</h2>
 
         <!-- Upload-Formular für Fotos -->
-        <form action="/projects/<%= project.id %>/photos/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
+        <form id="photoUploadForm" action="/projects/<%= project.id %>/photos/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
           <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Fertiges Baustellenfoto hochladen (JPG, PNG)</label>
-          <input type="file" name="photo" accept="image/*" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+
+          <div class="flex gap-2">
+            <label class="flex-1 text-center text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition">
+              📷 Kamera
+              <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleProjectPhotoPick(this)">
+            </label>
+            <label class="flex-1 text-center text-xs font-semibold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg py-2 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition">
+              🖼️ Galerie
+              <input type="file" accept="image/*" class="hidden" onchange="handleProjectPhotoPick(this)">
+            </label>
+          </div>
+
+          <!-- Verstecktes Feld, das tatsächlich mit dem Formular abgeschickt wird -->
+          <input type="file" name="photo" id="photoFormInput" accept="image/*" class="hidden">
+          <p id="photoFileName" class="text-xs text-slate-500 dark:text-slate-400 italic"></p>
+
           <input type="text" name="caption" placeholder="Beschriftung / Kommentar (optional)"
             class="w-full text-xs border border-slate-300 dark:border-slate-500 dark:bg-slate-600 dark:text-gray-100 rounded px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
           <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Foto hochladen</button>
         </form>
+
+        <script>
+          function handleProjectPhotoPick(input) {
+            const formInput = document.getElementById('photoFormInput');
+            const nameLabel = document.getElementById('photoFileName');
+            if (input.files && input.files[0]) {
+              const dt = new DataTransfer();
+              dt.items.add(input.files[0]);
+              formInput.files = dt.files;
+              nameLabel.textContent = '✅ ' + input.files[0].name;
+            }
+          }
+          (function () {
+            const form = document.getElementById('photoUploadForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+              const formInput = document.getElementById('photoFormInput');
+              if (!formInput.files || formInput.files.length === 0) {
+                e.preventDefault();
+                alert('Bitte zuerst ein Foto über „Kamera“ oder „Galerie“ auswählen.');
+              }
+            });
+          })();
+        </script>
 
         <!-- Galerie der hochgeladenen Fotos mit X-Löschbutton -->
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
