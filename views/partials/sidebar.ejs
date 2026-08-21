@@ -1,5 +1,5 @@
-<!-- ── Mobile Top-Bar ──────────────────────────────────────────────────── -->
-<div class="md:hidden fixed top-0 left-0 right-0 z-30 h-14 flex items-center justify-between px-4 shadow-md"
+<!-- ── Top-Bar (immer sichtbar, auch am Desktop) ─────────────────────────── -->
+<div class="fixed top-0 left-0 right-0 z-30 h-14 flex items-center justify-between px-4 shadow-md"
      style="background:var(--sidebar-bg)">
   <button onclick="toggleSidebar()" class="flex items-center gap-2 text-slate-300 hover:text-white transition text-sm font-medium">
     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -17,14 +17,14 @@
 
 <!-- ── Backdrop ───────────────────────────────────────────────────────── -->
 <div id="sidebar-backdrop" onclick="toggleSidebar()"
-     class="fixed inset-0 bg-black/60 z-40 hidden md:hidden backdrop-blur-sm"></div>
+     class="fixed inset-0 bg-black/60 z-40 hidden backdrop-blur-sm"></div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
      SIDEBAR
      ══════════════════════════════════════════════════════════════════════ -->
 <aside id="sidebar"
   class="fixed inset-y-0 left-0 z-50 w-72 h-full max-h-screen flex flex-col
-         transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out
+         transform -translate-x-full transition-transform duration-300 ease-in-out
          overflow-y-auto"
   style="background:var(--sidebar-bg)">
 
@@ -41,7 +41,7 @@
         <span class="font-bold text-base text-white truncate"><%= _f.nameKurz || 'Metallbau' %></span>
       </div>
     <% } %>
-    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10">
+    <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10">
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
       </svg>
@@ -254,8 +254,8 @@
   </div>
 </aside>
 
-<!-- Mobile Spacer -->
-<div class="md:hidden h-14"></div>
+<!-- Spacer für die fixierte Top-Bar -->
+<div class="h-14"></div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
      GLOBALE SUCHE
