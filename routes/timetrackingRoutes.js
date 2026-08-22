@@ -95,6 +95,12 @@ router.get('/', async (req, res) => {
     const geoProjects = stampGeofence ? allProjects.filter(p => p.site_lat && p.site_lng) : [];
     const activeProjectId    = isStampedIn && lastLog ? (lastLog.project_id    || null) : null;
     const activeProjectTitle = isStampedIn && lastLog ? (lastLog.project_title || null) : null;
+    // Wenn gerade NICHT eingestempelt: zuletzt genutztes Projekt vorschlagen,
+    // damit man beim erneuten Einstempeln nicht jedes Mal neu auswählen muss.
+    const defaultProjectId = isStampedIn ? activeProjectId : (lastLog ? (lastLog.project_id || null) : null);
+    const lastStampEpoch = lastLog && lastLog.local_timestamp
+      ? new Date(lastLog.local_timestamp.replace(' ', 'T')).getTime()
+      : null;
 
     const formattedLogs = todayLogs.map(log => ({
       ...log,
@@ -110,6 +116,8 @@ router.get('/', async (req, res) => {
       geoProjects,
       activeProjectId,
       activeProjectTitle,
+      defaultProjectId,
+      lastStampEpoch,
       stampSettings: {
         allowProject:  stampAllowProject,
         allowNote:     firma.stamp_allow_note    !== 'false',

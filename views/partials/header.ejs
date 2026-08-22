@@ -103,6 +103,16 @@
       border: none;
     }
     .btn:active { transform: scale(.97); }
+    /* Größere Tippflächen auf Mobile (v.a. kleine Icon-Buttons in Tabellen/Listen,
+       wichtig auf der Baustelle / mit Handschuhen) */
+    @media (max-width: 767px) {
+      .btn { min-height: 44px; }
+      table .btn, td .btn, .card-clean table button.btn {
+        min-height: 40px;
+        min-width: 40px;
+        padding: .5rem .75rem;
+      }
+    }
     .btn-primary {
       background: var(--primary);
       color: #fff;
