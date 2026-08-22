@@ -101,8 +101,13 @@
   }
 
   // ── Formulare abfangen ──────────────────────────────────────────────────────
-  function serializeForm(form) {
-    const fd = new FormData(form);
+  function serializeForm(form, submitter) {
+    // WICHTIG: Bei Buttons wie <button type="submit" name="type" value="IN">
+    // wird der Name/Wert nur mitgeschickt, wenn genau dieser Button das Formular
+    // ausgelöst hat. new FormData(form) allein "weiß" das nicht – deshalb muss
+    // der auslösende Button (submitter) explizit mitgegeben werden, sonst fehlt
+    // z.B. beim Stempeln das Feld "type" (IN/OUT) komplett.
+    const fd = submitter ? new FormData(form, submitter) : new FormData(form);
     const obj = {};
     for (const [k, v] of fd.entries()) {
       if (obj[k] === undefined) {
@@ -129,12 +134,12 @@
     const form = e.target;
     if (form.dataset.offline !== 'true') return;
 
-    // Immer abfangen und selbst per fetch senden – „navigator.onLine"
+    // Immer abfangen und selbst per fetch senden – „navigator.onLine“
     // erkennt nur die Netzwerkschnittstelle, nicht ob wirklich eine Verbindung
-    // zum Server besteht (typisch auf der Baustelle: WLAN zeigt „verbunden",
+    // zum Server besteht (typisch auf der Baustelle: WLAN zeigt „verbunden“,
     // kommt aber nichts durch). Nur so wird die Eingabe in JEDEM Fall gesichert.
     e.preventDefault();
-    const data = serializeForm(form);
+    const data = serializeForm(form, e.submitter);
     const url = form.action || window.location.href;
     const method = (form.method || 'POST').toUpperCase();
     const label = form.dataset.offlineLabel || 'Eintrag';
