@@ -246,7 +246,8 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
     let queryParams = [];
     if (user_id) { query += ` AND time_logs.user_id = ?`; queryParams.push(user_id); }
     if (date)    { query += ` AND ${dateFilterPdf} = ?`;  queryParams.push(date); }
-    query += ` ORDER BY time_logs.timestamp DESC`;
+    // Aufsteigend sortieren, damit IN/OUT pro Mitarbeiter korrekt zu Sitzungen gepaart werden können.
+    query += ` ORDER BY time_logs.user_id ASC, time_logs.timestamp ASC`;
 
     const result = await dbQuery(query, queryParams);
     const logs   = (result.rows || []).map(log => ({ ...log, timestamp: log.local_timestamp || log.timestamp }));
@@ -255,6 +256,23 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
     if (user_id) {
       const userRes = await dbQuery('SELECT username FROM users WHERE id = ?', [user_id]);
       if (userRes.rows && userRes.rows.length > 0) employeeName = userRes.rows[0].username;
+    }
+
+    // IN- und OUT-Einträge je Mitarbeiter zu Sitzungen paaren (Kommen/Gehen nebeneinander statt untereinander).
+    const sessionsByUser = new Map();
+    for (const log of logs) {
+      if (!sessionsByUser.has(log.username)) sessionsByUser.set(log.username, { sessions: [], pendingIn: null });
+      const bucket = sessionsByUser.get(log.username);
+      if (log.type === 'IN') {
+        if (bucket.pendingIn) bucket.sessions.push({ in: bucket.pendingIn, out: null });
+        bucket.pendingIn = log;
+      } else if (log.type === 'OUT') {
+        bucket.sessions.push({ in: bucket.pendingIn, out: log });
+        bucket.pendingIn = null;
+      }
+    }
+    for (const bucket of sessionsByUser.values()) {
+      if (bucket.pendingIn) bucket.sessions.push({ in: bucket.pendingIn, out: null });
     }
 
     if (!PDFKit) return res.status(500).send('PDF-Generator nicht geladen.');
@@ -270,27 +288,58 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
     doc.fontSize(9).text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
     doc.moveDown(1.5);
 
-    doc.fontSize(10).font('Helvetica-Bold');
-    let startY = doc.y;
-    doc.text('Datum / Uhrzeit', 50, startY, { width: 130 });
-    doc.text('Aktion',          185, startY, { width: 150 });
-    doc.text('Notiz',           345, startY, { width: 200 });
-    doc.moveDown(0.5);
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.8);
+    const col = { date: 50, in: 145, out: 220, dur: 295, note: 370 };
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('de-DE') : '–';
 
-    doc.font('Helvetica').fontSize(9);
-    if (logs.length > 0) {
-      logs.forEach(log => {
-        if (doc.y > 750) doc.addPage();
-        const logDate  = new Date(log.timestamp).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
-        const rowY     = doc.y;
-        doc.text(logDate, 50, rowY, { width: 130, lineBreak: false });
-        doc.text(log.type === 'IN' ? 'Eingestempelt (IN)' : 'Ausgestempelt (OUT)', 185, rowY, { width: 150, lineBreak: false });
-        doc.text(log.note || '-', 345, rowY, { width: 200 });
+    const drawTableHeader = () => {
+      doc.fontSize(10).font('Helvetica-Bold');
+      const y = doc.y;
+      doc.text('Datum',   col.date, y, { width: 90 });
+      doc.text('Kommen',  col.in,   y, { width: 65 });
+      doc.text('Gehen',   col.out,  y, { width: 65 });
+      doc.text('Dauer',   col.dur,  y, { width: 70 });
+      doc.text('Notiz',   col.note, y, { width: 180 });
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.5);
+      doc.font('Helvetica').fontSize(9);
+    };
+
+    const usernames = Array.from(sessionsByUser.keys());
+    let totalSessions = 0;
+
+    usernames.forEach((uname, uIdx) => {
+      const { sessions } = sessionsByUser.get(uname);
+      if (sessions.length === 0) return;
+      totalSessions += sessions.length;
+
+      if (usernames.length > 1) {
+        if (doc.y > 700) doc.addPage();
+        if (uIdx > 0) doc.moveDown(1);
+        doc.fontSize(11).font('Helvetica-Bold').text(uname, 50, doc.y);
+        doc.moveDown(0.4);
+      }
+      drawTableHeader();
+
+      sessions.forEach(sess => {
+        if (doc.y > 750) { doc.addPage(); drawTableHeader(); }
+        const rowY  = doc.y;
+        const inD   = sess.in  ? sess.in.timestamp  : null;
+        const outD  = sess.out ? sess.out.timestamp : null;
+        const durMs = inD && outD ? (new Date(outD) - new Date(inD)) : 0;
+        const dur   = durMs > 0 ? `${Math.floor(durMs/3600000)}h ${Math.floor((durMs%3600000)/60000)}min` : (inD && !outD ? 'läuft…' : '–');
+        const note  = (sess.in && sess.in.note) || (sess.out && sess.out.note) || '-';
+        doc.text(fmtDate(inD || outD),      col.date, rowY, { width: 90,  lineBreak: false });
+        doc.text(fmtTime(inD),              col.in,   rowY, { width: 65,  lineBreak: false });
+        doc.text(fmtTime(outD),             col.out,  rowY, { width: 65,  lineBreak: false });
+        doc.text(dur,                       col.dur,  rowY, { width: 70,  lineBreak: false });
+        doc.text(note,                      col.note, rowY, { width: 180 });
         doc.moveDown(1.2);
       });
-    } else {
+    });
+
+    if (totalSessions === 0) {
       doc.text('Keine Einträge für diesen Filter gefunden.', 50, doc.y);
     }
     doc.end();
