@@ -77,9 +77,11 @@
           { tab: 'worktime',      label: '☕ Automatischer Pausenabzug' },
           { tab: 'worktime',      label: '🗓️ Feiertags-Region' },
           { tab: 'stampclock',    label: '🕐 Stempeluhr-Verhalten (GPS-Pflicht, Projekt, Notiz, Wechsel)' },
+          { tab: 'stampclock',    label: '⏰ Erinnerung bei vergessenem Ausstempeln' },
           { tab: 'stampclock',    label: '📍 Firmen-Standort (Geo-Fencing)' },
           { tab: 'projects',      label: '🏗️ Auftrags-Einstellungen' },
           { tab: 'security',      label: '🔒 Sicherheits-Einstellungen' },
+          { tab: 'security',      label: '🗑️ Datenaufbewahrung Zeiterfassung (Löschfrist)' },
           { tab: 'dashboard',     label: '📊 Dashboard KPI-Schwellenwerte' },
           { tab: 'dashboard',     label: '👁️ Live-Vorschau' },
           { tab: 'access',        label: '🔐 Schnell-Links' },
@@ -700,6 +702,24 @@
           </div>
         </div>
 
+        <!-- Erinnerung bei vergessenem Ausstempeln -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">⏰ Erinnerung bei vergessenem Ausstempeln</h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Ist ein Mitarbeiter länger als diese Anzahl Stunden am Stück eingestempelt, bekommt er automatisch
+            eine WhatsApp-Erinnerung (sofern WhatsApp-Benachrichtigungen für ihn aktiviert und Telefonnummer +
+            API-Key im Mitarbeiter-Profil hinterlegt sind). Die Prüfung läuft alle 30 Minuten im Hintergrund.
+          </p>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Erinnern nach (Stunden) <span class="text-slate-400 font-normal">(0 = deaktiviert)</span>
+            </label>
+            <input type="number" name="stamp_reminder_hours" value="<%= firma.stamp_reminder_hours || 10 %>"
+              min="0" max="24" step="0.5"
+              class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
         <!-- Firmen-Standort für Geo-Fencing -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
           <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📍 Firmen-Standort (Geo-Fencing)</h2>
@@ -829,6 +849,24 @@
                 class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
             </div>
 
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🗑️ Datenaufbewahrung (Zeiterfassung)</h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Zeiterfassungs-Einträge (inkl. GPS-Standort beim Stempeln) werden nach Ablauf dieser Frist automatisch
+            und unwiderruflich gelöscht. Rechnungen, Angebote und Kundendaten sind davon <strong>nicht</strong>
+            betroffen (steuerlich aufbewahrungspflichtig). Bitte die Frist ggf. mit eurem Steuerberater abstimmen.
+          </p>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Aufbewahrungsfrist Zeiterfassung (Jahre) <span class="text-slate-400 font-normal">(0 = automatische Löschung deaktiviert)</span>
+            </label>
+            <input type="number" name="data_retention_years" value="<%= firma.data_retention_years || 10 %>"
+              min="0" max="30"
+              class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-slate-400 mt-1">Die Prüfung läuft einmal täglich um 01:00 Uhr, kurz nach dem automatischen Backup.</p>
           </div>
         </div>
 

@@ -99,6 +99,8 @@ const colorsRoutes              = require('./routes/colorsRoutes');
 const pushRoutes                = require('./routes/pushRoutes');
 const taskRoutes                = require('./routes/taskRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
+const { startRetentionCron } = require('./utils/dataRetention');
+const { startStampReminderCron } = require('./utils/stampReminder');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -868,4 +870,8 @@ app.listen(PORT, () => {
   console.log(`==================================================\n`);
   // Automatisches Datenbank-Backup täglich um Mitternacht
   startBackupCron();
+  // Automatische Löschung alter Zeiterfassungs-Einträge nach Aufbewahrungsfrist (täglich 01:00 Uhr)
+  startRetentionCron();
+  // Erinnerung bei vergessenem Ausstempeln (alle 30 Minuten)
+  startStampReminderCron();
 });

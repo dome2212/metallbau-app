@@ -71,6 +71,7 @@ const DEFAULTS = {
   session_timeout_minutes: '480',  // Session-Timeout in Minuten (0 = nie)
   max_login_attempts:  '10',       // Max. Fehlversuche vor Sperrung
   min_password_length: '6',        // Mindest-Passwortlänge
+  data_retention_years: '10',      // Aufbewahrungsfrist Zeiterfassung in Jahren (0 = keine automat. Löschung)
 
   // ── Lokalisierung ──────────────────────────────────────────────
   currency_symbol:     '€',        // Währungszeichen
@@ -96,6 +97,9 @@ const DEFAULTS = {
 
   // ── Sidebar & App ──────────────────────────────────────────────
   sidebar_footer_text: '@Domenic Rosic', // Fußzeile der Sidebar
+
+  // ── Stempeluhr: Erinnerung bei vergessenem Ausstempeln ──────────
+  stamp_reminder_hours: '10',     // WhatsApp-Erinnerung nach X Std. eingestempelt (0 = deaktiviert)
 
   // ── Lager-Tabs ─────────────────────────────────────────────────
   // JSON-Array: [{"key":"aluminium","label":"Aluminium","icon":"🔷","color":"blue"}]

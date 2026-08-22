@@ -272,7 +272,7 @@ router.post('/panel/projects', requireAdmin, async (req, res) => {
 // ── POST: Sicherheit ──────────────────────────────────────────────────────────
 router.post('/panel/security', requireAdmin, async (req, res) => {
   try {
-    await saveFields(req.body, ['session_timeout_minutes','max_login_attempts','min_password_length']);
+    await saveFields(req.body, ['session_timeout_minutes','max_login_attempts','min_password_length','data_retention_years']);
     res.redirect('/admin/panel?tab=security&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -302,7 +302,7 @@ router.post('/panel/dashboard', requireAdmin, async (req, res) => {
 // ── POST: Stempeluhr ─────────────────────────────────────────────────────────
 router.post('/panel/stampclock', requireAdmin, async (req, res) => {
   try {
-    await saveFields(req.body, ['firm_lat','firm_lng','firm_radius']);
+    await saveFields(req.body, ['firm_lat','firm_lng','firm_radius','stamp_reminder_hours']);
     const toggles = ['stamp_require_gps','stamp_allow_project','stamp_geofence_enabled',
                      'stamp_allow_note','stamp_allow_switch','stamp_admin_no_gps'];
     for (const key of toggles) {
