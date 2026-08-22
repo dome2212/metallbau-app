@@ -94,6 +94,7 @@ const companySettingsRoutes    = require('./routes/companySettingsRoutes');
 const reportsRoutes            = require('./routes/reportsRoutes');
 const tickerRoutes             = require('./routes/tickerRoutes');
 const lagerRoutes              = require('./routes/lagerRoutes');
+const schnittlisteRoutes        = require('./routes/schnittlisteRoutes');
 const colorsRoutes              = require('./routes/colorsRoutes');
 const pushRoutes                = require('./routes/pushRoutes');
 const taskRoutes                = require('./routes/taskRoutes');
@@ -223,6 +224,9 @@ app.use('/ticker',  tickerRoutes);
 
 // Lagerliste (Baustahl & Edelstahl)
 app.use('/lager', lagerRoutes);
+
+// Schnittliste (Baustahl/Edelstahl-Zuschnitt: Upload, PDF-Export, Bild-Erkennung)
+app.use('/schnittliste', schnittlisteRoutes);
 app.use('/farben', colorsRoutes);
 
 // Push-Benachrichtigungen (Subscription verwalten)
