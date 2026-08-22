@@ -219,6 +219,9 @@
       const remaining = await getQueue();
       if (uploaded > 0 && remaining.length === 0) {
         toast('✅ Alle offline gespeicherten Einträge wurden hochgeladen.', 'success');
+        // Seite neu laden, damit z.B. der Stempeluhr-Status (Ein-/Ausgestempelt)
+        // wieder den aktuellen Server-Stand zeigt und nicht veraltet stehen bleibt.
+        setTimeout(() => window.location.reload(), 1400);
       }
     } finally {
       syncing = false;
