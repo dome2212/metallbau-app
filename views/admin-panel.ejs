@@ -23,7 +23,7 @@
       <% } %>
 
       <!-- Tab-Navigation -->
-      <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-6 overflow-x-auto">
+      <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-3 overflow-x-auto">
         <% const tabs = [
             { id: 'design',   label: '🎨 Design' },
             { id: 'sidebar',  label: '📌 Sidebar' },
@@ -40,7 +40,7 @@
             { id: 'info',     label: 'ℹ️ System' },
           ]; %>
         <% for (const t of tabs) { %>
-          <a href="/admin/panel?tab=<%= t.id %>"
+          <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
             class="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition
               <%= tab === t.id
                 ? 'bg-blue-600 text-white shadow'
@@ -49,6 +49,79 @@
           </a>
         <% } %>
       </div>
+
+      <!-- Schnellsuche über alle Einstellungen -->
+      <div class="relative mb-6" id="admin-search-wrap">
+        <input type="text" id="admin-search-input" autocomplete="off"
+          placeholder="🔍 Einstellung suchen (z.B. „GPS“, „Backup“, „Pausenabzug“)…"
+          class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+        <div id="admin-search-results"
+          class="hidden absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg shadow-lg max-h-72 overflow-y-auto"></div>
+      </div>
+      <script>
+        // Statische Liste aller Einstellungs-Abschnitte je Tab, damit man nicht
+        // erst wissen muss, unter welchem Tab eine Einstellung versteckt ist.
+        const ADMIN_SEARCH_INDEX = [
+          { tab: 'design',        label: '🎨 Farbpalette der App' },
+          { tab: 'design',        label: '⚡ Schnell-Vorlagen' },
+          { tab: 'sidebar',       label: '📌 Sidebar anpassen' },
+          { tab: 'pdf',           label: '🔢 Nummern-Schema' },
+          { tab: 'pdf',           label: '💰 Standard-Werte' },
+          { tab: 'pdf',           label: '🎨 PDF-Erscheinungsbild' },
+          { tab: 'pdf',           label: '✉️ Einleitungstexte' },
+          { tab: 'pdf',           label: '📃 Fußzeile & AGB' },
+          { tab: 'datev',         label: '🔑 Berater & Mandant' },
+          { tab: 'datev',         label: '📚 Kontenrahmen' },
+          { tab: 'datev',         label: '💶 Erlös- & Debitorenkonten' },
+          { tab: 'worktime',      label: '⏱️ Soll-Stunden & Urlaub' },
+          { tab: 'worktime',      label: '☕ Automatischer Pausenabzug' },
+          { tab: 'worktime',      label: '🗓️ Feiertags-Region' },
+          { tab: 'stampclock',    label: '🕐 Stempeluhr-Verhalten (GPS-Pflicht, Projekt, Notiz, Wechsel)' },
+          { tab: 'stampclock',    label: '📍 Firmen-Standort (Geo-Fencing)' },
+          { tab: 'projects',      label: '🏗️ Auftrags-Einstellungen' },
+          { tab: 'security',      label: '🔒 Sicherheits-Einstellungen' },
+          { tab: 'dashboard',     label: '📊 Dashboard KPI-Schwellenwerte' },
+          { tab: 'dashboard',     label: '👁️ Live-Vorschau' },
+          { tab: 'access',        label: '🔐 Schnell-Links' },
+          { tab: 'access',        label: '📋 Berechtigungs-Matrix' },
+          { tab: 'info',          label: 'ℹ️ System-Information' },
+          { tab: 'info',          label: '🗄️ Datenbank-Backup' },
+          { tab: 'info',          label: '🔗 Schnell-Links' },
+          { tab: 'lager',         label: '🏭 Eigene Lagerkategorien' },
+          { tab: 'textbausteine', label: '📎 Textbausteine für Angebot & Auftrag' },
+        ];
+        const TAB_LABELS = <%- JSON.stringify(tabs.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {})) %>;
+
+        (function () {
+          const input = document.getElementById('admin-search-input');
+          const results = document.getElementById('admin-search-results');
+
+          function render(query) {
+            const q = query.trim().toLowerCase();
+            if (!q) { results.classList.add('hidden'); results.innerHTML = ''; return; }
+            const matches = ADMIN_SEARCH_INDEX.filter(item =>
+              item.label.toLowerCase().includes(q) || (TAB_LABELS[item.tab] || '').toLowerCase().includes(q)
+            );
+            if (matches.length === 0) {
+              results.innerHTML = '<div class="px-4 py-3 text-sm text-slate-400">Keine Treffer.</div>';
+            } else {
+              results.innerHTML = matches.map(item => `
+                <a href="/admin/panel?tab=${item.tab}" class="block px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 border-b dark:border-slate-700 last:border-0">
+                  <span class="text-slate-800 dark:text-gray-100">${item.label}</span>
+                  <span class="block text-xs text-slate-400">in ${TAB_LABELS[item.tab] || item.tab}</span>
+                </a>
+              `).join('');
+            }
+            results.classList.remove('hidden');
+          }
+
+          input.addEventListener('input', () => render(input.value));
+          input.addEventListener('focus', () => { if (input.value.trim()) render(input.value); });
+          document.addEventListener('click', (e) => {
+            if (!document.getElementById('admin-search-wrap').contains(e.target)) results.classList.add('hidden');
+          });
+        })();
+      </script>
 
       <!-- ══════════════════════════════════════════════════════════════════ -->
       <!-- TAB: FARBEN & DESIGN                                               -->
@@ -1704,5 +1777,35 @@
         }, mins * 60 * 1000);
       }, { passive: true })
     );
+  })();
+
+  // ── Warnung bei ungespeicherten Änderungen ──────────────────────────────
+  // Da jeder Tab ein eigenes <form> ist, gehen Änderungen sonst kommentarlos
+  // verloren, wenn man auf einen anderen Tab klickt oder die Seite verlässt,
+  // bevor man auf "Speichern" gedrückt hat.
+  (function () {
+    let dirty = false;
+    const forms = document.querySelectorAll('main form');
+    forms.forEach(form => {
+      form.addEventListener('input', () => { dirty = true; });
+      form.addEventListener('change', () => { dirty = true; });
+      // Beim eigentlichen Absenden (Speichern) zählt es nicht mehr als "offen"
+      form.addEventListener('submit', () => { dirty = false; });
+    });
+
+    window.addEventListener('beforeunload', function (e) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    // Klick auf einen anderen Tab oder "← Dashboard": vorher warnen
+    document.querySelectorAll('a[data-tab-id], header a[href="/"]').forEach(link => {
+      link.addEventListener('click', function (e) {
+        if (!dirty) return;
+        const ok = confirm('Du hast ungespeicherte Änderungen. Diese gehen verloren, wenn du jetzt weiter klickst. Trotzdem fortfahren?');
+        if (!ok) e.preventDefault();
+      });
+    });
   })();
 </script>
