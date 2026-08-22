@@ -148,24 +148,40 @@
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: toUrlEncoded(data),
-        credentials: 'same-origin',
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+      let res;
+      try {
+        res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: toUrlEncoded(data),
+          credentials: 'same-origin',
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
-      if (res.ok || res.status < 400) {
+      if (res.ok) {
         // Erfolgreich gesendet → wie beim normalen Formular weiterleiten
         window.location.href = res.url || form.dataset.offlineRedirect || window.location.href;
         return;
       }
-      throw new Error('Serverfehler ' + res.status);
+
+      if (res.status >= 500) {
+        // Serverfehler → kann an einem vorübergehenden Problem liegen, später erneut versuchen
+        throw new Error('Serverfehler ' + res.status);
+      }
+
+      // 4xx: Der Server hat die Anfrage inhaltlich abgelehnt (z.B. fehlendes GPS,
+      // zu weit von der Baustelle entfernt). Ein erneuter Versuch würde am selben
+      // Problem scheitern – deshalb NICHT zwischenspeichern, sondern die echte
+      // Fehlermeldung sofort anzeigen, damit der Nutzer weiß, woran es liegt.
+      let errText = '';
+      try { errText = await res.text(); } catch (_) {}
+      toast('❌ ' + (errText && errText.length < 200 ? errText : ('Fehler ' + res.status)), 'error');
     } catch (err) {
-      // Fehlgeschlagen (Timeout, kein echtes Netz trotz "online", Serverfehler)
-      // → nichts verloren gehen lassen, sondern in die Warteschlange legen
+      // Echter Netzwerkfehler (Timeout, keine Verbindung) → nichts verloren gehen
+      // lassen, sondern in die Warteschlange legen
       await queueAndNotify(form, url, method, data, label);
     }
   }
@@ -199,6 +215,7 @@
       if (queue.length === 0) return; // nichts zu tun → keine Meldung anzeigen
 
       let uploaded = 0;
+      let rejected = 0;
       for (const entry of queue) {
         try {
           const res = await fetch(entry.url, {
@@ -206,10 +223,17 @@
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: toUrlEncoded(entry.body)
           });
-          if (res.ok || res.status < 500) {
+          if (res.ok) {
             await removeFromQueue(entry.id);
             uploaded++;
+          } else if (res.status >= 400 && res.status < 500) {
+            // Server lehnt die gespeicherte Anfrage inhaltlich ab (z.B. GPS/Standort
+            // ungültig). Erneutes Senden würde immer wieder scheitern -> verwerfen,
+            // statt für immer als "wird hochgeladen" hängen zu bleiben.
+            await removeFromQueue(entry.id);
+            rejected++;
           }
+          // bei 5xx: in der Warteschlange belassen und später erneut versuchen
         } catch (_) {
           // immer noch offline → Rest der Queue abbrechen, später erneut versuchen
           break;
@@ -217,11 +241,14 @@
       }
       await refreshBadge();
       const remaining = await getQueue();
-      if (uploaded > 0 && remaining.length === 0) {
+      if (uploaded > 0 && remaining.length === 0 && rejected === 0) {
         toast('✅ Alle offline gespeicherten Einträge wurden hochgeladen.', 'success');
         // Seite neu laden, damit z.B. der Stempeluhr-Status (Ein-/Ausgestempelt)
         // wieder den aktuellen Server-Stand zeigt und nicht veraltet stehen bleibt.
         setTimeout(() => window.location.reload(), 1400);
+      } else if (rejected > 0) {
+        toast('⚠️ ' + rejected + ' gespeicherter Eintrag konnte nicht übernommen werden (z.B. Standort/GPS abgelehnt). Bitte die Aktion erneut durchführen.', 'warn');
+        if (uploaded > 0) setTimeout(() => window.location.reload(), 1800);
       }
     } finally {
       syncing = false;
