@@ -52,28 +52,30 @@
 
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-8">
 
-      <!-- ========== SCHNELL-NAVIGATION ========== -->
+      <!-- ========== SCHNELL-NAVIGATION (Tabs) ========== -->
       <nav class="sticky top-16 md:top-2 z-20 -mx-1 px-1">
         <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur border dark:border-slate-700 shadow-sm rounded-xl p-2 overflow-x-auto">
           <div class="flex gap-1.5 min-w-max">
-            <a href="#sec-uebersicht" class="nav-chip">📋 Übersicht</a>
-            <a href="#sec-aufmass" class="nav-chip">📐 Aufmaß</a>
-            <a href="#sec-aufgaben" class="nav-chip">🛠️ Aufgaben</a>
-            <a href="#sec-notizen" class="nav-chip">📝 Notizen</a>
-            <a href="#sec-fotos" class="nav-chip">📸 Fotos</a>
-            <a href="#sec-termine" class="nav-chip">📅 Termine</a>
-            <a href="#sec-material" class="nav-chip">🏗️ Material</a>
-            <a href="#sec-stunden" class="nav-chip">⏱️ Stunden</a>
-            <a href="#sec-abnahme" class="nav-chip">✍️ Abnahme</a>
-            <a href="#sec-status" class="nav-chip">📋 Status</a>
+            <button type="button" class="nav-chip" data-target="sec-uebersicht">📋 Übersicht</button>
+            <button type="button" class="nav-chip" data-target="sec-aufmass">📐 Aufmaß</button>
+            <button type="button" class="nav-chip" data-target="sec-aufgaben">🛠️ Aufgaben</button>
+            <button type="button" class="nav-chip" data-target="sec-notizen">📝 Notizen</button>
+            <button type="button" class="nav-chip" data-target="sec-fotos">📸 Fotos</button>
+            <button type="button" class="nav-chip" data-target="sec-termine">📅 Termine</button>
+            <button type="button" class="nav-chip" data-target="sec-material">🏗️ Material</button>
+            <button type="button" class="nav-chip" data-target="sec-stunden">⏱️ Stunden</button>
+            <button type="button" class="nav-chip" data-target="sec-abnahme">✍️ Abnahme</button>
+            <button type="button" class="nav-chip" data-target="sec-status">📋 Status</button>
           </div>
         </div>
       </nav>
       <style>
-        .nav-chip{padding:0.375rem 0.75rem;border-radius:0.5rem;font-size:0.75rem;font-weight:600;background:#f1f5f9;color:#334155;transition:background .15s,color .15s;display:inline-block;text-decoration:none}
+        .nav-chip{padding:0.375rem 0.75rem;border-radius:0.5rem;font-size:0.75rem;font-weight:600;background:#f1f5f9;color:#334155;transition:background .15s,color .15s;display:inline-block;text-decoration:none;border:1px solid transparent;cursor:pointer}
         .nav-chip:hover{background:#dbeafe;color:#1d4ed8}
+        .nav-chip.active{background:#2563eb;color:#fff}
         .dark .nav-chip{background:#334155;color:#e2e8f0}
         .dark .nav-chip:hover{background:#475569;color:#fff}
+        .dark .nav-chip.active{background:#2563eb;color:#fff}
         .sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:0.35rem;white-space:nowrap}
         .card-clean{background:#fff;border-radius:0.75rem;box-shadow:0 1px 2px rgb(0 0 0/0.05);border:1px solid #f1f5f9;padding:1rem}
         @media(min-width:768px){.card-clean{padding:1.5rem}}
@@ -83,6 +85,8 @@
         .sec-collapsed .sec-toggle .chev{transform:rotate(-90deg)}
         .sec-collapsed .sec-body{display:none}
         .sec-collapsed .card-clean{padding-top:0.75rem;padding-bottom:0.75rem}
+        /* Tab-Modus: nicht-aktive Abschnitte per JS ausgeblendet (Klasse sec-tab-hidden) */
+        .sec-tab-hidden{display:none !important}
       </style>
 
       <!-- ========== 1 ÜBERSICHT ========== -->
@@ -1152,6 +1156,46 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
     });
   });
+})();
+</script>
+
+<script>
+(function(){
+  // Tab-Modus: nur ein Abschnitt gleichzeitig sichtbar, per Klick auf die Navigations-Chips oben.
+  const TAB_KEY = 'mb-project-active-tab-<%= project.id %>';
+  const chips = document.querySelectorAll('.nav-chip[data-target]');
+  const sections = document.querySelectorAll('section[id^="sec-"]');
+
+  function activate(id){
+    sections.forEach(sec => {
+      if (sec.id === id) {
+        sec.classList.remove('sec-tab-hidden');
+        sec.classList.remove('sec-collapsed');
+      } else {
+        sec.classList.add('sec-tab-hidden');
+      }
+    });
+    chips.forEach(chip => chip.classList.toggle('active', chip.dataset.target === id));
+    try { localStorage.setItem(TAB_KEY, id); } catch(e){}
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      activate(chip.dataset.target);
+      const target = document.getElementById(chip.dataset.target);
+      if (target) {
+        const y = target.getBoundingClientRect().top + window.pageYOffset - 140;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    });
+  });
+
+  let initial = 'sec-uebersicht';
+  try {
+    const saved = localStorage.getItem(TAB_KEY);
+    if (saved && document.getElementById(saved)) initial = saved;
+  } catch(e){}
+  activate(initial);
 })();
 </script>
 
