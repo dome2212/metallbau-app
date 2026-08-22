@@ -171,62 +171,106 @@ const ACTIVE_PROJECT_ID = <%- JSON.stringify(typeof activeProjectId !== 'undefin
     <div class="card p-4 md:p-6">
       <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4">Heutige Stempel-Einträge</h3>
       <% if (todayLogs && todayLogs.length > 0) { %>
+      <%
+        // IN- und OUT-Einträge zu Arbeits-Sitzungen paaren, damit
+        // Kommen- und Gehen-Zeit nebeneinander statt untereinander stehen.
+        const isPrivileged = typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF');
+        const shortTime = (raw) => {
+          const s = String(raw || '');
+          const parts = s.split(':');
+          return parts.length >= 2 ? parts[0].slice(-2) + ':' + parts[1] : s;
+        };
+        const sessions = [];
+        let pendingIn = null;
+        todayLogs.forEach(log => {
+          if (log.type === 'IN') {
+            if (pendingIn) sessions.push({ in: pendingIn, out: null });
+            pendingIn = log;
+          } else if (log.type === 'OUT') {
+            sessions.push({ in: pendingIn, out: log });
+            pendingIn = null;
+          }
+        });
+        if (pendingIn) sessions.push({ in: pendingIn, out: null });
+      %>
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[500px]">
+        <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[560px]">
           <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 uppercase text-xs">
             <tr>
-              <th class="p-3">Typ</th>
-              <th class="p-3">Uhrzeit</th>
+              <th class="p-3">🟢 Kommen</th>
+              <th class="p-3">🔴 Gehen</th>
+              <th class="p-3">Dauer</th>
               <th class="p-3">Projekt / Kunde</th>
               <th class="p-3">Notiz</th>
-              <th class="p-3">GPS</th>
-              <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+              <% if (isPrivileged) { %>
               <th class="p-3">Aktion</th>
               <% } %>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-            <% todayLogs.forEach(log => { %>
+            <% sessions.forEach(sess => { %>
+            <% const inLog = sess.in, outLog = sess.out; %>
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-              <td class="p-3 font-semibold">
-                <% if (log.type === 'IN') { %>
-                <span class="text-green-600">IN</span>
+              <td class="p-3">
+                <% if (inLog) { %>
+                <span class="font-semibold text-green-600"><%= shortTime(inLog.display_time || inLog.local_timestamp) %></span> Uhr
                 <% } else { %>
-                <span class="text-red-500">OUT</span>
+                <span class="text-slate-400">–</span>
                 <% } %>
               </td>
               <td class="p-3">
+                <% if (outLog) { %>
+                <span class="font-semibold text-red-500"><%= shortTime(outLog.display_time || outLog.local_timestamp) %></span> Uhr
+                <% } else { %>
+                <span class="badge" style="background:#dcfce7;color:#166534;">läuft…</span>
+                <% } %>
+              </td>
+              <td class="p-3 text-slate-500">
                 <%
-                  const rawTs = log.display_time || String(log.local_timestamp || log.timestamp || '');
-                  const tParts = rawTs.split(':');
-                  const dispTime = tParts.length >= 2 ? tParts[0].slice(-2) + ':' + tParts[1] : rawTs;
+                  let dauerStr = '–';
+                  if (inLog && inLog.local_timestamp) {
+                    const start = new Date(String(inLog.local_timestamp).replace(' ', 'T')).getTime();
+                    const end = outLog && outLog.local_timestamp
+                      ? new Date(String(outLog.local_timestamp).replace(' ', 'T')).getTime()
+                      : Date.now();
+                    if (end > start) {
+                      const mins = Math.round((end - start) / 60000);
+                      dauerStr = Math.floor(mins / 60) + 'h ' + String(mins % 60).padStart(2, '0') + 'm';
+                    }
+                  }
                 %>
-                <%= dispTime %> Uhr
+                <%= dauerStr %>
               </td>
               <td class="p-3">
-                <% if (log.project_title) { %>
-                  <span class="font-medium"><%= log.project_title %></span>
-                  <% if (log.company_name || log.contact_person) { %>
-                    <span class="text-xs text-slate-400 block"><%= log.company_name || log.contact_person %></span>
+                <% const pLog = inLog || outLog; %>
+                <% if (pLog && pLog.project_title) { %>
+                  <span class="font-medium"><%= pLog.project_title %></span>
+                  <% if (pLog.company_name || pLog.contact_person) { %>
+                    <span class="text-xs text-slate-400 block"><%= pLog.company_name || pLog.contact_person %></span>
                   <% } %>
                 <% } else { %>
-                  <%= log.company_name || log.contact_person || 'Allgemein / Werkstatt' %>
+                  <%= (pLog && (pLog.company_name || pLog.contact_person)) || 'Allgemein / Werkstatt' %>
                 <% } %>
               </td>
-              <td class="p-3 text-slate-500"><%= log.note || '–' %></td>
-              <td class="p-3 text-xs text-slate-400">
-                <% if (log.latitude && log.longitude) { %>
-                <%= log.latitude.toFixed(4) %>, <%= log.longitude.toFixed(4) %>
-                <% } else { %>–<% } %>
+              <td class="p-3 text-slate-500">
+                <%= (inLog && inLog.note) || (outLog && outLog.note) || '–' %>
               </td>
-              <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+              <% if (isPrivileged) { %>
               <td class="p-3">
-                <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Diesen Eintrag wirklich löschen?');">
-                  <input type="hidden" name="log_id" value="<%= log.id %>">
-                  <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;">
-                    🗑️ Löschen
-                  </button>
-                </form>
+                <div class="flex gap-1">
+                  <% if (inLog) { %>
+                  <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Kommen-Eintrag wirklich löschen?');">
+                    <input type="hidden" name="log_id" value="<%= inLog.id %>">
+                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Kommen löschen">🗑️ IN</button>
+                  </form>
+                  <% } %>
+                  <% if (outLog) { %>
+                  <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Gehen-Eintrag wirklich löschen?');">
+                    <input type="hidden" name="log_id" value="<%= outLog.id %>">
+                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Gehen löschen">🗑️ OUT</button>
+                  </form>
+                  <% } %>
+                </div>
               </td>
               <% } %>
             </tr>
