@@ -288,39 +288,35 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
     doc.fontSize(9).text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
     doc.moveDown(1.5);
 
-    const col = { date: 50, in: 145, out: 220, dur: 295, note: 370 };
+    const usernames = Array.from(sessionsByUser.keys());
+    const showEmployeeCol = usernames.length > 1;
+    const col = showEmployeeCol
+      ? { emp: 50, date: 150, in: 235, out: 300, dur: 365, note: 435 }
+      : { date: 50, in: 145, out: 220, dur: 295, note: 370 };
     const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('de-DE') : '–';
 
     const drawTableHeader = () => {
       doc.fontSize(10).font('Helvetica-Bold');
       const y = doc.y;
-      doc.text('Datum',   col.date, y, { width: 90 });
-      doc.text('Kommen',  col.in,   y, { width: 65 });
-      doc.text('Gehen',   col.out,  y, { width: 65 });
-      doc.text('Dauer',   col.dur,  y, { width: 70 });
-      doc.text('Notiz',   col.note, y, { width: 180 });
+      if (showEmployeeCol) doc.text('Mitarbeiter', col.emp, y, { width: 95 });
+      doc.text('Datum',   col.date, y, { width: 80 });
+      doc.text('Kommen',  col.in,   y, { width: 60 });
+      doc.text('Gehen',   col.out,  y, { width: 60 });
+      doc.text('Dauer',   col.dur,  y, { width: 65 });
+      doc.text('Notiz',   col.note, y, { width: showEmployeeCol ? 115 : 180 });
       doc.moveDown(0.5);
       doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown(0.5);
       doc.font('Helvetica').fontSize(9);
     };
 
-    const usernames = Array.from(sessionsByUser.keys());
     let totalSessions = 0;
+    drawTableHeader();
 
-    usernames.forEach((uname, uIdx) => {
+    usernames.forEach((uname) => {
       const { sessions } = sessionsByUser.get(uname);
-      if (sessions.length === 0) return;
       totalSessions += sessions.length;
-
-      if (usernames.length > 1) {
-        if (doc.y > 700) doc.addPage();
-        if (uIdx > 0) doc.moveDown(1);
-        doc.fontSize(11).font('Helvetica-Bold').text(uname, 50, doc.y);
-        doc.moveDown(0.4);
-      }
-      drawTableHeader();
 
       sessions.forEach(sess => {
         if (doc.y > 750) { doc.addPage(); drawTableHeader(); }
@@ -330,11 +326,12 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
         const durMs = inD && outD ? (new Date(outD) - new Date(inD)) : 0;
         const dur   = durMs > 0 ? `${Math.floor(durMs/3600000)}h ${Math.floor((durMs%3600000)/60000)}min` : (inD && !outD ? 'läuft…' : '–');
         const note  = (sess.in && sess.in.note) || (sess.out && sess.out.note) || '-';
-        doc.text(fmtDate(inD || outD),      col.date, rowY, { width: 90,  lineBreak: false });
-        doc.text(fmtTime(inD),              col.in,   rowY, { width: 65,  lineBreak: false });
-        doc.text(fmtTime(outD),             col.out,  rowY, { width: 65,  lineBreak: false });
-        doc.text(dur,                       col.dur,  rowY, { width: 70,  lineBreak: false });
-        doc.text(note,                      col.note, rowY, { width: 180 });
+        if (showEmployeeCol) doc.text(uname, col.emp, rowY, { width: 95, lineBreak: false });
+        doc.text(fmtDate(inD || outD),      col.date, rowY, { width: 80,  lineBreak: false });
+        doc.text(fmtTime(inD),              col.in,   rowY, { width: 60,  lineBreak: false });
+        doc.text(fmtTime(outD),             col.out,  rowY, { width: 60,  lineBreak: false });
+        doc.text(dur,                       col.dur,  rowY, { width: 65,  lineBreak: false });
+        doc.text(note,                      col.note, rowY, { width: showEmployeeCol ? 115 : 180 });
         doc.moveDown(1.2);
       });
     });
