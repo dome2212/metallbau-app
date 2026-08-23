@@ -2,13 +2,13 @@
 /* Dieses Theme wird automatisch angewendet wenn kein anderes gewählt ist. */
 
 :root {
-  --primary:          #2563eb;
-  --primary-dark:     #1d4ed8;
+  --primary:          #4f46e5;
+  --primary-dark:     #4338ca;
   --sidebar-bg:       #1e293b;
   --sidebar-text:     #e2e8f0;
   --sidebar-hover:    #334155;
   --topbar-bg:        #ffffff;
-  --page-bg:          #f1f5f9;
+  --page-bg:          #f8fafc;
 }
 
 /* Akzente */

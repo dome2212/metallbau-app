@@ -28,12 +28,12 @@ const DEFAULTS = {
   sidebar_logo_height: 80,   // Höhe des Sidebar-Logos in px (40–200)
 
   // ── Design & Farben ────────────────────────────────────────────
-  color_primary:      '#2563eb',
+  color_primary:      '#4f46e5',
   color_sidebar_bg:   '#1e293b',
   color_sidebar_text: '#e2e8f0',
   color_sidebar_hover:'#334155',
   color_topbar_bg:    '#ffffff',
-  color_page_bg:      '#f1f5f9',
+  color_page_bg:      '#f8fafc',
   app_icon:           '🔩',
   dark_mode_default:  'false',
 

@@ -43,18 +43,50 @@
 
     /* ── Design-Tokens ──────────────────────────────────────────────── */
     :root {
-      --primary:          <%= _d.color_primary      || '#2563eb' %>;
-      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#2563eb' %> 80%, #000);
+      --primary:          <%= _d.color_primary      || '#4f46e5' %>;
+      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#4f46e5' %> 80%, #000);
+      --primary-soft:     color-mix(in srgb, <%= _d.color_primary || '#4f46e5' %> 10%, #fff);
       --sidebar-bg:       <%= _d.color_sidebar_bg   || '#0f172a' %>;
       --sidebar-text:     <%= _d.color_sidebar_text || '#cbd5e1' %>;
       --sidebar-hover:    <%= _d.color_sidebar_hover|| '#1e293b' %>;
       --topbar-bg:        <%= _d.color_topbar_bg    || '#ffffff' %>;
-      --page-bg:          <%= _d.color_page_bg      || '#f1f5f9' %>;
-      --radius:           0.75rem;
-      --radius-lg:        1rem;
-      --shadow-card:      0 1px 3px 0 rgb(0 0 0/.08), 0 1px 2px -1px rgb(0 0 0/.08);
-      --shadow-card-hover:0 4px 16px 0 rgb(0 0 0/.12), 0 2px 6px -1px rgb(0 0 0/.08);
+      --page-bg:          <%= _d.color_page_bg      || '#f8fafc' %>;
+      --radius:           0.875rem;
+      --radius-lg:        1.25rem;
+      --radius-xl:        1.5rem;
+      --shadow-card:      0 1px 2px 0 rgb(15 23 42/.04), 0 1px 6px -2px rgb(15 23 42/.06);
+      --shadow-card-hover:0 8px 24px -4px rgb(15 23 42/.10), 0 2px 8px -2px rgb(15 23 42/.06);
+      --border-soft:      #eef1f6;
     }
+    .dark {
+      --border-soft: #334155;
+    }
+
+    /* ── Pill-Badges (Status) ───────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      font-size: .6875rem; font-weight: 700; letter-spacing: .01em;
+      padding: .28rem .65rem; border-radius: 999px; line-height: 1;
+      white-space: nowrap;
+    }
+    .badge-success { background: #ecfdf5; color: #059669; }
+    .badge-warning { background: #fffbeb; color: #d97706; }
+    .badge-danger  { background: #fef2f2; color: #dc2626; }
+    .badge-info    { background: #eff6ff; color: #2563eb; }
+    .badge-neutral { background: #f1f5f9; color: #64748b; }
+    .dark .badge-success { background: rgb(5 150 105/.15); color: #34d399; }
+    .dark .badge-warning { background: rgb(217 119 6/.15);  color: #fbbf24; }
+    .dark .badge-danger  { background: rgb(220 38 38/.15);  color: #f87171; }
+    .dark .badge-info    { background: rgb(37 99 235/.15);  color: #60a5fa; }
+    .dark .badge-neutral { background: rgb(100 116 139/.2); color: #cbd5e1; }
+
+    /* ── Icon-Kachel (ersetzt Emoji-Icons in modernisierten Bereichen) ── */
+    .icon-tile {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2.5rem; height: 2.5rem; border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .icon-tile svg { width: 1.25rem; height: 1.25rem; }
 
     /* ── Sidebar ────────────────────────────────────────────────────── */
     #sidebar {
@@ -79,7 +111,8 @@
       background: #fff;
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
-      transition: box-shadow .2s;
+      border: 1px solid var(--border-soft);
+      transition: box-shadow .2s, transform .2s;
     }
     .dark .card {
       background: #1e293b;
@@ -97,7 +130,7 @@
       font-size: .8125rem;
       line-height: 1;
       padding: .55rem 1rem;
-      border-radius: .6rem;
+      border-radius: .7rem;
       cursor: pointer;
       transition: filter .15s, transform .1s, box-shadow .15s;
       border: none;
@@ -133,7 +166,7 @@
       width: 100%;
       padding: .55rem .85rem;
       border: 1.5px solid #e2e8f0;
-      border-radius: .6rem;
+      border-radius: .7rem;
       font-size: .875rem;
       background: #fff;
       color: #1e293b;
