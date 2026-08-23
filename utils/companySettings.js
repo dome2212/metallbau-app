@@ -72,6 +72,7 @@ const DEFAULTS = {
   max_login_attempts:  '10',       // Max. Fehlversuche vor Sperrung
   min_password_length: '6',        // Mindest-Passwortlänge
   data_retention_years: '10',      // Aufbewahrungsfrist Zeiterfassung in Jahren (0 = keine automat. Löschung)
+  dunning_enabled: 'false',        // Automatisches Mahnwesen bei überfälligen Rechnungen
 
   // ── Lokalisierung ──────────────────────────────────────────────
   currency_symbol:     '€',        // Währungszeichen
@@ -104,6 +105,7 @@ const DEFAULTS = {
   // ── Lager-Tabs ─────────────────────────────────────────────────
   // JSON-Array: [{"key":"aluminium","label":"Aluminium","icon":"🔷","color":"blue"}]
   lager_custom_tabs: '[]',
+  lager_alert_enabled: 'false',   // Proaktive WhatsApp-Warnung bei niedrigem Lagerbestand
 
   // ── Textbausteine (Angebot & Auftrag) ────────────────────────────
   // JSON-Array: [{"key":"bauseits","label":"Bauseits","text":"…"}]

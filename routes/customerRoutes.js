@@ -32,6 +32,37 @@ router.get('/', async (req, res) => {
 });
 
 // ==========================================
+// DUBLETTEN-PRÜFUNG (vor dem Anlegen eines Kunden)
+// ==========================================
+router.get('/check-duplicate', async (req, res) => {
+  try {
+    const email = (req.query.email || '').trim().toLowerCase();
+    const phoneDigits = (req.query.phone || '').replace(/\D/g, '');
+    const companyName = (req.query.company_name || '').trim().toLowerCase();
+
+    if (!email && !phoneDigits && !companyName) return res.json({ duplicates: [] });
+
+    const result = await dbQuery('SELECT id, company_name, contact_person, email, phone FROM customers');
+    const rows = result.rows || [];
+
+    const duplicates = rows.filter(c => {
+      const cEmail = (c.email || '').trim().toLowerCase();
+      const cPhone = (c.phone || '').replace(/\D/g, '');
+      const cName  = (c.company_name || '').trim().toLowerCase();
+      return (email && cEmail && cEmail === email) ||
+             (phoneDigits && cPhone && cPhone === phoneDigits) ||
+             (companyName && cName && cName === companyName);
+    }).slice(0, 5);
+
+    res.json({ duplicates: duplicates.map(d => ({
+      company_name: d.company_name, contact_person: d.contact_person, email: d.email, phone: d.phone
+    })) });
+  } catch (err) {
+    res.json({ duplicates: [] }); // im Zweifel nicht blockieren
+  }
+});
+
+// ==========================================
 // KUNDE ANLEGEN
 // ==========================================
 router.post('/add', async (req, res) => {

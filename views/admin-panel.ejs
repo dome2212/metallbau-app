@@ -82,6 +82,7 @@
           { tab: 'projects',      label: '🏗️ Auftrags-Einstellungen' },
           { tab: 'security',      label: '🔒 Sicherheits-Einstellungen' },
           { tab: 'security',      label: '🗑️ Datenaufbewahrung Zeiterfassung (Löschfrist)' },
+          { tab: 'security',      label: '✉️ Automatisches Mahnwesen bei überfälligen Rechnungen' },
           { tab: 'dashboard',     label: '📊 Dashboard KPI-Schwellenwerte' },
           { tab: 'dashboard',     label: '👁️ Live-Vorschau' },
           { tab: 'access',        label: '🔐 Schnell-Links' },
@@ -90,6 +91,7 @@
           { tab: 'info',          label: '🗄️ Datenbank-Backup' },
           { tab: 'info',          label: '🔗 Schnell-Links' },
           { tab: 'lager',         label: '🏭 Eigene Lagerkategorien' },
+          { tab: 'lager',         label: '📦 Proaktive Lagerbestand-Warnung (WhatsApp)' },
           { tab: 'textbausteine', label: '📎 Textbausteine für Angebot & Auftrag' },
         ];
         const TAB_LABELS = <%- JSON.stringify(tabs.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {})) %>;
@@ -870,6 +872,21 @@
           </div>
         </div>
 
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">✉️ Automatisches Mahnwesen</h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Bei Aktivierung wird täglich um 08:00 Uhr geprüft, welche Rechnungen überfällig sind
+            (Fälligkeitsdatum in der Vergangenheit, Status ≠ "Bezahlt"). Der Kunde bekommt automatisch
+            eine Zahlungserinnerung per E-Mail, das Admin-/Chef-Team eine WhatsApp-Sammelübersicht.
+          </p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="dunning_enabled" value="true"
+              <%= (firma.dunning_enabled === 'true' || firma.dunning_enabled === true) ? 'checked' : '' %>
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <span class="text-sm text-slate-700 dark:text-slate-200">Automatisches Mahnwesen aktivieren</span>
+          </label>
+        </div>
+
         <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-3">
           <span class="text-xl shrink-0">⚠️</span>
           <div>
@@ -1359,6 +1376,21 @@
           <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
             ⚠️ Den <strong>Key</strong> nach dem ersten Speichern nicht mehr ändern — bereits eingelagerte Artikel sind dem Key fest zugeordnet.
           </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📦 Proaktive Lagerbestand-Warnung</h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Bei Aktivierung wird täglich um 07:00 Uhr geprüft, welche Artikel unter ihrem Mindestbestand
+            liegen, und das Admin-/Chef-Team bekommt eine WhatsApp-Sammelübersicht — statt nur passiv im
+            Dashboard-Widget angezeigt zu werden.
+          </p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="lager_alert_enabled" value="true"
+              <%= (firma.lager_alert_enabled === 'true' || firma.lager_alert_enabled === true) ? 'checked' : '' %>
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <span class="text-sm text-slate-700 dark:text-slate-200">Lagerbestand-Warnung per WhatsApp aktivieren</span>
+          </label>
         </div>
 
         <div class="flex justify-end">

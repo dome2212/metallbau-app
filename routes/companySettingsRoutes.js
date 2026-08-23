@@ -273,6 +273,7 @@ router.post('/panel/projects', requireAdmin, async (req, res) => {
 router.post('/panel/security', requireAdmin, async (req, res) => {
   try {
     await saveFields(req.body, ['session_timeout_minutes','max_login_attempts','min_password_length','data_retention_years']);
+    await saveCheckboxes(req.body, ['dunning_enabled']);
     res.redirect('/admin/panel?tab=security&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -376,6 +377,7 @@ router.post('/panel/lager', requireAdmin, async (req, res) => {
     }
 
     await setFirmaValue('lager_custom_tabs', JSON.stringify(tabs));
+    await saveCheckboxes(req.body, ['lager_alert_enabled']);
     res.redirect('/admin/panel?tab=lager&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);

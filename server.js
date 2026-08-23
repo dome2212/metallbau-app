@@ -101,6 +101,8 @@ const taskRoutes                = require('./routes/taskRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
 const { startRetentionCron } = require('./utils/dataRetention');
 const { startStampReminderCron } = require('./utils/stampReminder');
+const { startDunningCron } = require('./utils/dunning');
+const { startLagerAlertCron } = require('./utils/lagerAlert');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -874,4 +876,8 @@ app.listen(PORT, () => {
   startRetentionCron();
   // Erinnerung bei vergessenem Ausstempeln (alle 30 Minuten)
   startStampReminderCron();
+  // Automatisches Mahnwesen bei überfälligen Rechnungen (täglich 08:00 Uhr)
+  startDunningCron();
+  // Proaktive Lagerbestand-Warnung (täglich 07:00 Uhr)
+  startLagerAlertCron();
 });
