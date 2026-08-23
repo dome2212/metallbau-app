@@ -52,17 +52,24 @@ document.addEventListener('DOMContentLoaded', function () {
     <div id="geofence-banner" class="hidden card border-2 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 p-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div class="space-y-1">
-          <p class="text-sm font-bold text-indigo-800 dark:text-indigo-300">📍 Du befindest dich auf einer Baustelle!</p>
+          <p class="text-sm font-bold text-indigo-800 dark:text-indigo-300 flex items-center gap-1.5">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            Du befindest dich auf einer Baustelle!
+          </p>
           <p class="text-xs text-indigo-700 dark:text-indigo-400" id="geofence-project-name">Projekt wird erkannt…</p>
           <p class="text-xs text-indigo-500 dark:text-indigo-500" id="geofence-distance"></p>
         </div>
         <% if (!isStampedIn) { %>
         <button id="geofence-stamp-btn" onclick="stampInFromGeofence()"
           class="btn btn-primary shrink-0 flex items-center gap-2">
-          🟢 Für dieses Projekt einstempeln
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+          Für dieses Projekt einstempeln
         </button>
         <% } else { %>
-        <span class="shrink-0 badge" style="background:var(--success-bg,#dcfce7);color:#166534;">✅ Bereits eingestempelt</span>
+        <span class="shrink-0 badge badge-success">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+          Bereits eingestempelt
+        </span>
         <% } %>
       </div>
     </div>
@@ -75,11 +82,12 @@ document.addEventListener('DOMContentLoaded', function () {
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Status:
             <% if (isStampedIn) { %>
-            <span class="badge" style="background:#dcfce7;color:#166534;">
-              ✅ Eingestempelt seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · 🏗️ <%= activeProjectTitle %><% } %>
+            <span class="badge badge-success">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+              Eingestempelt seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · <%= activeProjectTitle %><% } %>
             </span>
             <% } else { %>
-            <span class="badge">Ausgestempelt</span>
+            <span class="badge badge-neutral">Ausgestempelt</span>
             <% } %>
           </p>
         </div>
@@ -117,15 +125,17 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="flex flex-col sm:flex-row gap-3 pt-2">
           <% if (!isStampedIn) { %>
           <button type="submit" name="type" value="IN"
-            class="btn flex-1 text-center font-semibold px-6 py-3"
+            class="btn flex-1 text-center font-semibold px-6 py-3 justify-center"
             style="background:#16a34a;color:#fff;">
-            🟢 Einstempeln (Arbeit beginnen)
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            Einstempeln (Arbeit beginnen)
           </button>
           <% } else { %>
           <button type="submit" name="type" value="OUT"
-            class="btn flex-1 text-center font-semibold px-6 py-3"
+            class="btn flex-1 text-center font-semibold px-6 py-3 justify-center"
             style="background:#dc2626;color:#fff;">
-            🔴 Ausstempeln (Feierabend / Pause)
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+            Ausstempeln (Feierabend / Pause)
           </button>
           <% if (_ss.allowSwitch && _ss.allowProject) { %>
           <button type="button" onclick="showSwitchPanel()"
@@ -173,7 +183,8 @@ document.addEventListener('DOMContentLoaded', function () {
             <button type="submit" name="type" value="SWITCH"
               class="btn flex-1 font-semibold"
               style="background:#f59e0b;color:#fff;">
-              ✅ Wechsel bestätigen
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+              Wechsel bestätigen
             </button>
             <button type="button" onclick="hideSwitchPanel()" class="btn btn-ghost font-semibold">
               Abbrechen
@@ -213,8 +224,8 @@ document.addEventListener('DOMContentLoaded', function () {
         <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[560px]">
           <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 uppercase text-xs">
             <tr>
-              <th class="p-3">🟢 Kommen</th>
-              <th class="p-3">🔴 Gehen</th>
+              <th class="p-3">Kommen</th>
+              <th class="p-3">Gehen</th>
               <th class="p-3">Dauer</th>
               <th class="p-3">Projekt / Kunde</th>
               <th class="p-3">Notiz</th>
@@ -277,13 +288,19 @@ document.addEventListener('DOMContentLoaded', function () {
                   <% if (inLog) { %>
                   <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Kommen-Eintrag wirklich löschen?');">
                     <input type="hidden" name="log_id" value="<%= inLog.id %>">
-                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Kommen löschen">🗑️ IN</button>
+                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Kommen löschen">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+                      IN
+                    </button>
                   </form>
                   <% } %>
                   <% if (outLog) { %>
                   <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Gehen-Eintrag wirklich löschen?');">
                     <input type="hidden" name="log_id" value="<%= outLog.id %>">
-                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Gehen löschen">🗑️ OUT</button>
+                    <button type="submit" class="btn text-xs px-2 py-1" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;" title="Gehen löschen">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>
+                      OUT
+                    </button>
                   </form>
                   <% } %>
                 </div>
