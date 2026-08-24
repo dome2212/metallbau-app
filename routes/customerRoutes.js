@@ -10,9 +10,19 @@ const { getFirma }          = require('../utils/companySettings');
 const upload = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
+    params: {
+      folder: 'metallbau-management',
+      // Bilder, Dokumente, Archive (ZIP), Office, CAD
+      allowed_formats: [
+        'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic',
+        'pdf',
+        'zip', 'rar', '7z',
+        'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt',
+        'dwg', 'dxf'
+      ]
+    }
   }),
-  limits: { fileSize: 15 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
 });
 
 // ==========================================
