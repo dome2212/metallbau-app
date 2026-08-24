@@ -44,6 +44,7 @@
             <button type="button" class="nav-chip" data-target="sec-aufmass"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3M12 3h5v5M7 21H3v-4"/></svg>Aufmaß</button>
             <button type="button" class="nav-chip" data-target="sec-aufgaben"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Aufgaben</button>
             <button type="button" class="nav-chip" data-target="sec-notizen"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Notizen</button>
+            <button type="button" class="nav-chip" data-target="sec-chat"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</button>
             <button type="button" class="nav-chip" data-target="sec-fotos"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>Fotos</button>
             <button type="button" class="nav-chip" data-target="sec-termine"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Termine</button>
             <button type="button" class="nav-chip" data-target="sec-material"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Material</button>
@@ -632,6 +633,31 @@
 
             </div><!-- /sec-body -->
 </section>
+
+      <!-- ========== CHAT (Baustellen-Chat) ========== -->
+      <section id="sec-chat" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-chat" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30">Chat</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+        <div class="sec-body">
+          <div class="card-clean space-y-4">
+            <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">💬 Baustellen-Chat</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Interner Chat für Chefs und Mitarbeiter zu diesem Projekt / dieser Baustelle.</p>
+
+            <div id="projectChatMessages" class="border dark:border-slate-600 rounded-lg p-3 bg-slate-50 dark:bg-slate-800/50 min-h-[180px] max-h-[320px] overflow-y-auto space-y-2">
+              <p class="text-xs text-slate-400 text-center italic">Nachrichten werden geladen…</p>
+            </div>
+
+            <form id="projectChatForm" class="flex gap-2" onsubmit="sendProjectChat(event)">
+              <input type="text" id="projectChatInput" placeholder="Nachricht an das Team…" autocomplete="off"
+                     class="input text-sm flex-1" maxlength="1000">
+              <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-medium px-4 py-2 rounded transition">Senden</button>
+            </form>
+          </div>
+        </div>
+      </section>
 
       <!-- ========== 5 FOTOS ========== -->
       <section id="sec-fotos" class="scroll-mt-28 space-y-3">
@@ -1935,6 +1961,88 @@ function acceptDefectSuggestion() {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   setActiveTool('pen');
+})();
+</script>
+
+<script>
+// ========== Baustellen-Chat ==========
+(function() {
+  const projectId = <%= project.id %>;
+  const currentUserId = <%= typeof currentUser !== 'undefined' && currentUser ? currentUser.id : (typeof user !== 'undefined' && user ? user.id : 0) %>;
+  const box = document.getElementById('projectChatMessages');
+  const input = document.getElementById('projectChatInput');
+  if (!box || !input) return;
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderMessages(messages) {
+    if (!messages || !messages.length) {
+      box.innerHTML = '<p class="text-xs text-slate-400 text-center italic">Noch keine Nachrichten. Schreib die erste!</p>';
+      return;
+    }
+    box.innerHTML = messages.map(m => {
+      const isMe = Number(m.user_id) === Number(currentUserId);
+      const time = m.created_at ? new Date(m.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
+      const name = m.username || 'Unbekannt';
+      return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm ${isMe
+          ? 'bg-cyan-600 text-white rounded-br-sm'
+          : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 border dark:border-slate-600 rounded-bl-sm'}">
+          ${!isMe ? `<p class="text-[10px] font-semibold opacity-80 mb-0.5">${escapeHtml(name)}</p>` : ''}
+          <p class="whitespace-pre-wrap break-words">${escapeHtml(m.message)}</p>
+          <p class="text-[10px] mt-1 opacity-70 text-right">${time}</p>
+        </div>
+      </div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function loadChat() {
+    try {
+      const res = await fetch('/projects/' + projectId + '/chat');
+      if (!res.ok) throw new Error('Laden fehlgeschlagen');
+      const data = await res.json();
+      renderMessages(data.messages || []);
+    } catch (err) {
+      box.innerHTML = '<p class="text-xs text-red-500 text-center">Fehler beim Laden des Chats.</p>';
+    }
+  }
+
+  window.sendProjectChat = async function(e) {
+    e.preventDefault();
+    const text = (input.value || '').trim();
+    if (!text) return;
+    input.disabled = true;
+    try {
+      const res = await fetch('/projects/' + projectId + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+      if (!res.ok) throw new Error('Senden fehlgeschlagen');
+      const data = await res.json();
+      renderMessages(data.messages || []);
+      input.value = '';
+    } catch (err) {
+      alert('Nachricht konnte nicht gesendet werden.');
+    } finally {
+      input.disabled = false;
+      input.focus();
+    }
+  };
+
+  // Beim Öffnen der Sektion oder beim Laden laden
+  loadChat();
+  // Optional: alle 30s neu laden wenn Sektion sichtbar
+  setInterval(() => {
+    const sec = document.getElementById('sec-chat');
+    if (sec && !sec.classList.contains('collapsed') && document.visibilityState === 'visible') {
+      loadChat();
+    }
+  }, 30000);
 })();
 </script>
 
