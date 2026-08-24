@@ -2002,12 +2002,18 @@ function acceptDefectSuggestion() {
 
   async function loadChat() {
     try {
-      const res = await fetch('/projects/' + projectId + '/chat');
-      if (!res.ok) throw new Error('Laden fehlgeschlagen');
-      const data = await res.json();
+      const res = await fetch('/projects/' + projectId + '/chat', {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || ('HTTP ' + res.status));
+      }
       renderMessages(data.messages || []);
     } catch (err) {
-      box.innerHTML = '<p class="text-xs text-red-500 text-center">Fehler beim Laden des Chats.</p>';
+      console.error('Chat-Laden Fehler:', err);
+      box.innerHTML = '<p class="text-xs text-red-500 text-center">Fehler beim Laden des Chats.<br><span class="opacity-70">' + (err.message || '') + '</span></p>';
     }
   }
 
@@ -2019,15 +2025,17 @@ function acceptDefectSuggestion() {
     try {
       const res = await fetch('/projects/' + projectId + '/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ message: text })
       });
-      if (!res.ok) throw new Error('Senden fehlgeschlagen');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
       renderMessages(data.messages || []);
       input.value = '';
     } catch (err) {
-      alert('Nachricht konnte nicht gesendet werden.');
+      console.error('Chat-Senden Fehler:', err);
+      alert('Nachricht konnte nicht gesendet werden: ' + (err.message || ''));
     } finally {
       input.disabled = false;
       input.focus();
