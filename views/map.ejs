@@ -145,9 +145,13 @@ PROJECTS.forEach(p => {
         padding:2px 8px;border-radius:99px;background:${color}22;color:${color};
         border:1px solid ${color}55">${escHtml(p.status)}</span>
       ${p.description ? `<p style="font-size:11px;color:#475569;margin:6px 0 0">${escHtml(p.description.slice(0,100))}${p.description.length>100?'…':''}</p>` : ''}
-      <div style="margin-top:8px">
+      <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
         <a href="/projects/${p.id}" style="font-size:12px;color:#2563eb;font-weight:600;text-decoration:none">
           Auftrag öffnen →
+        </a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.site_lat},${p.site_lng}" target="_blank" rel="noopener"
+           style="font-size:12px;color:#059669;font-weight:600;text-decoration:none">
+          🧭 Navigation
         </a>
       </div>
     </div>`);

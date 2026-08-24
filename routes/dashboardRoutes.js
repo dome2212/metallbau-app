@@ -339,4 +339,31 @@ router.get('/heute', async (req, res) => {
   }
 });
 
+// ==========================================
+// BAUSTELLENKARTE – alle aktiven Aufträge mit Standort
+// ==========================================
+router.get('/map', async (req, res) => {
+  try {
+    const result = await dbQuery(`
+      SELECT p.id, p.title, p.status, p.description,
+             p.site_lat, p.site_lng, p.site_radius, p.site_note,
+             c.company_name, c.contact_person, c.street, c.zip, c.city, c.phone
+      FROM projects p
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE p.status IS NULL OR p.status != 'Abgeschlossen'
+      ORDER BY
+        CASE WHEN p.site_lat IS NOT NULL AND p.site_lng IS NOT NULL THEN 0 ELSE 1 END,
+        p.title ASC
+    `);
+    res.render('map', {
+      projects: result.rows || [],
+      user: req.user,
+      currentUser: req.user
+    });
+  } catch (err) {
+    console.error('Fehler bei /map:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
 module.exports = router;
