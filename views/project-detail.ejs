@@ -220,26 +220,55 @@
           <!-- Upload-Formular -->
           <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
             <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Zeichnung / Skizze / Foto / PDF hochladen</label>
-            <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select name="category" class="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2">
+                <option value="Zeichnung" selected>📐 Zeichnung / Plan</option>
+                <option value="Foto">📸 Foto / Baustelle</option>
+                <option value="Angebot">📋 Angebot</option>
+                <option value="Rechnung">💶 Rechnung</option>
+                <option value="Vertrag">📝 Vertrag</option>
+                <option value="Material">🔩 Materialliste</option>
+                <option value="Sonstiges">📌 Sonstiges</option>
+              </select>
+              <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
           </form>
 
-          <!-- Suche -->
+          <!-- Suche + Kategorie-Filter -->
           <% if (files && files.length > 0) { %>
-          <div class="relative">
-            <input type="search" id="projectFileSearch" placeholder="Datei suchen (Name…)" autocomplete="off"
-                   class="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2 pl-9 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-1">
+              <input type="search" id="projectFileSearch" placeholder="Datei suchen (Name…)" autocomplete="off"
+                     class="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2 pl-9 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            </div>
+            <select id="projectFileCatFilter" class="text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2 sm:w-44">
+              <option value="">Alle Kategorien</option>
+              <option value="Zeichnung">Zeichnung / Plan</option>
+              <option value="Foto">Foto / Baustelle</option>
+              <option value="Angebot">Angebot</option>
+              <option value="Rechnung">Rechnung</option>
+              <option value="Vertrag">Vertrag</option>
+              <option value="Material">Materialliste</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
           </div>
           <% } %>
 
           <!-- Liste der hochgeladenen Dateien -->
           <div id="projectFileList" class="space-y-2">
             <% if (files && files.length > 0) { %>
-              <% files.forEach(file => { %>
+              <% files.forEach(file => {
+                   const cat = file.category || 'Sonstiges';
+              %>
                 <div class="project-file-item flex justify-between items-center bg-slate-50 dark:bg-slate-700 p-2.5 rounded border dark:border-slate-600 text-sm gap-2"
-                     data-name="<%= (file.original_name || '').toLowerCase() %>">
-                  <span class="truncate min-w-0 text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
+                     data-name="<%= (file.original_name || '').toLowerCase() %>"
+                     data-category="<%= cat %>">
+                  <div class="min-w-0 flex flex-col gap-0.5">
+                    <span class="truncate text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
+                    <span class="text-[10px] text-slate-400 dark:text-slate-400"><%= cat %></span>
+                  </div>
                   <div class="flex items-center gap-3 shrink-0">
                     <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen</a>
                     <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei wirklich löschen?');" class="inline">
@@ -258,19 +287,25 @@
           <script>
             (function() {
               const input = document.getElementById('projectFileSearch');
-              if (!input) return;
+              const catSel = document.getElementById('projectFileCatFilter');
+              if (!input && !catSel) return;
               const items = document.querySelectorAll('.project-file-item');
               const empty = document.getElementById('projectFileEmpty');
-              input.addEventListener('input', function() {
-                const q = (this.value || '').toLowerCase().trim();
+              function applyFilter() {
+                const q = ((input && input.value) || '').toLowerCase().trim();
+                const cat = (catSel && catSel.value) || '';
                 let visible = 0;
                 items.forEach(function(el) {
-                  const match = !q || (el.getAttribute('data-name') || '').indexOf(q) !== -1;
+                  const nameOk = !q || (el.getAttribute('data-name') || '').indexOf(q) !== -1;
+                  const catOk = !cat || (el.getAttribute('data-category') || '') === cat;
+                  const match = nameOk && catOk;
                   el.style.display = match ? '' : 'none';
                   if (match) visible++;
                 });
-                if (empty) empty.classList.toggle('hidden', visible > 0 || !q);
-              });
+                if (empty) empty.classList.toggle('hidden', visible > 0 || (!q && !cat));
+              }
+              if (input) input.addEventListener('input', applyFilter);
+              if (catSel) catSel.addEventListener('change', applyFilter);
             })();
           </script>
         </div>

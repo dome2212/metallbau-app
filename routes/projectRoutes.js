@@ -791,12 +791,22 @@ router.post('/tasks/delete', async (req, res) => {
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const projectId = req.params.id;
   if (!req.file) return res.redirect(`/projects/${projectId}`);
+  const category = (req.body.category || 'Sonstiges').trim() || 'Sonstiges';
   try {
     await dbQuery(
-      `INSERT INTO project_files (project_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
-      [projectId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
+      `INSERT INTO project_files (project_id, filename, original_name, file_type, file_url, category) VALUES (?, ?, ?, ?, ?, ?)`,
+      [projectId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path, category]
     );
-  } catch (err) { console.error('Fehler beim Upload:', err.message); }
+  } catch (err) {
+    try {
+      await dbQuery(
+        `INSERT INTO project_files (project_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
+        [projectId, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
+      );
+    } catch (err2) {
+      console.error('Fehler beim Upload:', err2.message || err.message);
+    }
+  }
   res.redirect(`/projects/${projectId}`);
 });
 

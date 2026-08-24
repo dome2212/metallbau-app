@@ -142,13 +142,21 @@ router.get('/:id/projects', async (req, res) => {
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const customer_id = req.params.id;
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
+  const category = (req.body.category || 'Sonstiges').trim() || 'Sonstiges';
   try {
     await dbQuery(
-      `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
-      [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
+      `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url, category) VALUES (?, ?, ?, ?, ?, ?)`,
+      [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path, category]
     );
   } catch (err) {
-    console.error('Fehler beim Dateiupload:', err.message);
+    try {
+      await dbQuery(
+        `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
+        [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
+      );
+    } catch (err2) {
+      console.error('Fehler beim Dateiupload:', err2.message || err.message);
+    }
   }
   res.redirect(`/customers/${customer_id}/projects`);
 });
