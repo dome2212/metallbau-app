@@ -656,6 +656,75 @@ router.post('/notes/delete', async (req, res) => {
 });
 
 // ==========================================
+// BAUSTELLEN-CHAT (project_chat)
+// ==========================================
+// Tabelle defensiv anlegen (falls Migration noch nicht gelaufen ist)
+async function ensureProjectChatTable() {
+  const isPg = !!process.env.DATABASE_URL;
+  try {
+    await dbQuery(`CREATE TABLE IF NOT EXISTS project_chat (
+      id         ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+      project_id INT NOT NULL,
+      user_id    INT NOT NULL,
+      message    TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+  } catch (e) {
+    // ignorieren – Tabelle existiert evtl. schon
+  }
+}
+
+router.get('/:id/chat', async (req, res) => {
+  try {
+    await ensureProjectChatTable();
+    const projectId = req.params.id;
+    const msgRes = await dbQuery(
+      `SELECT c.*, u.username
+       FROM project_chat c
+       LEFT JOIN users u ON c.user_id = u.id
+       WHERE c.project_id = ?
+       ORDER BY c.created_at ASC`,
+      [projectId]
+    );
+    res.json({ messages: msgRes.rows || [] });
+  } catch (err) {
+    console.error('Fehler beim Laden des Baustellen-Chats:', err.message);
+    // Lieber leere Liste zurückgeben statt 500 – Chat bleibt nutzbar
+    res.json({ messages: [], error: err.message });
+  }
+});
+
+router.post('/:id/chat', async (req, res) => {
+  try {
+    await ensureProjectChatTable();
+    const projectId = req.params.id;
+    const { message } = req.body;
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: 'Nachricht darf nicht leer sein' });
+    }
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Nicht angemeldet' });
+    }
+    await dbQuery(
+      `INSERT INTO project_chat (project_id, user_id, message) VALUES (?, ?, ?)`,
+      [projectId, req.user.id, String(message).trim()]
+    );
+    const msgRes = await dbQuery(
+      `SELECT c.*, u.username
+       FROM project_chat c
+       LEFT JOIN users u ON c.user_id = u.id
+       WHERE c.project_id = ?
+       ORDER BY c.created_at ASC`,
+      [projectId]
+    );
+    res.json({ ok: true, messages: msgRes.rows || [] });
+  } catch (err) {
+    console.error('Fehler beim Senden der Chat-Nachricht:', err.message);
+    res.status(500).json({ error: 'Fehler beim Speichern: ' + (err.message || '') });
+  }
+});
+
+// ==========================================
 // AUFGABEN & MÄNGEL
 // ==========================================
 router.post('/:id/tasks/add', upload.single('photo'), async (req, res) => {
