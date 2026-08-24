@@ -21,7 +21,10 @@
       
       <!-- Dateien & Uploads -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-4">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📁 Kundendateien & Dokumente</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+          Kundendateien & Dokumente
+        </h2>
         
         <!-- Upload-Formular -->
         <form action="/customers/<%= customer.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-gray-50 dark:bg-slate-700 p-4 rounded-lg border dark:border-slate-600">
@@ -35,7 +38,10 @@
           <% if (typeof files !== 'undefined' && files.length > 0) { %>
             <% files.forEach(file => { %>
               <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-700 p-3 rounded-lg border dark:border-slate-600 text-sm gap-2">
-                <span class="truncate text-gray-700 dark:text-gray-300 text-xs md:text-sm">📄 <%= file.original_name %></span>
+                <span class="truncate text-gray-700 dark:text-gray-300 text-xs md:text-sm flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/></svg>
+                  <%= file.original_name %>
+                </span>
                 <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium whitespace-nowrap">Ansehen / Download</a>
               </div>
             <% }) %>
@@ -47,7 +53,10 @@
 
       <!-- Rechnungen -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📄 Rechnungen</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+          Rechnungen
+        </h2>
         <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
           <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
             <table class="w-full text-left text-sm border-collapse min-w-[500px]">
@@ -78,7 +87,10 @@
 
       <!-- Angebote -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📋 Angebote</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a1 1 0 011 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z"/><path d="M9 8h6M9 11h6"/></svg>
+          Angebote
+        </h2>
         <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
           <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
             <table class="w-full text-left text-sm border-collapse min-w-[400px]">
@@ -107,7 +119,10 @@
 
       <!-- Termine -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">📅 Termine & Baustellen</h2>
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          Termine & Baustellen
+        </h2>
         <% if (typeof appointments !== 'undefined' && appointments.length > 0) { %>
           <ul class="divide-y divide-gray-200 dark:divide-slate-700 text-sm">
             <% appointments.forEach(app => { %>

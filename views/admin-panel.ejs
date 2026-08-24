@@ -24,20 +24,21 @@
 
       <!-- Tab-Navigation -->
       <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-3 overflow-x-auto">
+        <% const svgIcon = (path) => `<svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; %>
         <% const tabs = [
-            { id: 'design',   label: '🎨 Design' },
-            { id: 'sidebar',  label: '📌 Sidebar' },
-            { id: 'pdf',      label: '📄 PDF & Dokumente' },
-            { id: 'datev',    label: '🧾 DATEV-Export' },
-            { id: 'worktime',   label: '⏱️ Arbeitszeit' },
-            { id: 'stampclock', label: '🕐 Stempeluhr' },
-            { id: 'projects',   label: '🏗️ Aufträge' },
-            { id: 'lager',    label: '🏭 Lager-Tabs' },
-            { id: 'textbausteine', label: '📎 Textbausteine' },
-            { id: 'security', label: '🔒 Sicherheit' },
-            { id: 'dashboard',label: '📊 Dashboard KPIs' },
-            { id: 'access',   label: '🔐 Zugriff' },
-            { id: 'info',     label: 'ℹ️ System' },
+            { id: 'design',   label: 'Design', icon: svgIcon('<path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/>') },
+            { id: 'sidebar',  label: 'Sidebar', icon: svgIcon('<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="12" y="3" width="9" height="18" rx="1"/>') },
+            { id: 'pdf',      label: 'PDF & Dokumente', icon: svgIcon('<path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 12h6"/>') },
+            { id: 'datev',    label: 'DATEV-Export', icon: svgIcon('<path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/>') },
+            { id: 'worktime',   label: 'Arbeitszeit', icon: svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') },
+            { id: 'stampclock', label: 'Stempeluhr', icon: svgIcon('<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 1.5M9 3h6M11 1.5v1.5M13 1.5v1.5"/>') },
+            { id: 'projects',   label: 'Aufträge', icon: svgIcon('<rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01"/>') },
+            { id: 'lager',    label: 'Lager-Tabs', icon: svgIcon('<path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/>') },
+            { id: 'textbausteine', label: 'Textbausteine', icon: svgIcon('<path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>') },
+            { id: 'security', label: 'Sicherheit', icon: svgIcon('<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/>') },
+            { id: 'dashboard',label: 'Dashboard KPIs', icon: svgIcon('<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/>') },
+            { id: 'access',   label: 'Zugriff', icon: svgIcon('<rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/>') },
+            { id: 'info',     label: 'System', icon: svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>') },
           ]; %>
         <% for (const t of tabs) { %>
           <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
@@ -45,7 +46,7 @@
               <%= tab === t.id
                 ? 'bg-blue-600 text-white shadow'
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700' %>">
-            <%= t.label %>
+            <%- t.icon %><%= t.label %>
           </a>
         <% } %>
       </div>
@@ -135,7 +136,7 @@
 
         <!-- Farbpalette -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🎨 Farbpalette der App</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/></svg>Farbpalette der App</span></h2>
           <p class="text-xs text-slate-400 mb-5">Diese Farben wirken sich sofort auf die gesamte App aus (nach dem Speichern).</p>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -229,7 +230,7 @@
 
         <!-- Farb-Vorlagen -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">⚡ Schnell-Vorlagen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>Schnell-Vorlagen</span></h2>
           <div class="flex flex-wrap gap-3">
             <% const presets = [
               { name: 'Standard Blau',  primary:'#2563eb', sidebarBg:'#1e293b', sidebarText:'#e2e8f0', sidebarHover:'#334155', pageBg:'#f1f5f9', topbarBg:'#ffffff' },
@@ -268,7 +269,7 @@
       <form action="/admin/panel/sidebar" method="POST" class="space-y-6">
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📌 Sidebar anpassen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 00-5 5c0 3 2 4.5 3 6.5L12 22l2-8.5c1-2 3-3.5 3-6.5a5 5 0 00-5-5z"/><circle cx="12" cy="7" r="2"/></svg>Sidebar anpassen</span></h2>
 
           <div class="space-y-5">
 
@@ -377,7 +378,7 @@
 
         <!-- Nummern-Schema -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔢 Nummern-Schema</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>Nummern-Schema</span></h2>
           <p class="text-xs text-slate-400 mb-5">Prefix für automatisch generierte Dokumentnummern.</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
@@ -399,7 +400,7 @@
 
         <!-- MwSt & Zahlungsart -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">💰 Standard-Werte</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9.5a2 2 0 012-2h1a2 2 0 010 4h-1a2 2 0 000 4h1a2 2 0 002-2M12 6v1.5M12 16.5V18"/></svg>Standard-Werte</span></h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Mehrwertsteuersatz (%)</label>
@@ -431,7 +432,7 @@
 
         <!-- PDF Briefkopf-Farbe -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🎨 PDF-Erscheinungsbild</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/></svg>PDF-Erscheinungsbild</span></h2>
           <div class="flex items-center gap-4">
             <div>
               <input type="color" name="pdf_color" value="<%= firma.pdf_color || '#1e3a5f' %>"
@@ -446,7 +447,7 @@
 
         <!-- Einleitungstexte -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">✉️ Einleitungstexte</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>Einleitungstexte</span></span></h2>
           <div class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Einleitungstext Angebot</label>
@@ -463,7 +464,7 @@
 
         <!-- PDF-Fußzeile & AGB -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📃 Fußzeile & AGB</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 18h4"/></svg>Fußzeile & AGB</span></h2>
           <div class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -504,7 +505,7 @@
 
         <!-- Berater & Mandant -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🔑 Berater & Mandant</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg>Berater & Mandant</span></h2>
           <p class="text-xs text-slate-400 mb-5">Diese Nummern bekommst du von deinem Steuerberater / aus DATEV.</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
@@ -522,7 +523,7 @@
 
         <!-- Kontenrahmen -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📚 Kontenrahmen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z"/><path d="M8 4v13"/></svg>Kontenrahmen</span></h2>
           <p class="text-xs text-slate-400 mb-5">Welchen Kontenrahmen nutzt deine Kanzlei?</p>
           <div class="flex gap-2 flex-wrap mb-2">
             <% for (const skr of ['SKR03', 'SKR04']) { %>
@@ -543,7 +544,7 @@
 
         <!-- Konten -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">💶 Erlös- & Debitorenkonten</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 9a3.5 3.5 0 100 6M8 11h6M8 13h5"/></svg>Erlös- & Debitorenkonten</span></h2>
           <p class="text-xs text-slate-400 mb-5">
             Übliche Standardwerte (SKR03): Erlöse 19% → 8400, Erlöse 7% → 8300. SKR04: 4400 / 4300.
             Debitorenkonto = Basis-Konto + Kundennummer (z.B. 10000 + 23 = 10023).
@@ -616,7 +617,7 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">☕ Automatischer Pausenabzug</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h13v6a4 4 0 01-4 4H8a4 4 0 01-4-4V9z"/><path d="M17 10h1.5a2.5 2.5 0 010 5H17M8 3c0 1-1 1-1 2M12 3c0 1-1 1-1 2"/></svg>Automatischer Pausenabzug</span></h2>
           <p class="text-xs text-slate-400 mb-4">Pause wird automatisch abgezogen wenn der Arbeitstag länger ist als X Stunden. <strong>0 = deaktiviert.</strong></p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
@@ -635,7 +636,7 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🗓️ Feiertags-Region</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/><path d="M8 14l2 2 4-4"/></svg><span>Feiertags-Region</span></span></h2>
           <div>
             <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Bundesland (für Feiertagsberechnung)</label>
             <select name="holiday_region"
@@ -664,7 +665,7 @@
 
         <!-- Allgemeine Schalter -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🕐 Stempeluhr-Verhalten</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Stempeluhr-Verhalten</span></h2>
           <p class="text-xs text-slate-400 mb-5">Steuert, wie und wann Mitarbeiter stempeln dürfen.</p>
 
           <div class="space-y-3">
@@ -724,7 +725,7 @@
 
         <!-- Firmen-Standort für Geo-Fencing -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📍 Firmen-Standort (Geo-Fencing)</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Firmen-Standort (Geo-Fencing)</span></h2>
           <p class="text-xs text-slate-400 mb-5">Mitarbeiter dürfen nur im Umkreis des Firmenstandorts oder einer Baustelle einstempeln. Koordinaten findest du z.B. bei Google Maps (Rechtsklick → Koordinaten kopieren).</p>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -775,7 +776,7 @@
       <form action="/admin/panel/projects" method="POST" class="space-y-6">
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏗️ Auftrags-Einstellungen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01M8 15h.01M11 15h.01"/></svg><span>Auftrags-Einstellungen</span></span></h2>
           <div class="space-y-5">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -820,7 +821,7 @@
       <form action="/admin/panel/security" method="POST" class="space-y-6">
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔒 Sicherheits-Einstellungen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>Sicherheits-Einstellungen</span></h2>
           <div class="space-y-5">
 
             <div>
@@ -855,7 +856,7 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🗑️ Datenaufbewahrung (Zeiterfassung)</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg><span>Datenaufbewahrung (Zeiterfassung)</span></span></h2>
           <p class="text-xs text-slate-400 mb-4">
             Zeiterfassungs-Einträge (inkl. GPS-Standort beim Stempeln) werden nach Ablauf dieser Frist automatisch
             und unwiderruflich gelöscht. Rechnungen, Angebote und Kundendaten sind davon <strong>nicht</strong>
@@ -873,7 +874,7 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">✉️ Automatisches Mahnwesen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>Automatisches Mahnwesen</span></span></h2>
           <p class="text-xs text-slate-400 mb-4">
             Bei Aktivierung wird täglich um 08:00 Uhr geprüft, welche Rechnungen überfällig sind
             (Fälligkeitsdatum in der Vergangenheit, Status ≠ "Bezahlt"). Der Kunde bekommt automatisch
@@ -909,7 +910,7 @@
       <form action="/admin/panel/dashboard" method="POST" class="space-y-6">
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📊 Dashboard KPI-Schwellenwerte</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/></svg>Dashboard KPI-Schwellenwerte</span></h2>
           <p class="text-xs text-slate-400 mb-5">Ab diesen Werten wechselt die Farbe der Dashboard-Karten von grau → gelb → rot.</p>
 
           <div class="space-y-6">
@@ -953,7 +954,7 @@
 
         <!-- Vorschau -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">👁️ Live-Vorschau</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span>Live-Vorschau</span></span></h2>
           <div class="grid grid-cols-2 gap-4">
             <div id="prevOverdue" class="p-4 rounded-xl border-l-4 border-gray-300 bg-gray-50 dark:bg-slate-700 transition">
               <p class="text-xs text-gray-400 font-semibold uppercase">Überfällige Rechnungen</p>
@@ -987,7 +988,7 @@
 
         <!-- Schnell-Links -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔐 Schnell-Links</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="15.5" r="1.3"/></svg>Schnell-Links</span></h2>
           <div class="flex flex-wrap gap-3">
             <a href="/admin/users" class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">👥 Mitarbeiter-Logins</a>
             <a href="/admin/timetracking" class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">📋 Arbeitszeiten</a>
@@ -1023,7 +1024,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
           <div class="px-5 py-4 border-b dark:border-slate-700 flex items-center justify-between">
             <div>
-              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">📋 Berechtigungs-Matrix</h2>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Berechtigungs-Matrix</span></h2>
               <p class="text-xs text-slate-400 mt-0.5">Legt fest, welche Bereiche ADMIN und EMPLOYEE sehen und nutzen dürfen. CHEF hat immer vollen Zugriff.</p>
             </div>
           </div>
@@ -1157,7 +1158,7 @@
 
         <!-- Backup -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2">🗄️ Datenbank-Backup</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/></svg><span>Datenbank-Backup</span></span></h2>
           <%
             const _backupEmail = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
             const _smtpUser    = process.env.SMTP_USER    || firma.smtp_user         || '';
@@ -1235,7 +1236,7 @@
 
         <!-- Quick-Links -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🔗 Schnell-Links</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6M8 12l-2.5 2.5a3 3 0 004.24 4.24L12 16.5M16 12l2.5-2.5a3 3 0 00-4.24-4.24L12 7.5"/></svg>Schnell-Links</span></h2>
           <div class="flex flex-wrap gap-3">
             <% const links = [
               ['/admin/users',            '👥 Mitarbeiter'],
@@ -1273,7 +1274,7 @@
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
           <div class="border-b dark:border-slate-700 pb-3">
-            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">🏭 Eigene Lagerkategorien</h2>
+            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/></svg>Eigene Lagerkategorien</span></h2>
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
               Tabs neben den Standard-Tabs (Baustahl, Edelstahl …) hinzufügen – z.B. „Aluminium" oder „Werkzeuge".
             </p>
@@ -1379,7 +1380,7 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📦 Proaktive Lagerbestand-Warnung</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Proaktive Lagerbestand-Warnung</span></h2>
           <p class="text-xs text-slate-400 mb-4">
             Bei Aktivierung wird täglich um 07:00 Uhr geprüft, welche Artikel unter ihrem Mindestbestand
             liegen, und das Admin-/Chef-Team bekommt eine WhatsApp-Sammelübersicht — statt nur passiv im
@@ -1706,7 +1707,7 @@
       <form action="/admin/panel/textbausteine" method="POST" class="space-y-6">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
           <div class="border-b dark:border-slate-700 pb-3">
-            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">📎 Textbausteine für Angebot &amp; Auftrag</h2>
+            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 013 3L10 16a4 4 0 01-5.7-5.7L13 1.6"/></svg>Textbausteine für Angebot &amp; Auftrag</span></h2>
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
               Fertige Klauseln (z.B. „Bauseits"), die beim Erfassen von Positionen in Angeboten und Nachträgen per Klick eingefügt werden können.
             </p>

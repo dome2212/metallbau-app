@@ -11,21 +11,26 @@
   %>
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
     <div>
-      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">🏭 Lagerverwaltung</h1>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/></svg>
+        Lagerverwaltung
+      </h1>
       <p class="text-sm text-gray-500 dark:text-gray-400">Baustahl · Edelstahl · Schrauben · Entnahmen · Reststücke</p>
     </div>
     <div class="flex flex-wrap gap-2 w-full md:w-auto">
       <% if (isStockTab) { %>
         <a href="/lager/inventur?tab=<%= tab %>"
           class="bg-slate-700 hover:bg-slate-800 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
-          📋 Inventur
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          Inventur
         </a>
       <% } %>
       <% if (isStockTab) { %>
         <% if (tab !== 'schrauben') { %>
         <button onclick="openScanModal()"
           class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
-          📷 Lieferschein
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>
+          Lieferschein
         </button>
         <% } %>
         <button onclick="openAddModal()"
@@ -65,7 +70,7 @@
   <% if (scanBs > 0 || scanEs > 0) { %>
   <div class="px-4 md:px-6 mb-3">
     <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 flex items-start gap-3">
-      <span class="text-green-500 text-xl mt-0.5">✅</span>
+      <span class="text-green-500 mt-0.5"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-green-800 dark:text-green-300">Lieferschein erfolgreich eingelagert</p>
         <div class="flex flex-wrap gap-3 mt-1">
@@ -92,7 +97,7 @@
   <% if ((tab === 'baustahl' || tab === 'edelstahl' || tab === 'schrauben') && lowStockItems.length > 0) { %>
   <div class="px-4 md:px-6 mb-3">
     <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-3 flex items-start gap-3">
-      <span class="text-amber-500 text-xl mt-0.5">⚠️</span>
+      <span class="text-amber-500 mt-0.5"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a1.5 1.5 0 001.3 2.3h16.4a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z"/></svg></span>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">
           <%= lowStockItems.length %> Artikel <%= lowStockItems.length === 1 ? 'ist' : 'sind' %> unter Mindestbestand
@@ -111,17 +116,17 @@
       <a href="/lager?tab=baustahl"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'baustahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
-        🔩 Baustahl
+        <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16M9 4v16"/></svg>Baustahl
       </a>
       <a href="/lager?tab=edelstahl"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'edelstahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
-        ✨ Edelstahl
+        <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 6.8H21l-5.6 4.1 2.2 6.8L12 16.6l-5.6 4.1 2.2-6.8L3 9.8h6.8z"/></svg>Edelstahl
       </a>
       <a href="/lager?tab=schrauben"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'schrauben' ? 'border-orange-600 text-orange-600 dark:text-orange-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
-        🔧 Schrauben
+        <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Schrauben
       </a>
       <% /* ── Custom-Tabs ────────────────────────────────────── */ %>
       <% const colorMap = { blue:'border-blue-600 text-blue-600 dark:text-blue-400', violet:'border-violet-600 text-violet-600 dark:text-violet-400', emerald:'border-emerald-600 text-emerald-600 dark:text-emerald-400', amber:'border-amber-600 text-amber-600 dark:text-amber-400', rose:'border-rose-600 text-rose-600 dark:text-rose-400', slate:'border-slate-600 text-slate-600 dark:text-slate-400', orange:'border-orange-600 text-orange-600 dark:text-orange-400', cyan:'border-cyan-600 text-cyan-600 dark:text-cyan-400' }; %>
@@ -135,12 +140,12 @@
       <a href="/lager?tab=entnahmen"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'entnahmen' ? 'border-amber-600 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
-        📤 Entnahmen
+        <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Entnahmen
       </a>
       <a href="/lager?tab=reste"
         class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
                <%= tab === 'reste' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
-        ✂️ Reststücke
+        <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 12 20 20M8.5 12H4"/></svg>Reststücke
       </a>
     </div>
   </div>
@@ -176,7 +181,7 @@
             <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm
                        <%= isCritical ? 'bg-red-50/60 dark:bg-red-900/10' : isLow ? 'bg-amber-50/60 dark:bg-amber-900/10' : '' %>">
               <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
-                <% if (isLow) { %><span class="text-amber-500 mr-1" title="Unter Mindestbestand">⚠️</span><% } %>
+                <% if (isLow) { %><span class="text-amber-500 mr-1" title="Unter Mindestbestand"><svg class="w-4 h-4 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a1.5 1.5 0 001.3 2.3h16.4a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z"/></svg></span><% } %>
                 <%= item.bezeichnung %>
               </td>
               <td class="px-4 py-3 text-gray-600 dark:text-gray-300"><%= item.profil || '-' %></td>
@@ -228,7 +233,7 @@
                     data-item-einheitspreis="<%= item.einheitspreis || 0 %>"
                     onclick="openEditModalEl(this)"
                     class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 rounded text-xs font-semibold transition"
-                    title="Bearbeiten">✏️</button>
+                    title="Bearbeiten"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-4"/><path d="M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                   <!-- Verschieben-Button -->
                   <button
                     data-item-id="<%= item.id %>"
@@ -251,7 +256,7 @@
       </div>
       <% } else { %>
       <div class="text-center py-16">
-        <p class="text-4xl mb-3">📭</p>
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
         <p class="text-gray-500 dark:text-gray-400 font-medium">Keine Einträge vorhanden</p>
         <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Lieferschein fotografieren oder Eintrag manuell hinzufügen</p>
       </div>
@@ -340,7 +345,7 @@
       </div>
       <% } else { %>
       <div class="text-center py-16">
-        <p class="text-4xl mb-3">📤</p>
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
         <p class="text-gray-500 dark:text-gray-400 font-medium">Noch keine Entnahmen gebucht</p>
         <p class="text-sm text-gray-400 mt-1">Materialverbrauch per "Entnahme buchen" einem Auftrag zuordnen</p>
       </div>
@@ -402,7 +407,7 @@
       </div>
       <% } else { %>
       <div class="text-center py-16">
-        <p class="text-4xl mb-3">✂️</p>
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 12 20 20M8.5 12H4"/></svg>
         <p class="text-gray-500 dark:text-gray-400 font-medium">Keine Reststücke eingelagert</p>
         <p class="text-sm text-gray-400 mt-1">Verschnitt und Reststücke hier erfassen, um Neukäufe zu vermeiden</p>
       </div>
@@ -577,7 +582,10 @@
      onclick="closeModal('editModal', event)">
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">✏️ Eintrag bearbeiten</h2>
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-4"/><path d="M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Eintrag bearbeiten
+      </h2>
       <button onclick="closeModal('editModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/edit" method="POST" class="space-y-3" data-offline="true" data-offline-label="Material bearbeiten">
@@ -701,7 +709,10 @@
      onclick="closeModal('entnahmeModal', event)">
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">📤 Entnahme buchen</h2>
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        Entnahme buchen
+      </h2>
       <button onclick="closeModal('entnahmeModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/entnahme" method="POST" class="space-y-3" data-offline="true" data-offline-label="Materialentnahme">
@@ -755,7 +766,10 @@
      onclick="closeModal('restModal', event)">
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">✂️ Reststück einlagern</h2>
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 12 20 20M8.5 12H4"/></svg>
+        Reststück einlagern
+      </h2>
       <button onclick="closeModal('restModal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <form action="/lager/rest/add" method="POST" class="space-y-3" data-offline="true" data-offline-label="Reststück einlagern">
@@ -813,14 +827,17 @@
      onclick="closeScanModal(event)">
   <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
     <div class="flex justify-between items-center mb-5">
-      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">📷 Lieferschein scannen (KI)</h2>
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>
+        Lieferschein scannen (KI)
+      </h2>
       <button onclick="closeScanModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
     </div>
     <div id="scanUploadArea"
          class="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 transition mb-4"
          onclick="document.getElementById('scanFileInput').click()"
          ondragover="event.preventDefault()" ondrop="handleScanDrop(event)">
-      <p class="text-4xl mb-2">📄</p>
+      <svg class="w-10 h-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M3 15l3-3 3 3M6 12v9"/></svg>
       <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Lieferschein-Foto hier ablegen oder antippen</p>
       <p class="text-xs text-gray-400 mt-1">JPG, PNG, WebP – max. 10 MB</p>
       <input type="file" id="scanFileInput" accept="image/*" capture="environment" class="hidden" onchange="handleScanFile(this.files[0])">
@@ -839,7 +856,10 @@
     </div>
     <div id="scanResults" class="hidden">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">📋 Erkannte Positionen</h3>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          Erkannte Positionen
+        </h3>
         <span id="scanCountBadge" class="text-xs bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 px-2 py-0.5 rounded-full font-semibold"></span>
       </div>
       <!-- Aufschlüsselung Baustahl / Edelstahl -->
