@@ -1978,6 +1978,8 @@ function acceptDefectSuggestion() {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  const isBoss = <%= (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) || (typeof user !== 'undefined' && user && (user.role === 'CHEF' || user.role === 'ADMIN')) ? 'true' : 'false' %>;
+
   function renderMessages(messages) {
     if (!messages || !messages.length) {
       box.innerHTML = '<p class="text-xs text-slate-400 text-center italic">Noch keine Nachrichten. Schreib die erste!</p>';
@@ -1985,20 +1987,41 @@ function acceptDefectSuggestion() {
     }
     box.innerHTML = messages.map(m => {
       const isMe = Number(m.user_id) === Number(currentUserId);
+      const canDelete = isMe || isBoss;
       const time = m.created_at ? new Date(m.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
       const name = m.username || 'Unbekannt';
-      return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm ${isMe
+      return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'} group">
+        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm relative ${isMe
           ? 'bg-cyan-600 text-white rounded-br-sm'
           : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 border dark:border-slate-600 rounded-bl-sm'}">
-          ${!isMe ? `<p class="text-[10px] font-semibold opacity-80 mb-0.5">${escapeHtml(name)}</p>` : ''}
+          <p class="text-[10px] font-semibold opacity-90 mb-0.5">${escapeHtml(name)}${isMe ? ' (du)' : ''}</p>
           <p class="whitespace-pre-wrap break-words">${escapeHtml(m.message)}</p>
-          <p class="text-[10px] mt-1 opacity-70 text-right">${time}</p>
+          <div class="flex items-center justify-between gap-2 mt-1">
+            <span class="text-[10px] opacity-70">${time}</span>
+            ${canDelete ? `<button type="button" onclick="deleteProjectChatMsg(${m.id})" class="text-[10px] opacity-60 hover:opacity-100 underline" title="Nachricht löschen">löschen</button>` : ''}
+          </div>
         </div>
       </div>`;
     }).join('');
     box.scrollTop = box.scrollHeight;
   }
+
+  window.deleteProjectChatMsg = async function(msgId) {
+    if (!confirm('Nachricht wirklich löschen?')) return;
+    try {
+      const res = await fetch('/projects/' + projectId + '/chat/delete', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ message_id: msgId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      renderMessages(data.messages || []);
+    } catch (err) {
+      alert('Löschen fehlgeschlagen: ' + (err.message || ''));
+    }
+  };
 
   async function loadChat() {
     try {
