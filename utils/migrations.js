@@ -548,35 +548,6 @@ const MIGRATIONS = [
     }
   },
 
-  // ── 014 ── Task-Chat / Nachrichten zu allgemeinen Aufgaben ──────────────────
-  {
-    id: 14,
-    description: 'Task-Chat: Nachrichten/Kommentare zu allgemeinen Aufgaben (task_messages)',
-    async up() {
-      await safeRaw(`CREATE TABLE IF NOT EXISTS task_messages (
-        id         ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
-        task_id    INT NOT NULL,
-        user_id    INT NOT NULL,
-        message    TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`);
-      // Index für schnelle Abfrage pro Aufgabe
-      try {
-        await safeRaw(`CREATE INDEX IF NOT EXISTS idx_task_messages_task_id ON task_messages(task_id)`);
-      } catch (_) {}
-    }
-  },
-
-  // ── 015 ── Datei-Kategorien für Kunden- und Projektdateien ─────────────────
-  {
-    id: 15,
-    description: 'Datei-Kategorien: category Spalte bei customer_files und project_files',
-    async up() {
-      await safeRaw(`ALTER TABLE customer_files ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} category TEXT DEFAULT 'Sonstiges'`);
-      await safeRaw(`ALTER TABLE project_files ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} category TEXT DEFAULT 'Sonstiges'`);
-    }
-  },
-
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

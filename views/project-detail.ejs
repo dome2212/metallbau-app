@@ -44,7 +44,6 @@
             <button type="button" class="nav-chip" data-target="sec-aufmass"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3M12 3h5v5M7 21H3v-4"/></svg>Aufmaß</button>
             <button type="button" class="nav-chip" data-target="sec-aufgaben"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Aufgaben</button>
             <button type="button" class="nav-chip" data-target="sec-notizen"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Notizen</button>
-            <button type="button" class="nav-chip" data-target="sec-chat"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</button>
             <button type="button" class="nav-chip" data-target="sec-fotos"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>Fotos</button>
             <button type="button" class="nav-chip" data-target="sec-termine"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Termine</button>
             <button type="button" class="nav-chip" data-target="sec-material"><svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Material</button>
@@ -219,95 +218,33 @@
           
           <!-- Upload-Formular -->
           <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Zeichnung / Skizze / Foto / PDF hochladen</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <select name="category" class="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2">
-                <option value="Zeichnung" selected>📐 Zeichnung / Plan</option>
-                <option value="Foto">📸 Foto / Baustelle</option>
-                <option value="Angebot">📋 Angebot</option>
-                <option value="Rechnung">💶 Rechnung</option>
-                <option value="Vertrag">📝 Vertrag</option>
-                <option value="Material">🔩 Materialliste</option>
-                <option value="Sonstiges">📌 Sonstiges</option>
-              </select>
-              <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-            </div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Zeichnung / Skizze / Foto hochladen (PDF, Bild)</label>
+            <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
           </form>
 
-          <!-- Suche + Kategorie-Filter -->
-          <% if (files && files.length > 0) { %>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <div class="relative flex-1">
-              <input type="search" id="projectFileSearch" placeholder="Datei suchen (Name…)" autocomplete="off"
-                     class="w-full text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2 pl-9 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            </div>
-            <select id="projectFileCatFilter" class="text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-gray-100 px-3 py-2 sm:w-44">
-              <option value="">Alle Kategorien</option>
-              <option value="Zeichnung">Zeichnung / Plan</option>
-              <option value="Foto">Foto / Baustelle</option>
-              <option value="Angebot">Angebot</option>
-              <option value="Rechnung">Rechnung</option>
-              <option value="Vertrag">Vertrag</option>
-              <option value="Material">Materialliste</option>
-              <option value="Sonstiges">Sonstiges</option>
-            </select>
-          </div>
-          <% } %>
-
           <!-- Liste der hochgeladenen Dateien -->
-          <div id="projectFileList" class="space-y-2">
+          <div class="space-y-2">
             <% if (files && files.length > 0) { %>
-              <% files.forEach(file => {
-                   const cat = file.category || 'Sonstiges';
-              %>
-                <div class="project-file-item flex justify-between items-center bg-slate-50 dark:bg-slate-700 p-2.5 rounded border dark:border-slate-600 text-sm gap-2"
-                     data-name="<%= (file.original_name || '').toLowerCase() %>"
-                     data-category="<%= cat %>">
-                  <div class="min-w-0 flex flex-col gap-0.5">
-                    <span class="truncate text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-400"><%= cat %></span>
-                  </div>
+              <% files.forEach(file => { %>
+                <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-700 p-2.5 rounded border dark:border-slate-600 text-sm">
+                    <span class="truncate max-w-xs text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
                   <div class="flex items-center gap-3 shrink-0">
-                    <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen</a>
+                    <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                    
+                    <!-- Lösch-Button für Dateien -->
                     <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei wirklich löschen?');" class="inline">
                       <input type="hidden" name="file_id" value="<%= file.id %>">
                       <input type="hidden" name="project_id" value="<%= project.id %>">
-                      <button type="submit" class="bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
+                      <button type="submit" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
                     </form>
                   </div>
                 </div>
               <% }) %>
-              <p id="projectFileEmpty" class="hidden text-xs text-slate-400 dark:text-slate-500 italic">Keine Datei passt zur Suche.</p>
             <% } else { %>
               <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch keine Zeichnungen oder Dokumente hochgeladen.</p>
             <% } %>
           </div>
-          <script>
-            (function() {
-              const input = document.getElementById('projectFileSearch');
-              const catSel = document.getElementById('projectFileCatFilter');
-              if (!input && !catSel) return;
-              const items = document.querySelectorAll('.project-file-item');
-              const empty = document.getElementById('projectFileEmpty');
-              function applyFilter() {
-                const q = ((input && input.value) || '').toLowerCase().trim();
-                const cat = (catSel && catSel.value) || '';
-                let visible = 0;
-                items.forEach(function(el) {
-                  const nameOk = !q || (el.getAttribute('data-name') || '').indexOf(q) !== -1;
-                  const catOk = !cat || (el.getAttribute('data-category') || '') === cat;
-                  const match = nameOk && catOk;
-                  el.style.display = match ? '' : 'none';
-                  if (match) visible++;
-                });
-                if (empty) empty.classList.toggle('hidden', visible > 0 || (!q && !cat));
-              }
-              if (input) input.addEventListener('input', applyFilter);
-              if (catSel) catSel.addEventListener('change', applyFilter);
-            })();
-          </script>
         </div>
       </div>
             </div><!-- /sec-body -->
@@ -695,31 +632,6 @@
 
             </div><!-- /sec-body -->
 </section>
-
-      <!-- ========== CHAT (Baustellen-Chat) ========== -->
-      <section id="sec-chat" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-chat" role="button" tabindex="0" aria-expanded="true">
-          <span class="sec-label text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30">Chat</span>
-          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-          <span class="chev" aria-hidden="true">▼</span>
-        </div>
-        <div class="sec-body">
-          <div class="card-clean space-y-4">
-            <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">💬 Baustellen-Chat</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Interner Chat für Chefs und Mitarbeiter zu diesem Projekt / dieser Baustelle.</p>
-
-            <div id="projectChatMessages" class="border dark:border-slate-600 rounded-lg p-3 bg-slate-50 dark:bg-slate-800/50 min-h-[180px] max-h-[320px] overflow-y-auto space-y-2">
-              <p class="text-xs text-slate-400 text-center italic">Nachrichten werden geladen…</p>
-            </div>
-
-            <form id="projectChatForm" class="flex gap-2" onsubmit="sendProjectChat(event)">
-              <input type="text" id="projectChatInput" placeholder="Nachricht an das Team…" autocomplete="off"
-                     class="input text-sm flex-1" maxlength="1000">
-              <button type="submit" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-medium px-4 py-2 rounded transition">Senden</button>
-            </form>
-          </div>
-        </div>
-      </section>
 
       <!-- ========== 5 FOTOS ========== -->
       <section id="sec-fotos" class="scroll-mt-28 space-y-3">
@@ -2023,119 +1935,6 @@ function acceptDefectSuggestion() {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
   setActiveTool('pen');
-})();
-</script>
-
-<script>
-// ========== Baustellen-Chat ==========
-(function() {
-  const projectId = <%= project.id %>;
-  const currentUserId = <%= typeof currentUser !== 'undefined' && currentUser ? currentUser.id : (typeof user !== 'undefined' && user ? user.id : 0) %>;
-  const box = document.getElementById('projectChatMessages');
-  const input = document.getElementById('projectChatInput');
-  if (!box || !input) return;
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  const isBoss = <%= (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) || (typeof user !== 'undefined' && user && (user.role === 'CHEF' || user.role === 'ADMIN')) ? 'true' : 'false' %>;
-
-  function renderMessages(messages) {
-    if (!messages || !messages.length) {
-      box.innerHTML = '<p class="text-xs text-slate-400 text-center italic">Noch keine Nachrichten. Schreib die erste!</p>';
-      return;
-    }
-    box.innerHTML = messages.map(m => {
-      const isMe = Number(m.user_id) === Number(currentUserId);
-      const canDelete = isMe || isBoss;
-      const time = m.created_at ? new Date(m.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
-      const name = m.username || 'Unbekannt';
-      return `<div class="flex ${isMe ? 'justify-end' : 'justify-start'} group">
-        <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm relative ${isMe
-          ? 'bg-cyan-600 text-white rounded-br-sm'
-          : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 border dark:border-slate-600 rounded-bl-sm'}">
-          <p class="text-[10px] font-semibold opacity-90 mb-0.5">${escapeHtml(name)}${isMe ? ' (du)' : ''}</p>
-          <p class="whitespace-pre-wrap break-words">${escapeHtml(m.message)}</p>
-          <div class="flex items-center justify-between gap-2 mt-1">
-            <span class="text-[10px] opacity-70">${time}</span>
-            ${canDelete ? `<button type="button" onclick="deleteProjectChatMsg(${m.id})" class="text-[10px] opacity-60 hover:opacity-100 underline" title="Nachricht löschen">löschen</button>` : ''}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-    box.scrollTop = box.scrollHeight;
-  }
-
-  window.deleteProjectChatMsg = async function(msgId) {
-    if (!confirm('Nachricht wirklich löschen?')) return;
-    try {
-      const res = await fetch('/projects/' + projectId + '/chat/delete', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ message_id: msgId })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      renderMessages(data.messages || []);
-    } catch (err) {
-      alert('Löschen fehlgeschlagen: ' + (err.message || ''));
-    }
-  };
-
-  async function loadChat() {
-    try {
-      const res = await fetch('/projects/' + projectId + '/chat', {
-        credentials: 'same-origin',
-        headers: { 'Accept': 'application/json' }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || ('HTTP ' + res.status));
-      }
-      renderMessages(data.messages || []);
-    } catch (err) {
-      console.error('Chat-Laden Fehler:', err);
-      box.innerHTML = '<p class="text-xs text-red-500 text-center">Fehler beim Laden des Chats.<br><span class="opacity-70">' + (err.message || '') + '</span></p>';
-    }
-  }
-
-  window.sendProjectChat = async function(e) {
-    e.preventDefault();
-    const text = (input.value || '').trim();
-    if (!text) return;
-    input.disabled = true;
-    try {
-      const res = await fetch('/projects/' + projectId + '/chat', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      renderMessages(data.messages || []);
-      input.value = '';
-    } catch (err) {
-      console.error('Chat-Senden Fehler:', err);
-      alert('Nachricht konnte nicht gesendet werden: ' + (err.message || ''));
-    } finally {
-      input.disabled = false;
-      input.focus();
-    }
-  };
-
-  // Beim Öffnen der Sektion oder beim Laden laden
-  loadChat();
-  // Optional: alle 30s neu laden wenn Sektion sichtbar
-  setInterval(() => {
-    const sec = document.getElementById('sec-chat');
-    if (sec && !sec.classList.contains('collapsed') && document.visibilityState === 'visible') {
-      loadChat();
-    }
-  }, 30000);
 })();
 </script>
 

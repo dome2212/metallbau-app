@@ -10,19 +10,9 @@ const { getFirma }          = require('../utils/companySettings');
 const upload = multer({
   storage: new CloudinaryStorage({
     cloudinary,
-    params: {
-      folder: 'metallbau-management',
-      // Bilder, Dokumente, Archive (ZIP), Office, CAD
-      allowed_formats: [
-        'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic',
-        'pdf',
-        'zip', 'rar', '7z',
-        'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt',
-        'dwg', 'dxf'
-      ]
-    }
+    params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
   }),
-  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
+  limits: { fileSize: 15 * 1024 * 1024 }
 });
 
 // ==========================================
@@ -152,21 +142,13 @@ router.get('/:id/projects', async (req, res) => {
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const customer_id = req.params.id;
   if (!req.file) return res.redirect(`/customers/${customer_id}/projects`);
-  const category = (req.body.category || 'Sonstiges').trim() || 'Sonstiges';
   try {
     await dbQuery(
-      `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url, category) VALUES (?, ?, ?, ?, ?, ?)`,
-      [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path, category]
+      `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
+      [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
     );
   } catch (err) {
-    try {
-      await dbQuery(
-        `INSERT INTO customer_files (customer_id, filename, original_name, file_type, file_url) VALUES (?, ?, ?, ?, ?)`,
-        [customer_id, req.file.filename, req.file.originalname, req.file.mimetype, req.file.path]
-      );
-    } catch (err2) {
-      console.error('Fehler beim Dateiupload:', err2.message || err.message);
-    }
+    console.error('Fehler beim Dateiupload:', err.message);
   }
   res.redirect(`/customers/${customer_id}/projects`);
 });

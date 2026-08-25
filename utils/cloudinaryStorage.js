@@ -24,17 +24,12 @@ class CloudinaryStorage {
 
   _handleFile(req, file, cb) {
     const ext = (file.originalname || '').split('.').pop().toLowerCase();
-    const mimeSub = (file.mimetype || '').split('/')[1] || '';
-    if (!this.allowed_formats.includes(ext) && !this.allowed_formats.includes(mimeSub)) {
-      return cb(new Error(`Ungültiges Dateiformat „${ext || mimeSub}“. Erlaubt: ${this.allowed_formats.join(', ')}`));
+    if (!this.allowed_formats.includes(ext) && !this.allowed_formats.includes(file.mimetype?.split('/')[1])) {
+      return cb(new Error(`Ungültiges Dateiformat. Erlaubt: ${this.allowed_formats.join(', ')}`));
     }
 
-    // ZIP/Archive und Office/CAD als raw, Bilder/PDF als auto
-    const rawExts = ['zip', 'rar', '7z', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'dwg', 'dxf'];
-    const resourceType = rawExts.includes(ext) ? 'raw' : 'auto';
-
     const uploadStream = this.cloudinary.uploader.upload_stream(
-      { folder: this.folder, resource_type: resourceType },
+      { folder: this.folder, resource_type: 'auto' },
       (err, result) => {
         if (err) return cb(err);
         cb(null, {
