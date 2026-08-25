@@ -1,9 +1,11 @@
 const express      = require('express');
+const http         = require('http');
 const path         = require('path');
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
 const cors         = require('cors');
 const db           = require('./config/database');
+const { initChatServer } = require('./utils/chatSocket');
 
 // ==========================================
 // ZEITZONE AUF DEUTSCHLAND FESTLEGEN
@@ -98,6 +100,7 @@ const schnittlisteRoutes        = require('./routes/schnittlisteRoutes');
 const colorsRoutes              = require('./routes/colorsRoutes');
 const pushRoutes                = require('./routes/pushRoutes');
 const taskRoutes                = require('./routes/taskRoutes');
+const chatRoutes                = require('./routes/chatRoutes');
 const { startBackupCron, runBackup } = require('./utils/backup');
 const { startRetentionCron } = require('./utils/dataRetention');
 const { startStampReminderCron } = require('./utils/stampReminder');
@@ -237,6 +240,8 @@ app.use('/farben', colorsRoutes);
 app.use('/push', pushRoutes);
 
 app.use('/tasks', taskRoutes);
+
+app.use('/chat', chatRoutes);
 
 // ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)
@@ -865,7 +870,13 @@ app.post('/api/ai/payment-reminder', async (req, res) => {
 // ==========================================
 // SERVER START
 // ==========================================
-app.listen(PORT, () => {
+// http.createServer statt app.listen direkt, damit der WebSocket-Server
+// (Echtzeit-Chat) sich an denselben HTTP-Server anhängen kann (nötig für
+// den "upgrade"-Handshake von WebSocket-Verbindungen).
+const server = http.createServer(app);
+initChatServer(server);
+
+server.listen(PORT, () => {
   console.log(`\n==================================================`);
   console.log(`🚀 Metallbau-App gestartet!`);
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);

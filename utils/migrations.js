@@ -548,6 +548,23 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 014 ── Chat: allgemeiner Team-Chat + Auftrags-Chats ────────────────────
+  {
+    id: 14,
+    description: 'Chat: chat_messages Tabelle (Team-Chat + pro Auftrag)',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS chat_messages (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        channel     TEXT NOT NULL,
+        user_id     INTEGER NOT NULL,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      // channel = 'team' für den allgemeinen Team-Chat, oder 'project:<id>' für einen Auftrags-Chat
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel, created_at)`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
