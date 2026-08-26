@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Fehler beim Laden des Team-Chats:', err.message);
-    res.status(500).send('Fehler beim Laden des Chats.');
+    res.status(500).send('Fehler beim Laden des Chats: ' + err.message);
   }
 });
 
