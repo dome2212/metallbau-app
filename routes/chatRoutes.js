@@ -1,12 +1,14 @@
 const express = require('express');
 const router  = express.Router();
 const { dbQuery } = require('../utils/db');
+const { ensureChatTable } = require('../utils/chatSocket');
 
 // ==========================================
 // TEAM-CHAT
 // ==========================================
 router.get('/', async (req, res) => {
   try {
+    await ensureChatTable();
     const result = await dbQuery(
       `SELECT chat_messages.id, chat_messages.channel, chat_messages.user_id,
               chat_messages.message, chat_messages.created_at, users.username

@@ -24,6 +24,34 @@ const jwt = require('jsonwebtoken');
 const { dbQuery } = require('./db');
 const { JWT_SECRET } = require('../middleware/auth');
 
+const isPg = !!process.env.DATABASE_URL;
+
+// Absicherung: Tabelle wird hier zusätzlich zur regulären Migration erstellt.
+// Falls die Migration aus irgendeinem Grund nicht sauber durchgelaufen ist
+// (z.B. Buchführungs-Konflikt in schema_migrations), sorgt das hier dafür,
+// dass der Chat trotzdem funktioniert - CREATE TABLE IF NOT EXISTS ist
+// gefahrlos, auch wenn die Tabelle längst existiert.
+let ensureTablePromise = null;
+function ensureChatTable() {
+  if (ensureTablePromise) return ensureTablePromise;
+  ensureTablePromise = (async () => {
+    try {
+      await dbQuery(`CREATE TABLE IF NOT EXISTS chat_messages (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        channel     TEXT NOT NULL,
+        user_id     INTEGER NOT NULL,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await dbQuery(`CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel, created_at)`);
+      console.log('💬 chat_messages-Tabelle geprüft/erstellt.');
+    } catch (err) {
+      console.error('💬 Konnte chat_messages-Tabelle nicht sicherstellen:', err.message);
+    }
+  })();
+  return ensureTablePromise;
+}
+
 // channel (string) -> Set von { ws, user }
 const channels = new Map();
 
@@ -80,6 +108,29 @@ async function fetchHistory(channel, sinceId) {
 
 function initChatServer(server) {
   const wss = new WebSocketServer({ noServer: true });
+
+  // Sicherheitsnetz: Die Chat-Tabelle sollte bereits über die reguläre
+  // Migration (utils/migrations.js) angelegt worden sein. Falls der
+  // Migrations-Tracker aus irgendeinem Grund meint, das sei schon erledigt,
+  // obwohl die Tabelle in der echten Datenbank fehlt (z.B. durch eine
+  // zwischenzeitlich neu aufgesetzte Datenbank), legen wir sie hier
+  // zusätzlich direkt an. CREATE TABLE IF NOT EXISTS ist immer sicher.
+  (async () => {
+    try {
+      const isPg = !!process.env.DATABASE_URL;
+      await dbQuery(`CREATE TABLE IF NOT EXISTS chat_messages (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        channel     TEXT NOT NULL,
+        user_id     INTEGER NOT NULL,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await dbQuery(`CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel, created_at)`);
+      console.log('💬 Chat-Tabelle geprüft/bereit.');
+    } catch (err) {
+      console.error('❌ Chat-Tabelle konnte nicht sichergestellt werden:', err.message);
+    }
+  })();
 
   server.on('upgrade', (req, socket, head) => {
     let url;
@@ -143,6 +194,7 @@ function initChatServer(server) {
         addToChannel(data.channel, entry);
 
         try {
+          await ensureChatTable();
           const messages = await fetchHistory(data.channel, Number(data.sinceId) || 0);
           ws.send(JSON.stringify({ type: 'history', channel: data.channel, messages }));
         } catch (err) {
@@ -157,6 +209,7 @@ function initChatServer(server) {
         if (!text) return;
 
         try {
+          await ensureChatTable();
           const result = await dbQuery(
             'INSERT INTO chat_messages (channel, user_id, message) VALUES (?, ?, ?)',
             [data.channel, user.id, text]
@@ -186,4 +239,4 @@ function initChatServer(server) {
   return wss;
 }
 
-module.exports = { initChatServer };
+module.exports = { initChatServer, ensureChatTable };

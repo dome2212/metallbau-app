@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
 const cors         = require('cors');
 const db           = require('./config/database');
-const { initChatServer } = require('./utils/chatSocket');
+const { initChatServer, ensureChatTable } = require('./utils/chatSocket');
 
 // ==========================================
 // ZEITZONE AUF DEUTSCHLAND FESTLEGEN
@@ -875,6 +875,7 @@ app.post('/api/ai/payment-reminder', async (req, res) => {
 // den "upgrade"-Handshake von WebSocket-Verbindungen).
 const server = http.createServer(app);
 initChatServer(server);
+ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
 
 server.listen(PORT, () => {
   console.log(`\n==================================================`);
