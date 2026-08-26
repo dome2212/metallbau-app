@@ -109,29 +109,6 @@ async function fetchHistory(channel, sinceId) {
 function initChatServer(server) {
   const wss = new WebSocketServer({ noServer: true });
 
-  // Sicherheitsnetz: Die Chat-Tabelle sollte bereits über die reguläre
-  // Migration (utils/migrations.js) angelegt worden sein. Falls der
-  // Migrations-Tracker aus irgendeinem Grund meint, das sei schon erledigt,
-  // obwohl die Tabelle in der echten Datenbank fehlt (z.B. durch eine
-  // zwischenzeitlich neu aufgesetzte Datenbank), legen wir sie hier
-  // zusätzlich direkt an. CREATE TABLE IF NOT EXISTS ist immer sicher.
-  (async () => {
-    try {
-      const isPg = !!process.env.DATABASE_URL;
-      await dbQuery(`CREATE TABLE IF NOT EXISTS chat_messages (
-        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
-        channel     TEXT NOT NULL,
-        user_id     INTEGER NOT NULL,
-        message     TEXT NOT NULL,
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`);
-      await dbQuery(`CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel, created_at)`);
-      console.log('💬 Chat-Tabelle geprüft/bereit.');
-    } catch (err) {
-      console.error('❌ Chat-Tabelle konnte nicht sichergestellt werden:', err.message);
-    }
-  })();
-
   server.on('upgrade', (req, socket, head) => {
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch (_) { socket.destroy(); return; }
@@ -226,6 +203,33 @@ function initChatServer(server) {
           broadcast(data.channel, { type: 'message', channel: data.channel, message });
         } catch (err) {
           ws.send(JSON.stringify({ type: 'error', error: 'Nachricht konnte nicht gesendet werden' }));
+        }
+        return;
+      }
+
+      if (data.type === 'delete') {
+        if (!isValidChannel(data.channel)) return;
+        const messageId = Number(data.messageId);
+        if (!messageId) return;
+
+        try {
+          await ensureChatTable();
+          const isModerator = user.role === 'ADMIN' || user.role === 'CHEF';
+          const ownRes = await dbQuery(
+            'SELECT user_id FROM chat_messages WHERE id = ? AND channel = ?',
+            [messageId, data.channel]
+          );
+          const msg = (ownRes.rows || [])[0];
+          if (!msg) return; // schon gelöscht oder existiert nicht
+          if (!isModerator && String(msg.user_id) !== String(user.id)) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Nur eigene Nachrichten können gelöscht werden' }));
+            return;
+          }
+
+          await dbQuery('DELETE FROM chat_messages WHERE id = ? AND channel = ?', [messageId, data.channel]);
+          broadcast(data.channel, { type: 'deleted', channel: data.channel, messageId });
+        } catch (err) {
+          ws.send(JSON.stringify({ type: 'error', error: 'Nachricht konnte nicht gelöscht werden' }));
         }
         return;
       }

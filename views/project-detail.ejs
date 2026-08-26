@@ -1981,7 +1981,8 @@ function acceptDefectSuggestion() {
     formEl: document.getElementById('project-chat-form'),
     inputEl: document.getElementById('project-chat-input'),
     statusEl: document.getElementById('project-chat-status'),
-    currentUserId: <%= currentUser.id %>
+    currentUserId: <%= currentUser.id %>,
+    isModerator: <%= (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') ? 'true' : 'false' %>
   });
 </script>
 
