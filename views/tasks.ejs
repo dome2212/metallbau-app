@@ -82,7 +82,7 @@
         <% const openTasks = tasks.filter(t => t.status !== 'Erledigt'); %>
         <% const doneTasks = tasks.filter(t => t.status === 'Erledigt'); %>
 
-        <div class="card p-0 overflow-hidden">
+        <div class="card card-lift p-0 overflow-hidden">
           <div class="px-4 md:px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Offene Aufgaben</h2>
             <span class="badge bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"><%= openTasks.length %></span>
@@ -149,7 +149,7 @@
           <% } %>
         </div>
 
-        <div class="card p-0 overflow-hidden">
+        <div class="card card-lift p-0 overflow-hidden">
           <div class="px-4 md:px-5 py-3.5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Erledigte Aufgaben</h2>
             <span class="badge bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"><%= doneTasks.length %></span>

@@ -32,6 +32,11 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Chat-Status** – farbiger Status-Punkt (verbunden / verbindet)
 - **Kunden Empty-State** – klarer Hinweis ohne Daten
 - **Lager-Buttons** – einheitlich über `.btn`-System
+- **Tab-Navigation** – Klasse `.tab-nav` für konsistente Unter-Tabs
+- **btn-danger / btn-success** – einheitliche Aktions-Buttons
+- **Kalender** – Wetter-Legende als Chips, moderne Buttons
+- **Angebote / Rechnungen / Profil / Aufgaben** – Card-Lift & Button-System
+
 
 
 

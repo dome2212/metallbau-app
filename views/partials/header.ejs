@@ -463,6 +463,43 @@
 
     /* ── FAB auf Stempel-Seite ausblenden ─────────────────────────────── */
     body[data-page="timetracking"] #fab-main { display: none !important; }
+    body[data-page="chat"] #fab-main { display: none !important; }
+
+    /* ── Tab Navigation ───────────────────────────────────────────────── */
+    .tab-nav {
+      display: flex; gap: .15rem; border-bottom: 1px solid var(--border-soft);
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .tab-nav a, .tab-nav button {
+      padding: .55rem 1rem; font-size: .8125rem; font-weight: 600;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      color: #64748b; white-space: nowrap; transition: color .15s, border-color .15s;
+      background: none; cursor: pointer; text-decoration: none;
+    }
+    .tab-nav a:hover, .tab-nav button:hover { color: #1e293b; }
+    .dark .tab-nav a:hover, .dark .tab-nav button:hover { color: #e2e8f0; }
+    .tab-nav a.active, .tab-nav button.active {
+      color: var(--primary); border-bottom-color: var(--primary);
+    }
+
+    /* ── Offline banner softer ────────────────────────────────────────── */
+    #offline-banner {
+      backdrop-filter: blur(8px);
+      letter-spacing: .01em;
+    }
+
+    /* ── Danger / success button helpers ──────────────────────────────── */
+    .btn-danger {
+      background: #dc2626; color: #fff;
+      box-shadow: 0 2px 8px rgba(220,38,38,.35);
+    }
+    .btn-danger:hover { filter: brightness(1.08); }
+    .btn-success {
+      background: #16a34a; color: #fff;
+      box-shadow: 0 2px 8px rgba(22,163,74,.35);
+    }
+    .btn-success:hover { filter: brightness(1.08); }
+
 
     /* ── Avatar initials ──────────────────────────────────────────────── */
     .avatar-initials {
@@ -715,7 +752,7 @@
 <!-- ── Offline-Hinweis: zeigt an, wenn gerade eine gespeicherte statt eine
      live geladene Ansicht angezeigt wird ─────────────────────────────── -->
 <div id="offline-banner" class="hidden fixed left-0 right-0 z-[31] bg-amber-500 text-white text-[11px] md:text-xs font-semibold text-center py-1 px-3">
-  📡 Offline – zuletzt gespeicherter Stand. Änderungen werden automatisch hochgeladen, sobald wieder Internet da ist.
+  Offline – gespeicherter Stand. Änderungen werden synchronisiert, sobald wieder Netz da ist.
 </div>
 <style>
   #offline-banner { top: 56px; } /* unterhalb der Top-Bar (h-14), jetzt auf allen Geräten sichtbar */
