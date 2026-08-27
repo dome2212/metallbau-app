@@ -212,7 +212,11 @@
           };
           const scm = statusColorsM[p.status] || 'bg-slate-100 text-slate-600';
         %>
-        <div class="m-card proj-card"
+        <div class="mb-swipe-wrap">
+          <div class="mb-swipe-actions">
+            <a href="/projects/<%= p.id %>" class="sw-edit">→<span>Öffnen</span></a>
+          </div>
+          <div class="mb-swipe-panel m-card proj-card"
              data-title="<%= (p.title || '').toLowerCase() %>"
              data-customer="<%= ((p.company_name || p.contact_person) || '').toLowerCase() %>"
              data-status="<%= p.status %>">
@@ -229,6 +233,7 @@
               <a href="/projects/<%= p.id %>" class="btn btn-ghost text-xs">Status</a>
             <% } %>
           </div>
+        </div>
         </div>
       <% }) %>
       <p id="proj-empty-m" class="hidden text-sm text-slate-400 text-center py-8">Keine Aufträge gefunden.</p>

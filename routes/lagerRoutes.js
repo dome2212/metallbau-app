@@ -1,4 +1,5 @@
 const express  = require('express');
+const { notifyIfLowStock } = require('../utils/lagerAlert');
 const router   = express.Router();
 const multer   = require('multer');
 const { dbQuery } = require('../utils/db');
@@ -343,6 +344,9 @@ router.post('/entnahme', async (req, res) => {
     const neuerBestand = Math.max(0, parseFloat(item.menge || 0) - entnahmeMenge);
     await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [neuerBestand, lager_item_id]);
 
+    // Sofort-Warnung bei Unterschreitung Mindestbestand (Push/E-Mail/WhatsApp)
+    try { await notifyIfLowStock(item, neuerBestand); } catch (_) {}
+
     res.redirect('/lager?tab=entnahmen');
   } catch (err) {
     console.error('Entnahme Fehler:', err);
@@ -430,21 +434,31 @@ router.post('/scan', upload.single('image'), async (req, res) => {
   const b64      = req.file.buffer.toString('base64');
   const mimeType = req.file.mimetype;
 
-  const systemPrompt = `Du bist ein Assistent für einen deutschen Metallbaubetrieb.
-Analysiere diesen Lieferschein und extrahiere ALLE Materialpositionen.
+  const systemPrompt = `Du bist ein Experte für Lieferscheine im deutschen Metallbau / Stahlhandel.
 
-WICHTIG: Antworte AUSSCHLIESSLICH mit einem JSON-Array. Absolut kein Text, keine Erklärung, kein Markdown, keine Codeblöcke davor oder danach. Nur das reine JSON-Array.
+Aufgabe: Extrahiere ALLE Materialpositionen aus dem Bild so vollständig und korrekt wie möglich.
 
-Beispiel-Ausgabe:
-[{"bezeichnung":"Flachstahl","profil":"40x5","abmessung":"6000mm","menge":10,"einheit":"Stk","lieferschein_nr":"LS-12345","lieferdatum":"2024-01-15","material_type":"baustahl"}]
+Antworte AUSSCHLIESSLICH mit einem JSON-Array. Kein Text, kein Markdown, keine Codeblöcke.
+
+Schema je Position:
+{"bezeichnung":"string","profil":"string|null","abmessung":"string|null","menge":number,"einheit":"Stk|m|kg|Paket","lieferschein_nr":"string|null","lieferdatum":"YYYY-MM-DD|null","material_type":"baustahl|edelstahl|schrauben","lagerort":null,"notiz":"string|null"}
 
 Regeln:
-- material_type: "baustahl" für Stahl/Eisen/HEA/IPE/RHS/CHS, "edelstahl" für Edelstahl/VA/V2A/V4A/1.4301/1.4571, "schrauben" für Schrauben/Muttern/Scheiben/Bolzen
-- lieferdatum: Format YYYY-MM-DD, sonst null
-- lieferschein_nr: Lieferscheinnummer oder Belegnummer, sonst null
-- menge: nur die Zahl, keine Einheit
-- einheit: "Stk", "m", "kg", "m²" oder "Psch"
-- Wenn kein Lieferschein erkennbar: []`;
+1. material_type:
+   - "baustahl": S235/S355, HEA/HEB/HEM/IPE/UPE/UPN, RHSschwarz, Blech, Flachstahl, Winkel, Rohr schwarz, Corten
+   - "edelstahl": VA, V2A, V4A, 1.4301, 1.4404, 1.4571, Edelstahl, Niro
+   - "schrauben": Schrauben, Muttern, Scheiben, Gewindestangen, Dübel, Bolzen
+2. menge: nur Zahl (Komma als Dezimalpunkt ok, z.B. 12.5). KEINE Tausenderpunkte als Multiplikator.
+3. profil: Querschnitt z.B. "40x5", "HEA 200", "M12"
+4. abmessung: Länge/Format z.B. "6000mm", "2000x1000"
+5. Einheit aus dem Beleg, sonst "Stk" (Stangen oft "Stk", Blech "Stk" oder "m")
+6. Eine Tabellenzeile = eine JSON-Position. Keine Positionen erfinden.
+7. Lieferscheinnummer und Datum wenn sichtbar auf den Beleg anwenden (gleiche Werte pro Position).
+8. Unleserliche Felder: null, nicht raten.
+9. Bezeichnung klar und deutsch (z.B. "Flachstahl", "IPE 200", "Sechskantschraube DIN 933").
+
+Beispiel:
+[{"bezeichnung":"Flachstahl","profil":"40x5","abmessung":"6000mm","menge":10,"einheit":"Stk","lieferschein_nr":"LS-12345","lieferdatum":"2024-01-15","material_type":"baustahl","lagerort":null,"notiz":null}]`;
 
   try {
     const reply = await callVision(apiKey, systemPrompt, b64, mimeType);

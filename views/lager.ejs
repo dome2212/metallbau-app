@@ -256,7 +256,29 @@
           const isCritical = Number(item.mindestbestand) > 0 && Number(item.menge) === 0;
           const stripe = isCritical ? '#ef4444' : isLow ? '#f59e0b' : '#22c55e';
         %>
-          <div class="m-card" style="padding:0;overflow:hidden;display:flex;flex-direction:row;align-items:stretch">
+          <div class="mb-swipe-wrap mb-lager-card">
+            <div class="mb-swipe-actions">
+              <button type="button" class="sw-out"
+                data-item-id="<%= item.id %>"
+                data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                onclick="openEntnahmeModalForEl(this)">↓<span>Entnahme</span></button>
+              <button type="button" class="sw-edit"
+                data-item-id="<%= item.id %>"
+                data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
+                data-item-profil="<%= encodeURIComponent(item.profil || '') %>"
+                data-item-abmessung="<%= encodeURIComponent(item.abmessung || '') %>"
+                data-item-menge="<%= Number(item.menge || 0) %>"
+                data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                data-item-material="<%= encodeURIComponent(item.material_type || 'baustahl') %>"
+                data-item-lsnr="<%= encodeURIComponent(item.lieferschein_nr || '') %>"
+                data-item-lieferdatum="<%= item.lieferdatum ? new Date(item.lieferdatum).toISOString().split('T')[0] : '' %>"
+                data-item-notiz="<%= encodeURIComponent(item.notiz || '') %>"
+                data-item-mindestbestand="<%= item.mindestbestand || 0 %>"
+                data-item-lagerort="<%= encodeURIComponent(item.lagerort || '') %>"
+                data-item-einheitspreis="<%= item.einheitspreis || 0 %>"
+                onclick="openEditModalEl(this)">✎<span>Edit</span></button>
+            </div>
+            <div class="mb-swipe-panel m-card" style="padding:0;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;border-radius:1.1rem">
             <div style="width:4px;background:<%= stripe %>;flex-shrink:0"></div>
             <div style="flex:1;min-width:0;padding:.85rem 1rem">
               <div class="flex items-start justify-between gap-2">
@@ -313,6 +335,7 @@
                 </form>
               </div>
             </div>
+          </div>
           </div>
         <% }) %>
       </div>
