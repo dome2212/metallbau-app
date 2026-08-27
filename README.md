@@ -4,6 +4,26 @@ Eine vollständige, mobile-optimierte Betriebssoftware für Metallbaubetriebe. E
 
 ---
 
+
+
+---
+
+## ✨ UI-Modernisierung (2026)
+
+Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
+
+- **Command Palette** – `Ctrl+K` / `Cmd+K` öffnet eine schnelle Befehlssuche (Dashboard, Aufträge, Zeit, Lager, …)
+- **Count-up-Animation** – KPI-Zahlen auf dem Dashboard zählen beim Laden hoch
+- **Card-Lift** – KPI- und Widget-Karten heben sich beim Hover leicht an
+- **Glassmorphism** – `.card-glass` Klasse für transparente, unscharfe Karten
+- **Skeleton-Loader** – `.skeleton` Utility-Klassen für Ladezustände
+- **Empty States** – `.empty-state` für leere Listen
+- **Focus-Visible** – klare Tastatur-Fokus-Ringe in Primary-Farbe
+- **Sanfter Dark-Mode-Übergang** – Hintergrund und Karten wechseln weich
+- **Industrial-Theme** – neues Theme `Public/themes/industrial.css` (Anthrazit + Orange)
+- **Login** – SVG-Icon, Entrance-Animation, verbesserte Typografie
+
+
 ## 📋 Inhaltsverzeichnis
 
 - [Features](#-features)

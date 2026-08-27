@@ -41,10 +41,10 @@
     <div id="widget-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4" id="kpi-grid">
 
       <!-- Offene Angebote -->
-      <div id="w-openOffers" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-openOffers" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-amber-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Offene Angebote</p>
-        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100"><%= stats.openOffersCount %></p>
+        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 count-up" data-count="<%= stats.openOffersCount %>"><%= stats.openOffersCount %></p>
         <% if (canSeeMoney) { %>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium"><%= stats.openOffersSum %> €</p>
         <% } %>
@@ -56,10 +56,10 @@
       </div>
 
       <!-- Unbezahlte Rechnungen -->
-      <div id="w-openInvoices" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-openInvoices" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-red-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Unbezahlte Rechnungen</p>
-        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100"><%= stats.openInvoicesCount %></p>
+        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 count-up" data-count="<%= stats.openInvoicesCount %>"><%= stats.openInvoicesCount %></p>
         <% if (canSeeMoney) { %>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium"><%= stats.openInvoicesSum %> €</p>
         <% } %>
@@ -71,10 +71,10 @@
       </div>
 
       <!-- Kunden Gesamt -->
-      <div id="w-customers" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-customers" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-emerald-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunden Gesamt</p>
-        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100"><%= stats.totalCustomers %></p>
+        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 count-up" data-count="<%= stats.totalCustomers %>"><%= stats.totalCustomers %></p>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">registrierte Kunden</p>
         <a href="/customers" class="inline-flex items-center gap-1 text-xs font-semibold mt-3 text-emerald-600 hover:text-emerald-500 transition">
           Zur Übersicht
@@ -84,10 +84,10 @@
       </div>
 
       <!-- Aktive Aufträge -->
-      <div id="w-activeProjects" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-activeProjects" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-blue-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Aktive Aufträge</p>
-        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100"><%= stats.activeProjectsCount %></p>
+        <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 count-up" data-count="<%= stats.activeProjectsCount %>"><%= stats.activeProjectsCount %></p>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">nicht abgeschlossen</p>
         <a href="/projects" class="inline-flex items-center gap-1 text-xs font-semibold mt-3 text-blue-600 hover:text-blue-500 transition">
           Zur Übersicht
@@ -97,10 +97,10 @@
       </div>
 
       <!-- Fällige Rechnungen -->
-      <div id="w-overdueInvoices" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-overdueInvoices" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-orange-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Fällige Rechnungen</p>
-        <p class="text-3xl font-bold <%= stats.overdueInvoicesCount > 0 ? 'text-orange-500' : 'text-slate-800 dark:text-slate-100' %>">
+        <p class="text-3xl font-bold count-up <%= stats.overdueInvoicesCount > 0 ? 'text-orange-500' : 'text-slate-800 dark:text-slate-100' %>" data-count="<%= stats.overdueInvoicesCount %>">
           <%= stats.overdueInvoicesCount %>
         </p>
         <% if (canSeeMoney) { %>
@@ -114,10 +114,10 @@
       </div>
 
       <!-- Offene Aufgaben -->
-      <div id="w-openTasks" class="widget card p-5 border-0 overflow-hidden relative">
+      <div id="w-openTasks" class="widget card card-lift p-5 border-0 overflow-hidden relative">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-violet-400"></div>
         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Offene Aufgaben</p>
-        <p class="text-3xl font-bold <%= stats.openTasksCount > 0 ? 'text-violet-600' : 'text-slate-800 dark:text-slate-100' %>">
+        <p class="text-3xl font-bold count-up <%= stats.openTasksCount > 0 ? 'text-violet-600' : 'text-slate-800 dark:text-slate-100' %>" data-count="<%= stats.openTasksCount %>">
           <%= stats.openTasksCount %>
         </p>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">projektübergreifend</p>

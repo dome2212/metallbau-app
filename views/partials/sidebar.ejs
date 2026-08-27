@@ -48,16 +48,16 @@
     </button>
   </div>
 
-  <!-- Suchfeld -->
+  <!-- Suchfeld / Command Palette -->
   <div class="px-4 pt-4 pb-2 shrink-0">
-    <button onclick="openSearch()"
-      class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-400 text-sm transition group"
+    <button onclick="(function(){ const o=document.getElementById('cmdk-overlay'); if(o){ o.classList.add('open'); const i=document.getElementById('cmdk-input'); if(i){ i.value=''; setTimeout(()=>i.focus(),30);} } else if(typeof openSearch==='function') openSearch(); })()"
+      class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-400 text-sm transition group hover:bg-white/10"
       style="background:rgba(255,255,255,.07)">
       <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
-      <span class="flex-1 text-left text-xs">Suchen…</span>
-      <kbd class="hidden md:inline text-[10px] font-mono bg-white/10 text-slate-400 px-1.5 py-0.5 rounded">/</kbd>
+      <span class="flex-1 text-left text-xs">Suchen / Befehl…</span>
+      <kbd class="hidden md:inline text-[10px] font-mono bg-white/10 text-slate-400 px-1.5 py-0.5 rounded">⌘K</kbd>
     </button>
   </div>
 
