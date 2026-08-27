@@ -44,6 +44,8 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Stahlrechner** – Card-Lift, einheitliche Inputs/Buttons
 - **Berichte** – Card-Lift
 - **Reduced Motion** – respektiert System-Einstellung „weniger Bewegung“
+- **Mobile UI** – Floating Bottom-Dock, Glass-Topbar, Such-Button, größere Touch-Flächen, Bottom-Sheet-Modals
+
 
 
 

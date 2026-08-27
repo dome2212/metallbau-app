@@ -382,11 +382,11 @@
 
     /* ── Mobile FAB (Schnellaktion) ───────────────────────────────────── */
     #fab-main {
-      position: fixed; right: 1rem; bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
-      z-index: 46; width: 3.25rem; height: 3.25rem;
+      position: fixed; right: 1.1rem; bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
+      z-index: 46; width: 3.5rem; height: 3.5rem;
       border-radius: 999px; border: none; cursor: pointer;
       background: var(--primary); color: #fff;
-      box-shadow: 0 6px 20px color-mix(in srgb, var(--primary) 45%, transparent);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 45%, transparent), 0 2px 6px rgba(0,0,0,.2);
       display: none; align-items: center; justify-content: center;
       transition: transform .15s, box-shadow .15s, filter .15s;
     }
@@ -601,21 +601,36 @@
     .toast-info    { background: #2563eb; }
     .toast-warn    { background: #d97706; }
 
-    /* ── Bottom Nav (Mobil) ─────────────────────────────────────── */
+    /* ── Bottom Nav (Mobil) – modern floating dock ──────────────── */
     #bottom-nav {
       position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: calc(60px + env(safe-area-inset-bottom, 0px));
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      display: flex;
-      align-items: stretch;
+      left: 0; right: 0; bottom: 0;
       z-index: 45;
-      border-top: 1px solid rgba(255,255,255,.08);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      padding: 0 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: transparent;
+      border: none;
+      height: auto;
     }
     @media (min-width: 768px) {
       #bottom-nav { display: none !important; }
+    }
+    #bottom-nav-inner {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      height: 64px;
+      padding: 6px;
+      border-radius: 22px;
+      background: color-mix(in srgb, var(--sidebar-bg) 88%, transparent);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 10px 40px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.15);
     }
     #bottom-nav a {
       flex: 1;
@@ -623,16 +638,91 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 2px;
-      font-size: .6rem;
+      gap: 3px;
+      height: 100%;
+      border-radius: 16px;
+      font-size: .62rem;
       font-weight: 600;
-      color: rgba(255,255,255,.45);
+      letter-spacing: .01em;
+      color: rgba(255,255,255,.48);
       text-decoration: none;
-      transition: color .15s, background .15s;
+      transition: color .18s, background .18s, transform .15s;
+      -webkit-tap-highlight-color: transparent;
     }
-    #bottom-nav a.active,
-    #bottom-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
-    #bottom-nav a svg { width: 1.25rem; height: 1.25rem; }
+    #bottom-nav a svg {
+      width: 1.35rem; height: 1.35rem;
+      transition: transform .18s cubic-bezier(.34,1.4,.64,1);
+    }
+    #bottom-nav a.active {
+      color: #fff;
+      background: color-mix(in srgb, var(--primary) 85%, #000);
+      box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 45%, transparent);
+    }
+    #bottom-nav a.active svg { transform: translateY(-1px) scale(1.05); }
+    #bottom-nav a:active { transform: scale(.96); }
+
+    /* ── Mobile layout polish ───────────────────────────────────── */
+    @media (max-width: 767px) {
+      /* mehr Platz unten für floating nav */
+      main {
+        padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)) !important;
+      }
+      /* kompaktere aber klarere Page-Header */
+      main h1 {
+        font-size: 1.35rem !important;
+        letter-spacing: -0.02em;
+      }
+      /* Cards: weniger horizontale Enge, runder */
+      .card {
+        border-radius: 1.1rem;
+      }
+      /* KPI-Grid enger */
+      #widget-grid, .grid.grid-cols-2 {
+        gap: .75rem !important;
+      }
+      /* Inputs größer tippen */
+      .input, select.input, textarea.input {
+        min-height: 44px;
+        font-size: 16px !important; /* verhindert iOS-Zoom */
+      }
+      /* Modals als Bottom-Sheet Feeling */
+      .modal-panel {
+        max-height: min(90vh, 720px);
+        overflow-y: auto;
+        border-radius: 1.25rem 1.25rem 1rem 1rem;
+      }
+      /* Tabellen horizontal scrollen mit Hinweis-Feeling */
+      .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .overflow-x-auto::-webkit-scrollbar { display: none; }
+      /* Top-Bar glassiger */
+      .mobile-topbar {
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        background: color-mix(in srgb, var(--sidebar-bg) 92%, transparent) !important;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+      }
+      /* Toast höher über der Nav */
+      #toast-container {
+        bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+        left: 1rem; right: 1rem;
+        align-items: stretch;
+      }
+      .toast { max-width: none; }
+    }
+
+    /* FAB modern */
+    #fab-main {
+      width: 3.5rem; height: 3.5rem;
+      bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
+      right: 1.1rem;
+      box-shadow:
+        0 8px 24px color-mix(in srgb, var(--primary) 45%, transparent),
+        0 2px 6px rgba(0,0,0,.2);
+    }
+    #fab-main svg { width: 1.5rem; height: 1.5rem; }
   </style>
 
   <script src="/js/offline-queue.js" defer></script>
@@ -816,7 +906,8 @@
 </a>
 
 <!-- ── Mobile Bottom Nav ─────────────────────────────────────────────── -->
-<nav id="bottom-nav" class="md:hidden" style="background:var(--sidebar-bg)">
+<nav id="bottom-nav" class="md:hidden" aria-label="Hauptnavigation">
+  <div id="bottom-nav-inner">
   <a href="/" id="bn-dashboard">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -847,6 +938,7 @@
     </svg>
     Urlaub
   </a>
+  </div>
 </nav>
 
 <script>
@@ -878,10 +970,10 @@
       }
     });
 
-    // Bottom nav auf Seiten mit Padding-Bottom anpassen
+    // Bottom nav: Padding kommt aus CSS (floating dock) – JS-Fallback
     if (window.innerWidth < 768) {
       document.querySelectorAll('main').forEach(m => {
-        m.style.paddingBottom = '4.5rem';
+        m.style.paddingBottom = 'calc(5.75rem + env(safe-area-inset-bottom, 0px))';
       });
     }
   });
