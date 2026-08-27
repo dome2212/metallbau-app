@@ -3,21 +3,21 @@
 <%- include('partials/sidebar') %>
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">🏢 Firmendaten &amp; Einstellungen</h1>
+      <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100 flex items-center gap-2.5"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>Firmendaten &amp; Einstellungen</h1>
     </header>
 
     <div class="px-4 md:px-6 max-w-4xl mx-auto w-full space-y-6 pb-10">
 
       <% if (success) { %>
         <div id="successBanner" class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-5 py-3 text-sm font-medium flex items-center gap-2">
-          ✅ Einstellungen erfolgreich gespeichert! Alle PDFs, Angebote und Rechnungen verwenden ab sofort die neuen Daten.
+          <svg class="w-4 h-4 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Einstellungen erfolgreich gespeichert! Alle PDFs, Angebote und Rechnungen verwenden ab sofort die neuen Daten.
         </div>
         <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 5000);</script>
       <% } %>
 
       <!-- ── PDF-LOGO ────────────────────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🖼️ Logo für PDFs</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 16l-5-4-4 3-3-2-5 4"/></svg>Logo für PDFs</h2>
         <p class="text-xs text-slate-400 mb-4">Erscheint im Briefkopf von Angeboten &amp; Rechnungen.</p>
 
         <div class="flex flex-col md:flex-row gap-6 items-start">
@@ -44,7 +44,7 @@
             </form>
             <% if (firma.logo_url) { %>
               <form action="/admin/company-settings/logo-delete" method="POST" onsubmit="return confirm('PDF-Logo wirklich löschen?')">
-                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Logo entfernen</button>
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline flex items-center gap-1"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>Logo entfernen</button>
               </form>
             <% } %>
             <p class="text-xs text-slate-400 dark:text-slate-500">Empfohlen: transparenter Hintergrund (PNG) oder SVG.</p>
@@ -54,7 +54,7 @@
 
       <!-- ── SIDEBAR-LOGO / TEXT ──────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">📩 Sidebar-Anzeige</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Sidebar-Anzeige</h2>
         <p class="text-xs text-slate-400 mb-5">Was soll oben in der Seitenleiste angezeigt werden?</p>
 
         <!-- Schalter: Text oder Logo -->
@@ -75,7 +75,7 @@
                 class="accent-blue-600" onchange="this.form.submit()">
               <div>
                 <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kurzname als Text</p>
-                <p class="text-xs text-slate-400">z.B. &nbsp;<span class="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded">📩 <%= firma.nameKurz %></span></p>
+                <p class="text-xs text-slate-400">z.B. &nbsp;<span class="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded"><%= firma.nameKurz %></span></p>
               </div>
             </label>
 
@@ -96,7 +96,7 @@
           <div id="heightSliderWrap" class="<%= firma.sidebar_modus === 'logo' ? '' : 'hidden' %> bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border dark:border-slate-600">
             <div class="flex items-center justify-between mb-2">
               <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
-                📲 Logo-Größe in der Sidebar
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>Logo-Größe in der Sidebar
               </label>
               <span class="text-sm font-bold text-blue-600 dark:text-blue-400" id="heightLabel">
                 <%= firma.sidebar_logo_height || 80 %> px
@@ -124,7 +124,7 @@
             <div class="mt-3 flex justify-end">
               <button type="submit"
                 class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-                💾 Größe speichern
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Größe speichern
               </button>
             </div>
           </div>
@@ -155,7 +155,7 @@
             </form>
             <% if (firma.sidebar_logo_url) { %>
               <form action="/admin/company-settings/sidebar-logo-delete" method="POST" onsubmit="return confirm('Sidebar-Logo wirklich löschen?')">
-                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">🗑️ Sidebar-Logo entfernen</button>
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline flex items-center gap-1"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg>Sidebar-Logo entfernen</button>
               </form>
             <% } %>
             <p class="text-xs text-slate-400 dark:text-slate-500">
@@ -187,7 +187,7 @@
 
         <!-- Firmenname & Kontakt -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏢 Firmenname &amp; Kontakt</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>Firmenname &amp; Kontakt</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div class="md:col-span-2">
@@ -263,7 +263,7 @@
 
         <!-- Bankdaten -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">🏦 Bankverbindung</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 10h16M4 10l8-6 8 6M6 10v8M10 10v8M14 10v8M18 10v8"/></svg>Bankverbindung</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             <div>
@@ -292,7 +292,7 @@
 
         <!-- Dokumenteneinstellungen -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">📄 Dokument-Einstellungen</h2>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/></svg>Dokument-Einstellungen</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div>
@@ -321,7 +321,7 @@
           </a>
           <button type="submit"
             class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition flex items-center gap-2">
-            💾 Alle Daten speichern
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Alle Daten speichern
           </button>
         </div>
 
@@ -329,7 +329,7 @@
 
       <!-- ── DATENBANK-BACKUP ──────────────────────────────────────── -->
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🗄️ Datenbank-Backup</h2>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2 flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/></svg>Datenbank-Backup</h2>
         <p class="text-xs text-slate-400 mb-4">
           Täglich um <strong>Mitternacht</strong> wird automatisch ein Backup erstellt und an
           <strong><%= process.env.BACKUP_EMAIL || 'BACKUP_EMAIL (nicht gesetzt)' %></strong> gesendet.
@@ -338,12 +338,12 @@
           <div class="flex-1">
             <% if (!process.env.BACKUP_EMAIL || !process.env.SMTP_USER) { %>
               <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-lg px-4 py-2.5 text-xs">
-                ⚠️ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> sind nicht in den Umgebungsvariablen gesetzt.
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a1.5 1.5 0 001.3 2.3h16.4a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z"/></svg><strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> sind nicht in den Umgebungsvariablen gesetzt.
                 Backup ist deaktiviert bis diese Werte in Render eingetragen werden.
               </div>
             <% } else { %>
               <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-lg px-4 py-2.5 text-xs">
-                ✅ Backup konfiguriert → wird täglich an <strong><%= process.env.BACKUP_EMAIL %></strong> gesendet.
+                <svg class="w-4 h-4 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Backup konfiguriert → wird täglich an <strong><%= process.env.BACKUP_EMAIL %></strong> gesendet.
               </div>
             <% } %>
           </div>
@@ -351,7 +351,7 @@
             onsubmit="return confirm('Jetzt sofort ein Backup erstellen und per E-Mail senden?')">
             <button type="submit"
               class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap flex items-center gap-2">
-              🗄️ Jetzt Backup erstellen
+              <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/></svg>Jetzt Backup erstellen
             </button>
           </form>
         </div>

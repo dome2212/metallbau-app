@@ -16,7 +16,7 @@
     <!-- Passwort ändern -->
     <div class="card p-6">
       <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-5 flex items-center gap-2">
-        <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">🔑</span>
+        <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg></span>
         Passwort ändern
       </h2>
 
@@ -53,7 +53,7 @@
     <!-- Profildaten -->
     <div class="card p-6">
       <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-5 flex items-center gap-2">
-        <span class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-sm">👤</span>
+        <span class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg></span>
         Profildaten
       </h2>
       <form method="POST" action="/profile/update" class="space-y-4">
@@ -76,7 +76,7 @@
     <!-- Push-Benachrichtigungen -->
     <div class="card p-6">
       <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2">
-        <span class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-sm">🔔</span>
+        <span class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></span>
         Push-Benachrichtigungen
       </h2>
       <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -115,7 +115,7 @@
       }
       const subscribed = await isPushSubscribed();
       if (subscribed) {
-        setStatus('✅ Push-Benachrichtigungen sind aktiviert.', true);
+        setStatus('Push-Benachrichtigungen sind aktiviert.', true);
         btn.textContent = 'Deaktivieren';
         btn.className = 'btn w-full justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200';
       } else {
