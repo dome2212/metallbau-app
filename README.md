@@ -40,6 +40,11 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Projekt-Detail** – einheitliche Buttons & page-bg
 - **Monatsauswertung** – btn-System + Card-Lift
 - **Admin-Benutzer** – moderne Tabellen & Karten
+- **Personalplanung** – Chip-Legende & moderne Tabelle
+- **Stahlrechner** – Card-Lift, einheitliche Inputs/Buttons
+- **Berichte** – Card-Lift
+- **Reduced Motion** – respektiert System-Einstellung „weniger Bewegung“
+
 
 
 
