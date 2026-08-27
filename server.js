@@ -243,6 +243,26 @@ app.use('/tasks', taskRoutes);
 
 app.use('/chat', chatRoutes);
 
+// Baustellenkarte (Leaflet)
+app.get('/map', async (req, res) => {
+  try {
+    const { dbQuery } = require('./utils/db');
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.status != 'Abgeschlossen'
+      ORDER BY projects.title ASC
+    `);
+    res.render('map', { projects: projRes.rows || [] });
+  } catch (err) {
+    console.error('GET /map Fehler:', err.message);
+    res.status(500).send('Karte konnte nicht geladen werden: ' + err.message);
+  }
+});
+
+
+
 // ==========================================
 // SIDEBAR-EINSTELLUNGEN (speichert Cookie)
 // ==========================================
