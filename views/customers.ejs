@@ -105,6 +105,12 @@
             </div>
             <div class="m-card-actions">
               <a href="/customers/<%= c.id %>/projects" class="btn btn-primary text-xs">Projekte</a>
+              <% if (c.phone) { %>
+                <a href="tel:<%= String(c.phone).replace(/\s+/g,'') %>" class="btn btn-ghost text-xs">Anrufen</a>
+              <% } %>
+              <% if (c.street || c.city) { %>
+                <a href="https://www.google.com/maps/dir/?api=1&destination=<%= encodeURIComponent([c.street, c.zip, c.city].filter(Boolean).join(' ')) %>" target="_blank" rel="noopener" class="btn btn-ghost text-xs">Navi</a>
+              <% } %>
               <button type="button" onclick='openEditModal(this)' data-customer="<%= JSON.stringify(c) %>" class="btn btn-ghost text-xs">Bearbeiten</button>
             </div>
           </div>

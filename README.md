@@ -49,6 +49,8 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Großer Stempel-Button** – full-width, mit leichtem Vibrations-Feedback
 - **Sticky Aktionsleiste** – auf Projekt-Detail (mobil)
 - **Pull-to-Refresh** – nach unten ziehen zum Aktualisieren
+- **Mobile v3** – Karten (Rechnungen/Angebote/Lager), Segment-Filter, Stempel-Hero, tel/Navi, Chat-Messenger, Login-Autocomplete, Foto-Button, Skeletons
+
 
 
 

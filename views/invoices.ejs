@@ -13,8 +13,8 @@
         <button onclick="toggleModal('datevExportModal')" class="bg-slate-700 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm w-full md:w-auto justify-center">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>DATEV-Export</span>
         </button>
-        <button onclick="toggleModal('invoiceModal')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm w-full md:w-auto justify-center">
-          <span>+ Neue Rechnung erstellen</span>
+        <button onclick="toggleModal('invoiceModal')" class="btn btn-primary text-sm w-full md:w-auto justify-center">
+          Neue Rechnung
         </button>
       </div>
     </div>
@@ -43,15 +43,24 @@
           </div>
           <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
             <button type="button" onclick="toggleModal('datevExportModal')" class="btn btn-ghost">Abbrechen</button>
-            <button type="submit" class="btn btn-primary">⬇️ Herunterladen</button>
+            <button type="submit" class="btn btn-primary">Herunterladen</button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- Filter -->
+    <div class="px-4 md:px-6 w-full max-w-7xl mx-auto mb-3">
+      <div class="seg" id="inv-seg">
+        <button type="button" class="active" data-filter="open">Offen</button>
+        <button type="button" data-filter="all">Alle</button>
+        <button type="button" data-filter="paid">Bezahlt</button>
+      </div>
+    </div>
+
     <!-- Rechnungs-Tabelle -->
     <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6">
-      <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden desktop-table-wrap">
         <div class="overflow-x-auto">
           <table class="table-modern w-full text-left border-collapse min-w-[700px]">
             <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
@@ -68,7 +77,7 @@
             <tbody>
               <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
                 <% invoices.forEach(invoice => { %>
-                  <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm">
+                  <tr class="inv-row border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-sm" data-status="<%= invoice.status %>">
                     <td class="py-3 px-4 font-semibold text-gray-800 dark:text-gray-100"><%= invoice.invoice_number %></td>
                     <td class="py-3 px-4 text-gray-600 dark:text-gray-400"><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></td>
                     <td class="py-3 px-4 text-gray-800 dark:text-gray-200 font-medium"><%= invoice.company_name || invoice.contact_person || 'Privat' %></td>
@@ -139,12 +148,42 @@
                 <% }); %>
               <% } else { %>
                 <tr>
-                  <td colspan="<%= canSeeMoney ? 7 : 6 %>" class="text-center text-gray-400 dark:text-slate-500 py-8">Keine Rechnungen vorhanden.</td>
+                  <td colspan="<%= canSeeMoney ? 7 : 6 %>" class="py-12 text-center">
+                    <div class="empty-state">
+                      <h3>Keine Rechnungen</h3>
+                      <p>Lege die erste Rechnung an, um Zahlungen zu verfolgen.</p>
+                      <button onclick="toggleModal('invoiceModal')" class="btn btn-primary text-xs mt-3">Neue Rechnung</button>
+                    </div>
+                  </td>
                 </tr>
               <% } %>
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div class="mobile-card-list mt-3" id="inv-mobile">
+        <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
+          <% invoices.forEach(invoice => { %>
+            <div class="m-card inv-card" data-status="<%= invoice.status %>">
+              <a href="/documents/invoices/<%= invoice.id %>" class="block">
+                <div class="m-card-title"><%= invoice.invoice_number %></div>
+                <div class="m-card-meta">
+                  <span><%= invoice.company_name || invoice.contact_person || 'Privat' %></span>
+                  <span><%= new Date(invoice.created_at).toLocaleDateString('de-DE') %></span>
+                  <% if (canSeeMoney) { %><span class="num"><%= parseFloat(invoice.total_amount || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</span><% } %>
+                  <% if (invoice.status === 'Bezahlt') { %><span class="badge badge-success">Bezahlt</span>
+                  <% } else if (invoice.status === 'Überfällig') { %><span class="badge badge-danger">Überfällig</span>
+                  <% } else { %><span class="badge badge-warning"><%= invoice.status %></span><% } %>
+                </div>
+              </a>
+              <div class="m-card-actions">
+                <a href="/documents/invoices/<%= invoice.id %>" class="btn btn-primary text-xs">Öffnen</a>
+                <a href="/documents/invoices/<%= invoice.id %>/pdf-download" download class="btn btn-ghost text-xs">PDF</a>
+              </div>
+            </div>
+          <% }) %>
+        <% } %>
       </div>
     </div>
 </main>
@@ -271,6 +310,28 @@
     const row = document.getElementById(rowId);
     if (row) row.remove();
   }
+
+  (function () {
+    const seg = document.getElementById('inv-seg');
+    if (!seg) return;
+    function apply(filter) {
+      document.querySelectorAll('.inv-row, .inv-card').forEach(el => {
+        const st = (el.dataset.status || '').toLowerCase();
+        let show = true;
+        if (filter === 'open') show = st !== 'bezahlt';
+        if (filter === 'paid') show = st === 'bezahlt';
+        el.classList.toggle('hidden', !show);
+      });
+    }
+    seg.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        seg.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        apply(btn.dataset.filter);
+      });
+    });
+    apply('open');
+  })();
 </script>
 
 </body>

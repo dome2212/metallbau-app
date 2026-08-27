@@ -74,6 +74,22 @@ document.addEventListener('DOMContentLoaded', function () {
       </div>
     </div>
 
+    <!-- STATUS HERO -->
+    <div class="card p-5 text-center <%= isStampedIn ? 'border border-emerald-200 dark:border-emerald-800' : '' %>">
+      <% if (isStampedIn) { %>
+        <div class="inline-flex items-center gap-2 badge badge-success text-sm px-3 py-1.5 mb-3">
+          <span class="pulse-dot"></span> Eingestempelt
+        </div>
+        <p class="text-4xl font-bold tabular-nums text-slate-800 dark:text-slate-100 tracking-tight" id="elapsed-clock">00:00:00</p>
+        <p class="text-sm text-slate-500 mt-1">seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · <%= activeProjectTitle %><% } %></p>
+      <% } else { %>
+        <div class="inline-flex items-center gap-2 badge badge-neutral text-sm px-3 py-1.5 mb-3">Nicht eingestempelt</div>
+        <p class="text-2xl font-bold text-slate-700 dark:text-slate-200" id="live-clock-hero">--:--:--</p>
+        <p class="text-sm text-slate-500 mt-1">Bereit zum Einstempeln</p>
+      <% } %>
+      <p class="text-xs text-slate-400 mt-3">Heute: <strong class="text-slate-600 dark:text-slate-300"><%= todayTotalHours %> Std.</strong></p>
+    </div>
+
     <!-- STEMPEL-KARTE -->
     <div class="card card-lift border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-300 dark:border-slate-600' %> p-4 md:p-6">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5">
@@ -444,5 +460,26 @@ window.addEventListener('beforeunload', () => {
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
 });
 </script>
+
+<script>
+(function(){
+  const el = document.getElementById('elapsed-clock');
+  const hero = document.getElementById('live-clock-hero');
+  const epoch = <%= typeof lastStampEpoch !== 'undefined' && lastStampEpoch ? Number(lastStampEpoch) : 'null' %>;
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function tick(){
+    const now = new Date();
+    if (hero) hero.textContent = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+    if (el && epoch) {
+      let s = Math.max(0, Math.floor((Date.now() - epoch) / 1000));
+      const h = Math.floor(s/3600); s %= 3600;
+      const m = Math.floor(s/60); s %= 60;
+      el.textContent = pad(h)+':'+pad(m)+':'+pad(s);
+    }
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+
 </body>
 </html>

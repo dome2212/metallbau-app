@@ -2,6 +2,20 @@
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div id="dash-skeleton" class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-4 md:hidden">
+    <div class="skeleton" style="height:1.5rem;width:45%;border-radius:.5rem"></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="card p-4 space-y-2"><div class="skeleton" style="height:.75rem;width:60%"></div><div class="skeleton" style="height:2rem;width:40%"></div></div>
+      <div class="card p-4 space-y-2"><div class="skeleton" style="height:.75rem;width:60%"></div><div class="skeleton" style="height:2rem;width:40%"></div></div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const s = document.getElementById('dash-skeleton');
+      if (s) setTimeout(() => s.remove(), 180);
+    });
+  </script>
+
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
     <!-- ── Page Header ──────────────────────────────────────────────────── -->

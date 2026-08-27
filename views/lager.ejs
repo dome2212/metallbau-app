@@ -112,10 +112,9 @@
 
   <!-- ── Tabs ──────────────────────────────────────────────────────────────── -->
   <div class="px-4 md:px-6 mb-4">
-    <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700 overflow-x-auto">
+    <div class="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory" style="-webkit-overflow-scrolling:touch;scrollbar-width:none">
       <a href="/lager?tab=baustahl"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
-               <%= tab === 'baustahl' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        class="chip snap-start shrink-0 <%= tab === 'baustahl' ? 'active' : '' %>">
         <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9h16M9 4v16"/></svg>Baustahl
       </a>
       <a href="/lager?tab=edelstahl"
@@ -132,19 +131,16 @@
       <% const colorMap = { blue:'border-blue-600 text-blue-600 dark:text-blue-400', violet:'border-violet-600 text-violet-600 dark:text-violet-400', emerald:'border-emerald-600 text-emerald-600 dark:text-emerald-400', amber:'border-amber-600 text-amber-600 dark:text-amber-400', rose:'border-rose-600 text-rose-600 dark:text-rose-400', slate:'border-slate-600 text-slate-600 dark:text-slate-400', orange:'border-orange-600 text-orange-600 dark:text-orange-400', cyan:'border-cyan-600 text-cyan-600 dark:text-cyan-400' }; %>
       <% for (const ct of (customTabs || [])) { %>
       <a href="/lager?tab=<%= ct.key %>"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
-               <%= tab === ct.key ? (colorMap[ct.color] || colorMap.blue) : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        class="chip snap-start shrink-0 <%= tab === ct.key ? 'active' : '' %>">
         <%= ct.icon %> <%= ct.label %>
       </a>
       <% } %>
       <a href="/lager?tab=entnahmen"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
-               <%= tab === 'entnahmen' ? 'border-amber-600 text-amber-600 dark:text-amber-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        class="chip snap-start shrink-0 <%= tab === 'entnahmen' ? 'active' : '' %>">
         <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Entnahmen
       </a>
       <a href="/lager?tab=reste"
-        class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap
-               <%= tab === 'reste' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+        class="chip snap-start shrink-0 <%= tab === 'reste' ? 'active' : '' %>">
         <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.5 12 20 20M8.5 12H4"/></svg>Reststücke
       </a>
     </div>
@@ -157,8 +153,8 @@
   <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
       <% if (items && items.length > 0) { %>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse min-w-[800px]">
+      <div class="overflow-x-auto desktop-table-wrap">
+        <table class="table-modern w-full text-left border-collapse min-w-[800px]">
           <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
             <tr>
               <th class="px-4 py-3">Bezeichnung</th>
@@ -241,11 +237,11 @@
                     data-item-material="<%= item.material_type || 'baustahl' %>"
                     onclick="openMoveModal(this)"
                     class="px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 rounded text-xs font-semibold transition"
-                    title="In anderen Tab verschieben">↗</button>
+                    title="In anderen Tab verschieben"title="Verschieben">↗</button>
                   <form action="/lager/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" class="inline">
                     <input type="hidden" name="id" value="<%= item.id %>">
                     <input type="hidden" name="tab" value="<%= tab %>">
-                    <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">🗑️</button>
+                    <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition"title="Löschen">×</button>
                   </form>
                 </div>
               </td>
@@ -254,11 +250,29 @@
           </tbody>
         </table>
       </div>
+      <div class="mobile-card-list px-1 pt-2">
+        <% items.forEach(item => {
+          const isLow = Number(item.mindestbestand) > 0 && Number(item.menge) <= Number(item.mindestbestand);
+          const isCritical = Number(item.mindestbestand) > 0 && Number(item.menge) === 0;
+        %>
+          <div class="m-card">
+            <div class="m-card-title"><%= item.bezeichnung %></div>
+            <div class="m-card-meta">
+              <% if (item.profil) { %><span><%= item.profil %></span><% } %>
+              <% if (item.abmessung) { %><span><%= item.abmessung %></span><% } %>
+              <span class="num font-bold <%= isCritical ? 'text-red-500' : isLow ? 'text-amber-600' : '' %>">Bestand: <%= item.menge %></span>
+              <% if (item.lagerort) { %><span><%= item.lagerort %></span><% } %>
+              <% if (isCritical) { %><span class="badge badge-danger">Leer</span>
+              <% } else if (isLow) { %><span class="badge badge-warning">Niedrig</span><% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
       <% } else { %>
-      <div class="text-center py-16">
-        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
-        <p class="text-gray-500 dark:text-gray-400 font-medium">Keine Einträge vorhanden</p>
-        <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Lieferschein fotografieren oder Eintrag manuell hinzufügen</p>
+      <div class="empty-state py-16">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <h3>Keine Einträge</h3>
+        <p>Lieferschein scannen oder manuell einlagern.</p>
       </div>
       <% } %>
     </div>
@@ -397,7 +411,7 @@
               <td class="px-4 py-3 text-right">
                 <form action="/lager/rest/delete" method="POST" onsubmit="return confirm('Reststück wirklich löschen?');" class="inline">
                   <input type="hidden" name="id" value="<%= r.id %>">
-                  <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">🗑️</button>
+                  <button type="submit" class="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition"title="Löschen">×</button>
                 </form>
               </td>
             </tr>

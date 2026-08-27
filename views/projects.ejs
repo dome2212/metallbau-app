@@ -76,15 +76,15 @@
         </svg>
         <input id="proj-search" type="text" placeholder="Titel oder Kunde suchen…" class="input pl-9">
       </div>
-      <select id="proj-status-filter" class="input sm:w-52">
+      <div class="seg-filter flex gap-1 overflow-x-auto sm:w-auto" id="proj-status-filter" role="group" aria-label="Statusfilter">
+        <button type="button" class="chip active shrink-0" data-filter="">Alle</button>
+        <button type="button" class="chip shrink-0" data-filter="In Planung">Planung</button>
+        <button type="button" class="chip shrink-0" data-filter="In Produktion">Produktion</button>
+        <button type="button" class="chip shrink-0" data-filter="Montage läuft">Montage</button>
+        <button type="button" class="chip shrink-0" data-filter="Abgeschlossen">Fertig</button>
+      </div>
+      <select id="proj-status-filter-legacy" class="hidden">
         <option value="">Alle Status</option>
-        <option value="In Planung">In Planung</option>
-        <option value="Avor / Vorbereitung">Avor / Vorbereitung</option>
-        <option value="In Produktion">In Produktion</option>
-        <option value="Oberfläche">Oberfläche</option>
-        <option value="Montagebereit">Montagebereit</option>
-        <option value="Montage läuft">Montage läuft</option>
-        <option value="Abgeschlossen">Abgeschlossen</option>
       </select>
       <span id="proj-count" class="text-xs text-slate-400 whitespace-nowrap self-center font-medium">
         <%= projects.length %> Aufträge
@@ -259,7 +259,19 @@
 
   // ── Filter & Suche ───────────────────────────────────────────────────────
   const searchInput  = document.getElementById('proj-search');
-  const statusFilter = document.getElementById('proj-status-filter');
+  let statusFilterValue = '';
+  const statusFilterEl = document.getElementById('proj-status-filter');
+  if (statusFilterEl) {
+    statusFilterEl.querySelectorAll('[data-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        statusFilterEl.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        statusFilterValue = btn.dataset.filter || '';
+        applyFilter();
+      });
+    });
+  }
+  const statusFilter = { get value() { return statusFilterValue; } };
   const countLabel   = document.getElementById('proj-count');
   const emptyHint    = document.getElementById('proj-empty');
 
@@ -309,7 +321,6 @@
   }
 
   searchInput.addEventListener('input', applyFilter);
-  statusFilter.addEventListener('change', applyFilter);
   // Abgeschlossene standardmäßig ausblenden
   document.addEventListener('DOMContentLoaded', applyFilter);
 </script>

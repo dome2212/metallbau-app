@@ -52,6 +52,7 @@
       <% } %>
       <div class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
+          <!-- desktop -->
           <table class="table-modern w-full text-left border-collapse min-w-[700px]">
             <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
               <tr>
@@ -132,6 +133,34 @@
           </table>
         </div>
       </div>
+      <div class="mobile-card-list mt-3" id="offer-mobile">
+        <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
+          <% offers.forEach(offer => { %>
+            <div class="m-card offer-card">
+              <a href="/documents/offers/<%= offer.id %>" class="block">
+                <div class="m-card-title"><%= offer.offer_number || ('Angebot #' + offer.id) %></div>
+                <div class="m-card-meta">
+                  <span><%= offer.company_name || offer.contact_person || '—' %></span>
+                  <% if (offer.created_at) { %><span><%= new Date(offer.created_at).toLocaleDateString('de-DE') %></span><% } %>
+                  <% if (typeof canSeeMoney !== 'undefined' && canSeeMoney && offer.total_amount != null) { %>
+                    <span class="num"><%= parseFloat(offer.total_amount || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</span>
+                  <% } %>
+                  <% if (offer.status) { %><span class="badge badge-info"><%= offer.status %></span><% } %>
+                </div>
+              </a>
+              <div class="m-card-actions">
+                <a href="/documents/offers/<%= offer.id %>" class="btn btn-primary text-xs">Öffnen</a>
+              </div>
+            </div>
+          <% }) %>
+        <% } else { %>
+          <div class="empty-state card">
+            <h3>Keine Angebote</h3>
+            <p>Erstelle das erste Angebot für einen Kunden.</p>
+          </div>
+        <% } %>
+      </div>
+
     </div>
     <% } %>
 

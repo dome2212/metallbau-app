@@ -809,6 +809,64 @@
       box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 40%, transparent);
     }
 
+    /* ── Segmented control ─────────────────────────────────────────── */
+    .seg {
+      display: flex; gap: 4px; padding: 4px;
+      background: #f1f5f9; border-radius: 999px;
+    }
+    .dark .seg { background: #1e293b; }
+    .seg button, .seg a {
+      flex: 1; text-align: center; border: none; cursor: pointer;
+      background: transparent; color: #64748b;
+      font-size: .75rem; font-weight: 700; padding: .45rem .7rem;
+      border-radius: 999px; text-decoration: none; white-space: nowrap;
+    }
+    .seg button.active, .seg a.active {
+      background: #fff; color: var(--primary);
+      box-shadow: 0 1px 4px rgba(15,23,42,.08);
+    }
+    .dark .seg button.active, .dark .seg a.active {
+      background: #334155; color: #fff;
+    }
+
+    /* ── Chip snap-scroll (Lager-Tabs) ─────────────────────────────── */
+    .chip-scroll {
+      display: flex; gap: .5rem; overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+      padding-bottom: .35rem;
+    }
+    .chip-scroll::-webkit-scrollbar { display: none; }
+    .chip-scroll a, .chip-scroll .chip {
+      scroll-snap-align: start; flex-shrink: 0;
+    }
+
+    /* ── PWA install banner ────────────────────────────────────────── */
+    #pwa-install {
+      display: none; position: fixed; left: 12px; right: 12px;
+      bottom: calc(5.7rem + env(safe-area-inset-bottom, 0px));
+      z-index: 47; padding: .85rem 1rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--sidebar-bg) 92%, transparent);
+      backdrop-filter: blur(16px);
+      color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    #pwa-install.show { display: flex; align-items: center; gap: .75rem; }
+    @media (min-width: 768px) {
+      #pwa-install { bottom: 1.25rem; max-width: 420px; left: auto; right: 1.25rem; }
+    }
+
+    /* ── Chat composer sticky ──────────────────────────────────────── */
+    @media (max-width: 767px) {
+      body[data-page="chat"] main { padding-bottom: 0 !important; }
+      #chat-form {
+        position: sticky; bottom: calc(5.4rem + env(safe-area-inset-bottom, 0px));
+        background: var(--page-bg); padding: .5rem 0 .25rem; z-index: 20;
+      }
+      .dark #chat-form { background: #0f172a; }
+    }
+
     /* FAB modern */
     #fab-main {
       width: 3.5rem; height: 3.5rem;
@@ -979,6 +1037,15 @@
 <div id="nprogress"><div class="bar"></div></div>
 <div id="ptr-indicator"><div class="ptr-pill">Loslassen zum Aktualisieren</div></div>
 
+<div id="pwa-install" role="dialog" aria-label="App installieren">
+  <div class="flex-1 min-w-0">
+    <p class="text-sm font-semibold">App aufs Handy</p>
+    <p class="text-xs opacity-80 mt-0.5">Zum Homescreen hinzufügen – schneller stempeln.</p>
+  </div>
+  <button type="button" id="pwa-install-btn" class="btn btn-primary text-xs shrink-0">Installieren</button>
+  <button type="button" id="pwa-dismiss" class="btn btn-ghost text-xs shrink-0" style="color:#fff;border-color:rgba(255,255,255,.2)">Später</button>
+</div>
+
 <!-- ── Toast Container ───────────────────────────────────────────────── -->
 <div id="toast-container"></div>
 
@@ -1145,6 +1212,35 @@
         setTimeout(() => location.reload(), 280);
       } else if (ind) ind.classList.remove('show');
     }, { passive: true });
+  })();
+
+  // ── PWA Install-Hinweis ────────────────────────────────────────────────
+  (function () {
+    let deferred = null;
+    const box = document.getElementById('pwa-install');
+    const btn = document.getElementById('pwa-install-btn');
+    const dismiss = document.getElementById('pwa-dismiss');
+    if (!box) return;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferred = e;
+      if (localStorage.getItem('pwaDismissed') === '1') return;
+      if (localStorage.getItem('didStamp') === '1' || localStorage.getItem('pwaHint') === '1') {
+        box.classList.add('show');
+      }
+    });
+    if (btn) btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      deferred.prompt();
+      await deferred.userChoice;
+      deferred = null;
+      box.classList.remove('show');
+    });
+    if (dismiss) dismiss.addEventListener('click', () => {
+      localStorage.setItem('pwaDismissed', '1');
+      box.classList.remove('show');
+    });
+    window.addEventListener('appinstalled', () => box.classList.remove('show'));
   })();
 
   // ── Page progress bar + data-page ─────────────────────────────────────
