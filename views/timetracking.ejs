@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 
     <!-- STEMPEL-KARTE -->
-    <div class="card border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-300 dark:border-slate-600' %> p-4 md:p-6">
+    <div class="card card-lift border-t-4 <%= isStampedIn ? 'border-green-500' : 'border-slate-300 dark:border-slate-600' %> p-4 md:p-6">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5">
         <div>
           <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100">Stempel-Terminal</h2>
@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
             Status:
             <% if (isStampedIn) { %>
             <span class="badge badge-success">
+              <span class="pulse-dot mr-1" style="width:.4rem;height:.4rem;"></span>
               <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
               Eingestempelt seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · <%= activeProjectTitle %><% } %>
             </span>

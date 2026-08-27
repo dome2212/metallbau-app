@@ -22,6 +22,11 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Sanfter Dark-Mode-Übergang** – Hintergrund und Karten wechseln weich
 - **Industrial-Theme** – neues Theme `Public/themes/industrial.css` (Anthrazit + Orange)
 - **Login** – SVG-Icon, Entrance-Animation, verbesserte Typografie
+- **Mobile FAB** – schwebender Stempel-Button auf dem Smartphone
+- **Live-Pulse** – grüner Puls-Punkt bei „Eingestempelt“
+- **Moderne Tabellen** – sticky Header, Hover-Zeilen (`.table-modern`)
+- **Filter-Chips** – Klasse `.chip` für Filter-Pills
+- **Status-Dots** – farbige Status-Punkte (`.status-dot`)
 
 
 ## 📋 Inhaltsverzeichnis

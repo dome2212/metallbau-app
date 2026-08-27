@@ -18,7 +18,7 @@
 
     <!-- Neuen Auftrag anlegen -->
     <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
-      <div class="card p-5 md:p-6">
+      <div class="card card-lift p-5 md:p-6">
         <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
           <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
           Neuen Auftrag anlegen
@@ -92,9 +92,9 @@
     </div>
 
     <!-- Auftragsliste -->
-    <div class="card overflow-hidden">
+    <div class="card card-lift overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm min-w-[750px]">
+        <table class="table-modern w-full text-left text-sm min-w-[750px]">
           <thead>
             <tr class="border-b border-slate-100 dark:border-slate-700">
               <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Baustelle / Titel</th>

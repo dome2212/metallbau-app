@@ -27,7 +27,7 @@
   <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-8">
 
     <!-- Schnell-Stempel Widget -->
-    <div class="emp-dash-section card p-4 md:p-5" data-section="stempel-widget">
+    <div class="emp-dash-section card card-lift p-4 md:p-5" data-section="stempel-widget">
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <span class="icon-tile" style="background:<%= stats.isStampedIn ? '#ecfdf5' : '#f1f5f9' %>;color:<%= stats.isStampedIn ? '#059669' : '#94a3b8' %>;">
@@ -37,6 +37,7 @@
             <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
               Status:
               <span class="badge <%= stats.isStampedIn ? 'badge-success' : 'badge-neutral' %> ml-1">
+                <% if (stats.isStampedIn) { %><span class="pulse-dot mr-1" style="width:.45rem;height:.45rem;"></span><% } %>
                 <%= stats.isStampedIn ? 'Eingestempelt' : 'Nicht eingestempelt' %>
               </span>
             </p>
@@ -73,7 +74,7 @@
     </div>
 
     <!-- Ampel-Karte -->
-    <div class="emp-dash-section card p-4 md:p-5 <%= stats.trafficBg %>" data-section="ampel">
+    <div class="emp-dash-section card card-lift p-4 md:p-5 <%= stats.trafficBg %>" data-section="ampel">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
           <span class="icon-tile" style="background:#fff;box-shadow:var(--shadow-card);">
@@ -96,7 +97,7 @@
     <!-- Statistik-Karten -->
     <div class="emp-dash-section grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6" data-section="statistik">
 
-      <div class="card p-4 md:p-6 relative overflow-hidden">
+      <div class="card card-lift p-4 md:p-6 relative overflow-hidden">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-indigo-400"></div>
         <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Diese Woche</p>
         <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.weekTotalHours %> Std.</p>
@@ -104,7 +105,7 @@
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-indigo-400 opacity-60"></div>
       </div>
 
-      <div class="card p-4 md:p-6 relative overflow-hidden">
+      <div class="card card-lift p-4 md:p-6 relative overflow-hidden">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 bg-blue-400"></div>
         <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stunden diesen Monat</p>
         <p class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mt-2"><%= stats.monthTotalHours %> Std.</p>
@@ -112,7 +113,7 @@
         <div class="absolute bottom-0 left-0 right-0 h-1 bg-blue-400 opacity-60"></div>
       </div>
 
-      <div class="card p-4 md:p-6 relative overflow-hidden">
+      <div class="card card-lift p-4 md:p-6 relative overflow-hidden">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full -mr-6 -mt-6 opacity-10 <%= stats.isStampedIn ? 'bg-emerald-400' : 'bg-amber-400' %>"></div>
         <p class="text-xs md:text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aktueller Status</p>
         <p class="mt-2">
@@ -130,7 +131,7 @@
     </div>
 
     <!-- Meine Aufgaben -->
-    <div class="emp-dash-section card p-4 md:p-5" data-section="meine-aufgaben">
+    <div class="emp-dash-section card card-lift p-4 md:p-5" data-section="meine-aufgaben">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
           <span class="icon-tile w-7 h-7" style="background:var(--primary-soft);color:var(--primary);">
