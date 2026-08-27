@@ -93,7 +93,7 @@
       const q = await getQueue();
       if (q.length > 0) {
         el.style.display = 'flex';
-        el.innerHTML = '📡 ' + q.length + ' offline gespeichert – wird synchronisiert…';
+        el.innerHTML = '📡 ' + q.length + (q.length === 1 ? ' Eintrag' : ' Einträge') + ' offline – Sync bei Verbindung';
       } else {
         el.style.display = 'none';
       }
@@ -247,7 +247,8 @@
       await refreshBadge();
       const remaining = await getQueue();
       if (uploaded > 0 && remaining.length === 0 && rejected === 0) {
-        toast('✅ Alle offline gespeicherten Einträge wurden hochgeladen.', 'success');
+        toast('Alle offline gespeicherten Einträge wurden hochgeladen.', 'success');
+        if (navigator.vibrate) try { navigator.vibrate(15); } catch(e) {}
         // Seite neu laden, damit z.B. der Stempeluhr-Status (Ein-/Ausgestempelt)
         // wieder den aktuellen Server-Stand zeigt und nicht veraltet stehen bleibt.
         setTimeout(() => window.location.reload(), 1400);

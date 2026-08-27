@@ -43,6 +43,14 @@
         <input type="file" accept="image/*" capture="environment" class="hidden" onchange="(function(inp){ const sec=document.getElementById('sec-fotos')||document.getElementById('photoUploadForm'); if(sec) sec.scrollIntoView({behavior:'smooth'}); const target=document.querySelector('#photoUploadForm input[capture], #photoFormInput, input[accept*=\'image\'][capture]'); if(target && inp.files[0]){ const dt=new DataTransfer(); dt.items.add(inp.files[0]); if(document.getElementById('photoFormInput')){ document.getElementById('photoFormInput').files=dt.files; } if(typeof handleProjectPhotoPick==='function') handleProjectPhotoPick(inp); } })(this)">
       </label>
     </div>
+
+    <div class="px-4 md:px-6 max-w-7xl mx-auto w-full md:hidden">
+      <div class="flex gap-2 overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch">
+        <a href="/timetracking" class="btn btn-primary text-xs shrink-0" style="min-height:40px">Stempeln</a>
+        <a href="/lager?tab=baustahl" class="btn btn-ghost text-xs shrink-0" style="min-height:40px">Material buchen</a>
+        <a href="#sec-fotos" class="btn btn-ghost text-xs shrink-0" style="min-height:40px">Fotos</a>
+      </div>
+    </div>
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-8">
 
       <!-- ========== SCHNELL-NAVIGATION (Tabs) ========== -->
@@ -1993,6 +2001,17 @@ function acceptDefectSuggestion() {
     currentUserId: <%= currentUser.id %>,
     isModerator: <%= (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') ? 'true' : 'false' %>
   });
+</script>
+
+
+<script>
+(function(){
+  try {
+    if (window.mbRecentProjects) {
+      window.mbRecentProjects.add(<%= project.id %>, <%= JSON.stringify(project.title || '') %>);
+    }
+  } catch(e) {}
+})();
 </script>
 
 </body>

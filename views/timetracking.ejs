@@ -26,8 +26,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
 
-  <div class="px-4 md:px-6 mb-3 max-w-5xl mx-auto w-full">
+  <div class="px-4 md:px-6 mb-3 max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
     <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100 tracking-tight">Stempeluhr</h1>
+    <a href="/timetracking/admin/monthly" class="btn btn-ghost text-xs shrink-0">Wochenübersicht</a>
   </div>
   <!-- live-clock hidden for JS compatibility -->
   <p id="live-clock" class="hidden" aria-hidden="true"></p>

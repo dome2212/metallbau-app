@@ -68,6 +68,29 @@
       </div>
     <% } %>
 
+    <!-- Zuletzt geöffnet -->
+    <div id="mb-recent-strip" class="hidden mb-3">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-0.5">Zuletzt geöffnet</p>
+      <div id="mb-recent-list" class="flex gap-2 overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch"></div>
+    </div>
+    <script>
+    (function(){
+      const list = (window.mbRecentProjects && window.mbRecentProjects.get()) || [];
+      if (!list.length) return;
+      const wrap = document.getElementById('mb-recent-strip');
+      const row = document.getElementById('mb-recent-list');
+      if (!wrap || !row) return;
+      wrap.classList.remove('hidden');
+      list.forEach(p => {
+        const a = document.createElement('a');
+        a.href = '/projects/' + p.id;
+        a.className = 'chip shrink-0';
+        a.textContent = p.title || ('Auftrag #' + p.id);
+        row.appendChild(a);
+      });
+    })();
+    </script>
+
     <!-- Filter & Suche -->
     <div class="card p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
       <div class="relative flex-1">

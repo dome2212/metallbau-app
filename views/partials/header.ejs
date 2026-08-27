@@ -1164,6 +1164,40 @@
   });
 
   // ── Toast API ──────────────────────────────────────────────────────────
+
+  // ── Client error log (letzte 20 Fehler) ───────────────────────────────────
+  window.mbErrorLog = [];
+  window.addEventListener('error', (e) => {
+    try {
+      window.mbErrorLog.push({ t: Date.now(), msg: String(e.message||e), src: e.filename, line: e.lineno });
+      if (window.mbErrorLog.length > 20) window.mbErrorLog.shift();
+      localStorage.setItem('mb_error_log', JSON.stringify(window.mbErrorLog));
+    } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try {
+      window.mbErrorLog.push({ t: Date.now(), msg: String(e.reason) });
+      if (window.mbErrorLog.length > 20) window.mbErrorLog.shift();
+      localStorage.setItem('mb_error_log', JSON.stringify(window.mbErrorLog));
+    } catch (_) {}
+  });
+
+  // ── Recent projects (localStorage) ───────────────────────────────────────
+  window.mbRecentProjects = {
+    key: 'mb_recent_projects',
+    add(id, title) {
+      try {
+        let list = JSON.parse(localStorage.getItem(this.key) || '[]');
+        list = list.filter(x => String(x.id) !== String(id));
+        list.unshift({ id, title, at: Date.now() });
+        localStorage.setItem(this.key, JSON.stringify(list.slice(0, 8)));
+      } catch (_) {}
+    },
+    get() {
+      try { return JSON.parse(localStorage.getItem(this.key) || '[]'); } catch (_) { return []; }
+    }
+  };
+
   function showToast(msg, type = 'success', duration = 3200) {
     const icons = {
       success: '✓',
