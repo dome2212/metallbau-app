@@ -218,7 +218,7 @@
                     data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
                     data-item-profil="<%= encodeURIComponent(item.profil || '') %>"
                     data-item-abmessung="<%= encodeURIComponent(item.abmessung || '') %>"
-                    data-item-menge="<%= item.menge || 0 %>"
+                    data-item-menge="<%= Number(item.menge || 0) %>"
                     data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
                     data-item-material="<%= encodeURIComponent(item.material_type || 'baustahl') %>"
                     data-item-lsnr="<%= encodeURIComponent(item.lieferschein_nr || '') %>"
@@ -260,7 +260,7 @@
             <div class="m-card-meta">
               <% if (item.profil) { %><span><%= item.profil %></span><% } %>
               <% if (item.abmessung) { %><span><%= item.abmessung %></span><% } %>
-              <span class="num font-bold <%= isCritical ? 'text-red-500' : isLow ? 'text-amber-600' : '' %>">Bestand: <%= item.menge %> <%= item.einheit || '' %></span>
+              <span class="num font-bold <%= isCritical ? 'text-red-500' : isLow ? 'text-amber-600' : '' %>">Bestand: <%= Number(item.menge || 0).toLocaleString('de-DE', { maximumFractionDigits: 3 }) %> <%= item.einheit || '' %></span>
               <% if (item.lagerort) { %><span><%= item.lagerort %></span><% } %>
               <% if (isCritical) { %><span class="badge badge-danger">Leer</span>
               <% } else if (isLow) { %><span class="badge badge-warning">Niedrig</span><% } %>
@@ -277,7 +277,7 @@
                 data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
                 data-item-profil="<%= encodeURIComponent(item.profil || '') %>"
                 data-item-abmessung="<%= encodeURIComponent(item.abmessung || '') %>"
-                data-item-menge="<%= item.menge || 0 %>"
+                data-item-menge="<%= Number(item.menge || 0) %>"
                 data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
                 data-item-material="<%= encodeURIComponent(item.material_type || 'baustahl') %>"
                 data-item-lsnr="<%= encodeURIComponent(item.lieferschein_nr || '') %>"
