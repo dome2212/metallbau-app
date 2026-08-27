@@ -1,0 +1,38 @@
+/* ── Theme: Sunset Orange ─────────────────────────────────────────── */
+:root {
+  --primary:          #ea580c;
+  --primary-dark:     #c2410c;
+  --sidebar-bg:       #1c0a00;
+  --sidebar-text:     #fed7aa;
+  --sidebar-hover:    #431407;
+  --topbar-bg:        #ffffff;
+  --page-bg:          #fff7ed;
+}
+
+/* Primärfarbe */
+.bg-blue-600, .hover\:bg-blue-700:hover { background-color: var(--primary) !important; }
+.text-blue-600 { color: var(--primary) !important; }
+.border-blue-400, .focus\:ring-blue-500 { border-color: var(--primary) !important; }
+
+/* Aktiver Nav-Link */
+#sidebar a.active { background-color: var(--primary) !important; }
+
+/* Toasts & Status-Farben anpassen */
+.toast-info { background: var(--primary); }
+
+/* Tabs aktiv */
+.bg-blue-600.text-white.shadow {
+  background-color: var(--primary) !important;
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--primary);
+  box-shadow: 0 2px 8px rgba(234,88,12,0.35);
+}
+
+/* Warm-Hintergrund für Karten */
+.bg-slate-50 { background-color: #fff8f0 !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar-thumb { background: #fdba74; }

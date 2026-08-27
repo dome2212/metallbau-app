@@ -1,0 +1,81 @@
+<%- include('partials/header') %>
+
+<%- include('partials/sidebar') %>
+  <!-- Hauptinhalt mit korrektem Abstand zur Sidebar -->
+<main class="flex-1 p-3 md:p-6 flex flex-col overflow-hidden pt-16">
+
+    <!-- Kopfbereich -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 border-b border-gray-200 pb-3 shrink-0">
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Werkstatt Kanban-Board</h1>
+        <p class="text-xs md:text-sm text-gray-500">Übersicht der Fertigungsphasen und Baustellen</p>
+      </div>
+      <a href="/projects" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded text-xs md:text-sm font-medium transition inline-block">
+        🔄 Tabellenansicht
+      </a>
+    </div>
+
+    <!-- Kanban Spalten – horizontal scrollbar -->
+    <div class="flex-1 overflow-x-auto pb-4">
+      <div class="inline-flex gap-4 h-full items-start pb-2">
+        <%
+          const statuses = [
+            { key: 'In Planung',          label: 'In Planung',                    color: 'border-slate-400 bg-slate-50' },
+            { key: 'Avor / Vorbereitung', label: 'Avor / Vorbereitung',            color: 'border-blue-400 bg-blue-50/30' },
+            { key: 'In Produktion',       label: 'In Produktion (Schlosserei)',    color: 'border-amber-400 bg-amber-50/30' },
+            { key: 'Oberfläche',          label: 'Oberfläche (Verzinken/Lack)',    color: 'border-purple-400 bg-purple-50/30' },
+            { key: 'Montagebereit',       label: 'Montagebereit',                  color: 'border-emerald-400 bg-emerald-50/30' },
+            { key: 'Montage läuft',       label: 'Montage läuft',                  color: 'border-orange-400 bg-orange-50/30' },
+            { key: 'Abgeschlossen',       label: 'Abgeschlossen',                  color: 'border-gray-400 bg-gray-50' }
+          ];
+        %>
+
+        <% statuses.forEach(col => { %>
+          <div class="bg-gray-200/90 rounded-xl w-64 md:w-72 shrink-0 max-h-full p-3 flex flex-col shadow-sm border-t-4 <%= col.color %>">
+
+            <div class="flex justify-between items-center mb-3 px-1 shrink-0">
+              <h3 class="font-bold text-gray-700 text-sm truncate" title="<%= col.label %>"><%= col.label %></h3>
+              <span class="bg-gray-300 text-gray-700 text-xs px-2 py-0.5 rounded-full font-semibold shrink-0">
+                <%= columns[col.key] ? columns[col.key].length : 0 %>
+              </span>
+            </div>
+
+            <div class="space-y-3 flex-1 overflow-y-auto pr-1">
+              <% if (columns[col.key] && columns[col.key].length > 0) { %>
+                <% columns[col.key].forEach(project => { %>
+                  <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition">
+                    <h4 class="font-bold text-blue-600 text-sm mb-1 truncate">
+                      <a href="/projects/<%= project.id %>" class="hover:underline"><%= project.title %></a>
+                    </h4>
+                    <p class="text-xs text-gray-600 mb-3 truncate">
+                      <strong class="text-gray-700">Kunde:</strong> <%= project.company_name || project.contact_person || 'Unbekannt' %>
+                    </p>
+                    <div class="border-t border-gray-100 pt-2">
+                      <form action="/projects/update-status" method="POST">
+                        <input type="hidden" name="id" value="<%= project.id %>">
+                        <select name="status" onchange="this.form.submit()" class="w-full text-xs bg-gray-50 border border-gray-300 rounded p-1.5 text-gray-700 focus:outline-none focus:border-blue-500 font-medium">
+                          <% statuses.forEach(s => { %>
+                            <option value="<%= s.key %>" <%= project.status === s.key ? 'selected' : '' %>><%= s.label %></option>
+                          <% }) %>
+                        </select>
+                      </form>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center py-6 text-gray-400 text-xs italic bg-white/50 rounded-lg border border-dashed border-gray-300">
+                  Keine Aufträge
+                </div>
+              <% } %>
+            </div>
+
+          </div>
+        <% }) %>
+
+      </div>
+    </div>
+
+  </main>
+
+</body>
+</html>
