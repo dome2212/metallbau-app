@@ -36,6 +36,11 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **btn-danger / btn-success** – einheitliche Aktions-Buttons
 - **Kalender** – Wetter-Legende als Chips, moderne Buttons
 - **Angebote / Rechnungen / Profil / Aufgaben** – Card-Lift & Button-System
+- **Offline-Seite** – modernes Glass-Design mit Auto-Reconnect
+- **Projekt-Detail** – einheitliche Buttons & page-bg
+- **Monatsauswertung** – btn-System + Card-Lift
+- **Admin-Benutzer** – moderne Tabellen & Karten
+
 
 
 

@@ -500,6 +500,26 @@
     }
     .btn-success:hover { filter: brightness(1.08); }
 
+    /* ── Link underline subtle ────────────────────────────────────────── */
+    a.link-soft {
+      color: var(--primary); text-decoration: none;
+      background-image: linear-gradient(currentColor, currentColor);
+      background-position: 0 100%; background-repeat: no-repeat;
+      background-size: 0 1.5px; transition: background-size .2s;
+    }
+    a.link-soft:hover { background-size: 100% 1.5px; }
+
+    /* ── Surface muted ────────────────────────────────────────────────── */
+    .surface-muted {
+      background: #f8fafc; border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+    }
+    .dark .surface-muted { background: #0f172a; }
+
+    /* ── Number tabular ───────────────────────────────────────────────── */
+    .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+
 
     /* ── Avatar initials ──────────────────────────────────────────────── */
     .avatar-initials {
