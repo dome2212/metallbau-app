@@ -260,10 +260,48 @@
             <div class="m-card-meta">
               <% if (item.profil) { %><span><%= item.profil %></span><% } %>
               <% if (item.abmessung) { %><span><%= item.abmessung %></span><% } %>
-              <span class="num font-bold <%= isCritical ? 'text-red-500' : isLow ? 'text-amber-600' : '' %>">Bestand: <%= item.menge %></span>
+              <span class="num font-bold <%= isCritical ? 'text-red-500' : isLow ? 'text-amber-600' : '' %>">Bestand: <%= item.menge %> <%= item.einheit || '' %></span>
               <% if (item.lagerort) { %><span><%= item.lagerort %></span><% } %>
               <% if (isCritical) { %><span class="badge badge-danger">Leer</span>
               <% } else if (isLow) { %><span class="badge badge-warning">Niedrig</span><% } %>
+            </div>
+            <div class="m-card-actions" style="display:flex;gap:.45rem;margin-top:.85rem;flex-wrap:wrap">
+              <button type="button"
+                data-item-id="<%= item.id %>"
+                data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                onclick="openEntnahmeModalForEl(this)"
+                class="btn text-xs flex-1 justify-center"
+                style="background:#f59e0b;color:#fff;min-height:42px">Entnahme</button>
+              <button type="button"
+                data-item-id="<%= item.id %>"
+                data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
+                data-item-profil="<%= encodeURIComponent(item.profil || '') %>"
+                data-item-abmessung="<%= encodeURIComponent(item.abmessung || '') %>"
+                data-item-menge="<%= item.menge || 0 %>"
+                data-item-einheit="<%= encodeURIComponent(item.einheit || 'Stk') %>"
+                data-item-material="<%= encodeURIComponent(item.material_type || 'baustahl') %>"
+                data-item-lsnr="<%= encodeURIComponent(item.lieferschein_nr || '') %>"
+                data-item-lieferdatum="<%= item.lieferdatum ? new Date(item.lieferdatum).toISOString().split('T')[0] : '' %>"
+                data-item-notiz="<%= encodeURIComponent(item.notiz || '') %>"
+                data-item-mindestbestand="<%= item.mindestbestand || 0 %>"
+                data-item-lagerort="<%= encodeURIComponent(item.lagerort || '') %>"
+                data-item-einheitspreis="<%= item.einheitspreis || 0 %>"
+                onclick="openEditModalEl(this)"
+                class="btn btn-primary text-xs flex-1 justify-center"
+                style="min-height:42px">Bearbeiten</button>
+              <button type="button"
+                data-item-id="<%= item.id %>"
+                data-item-bezeichnung="<%= encodeURIComponent(item.bezeichnung || '') %>"
+                data-item-material="<%= item.material_type || 'baustahl' %>"
+                onclick="openMoveModal(this)"
+                class="btn btn-ghost text-xs justify-center"
+                style="min-height:42px;min-width:42px" title="Verschieben">↗</button>
+              <form action="/lager/delete" method="POST" onsubmit="return confirm('Eintrag wirklich löschen?');" class="inline">
+                <input type="hidden" name="id" value="<%= item.id %>">
+                <input type="hidden" name="tab" value="<%= tab %>">
+                <button type="submit" class="btn btn-ghost text-xs justify-center"
+                  style="min-height:42px;min-width:42px;color:#dc2626" title="Löschen">×</button>
+              </form>
             </div>
           </div>
         <% }) %>
