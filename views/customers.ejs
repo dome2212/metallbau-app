@@ -18,8 +18,8 @@
       </button>
     </div>
 
-    <!-- Kunden-Tabelle -->
-    <div class="card card-lift overflow-hidden">
+    <!-- Kunden-Tabelle Desktop -->
+    <div class="card card-lift overflow-hidden desktop-table-wrap">
       <div class="overflow-x-auto">
         <table class="table-modern w-full text-left text-sm min-w-[700px]">
           <thead>
@@ -86,6 +86,36 @@
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Kunden Mobile Karten -->
+    <div class="mobile-card-list">
+      <% if (typeof customers !== 'undefined' && customers.length > 0) { %>
+        <% customers.forEach(c => { %>
+          <div class="m-card">
+            <div class="flex items-center gap-3">
+              <div class="avatar-initials"><%= (c.company_name || c.contact_person || '?').charAt(0).toUpperCase() %></div>
+              <div class="min-w-0 flex-1">
+                <div class="m-card-title truncate"><%= c.company_name || c.contact_person || '—' %></div>
+                <div class="m-card-meta">
+                  <% if (c.contact_person && c.company_name) { %><span><%= c.contact_person %></span><% } %>
+                  <% if (c.phone) { %><span><%= c.phone %></span><% } %>
+                </div>
+              </div>
+            </div>
+            <div class="m-card-actions">
+              <a href="/customers/<%= c.id %>/projects" class="btn btn-primary text-xs">Projekte</a>
+              <button type="button" onclick='openEditModal(this)' data-customer="<%= JSON.stringify(c) %>" class="btn btn-ghost text-xs">Bearbeiten</button>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <div class="empty-state card">
+          <h3>Noch keine Kunden</h3>
+          <p>Lege den ersten Kunden an.</p>
+          <button onclick="toggleModal('addCustomerModal')" class="btn btn-primary text-xs mt-3">Anlegen</button>
+        </div>
+      <% } %>
     </div>
   </div>
 </main>

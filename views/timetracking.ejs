@@ -123,26 +123,28 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <% } %>
         </div>
-        <div class="flex flex-col sm:flex-row gap-3 pt-2">
+        <div class="flex flex-col sm:flex-row gap-3 pt-3">
           <% if (!isStampedIn) { %>
           <button type="submit" name="type" value="IN"
-            class="btn flex-1 text-center font-semibold px-6 py-3 justify-center"
-            style="background:#16a34a;color:#fff;">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
-            Einstempeln (Arbeit beginnen)
+            class="btn stamp-btn flex-1 text-center font-bold px-6 justify-center"
+            style="background:#16a34a;color:#fff;min-height:3.5rem;font-size:1.05rem;border-radius:1rem;box-shadow:0 8px 24px rgba(22,163,74,.35);"
+            onclick="if(navigator.vibrate)navigator.vibrate(12)">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            Einstempeln
           </button>
           <% } else { %>
           <button type="submit" name="type" value="OUT"
-            class="btn flex-1 text-center font-semibold px-6 py-3 justify-center"
-            style="background:#dc2626;color:#fff;">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
-            Ausstempeln (Feierabend / Pause)
+            class="btn stamp-btn flex-1 text-center font-bold px-6 justify-center"
+            style="background:#dc2626;color:#fff;min-height:3.5rem;font-size:1.05rem;border-radius:1rem;box-shadow:0 8px 24px rgba(220,38,38,.35);"
+            onclick="if(navigator.vibrate)navigator.vibrate(12)">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+            Ausstempeln
           </button>
           <% if (_ss.allowSwitch && _ss.allowProject) { %>
           <button type="button" onclick="showSwitchPanel()"
-            class="btn flex-1 text-center font-semibold px-6 py-3"
-            style="background:#f59e0b;color:#fff;">
-            🔄 Baustelle wechseln
+            class="btn flex-1 text-center font-semibold px-6 justify-center"
+            style="background:#f59e0b;color:#fff;min-height:3.25rem;border-radius:1rem;">
+            Baustelle wechseln
           </button>
           <% } %>
           <% } %>

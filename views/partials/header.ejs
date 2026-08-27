@@ -713,6 +713,102 @@
       .toast { max-width: none; }
     }
 
+    /* ── Mobile list cards ────────────────────────────────────────── */
+    .mobile-card-list { display: none; }
+    .desktop-table-wrap { display: block; }
+    @media (max-width: 767px) {
+      .mobile-card-list { display: flex; flex-direction: column; gap: .75rem; }
+      .desktop-table-wrap { display: none !important; }
+      .m-card {
+        display: block;
+        background: #fff;
+        border: 1px solid var(--border-soft);
+        border-radius: 1.1rem;
+        padding: 1rem 1.1rem;
+        box-shadow: var(--shadow-card);
+        text-decoration: none;
+        color: inherit;
+        transition: transform .12s, box-shadow .12s;
+      }
+      .dark .m-card { background: #1e293b; }
+      .m-card:active { transform: scale(.985); }
+      .m-card-title {
+        font-size: .95rem; font-weight: 700; color: #0f172a;
+        letter-spacing: -.01em; margin-bottom: .25rem;
+      }
+      .dark .m-card-title { color: #f1f5f9; }
+      .m-card-meta {
+        font-size: .78rem; color: #64748b; display: flex; flex-wrap: wrap;
+        gap: .35rem .75rem; align-items: center; margin-top: .35rem;
+      }
+      .m-card-actions {
+        display: flex; gap: .5rem; margin-top: .85rem; flex-wrap: wrap;
+      }
+      .m-card-actions .btn { flex: 1; justify-content: center; min-height: 42px; }
+
+      /* Bottom sheet modals */
+      .fixed.inset-0.flex.items-center.justify-center {
+        align-items: flex-end !important;
+        padding: 0 !important;
+      }
+      .fixed.inset-0.flex.items-center.justify-center > .card,
+      .fixed.inset-0.flex.items-center.justify-center > .modal-panel,
+      .fixed.inset-0.flex.items-center.justify-center > div.bg-white,
+      .fixed.inset-0.flex.items-center.justify-center > div[class*="rounded"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 1.35rem 1.35rem 0 0 !important;
+        max-height: min(92vh, 800px);
+        overflow-y: auto;
+        margin: 0 !important;
+        animation: sheetUp .28s cubic-bezier(.32,.72,.25,1) both;
+      }
+      @keyframes sheetUp {
+        from { transform: translateY(100%); opacity: .6; }
+        to   { transform: translateY(0); opacity: 1; }
+      }
+
+      /* Sticky mobile action bar */
+      .mobile-action-bar {
+        position: fixed;
+        left: 12px; right: 12px;
+        bottom: calc(5.6rem + env(safe-area-inset-bottom, 0px));
+        z-index: 44;
+        display: flex; gap: .5rem;
+        padding: .55rem;
+        border-radius: 1.1rem;
+        background: color-mix(in srgb, var(--sidebar-bg) 90%, transparent);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,.1);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+      }
+      .mobile-action-bar .btn {
+        flex: 1; justify-content: center; min-height: 44px;
+        color: #fff; border-color: rgba(255,255,255,.15);
+      }
+      .mobile-action-bar .btn-ghost {
+        background: rgba(255,255,255,.1); color: #fff;
+      }
+    }
+    @media (min-width: 768px) {
+      .mobile-action-bar { display: none !important; }
+    }
+
+    /* Pull-to-refresh indicator */
+    #ptr-indicator {
+      position: fixed; top: 56px; left: 0; right: 0; z-index: 35;
+      display: flex; justify-content: center; pointer-events: none;
+      opacity: 0; transform: translateY(-8px);
+      transition: opacity .2s, transform .2s;
+    }
+    #ptr-indicator.show { opacity: 1; transform: translateY(0); }
+    #ptr-indicator .ptr-pill {
+      background: var(--primary); color: #fff;
+      font-size: .75rem; font-weight: 600;
+      padding: .4rem .9rem; border-radius: 999px;
+      box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 40%, transparent);
+    }
+
     /* FAB modern */
     #fab-main {
       width: 3.5rem; height: 3.5rem;
@@ -881,6 +977,7 @@
 
 <!-- ── Page progress ──────────────────────────────────────────────────── -->
 <div id="nprogress"><div class="bar"></div></div>
+<div id="ptr-indicator"><div class="ptr-pill">Loslassen zum Aktualisieren</div></div>
 
 <!-- ── Toast Container ───────────────────────────────────────────────── -->
 <div id="toast-container"></div>
@@ -1025,6 +1122,30 @@
     if (p.get('error'))      showToast(decodeURIComponent(p.get('error')), 'error');
     if (p.get('success'))    showToast(decodeURIComponent(p.get('success')), 'success');
   });
+
+  // ── Pull-to-refresh (Mobile) ───────────────────────────────────────────
+  (function initPullToRefresh() {
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    let startY = 0, pulling = false;
+    const ind = document.getElementById('ptr-indicator');
+    document.addEventListener('touchstart', e => {
+      if (window.scrollY <= 0) { startY = e.touches[0].clientY; pulling = true; }
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      if (!pulling) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 70 && ind) ind.classList.add('show');
+      else if (ind) ind.classList.remove('show');
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+      if (!pulling) return;
+      pulling = false;
+      if (ind && ind.classList.contains('show')) {
+        ind.querySelector('.ptr-pill').textContent = 'Aktualisiere…';
+        setTimeout(() => location.reload(), 280);
+      } else if (ind) ind.classList.remove('show');
+    }, { passive: true });
+  })();
 
   // ── Page progress bar + data-page ─────────────────────────────────────
   (function () {

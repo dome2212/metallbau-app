@@ -91,8 +91,8 @@
       </span>
     </div>
 
-    <!-- Auftragsliste -->
-    <div class="card card-lift overflow-hidden">
+    <!-- Auftragsliste Desktop -->
+    <div class="card card-lift overflow-hidden desktop-table-wrap">
       <div class="overflow-x-auto">
         <table class="table-modern w-full text-left text-sm min-w-[750px]">
           <thead>
@@ -174,6 +174,43 @@
       </div>
     </div>
 
+    <!-- Auftragsliste Mobile (Karten) -->
+    <div class="mobile-card-list" id="proj-mobile-list">
+      <% projects.forEach(p => { %>
+        <%
+          const statusColorsM = {
+            'In Planung':          'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+            'Avor / Vorbereitung': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+            'In Produktion':       'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+            'Oberfläche':          'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+            'Montagebereit':       'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+            'Montage läuft':       'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+            'Abgeschlossen':       'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+          };
+          const scm = statusColorsM[p.status] || 'bg-slate-100 text-slate-600';
+        %>
+        <div class="m-card proj-card"
+             data-title="<%= (p.title || '').toLowerCase() %>"
+             data-customer="<%= ((p.company_name || p.contact_person) || '').toLowerCase() %>"
+             data-status="<%= p.status %>">
+          <a href="/projects/<%= p.id %>" class="block">
+            <div class="m-card-title"><%= p.title %></div>
+            <div class="m-card-meta">
+              <span><%= p.company_name || p.contact_person || '—' %></span>
+              <span class="badge <%= scm %>"><%= p.status %></span>
+            </div>
+          </a>
+          <div class="m-card-actions">
+            <a href="/projects/<%= p.id %>" class="btn btn-primary text-xs">Öffnen</a>
+            <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+              <a href="/projects/<%= p.id %>" class="btn btn-ghost text-xs">Status</a>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+      <p id="proj-empty-m" class="hidden text-sm text-slate-400 text-center py-8">Keine Aufträge gefunden.</p>
+    </div>
+
   </div>
 </main>
 
@@ -241,6 +278,7 @@
     const q      = searchInput.value.trim().toLowerCase();
     const status = statusFilter.value;
     const rows   = document.querySelectorAll('.proj-row');
+    const cards  = document.querySelectorAll('.proj-card');
     let visible  = 0;
 
     rows.forEach(row => {
@@ -253,7 +291,20 @@
       if (show) visible++;
     });
 
-    countLabel.textContent = visible + ' Aufträge';
+    let visibleM = 0;
+    cards.forEach(card => {
+      const isArchived  = card.dataset.status === 'Abgeschlossen';
+      const matchText   = !q      || card.dataset.title.includes(q) || card.dataset.customer.includes(q);
+      const matchStatus = !status || card.dataset.status === status;
+      const matchArchive = showArchived ? true : !isArchived;
+      const show        = matchText && matchStatus && matchArchive;
+      card.classList.toggle('hidden', !show);
+      if (show) visibleM++;
+    });
+    const emptyM = document.getElementById('proj-empty-m');
+    if (emptyM) emptyM.classList.toggle('hidden', visibleM > 0);
+
+    countLabel.textContent = (window.innerWidth < 768 ? visibleM : visible) + ' Aufträge';
     emptyHint.classList.toggle('hidden', visible > 0);
   }
 

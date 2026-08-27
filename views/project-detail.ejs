@@ -34,6 +34,16 @@
       </div>
     </header>
 
+
+    <!-- Mobile Sticky Actions -->
+    <div class="mobile-action-bar md:hidden">
+      <a href="/timetracking" class="btn btn-ghost text-xs">Stempeln</a>
+      <a href="/projects/<%= project.id %>" class="btn btn-primary text-xs" onclick="document.getElementById('qrModal')?.classList.remove('hidden');return false;">QR</a>
+      <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+        <button type="button" class="btn btn-ghost text-xs" onclick="document.getElementById('editProjectModal')?.classList.remove('hidden')">Bearbeiten</button>
+      <% } %>
+    </div>
+
     <div class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-8">
 
       <!-- ========== SCHNELL-NAVIGATION (Tabs) ========== -->

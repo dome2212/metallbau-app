@@ -45,6 +45,11 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Berichte** – Card-Lift
 - **Reduced Motion** – respektiert System-Einstellung „weniger Bewegung“
 - **Mobile UI** – Floating Bottom-Dock, Glass-Topbar, Such-Button, größere Touch-Flächen, Bottom-Sheet-Modals
+- **Mobile Listen** – Aufträge & Kunden als Karten statt Tabellen
+- **Großer Stempel-Button** – full-width, mit leichtem Vibrations-Feedback
+- **Sticky Aktionsleiste** – auf Projekt-Detail (mobil)
+- **Pull-to-Refresh** – nach unten ziehen zum Aktualisieren
+
 
 
 
