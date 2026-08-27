@@ -75,19 +75,22 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 
     <!-- STATUS HERO -->
-    <div class="card p-5 text-center <%= isStampedIn ? 'border border-emerald-200 dark:border-emerald-800' : '' %>">
+    <div class="card p-6 text-center overflow-hidden relative"
+         style="<%= isStampedIn
+           ? 'background:linear-gradient(160deg,rgba(16,185,129,.18),rgba(16,185,129,.05));border:1px solid rgba(16,185,129,.35)'
+           : 'background:linear-gradient(160deg,rgba(100,116,139,.12),rgba(100,116,139,.04));border:1px solid var(--border-soft)' %>">
       <% if (isStampedIn) { %>
-        <div class="inline-flex items-center gap-2 badge badge-success text-sm px-3 py-1.5 mb-3">
-          <span class="pulse-dot"></span> Eingestempelt
+        <div class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-2">
+          <span class="pulse-dot" style="background:#10b981"></span> Eingestempelt
         </div>
-        <p class="text-4xl font-bold tabular-nums text-slate-800 dark:text-slate-100 tracking-tight" id="elapsed-clock">00:00:00</p>
-        <p class="text-sm text-slate-500 mt-1">seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · <%= activeProjectTitle %><% } %></p>
+        <p class="text-5xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white" id="elapsed-clock" style="letter-spacing:-0.03em">00:00:00</p>
+        <p class="text-sm text-slate-600 dark:text-slate-300 mt-2">seit <%= lastStampTime %> Uhr<% if (typeof activeProjectTitle !== 'undefined' && activeProjectTitle) { %> · <%= activeProjectTitle %><% } %></p>
       <% } else { %>
-        <div class="inline-flex items-center gap-2 badge badge-neutral text-sm px-3 py-1.5 mb-3">Nicht eingestempelt</div>
-        <p class="text-2xl font-bold text-slate-700 dark:text-slate-200" id="live-clock-hero">--:--:--</p>
-        <p class="text-sm text-slate-500 mt-1">Bereit zum Einstempeln</p>
+        <div class="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 mb-2">Nicht eingestempelt</div>
+        <p class="text-4xl font-bold tabular-nums text-slate-800 dark:text-slate-100" id="live-clock-hero">--:--:--</p>
+        <p class="text-sm text-slate-500 mt-2">Bereit zum Einstempeln</p>
       <% } %>
-      <p class="text-xs text-slate-400 mt-3">Heute: <strong class="text-slate-600 dark:text-slate-300"><%= todayTotalHours %> Std.</strong></p>
+      <p class="text-xs text-slate-500 mt-4">Heute erfasst: <strong class="text-slate-700 dark:text-slate-200"><%= todayTotalHours %> Std.</strong></p>
     </div>
 
     <!-- STEMPEL-KARTE -->
@@ -478,6 +481,24 @@ window.addEventListener('beforeunload', () => {
     }
   }
   tick(); setInterval(tick, 1000);
+})();
+</script>
+
+
+<script>
+(function stampToast(){
+  const f = document.getElementById('stamp-form');
+  if (!f) return;
+  f.addEventListener('submit', () => {
+    if (navigator.vibrate) navigator.vibrate(12);
+    if (typeof showToast === 'function') {
+      const btn = document.activeElement;
+      const v = btn && btn.value;
+      if (v === 'OUT') showToast('Ausgestempelt', 'info');
+      else if (v === 'IN') showToast('Eingestempelt', 'success');
+      else showToast('Stempel gespeichert', 'success');
+    }
+  });
 })();
 </script>
 
