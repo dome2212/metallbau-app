@@ -20,7 +20,7 @@
     <div class="flex flex-wrap gap-2 w-full md:w-auto">
       <% if (isStockTab) { %>
         <a href="/lager/inventur?tab=<%= tab %>"
-          class="bg-slate-700 hover:bg-slate-800 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          class="btn btn-ghost text-sm" style="background:#334155;color:#fff;border-color:#334155">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
           Inventur
         </a>
@@ -28,22 +28,22 @@
       <% if (isStockTab) { %>
         <% if (tab !== 'schrauben') { %>
         <button onclick="openScanModal()"
-          class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          class="btn text-sm" style="background:#7c3aed;color:#fff">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>
           Lieferschein
         </button>
         <% } %>
         <button onclick="openAddModal()"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          class="btn btn-primary text-sm">
           + Einlagern
         </button>
         <button onclick="openEntnahmeModal()"
-          class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          class="btn text-sm" style="background:#d97706;color:#fff">
           ↓ Entnahme buchen
         </button>
       <% } else if (tab === 'entnahmen') { %>
         <button onclick="openEntnahmeModal()"
-          class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-2 rounded-lg shadow text-sm flex items-center gap-1.5">
+          class="btn text-sm" style="background:#d97706;color:#fff">
           ↓ Entnahme buchen
         </button>
       <% } %>

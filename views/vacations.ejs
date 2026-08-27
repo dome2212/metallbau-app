@@ -11,7 +11,7 @@
     </div>
 
     <!-- Urlaubskonten -->
-    <div class="card p-5">
+    <div class="card card-lift p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Urlaubskonten <%= currentYear %></h2>
         <% if (currentUser.role !== 'ADMIN' && currentUser.role !== 'CHEF') { %>
@@ -189,7 +189,7 @@
     </div>
 
     <!-- Jahreskalender -->
-    <div class="card p-5">
+    <div class="card card-lift p-5">
       <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Team-Urlaubskalender <%= currentYear %></h2>
       <p class="text-xs text-slate-400 mb-4">Genehmigte Abwesenheiten auf einen Blick</p>
       <div class="flex gap-3 mb-3 text-xs text-slate-500 dark:text-slate-400">

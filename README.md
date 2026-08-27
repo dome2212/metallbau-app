@@ -27,6 +27,12 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Moderne Tabellen** – sticky Header, Hover-Zeilen (`.table-modern`)
 - **Filter-Chips** – Klasse `.chip` für Filter-Pills
 - **Status-Dots** – farbige Status-Punkte (`.status-dot`)
+- **Page-Progress** – schmaler Ladebalken oben bei Navigation
+- **Modal-Animation** – sanftes Einblenden von Dialogen (`.modal-panel`)
+- **Chat-Status** – farbiger Status-Punkt (verbunden / verbindet)
+- **Kunden Empty-State** – klarer Hinweis ohne Daten
+- **Lager-Buttons** – einheitlich über `.btn`-System
+
 
 
 ## 📋 Inhaltsverzeichnis

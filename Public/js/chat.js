@@ -78,8 +78,9 @@ function mbChatInit(opts) {
 
   function setStatus(text, ok) {
     if (!statusEl) return;
-    statusEl.textContent = text;
-    statusEl.className = 'text-xs font-medium ' + (ok ? 'text-emerald-500' : 'text-amber-500');
+    const dotClass = ok ? 'green' : 'amber';
+    statusEl.className = 'text-xs font-medium inline-flex items-center gap-1.5 ' + (ok ? 'text-emerald-500' : 'text-amber-500');
+    statusEl.innerHTML = '<span class="status-dot ' + dotClass + '"></span>' + text;
   }
 
   function connect() {

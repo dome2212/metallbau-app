@@ -439,6 +439,58 @@
     .status-dot.blue   { background: #3b82f6; }
     .status-dot.gray   { background: #94a3b8; }
 
+    /* ── Modal Animation ──────────────────────────────────────────────── */
+    .modal-panel {
+      animation: modalIn .22s cubic-bezier(.34,1.3,.64,1) both;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(.96) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ── Page load progress bar ───────────────────────────────────────── */
+    #nprogress {
+      position: fixed; top: 0; left: 0; right: 0; height: 2.5px; z-index: 99999;
+      pointer-events: none; opacity: 0; transition: opacity .2s;
+    }
+    #nprogress.active { opacity: 1; }
+    #nprogress .bar {
+      height: 100%; width: 0%;
+      background: var(--primary);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--primary) 60%, transparent);
+      transition: width .35s ease;
+    }
+
+    /* ── FAB auf Stempel-Seite ausblenden ─────────────────────────────── */
+    body[data-page="timetracking"] #fab-main { display: none !important; }
+
+    /* ── Avatar initials ──────────────────────────────────────────────── */
+    .avatar-initials {
+      width: 2rem; height: 2rem; border-radius: 999px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700; flex-shrink: 0;
+      background: color-mix(in srgb, var(--primary) 14%, transparent);
+      color: var(--primary);
+    }
+
+    /* ── Sticky page header optional ──────────────────────────────────── */
+    .page-header-sticky {
+      position: sticky; top: 3.5rem; z-index: 20;
+      background: color-mix(in srgb, var(--page-bg) 92%, transparent);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding-top: .5rem; padding-bottom: .5rem;
+      margin-left: -1rem; margin-right: -1rem;
+      padding-left: 1rem; padding-right: 1rem;
+    }
+    @media (min-width: 768px) {
+      .page-header-sticky {
+        margin-left: -1.5rem; margin-right: -1.5rem;
+        padding-left: 1.5rem; padding-right: 1.5rem;
+      }
+    }
+
+
 
     /* ── Toast ──────────────────────────────────────────────────── */
     #toast-container {
@@ -669,6 +721,9 @@
   #offline-banner { top: 56px; } /* unterhalb der Top-Bar (h-14), jetzt auf allen Geräten sichtbar */
 </style>
 
+<!-- ── Page progress ──────────────────────────────────────────────────── -->
+<div id="nprogress"><div class="bar"></div></div>
+
 <!-- ── Toast Container ───────────────────────────────────────────────── -->
 <div id="toast-container"></div>
 
@@ -810,6 +865,45 @@
     if (p.get('error'))      showToast(decodeURIComponent(p.get('error')), 'error');
     if (p.get('success'))    showToast(decodeURIComponent(p.get('success')), 'success');
   });
+
+  // ── Page progress bar + data-page ─────────────────────────────────────
+  (function () {
+    const path = location.pathname.replace(/\/$/, '') || '/';
+    const page = path === '/' ? 'dashboard' : path.split('/').filter(Boolean)[0] || 'dashboard';
+    document.body.setAttribute('data-page', page);
+
+    const bar = document.querySelector('#nprogress .bar');
+    const wrap = document.getElementById('nprogress');
+    if (!bar || !wrap) return;
+
+    let timer;
+    function start() {
+      wrap.classList.add('active');
+      bar.style.width = '30%';
+      clearTimeout(timer);
+      timer = setTimeout(() => { bar.style.width = '70%'; }, 200);
+    }
+    function done() {
+      bar.style.width = '100%';
+      setTimeout(() => {
+        wrap.classList.remove('active');
+        bar.style.width = '0%';
+      }, 280);
+    }
+
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      if (href.startsWith('#') || href.startsWith('javascript:') || a.target === '_blank') return;
+      if (a.hasAttribute('download')) return;
+      // same-origin relative navigations
+      start();
+    }, true);
+
+    window.addEventListener('pageshow', done);
+    document.addEventListener('DOMContentLoaded', done);
+  })();
 
   // ── Count-up Animation für KPI-Zahlen ─────────────────────────────────
   function animateCountUp(el, target, duration = 900) {

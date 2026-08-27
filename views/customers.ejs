@@ -19,7 +19,7 @@
     </div>
 
     <!-- Kunden-Tabelle -->
-    <div class="card overflow-hidden">
+    <div class="card card-lift overflow-hidden">
       <div class="overflow-x-auto">
         <table class="table-modern w-full text-left text-sm min-w-[700px]">
           <thead>
@@ -73,7 +73,12 @@
                       <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
                     <p class="text-sm font-medium">Noch keine Kunden angelegt</p>
-                    <button onclick="toggleModal('addCustomerModal')" class="btn btn-primary text-xs">Ersten Kunden anlegen</button>
+                    <div class="empty-state py-8">
+                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <h3>Noch keine Kunden</h3>
+                      <p>Lege den ersten Kunden an, um Projekte und Rechnungen zuzuordnen.</p>
+                      <button onclick="toggleModal('addCustomerModal')" class="btn btn-primary text-xs mt-3">Ersten Kunden anlegen</button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -87,7 +92,7 @@
 
 <!-- Modal: Kunde Anlegen -->
 <div id="addCustomerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-  <div class="card w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border-0">
+  <div class="card modal-panel w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border-0">
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Neuen Kunden anlegen</h3>
       <button onclick="toggleModal('addCustomerModal')" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-lg">×</button>
@@ -154,7 +159,7 @@
 
 <!-- Modal: Kunde Bearbeiten -->
 <div id="editCustomerModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-  <div class="card w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border-0">
+  <div class="card modal-panel w-full max-w-md p-6 max-h-[90vh] overflow-y-auto border-0">
     <div class="flex justify-between items-center mb-5">
       <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Kunden bearbeiten</h3>
       <button onclick="toggleModal('editCustomerModal')" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-lg">×</button>
