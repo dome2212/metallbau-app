@@ -7,11 +7,17 @@
   "scripts": {
     "start": "node server.js",
     "start:force": "node server.js",
+    "prestart": "npm run build:css",
+    "build:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --minify",
+    "watch:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --watch",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
     "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
     "@google/genai": "^2.15.0",
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",

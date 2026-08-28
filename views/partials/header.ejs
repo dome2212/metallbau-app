@@ -22,10 +22,11 @@
     })();
   </script>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { darkMode: 'class' }
-  </script>
+  <!-- Tailwind: gebaut über `npm run build:css` (siehe tailwind.config.js),
+       ersetzt das CDN-Script (nicht für Produktion gedacht, lädt bei jedem
+       Seitenaufruf den JIT-Compiler nach). Läuft automatisch vor jedem
+       `npm start` (siehe "prestart" in package.json). -->
+  <link rel="stylesheet" href="/css/tailwind.min.css">
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">

@@ -50,6 +50,7 @@ Die Oberfläche wurde mit folgenden Verbesserungen modernisiert:
 - **Sticky Aktionsleiste** – auf Projekt-Detail (mobil)
 - **Pull-to-Refresh** – nach unten ziehen zum Aktualisieren
 - **Mobile v3** – Karten (Rechnungen/Angebote/Lager), Segment-Filter, Stempel-Hero, tel/Navi, Chat-Messenger, Login-Autocomplete, Foto-Button, Skeletons
+- **Tailwind-Build statt CDN** – Tailwind wird jetzt über `npm run build:css` (Tailwind CLI + PostCSS, Konfiguration in `tailwind.config.js`) zu `Public/css/tailwind.min.css` kompiliert, statt bei jedem Seitenaufruf per `cdn.tailwindcss.com` im Browser nachgeladen zu werden. Läuft automatisch vor `npm start` (siehe `"prestart"` in `package.json`) – nach `npm install` ist nichts weiter zu tun. Für lokale Entwicklung mit Live-Reload: `npm run watch:css`.
 
 
 
