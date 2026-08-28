@@ -43,8 +43,8 @@
     </div>
 
     <!-- ── Schnellzugriff: Heutige Baustellen ───────────────────────────── -->
-    <a href="/heute" class="flex items-center justify-between bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-lg shadow-blue-600/25 px-4 py-3.5 transition active:scale-[.98]">
-      <span class="flex items-center gap-2 text-sm font-semibold">
+    <a href="/heute" class="btn btn-primary w-full justify-between px-4 py-3.5 text-sm rounded-2xl">
+      <span class="flex items-center gap-2 font-semibold">
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01M8 15h.01M11 15h.01"/></svg>
         Heutige Baustellen ansehen
       </span>
@@ -290,7 +290,11 @@
           <% }) %>
         </ul>
       <% } else { %>
-        <p class="text-sm text-slate-400 dark:text-slate-500 italic text-center py-4">Noch keine Nachrichten gepostet.</p>
+        <%- include('partials/empty-state', {
+          icon: 'M3 11l18-5v12L3 14v-3z',
+          title: 'Noch keine Nachrichten',
+          text: 'Poste die erste Nachricht ans Team – z.B. Frühschluss oder Materialänderungen.'
+        }) %>
       <% } %>
     </div>
 

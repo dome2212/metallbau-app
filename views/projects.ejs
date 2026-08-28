@@ -193,7 +193,13 @@
             <% }) %>
           </tbody>
         </table>
-        <p id="proj-empty" class="hidden text-sm text-slate-400 text-center py-10">Keine Aufträge gefunden.</p>
+        <div id="proj-empty" class="hidden">
+          <%- include('partials/empty-state', {
+            icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+            title: 'Keine Aufträge gefunden',
+            text: 'Passe die Filter an oder lege einen neuen Auftrag an.'
+          }) %>
+        </div>
       </div>
     </div>
 
@@ -236,7 +242,13 @@
         </div>
         </div>
       <% }) %>
-      <p id="proj-empty-m" class="hidden text-sm text-slate-400 text-center py-8">Keine Aufträge gefunden.</p>
+      <div id="proj-empty-m" class="hidden">
+        <%- include('partials/empty-state', {
+          icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+          title: 'Keine Aufträge gefunden',
+          text: 'Passe die Filter an oder lege einen neuen Auftrag an.'
+        }) %>
+      </div>
     </div>
 
   </div>
