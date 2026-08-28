@@ -1,0 +1,147 @@
+<%- include('partials/header') %>
+
+<%- include('partials/sidebar') %>
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+    <!-- Header -->
+    <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <div class="text-xs md:text-sm text-blue-600 mb-1">
+          <a href="/customers" class="hover:underline">← Zurück zur Kundenübersicht</a>
+        </div>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Projekte & Vorgänge: <%= customer.company_name || customer.contact_person %></h1>
+        <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <%= customer.street || '' %>, <%= customer.zip || '' %> <%= customer.city || '' %> 
+          <%= customer.phone ? '| 📞 ' + customer.phone : '' %> 
+          <%= customer.email ? '| ✉️ ' + customer.email : '' %>
+        </p>
+      </div>
+    </div>
+
+    <div class="px-4 md:px-6 w-full max-w-7xl mx-auto pb-6 space-y-6">
+      
+      <!-- Dateien & Uploads -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-4">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+          Kundendateien & Dokumente
+        </h2>
+        
+        <!-- Upload-Formular -->
+        <form action="/customers/<%= customer.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-gray-50 dark:bg-slate-700 p-4 rounded-lg border dark:border-slate-600">
+          <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">Datei hochladen (PDF, Bild, etc.)</label>
+          <input type="file" name="file" required class="w-full text-xs text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition w-full sm:w-auto">Datei hochladen</button>
+        </form>
+
+        <!-- Liste der hochgeladenen Dateien -->
+        <div class="space-y-2">
+          <% if (typeof files !== 'undefined' && files.length > 0) { %>
+            <% files.forEach(file => { %>
+              <div class="flex justify-between items-center bg-gray-50 dark:bg-slate-700 p-3 rounded-lg border dark:border-slate-600 text-sm gap-2">
+                <span class="truncate text-gray-700 dark:text-gray-300 text-xs md:text-sm flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/></svg>
+                  <%= file.original_name %>
+                </span>
+                <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium whitespace-nowrap">Ansehen / Download</a>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <p class="text-xs text-gray-400 dark:text-slate-500 italic">Noch keine Dateien für diesen Kunden hochgeladen.</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Rechnungen -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+          Rechnungen
+        </h2>
+        <% if (typeof invoices !== 'undefined' && invoices.length > 0) { %>
+          <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
+            <table class="w-full text-left text-sm border-collapse min-w-[500px]">
+              <thead class="bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-slate-300 uppercase text-xs border-b dark:border-slate-600">
+                <tr>
+                  <th class="p-3">Rechnungs-Nr.</th>
+                  <th class="p-3">Betrag</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Aktion</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+                <% invoices.forEach(inv => { %>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
+                    <td class="p-3 font-semibold text-gray-800 dark:text-gray-100"><%= inv.invoice_number %></td>
+                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(inv.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800"><%= inv.status %></span></td>
+                    <td class="p-3 text-right"><a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline text-xs font-semibold">Details 👁️</a></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Rechnungen für diesen Kunden hinterlegt.</p>
+        <% } %>
+      </div>
+
+      <!-- Angebote -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a1 1 0 011 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z"/><path d="M9 8h6M9 11h6"/></svg>
+          Angebote
+        </h2>
+        <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
+          <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
+            <table class="w-full text-left text-sm border-collapse min-w-[400px]">
+              <thead class="bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-slate-300 uppercase text-xs border-b dark:border-slate-600">
+                <tr>
+                  <th class="p-3">Angebots-Nr.</th>
+                  <th class="p-3">Betrag</th>
+                  <th class="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+                <% offers.forEach(off => { %>
+                  <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
+                    <td class="p-3 font-semibold text-gray-800 dark:text-gray-100"><%= off.doc_number %></td>
+                    <td class="p-3 text-gray-600 dark:text-gray-300"><%= parseFloat(off.total_amount || 0).toFixed(2) %> €</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200"><%= off.status %></span></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Angebote für diesen Kunden hinterlegt.</p>
+        <% } %>
+      </div>
+
+      <!-- Termine -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6">
+        <h2 class="text-base md:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 border-b dark:border-slate-700 pb-2 flex items-center gap-2">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          Termine & Baustellen
+        </h2>
+        <% if (typeof appointments !== 'undefined' && appointments.length > 0) { %>
+          <ul class="divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+            <% appointments.forEach(app => { %>
+              <li class="py-3">
+                <div class="font-semibold text-gray-800 dark:text-gray-100 text-sm"><%= app.title %></div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">📅 <%= app.start_date %></div>
+                <% if (app.description) { %>
+                  <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 bg-gray-50 dark:bg-slate-700 p-2 rounded border dark:border-slate-600"><%= app.description %></p>
+                <% } %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p class="text-xs md:text-sm text-gray-400 dark:text-slate-500">Keine Termine vorhanden.</p>
+        <% } %>
+      </div>
+
+    </div>
+  </main>
+
+</body>
+</html>

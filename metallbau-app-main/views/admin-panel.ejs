@@ -309,33 +309,6 @@
               </div>
             </div>
 
-            <!-- Dark Mode Standard -->
-            <div>
-              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
-                Dark Mode (Standard für neue Nutzer / ohne gespeicherte Wahl)
-              </label>
-              <div class="flex gap-3 flex-wrap">
-                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
-                  <%= firma.dark_mode_default !== 'false' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
-                  <input type="radio" name="dark_mode_default" value="true"
-                    <%= firma.dark_mode_default !== 'false' ? 'checked' : '' %> class="accent-blue-600">
-                  <div>
-                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Dunkel</p>
-                    <p class="text-xs text-slate-400">Empfohlen für Werkstatt / abends</p>
-                  </div>
-                </label>
-                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
-                  <%= firma.dark_mode_default === 'false' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
-                  <input type="radio" name="dark_mode_default" value="false"
-                    <%= firma.dark_mode_default === 'false' ? 'checked' : '' %> class="accent-blue-600">
-                  <div>
-                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Hell</p>
-                    <p class="text-xs text-slate-400">Klassisches helles Design</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
             <!-- Sidebar-Modus -->
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">

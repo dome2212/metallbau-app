@@ -1,5 +1,5 @@
-const CACHE_NAME = 'metallbau-v5';
-const STATIC_CACHE_NAME = 'metallbau-static-v5';
+const CACHE_NAME = 'metallbau-v4';
+const STATIC_CACHE_NAME = 'metallbau-static-v4';
 
 // Seiten, die sofort beim Installieren vorab gecacht werden, damit die App
 // auch ganz ohne vorherigen Besuch offline startet (z.B. nach Neuinstallation).
@@ -15,12 +15,11 @@ const OFFLINE_URLS = [
   '/manifest.json',
   '/offline.html',
   '/js/offline-queue.js',
-  '/css/tailwind.min.css',
 ];
 
 // Statische Fremd-Ressourcen (Schriften, Tailwind), die sich kaum ändern –
 // hier "cache-first", damit die App auch offline korrekt aussieht.
-const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const STATIC_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.tailwindcss.com'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

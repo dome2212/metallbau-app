@@ -887,33 +887,6 @@ app.post('/api/ai/payment-reminder', async (req, res) => {
   }
 });
 
-
-// ==========================================
-// ERROR PAGES
-// ==========================================
-app.use((req, res) => {
-  res.status(404).render('error', {
-    status: 404,
-    title: 'Seite nicht gefunden',
-    message: 'Die angeforderte Seite existiert nicht oder wurde verschoben.'
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error('[ERROR]', err && err.stack ? err.stack : err);
-  const status = err.status || err.statusCode || 500;
-  if (req.accepts('html')) {
-    return res.status(status).render('error', {
-      status,
-      title: status === 403 ? 'Zugriff verweigert' : 'Serverfehler',
-      message: process.env.NODE_ENV === 'production'
-        ? 'Ein interner Fehler ist aufgetreten. Bitte später erneut versuchen.'
-        : (err.message || 'Unbekannter Fehler')
-    });
-  }
-  res.status(status).json({ error: err.message || 'Internal Server Error' });
-});
-
 // ==========================================
 // SERVER START
 // ==========================================

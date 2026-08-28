@@ -1,0 +1,186 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
+
+    <!-- Page Header -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Mitarbeiter-Logins</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Accounts anlegen, Passwörter ändern und Rollen verwalten</p>
+    </div>
+
+    <!-- Neuen Account anlegen -->
+    <div class="card card-lift p-5 md:p-6">
+      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
+        Neuen Account erstellen
+      </h2>
+      <form action="/admin/users/add" method="POST" autocomplete="off" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Benutzername</label>
+          <input type="text" name="username" required placeholder="z.B. max.mustermann" class="input">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Passwort</label>
+          <input type="password" name="password" required placeholder="Sicheres Passwort" class="input">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Rolle</label>
+          <select name="role" class="input">
+            <option value="EMPLOYEE">👷 Mitarbeiter – Zeiterfassung, Kalender, Aufträge</option>
+            <option value="ADMIN">🛠️ Admin – Alles verwalten, außer Geldbeträge</option>
+            <option value="CHEF">👑 Chef – Vollzugriff inkl. alle Summen & Finanzen</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">WhatsApp-Nummer (optional)</label>
+          <input type="tel" name="whatsapp_phone" placeholder="z.B. 01701234567" class="input">
+          <p class="text-[10px] text-slate-400 mt-1">Für Statusbenachrichtigungen via CallMeBot</p>
+        </div>
+        <div class="md:col-span-2">
+          <button type="submit" class="btn btn-primary">Account anlegen</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Passwort ändern -->
+    <div class="card card-lift p-5 md:p-6">
+      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg></span>
+        Passwort eines Mitarbeiters ändern
+      </h2>
+      <form action="/admin/users/change-password" method="POST" autocomplete="off" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Mitarbeiter</label>
+          <select name="user_id" required class="input">
+            <% if (typeof users !== 'undefined') { %>
+              <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.username %> (<%= u.role %>)</option><% }) %>
+            <% } %>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Neues Passwort</label>
+          <input type="password" name="new_password" required placeholder="Mind. 6 Zeichen" minlength="6" class="input">
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="btn w-full justify-center" style="background:#d97706;color:#fff">Passwort ändern</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Bestehende Accounts -->
+    <div class="card card-lift overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Bestehende Accounts</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table-modern w-full text-left text-sm min-w-[780px]">
+          <thead>
+            <tr class="border-b border-slate-100 dark:border-slate-700">
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Benutzer</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Rolle</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">WhatsApp</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">RFID-Chip</th>
+              <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <% if (typeof users !== 'undefined' && users.length > 0) { %>
+              <% users.forEach(u => { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
+                           style="background:var(--primary)">
+                        <%= u.username.charAt(0).toUpperCase() %>
+                      </div>
+                      <span class="font-semibold text-slate-800 dark:text-slate-100"><%= u.username %></span>
+                      <% if (typeof currentUser !== 'undefined' && u.id === currentUser.id) { %>
+                        <span class="badge bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">Du</span>
+                      <% } %>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="space-y-2">
+                      <% if (u.role === 'CHEF') { %>
+                        <span class="badge bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Chef</span>
+                      <% } else if (u.role === 'ADMIN') { %>
+                        <span class="badge bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Admin</span>
+                      <% } else { %>
+                        <span class="badge bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Mitarbeiter</span>
+                      <% } %>
+                      <form action="/admin/users/change-role" method="POST" class="flex items-center gap-1">
+                        <input type="hidden" name="user_id" value="<%= u.id %>">
+                        <select name="role" class="input text-xs py-1 px-2" style="height:auto">
+                          <option value="EMPLOYEE" <%= u.role === 'EMPLOYEE' ? 'selected' : '' %>>👷 Mitarbeiter</option>
+                          <option value="ADMIN"    <%= u.role === 'ADMIN'    ? 'selected' : '' %>>🛠️ Admin</option>
+                          <option value="CHEF"     <%= u.role === 'CHEF'     ? 'selected' : '' %>>👑 Chef</option>
+                        </select>
+                        <button type="submit" class="btn py-1 px-2.5 text-xs text-white" style="background:#475569"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></button>
+                      </form>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <form action="/admin/users/set-whatsapp" method="POST" class="space-y-1.5">
+                      <input type="hidden" name="user_id" value="<%= u.id %>">
+                      <div class="flex items-center gap-1.5">
+                        <input type="tel" name="whatsapp_phone" value="<%= u.whatsapp_phone || '' %>"
+                          placeholder="01701234567" class="input text-xs py-1.5" style="width:8rem">
+                        <input type="text" name="whatsapp_api_key" value="<%= u.whatsapp_api_key || '' %>"
+                          placeholder="API-Key" class="input text-xs py-1.5" style="width:7rem">
+                        <button type="submit" class="btn py-1.5 px-2.5 text-xs text-white" style="background:#16a34a"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></button>
+                      </div>
+                    </form>
+                    <% if (u.whatsapp_phone) { %>
+                      <%
+                        const notifyOn = u.whatsapp_notify === true || u.whatsapp_notify === 1 || u.whatsapp_notify === 't' || u.whatsapp_notify === 'true';
+                      %>
+                      <form action="/admin/users/toggle-whatsapp-notify" method="POST" class="mt-1.5">
+                        <input type="hidden" name="user_id" value="<%= u.id %>">
+                        <input type="hidden" name="notify" value="<%= notifyOn ? '0' : '1' %>">
+                        <button type="submit" class="badge cursor-pointer <%= notifyOn ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' %>">
+                          <%= notifyOn ? 'Aktiv' : 'Stumm' %>
+                        </button>
+                      </form>
+                    <% } %>
+                  </td>
+                  <!-- RFID-UID -->
+                  <td class="px-4 py-3">
+                    <form action="/admin/users/set-rfid" method="POST" class="flex items-center gap-1.5">
+                      <input type="hidden" name="user_id" value="<%= u.id %>">
+                      <input type="text" name="rfid_uid"
+                        value="<%= u.rfid_uid || '' %>"
+                        placeholder="z.B. A3F2B1C4"
+                        maxlength="20"
+                        class="input text-xs py-1.5 font-mono uppercase"
+                        style="width:9rem"
+                        title="RFID Chip-ID (vom Pi ausgelesen)">
+                      <button type="submit" class="btn py-1.5 px-2.5 text-xs text-white shrink-0" style="background:#6366f1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></button>
+                      <% if (u.rfid_uid) { %>
+                        <span class="badge badge-success font-mono shrink-0"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+                      <% } %>
+                    </form>
+                  </td>
+
+                  <td class="px-4 py-3 text-right">
+                    <form action="/admin/users/delete" method="POST" onsubmit="return confirm('Mitarbeiter wirklich löschen?');" class="inline">
+                      <input type="hidden" name="id" value="<%= u.id %>">
+                      <button type="submit" class="btn py-1.5 px-2.5 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr><td colspan="5" class="py-12 text-center text-slate-400 text-sm">Keine Mitarbeiter gefunden.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>

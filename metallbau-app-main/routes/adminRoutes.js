@@ -1,0 +1,602 @@
+const express  = require('express');
+const router   = express.Router();
+const bcrypt   = require('bcryptjs');
+const { dbQuery }      = require('../utils/db');
+const { requireAdmin } = require('../middleware/auth');
+const { FIRMA }        = require('../utils/firma');
+const { sendWhatsApp } = require('../utils/notifier');
+
+const isPg = !!process.env.DATABASE_URL;
+
+let PDFKit;
+try { PDFKit = require('pdfkit'); } catch (_) {}
+
+// ==========================================
+// MITARBEITERVERWALTUNG
+// ==========================================
+router.get('/users', requireAdmin, async (req, res) => {
+  try {
+    const result = await dbQuery(
+      'SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, rfid_uid, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.render('admin-users', { users: result.rows || [] });
+  } catch (err) {
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+router.post('/users/add', requireAdmin, async (req, res) => {
+  const { username, password, role, whatsapp_phone } = req.body;
+  if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const userRole = allowedRoles.includes(role) ? role : 'EMPLOYEE';
+  const phone    = (whatsapp_phone || '').trim() || null;
+  try {
+    await dbQuery(
+      `INSERT INTO users (username, password_hash, role, whatsapp_phone) VALUES (?, ?, ?, ?)`,
+      [username, hashedPassword, userRole, phone]
+    );
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Benutzername existiert möglicherweise bereits.');
+  }
+});
+
+router.post('/users/set-whatsapp', requireAdmin, async (req, res) => {
+  const { user_id, whatsapp_phone, whatsapp_api_key } = req.body;
+  const phone  = (whatsapp_phone   || '').trim() || null;
+  const apiKey = (whatsapp_api_key || '').trim() || null;
+  try {
+    await dbQuery('UPDATE users SET whatsapp_phone = ?, whatsapp_api_key = ? WHERE id = ?', [phone, apiKey, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Speichern der WhatsApp-Daten.');
+  }
+});
+
+router.post('/users/toggle-whatsapp-notify', requireAdmin, async (req, res) => {
+  const { user_id, notify } = req.body;
+  const val = notify === '1';
+  try {
+    await dbQuery('UPDATE users SET whatsapp_notify = ? WHERE id = ?', [val, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern der Benachrichtigungseinstellung.');
+  }
+});
+
+router.post('/users/change-password', requireAdmin, async (req, res) => {
+  const { user_id, new_password } = req.body;
+  if (!user_id || !new_password || new_password.length < 6) {
+    return res.status(400).send('Ungültige Eingabe. Passwort muss mindestens 6 Zeichen haben.');
+  }
+  const hashedPassword = bcrypt.hashSync(new_password, 10);
+  try {
+    await dbQuery('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern des Passworts');
+  }
+});
+
+router.post('/users/change-role', requireAdmin, async (req, res) => {
+  const { user_id, role } = req.body;
+  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  if (!allowedRoles.includes(role)) return res.status(400).send('Ungültige Rolle.');
+  // Eigene Chef-Rolle darf nicht selbst entzogen werden
+  if (parseInt(user_id) === req.user.id && role !== 'CHEF') {
+    return res.status(400).send('Du kannst dir selbst die Chef-Rolle nicht entziehen.');
+  }
+  try {
+    await dbQuery('UPDATE users SET role = ? WHERE id = ?', [role, user_id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Ändern der Rolle');
+  }
+});
+
+router.post('/users/delete', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  if (parseInt(id) === req.user.id) {
+    return res.status(400).send('Du kannst deinen eigenen Account nicht löschen.');
+  }
+  try {
+    await dbQuery('DELETE FROM users WHERE id = ?', [id]);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Löschen');
+  }
+});
+
+// ==========================================
+// ADMIN ZEITERFASSUNG
+// ==========================================
+router.get('/timetracking', requireAdmin, async (req, res) => {
+  try {
+    const activeTab      = req.query.tab || 'daily';
+    const selectedDate   = req.query.date || '';
+    const selectedUserId = req.query.user_id || '';
+
+    const usersRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
+    const users    = usersRes.rows || [];
+
+    const tsCol = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const dateFilter = isPg
+      ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
+      : `date(time_logs.timestamp)`;
+
+    let logsQuery  = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
+    const logsParams = [];
+    if (selectedDate) { logsQuery += ` AND ${dateFilter} = ?`; logsParams.push(selectedDate); }
+    if (selectedUserId) { logsQuery += ` AND time_logs.user_id = ?`; logsParams.push(selectedUserId); }
+    logsQuery += ` ORDER BY time_logs.timestamp DESC`;
+
+    const logsResult = await dbQuery(logsQuery, logsParams);
+    const logs = (logsResult.rows || []).map(log => ({ ...log, timestamp: log.local_timestamp || log.timestamp }));
+
+    const month       = req.query.month || new Date().toISOString().slice(0, 7);
+    const monthUserId = req.query.month_user_id || (users.length > 0 ? users[0].id : req.user.id);
+    const dailyHours  = parseFloat(req.query.daily_hours || '8');
+
+    const monthlyEntriesRes = await dbQuery(
+      isPg
+        ? `SELECT time_logs.*, TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs WHERE user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY time_logs.timestamp ASC`
+        : `SELECT time_logs.*, strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+           FROM time_logs WHERE user_id = ? AND strftime('%Y-%m', timestamp) = ?
+           ORDER BY time_logs.timestamp ASC`,
+      [monthUserId, month]
+    );
+    const monthlyEntries = (monthlyEntriesRes.rows || []).map(e => ({ ...e, timestamp: e.local_timestamp || e.timestamp }));
+
+    let workedMs = 0;
+    for (let i = 0; i < monthlyEntries.length; i++) {
+      if (monthlyEntries[i].type !== 'IN') continue;
+      const start = new Date(monthlyEntries[i].timestamp).getTime();
+      const next  = monthlyEntries[i + 1];
+      if (next && next.type === 'OUT') {
+        const end = new Date(next.timestamp).getTime();
+        if (end > start) workedMs += (end - start);
+      }
+    }
+    const workedHours = workedMs / 3600000;
+
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const targetHours   = workdaysInMonth * dailyHours;
+    const overtimeHours = workedHours - targetHours;
+
+    res.render('admin-timetracking', {
+      users, user: req.user, activeTab,
+      logs, selectedDate, selectedUserId,
+      selectedMonth: month, monthUserId, monthlyEntries, dailyHours,
+      workedHours:   workedHours.toFixed(2),
+      targetHours:   targetHours.toFixed(2),
+      overtimeHours: overtimeHours.toFixed(2)
+    });
+  } catch (err) {
+    console.error('Fehler beim Laden der Zeiterfassung:', err);
+    res.status(500).send('Fehler beim Laden der Zeiterfassung');
+  }
+});
+
+router.post('/timetracking/add', requireAdmin, async (req, res) => {
+  const { user_id, type, date, time, note } = req.body;
+  if (!user_id || !type || !date || !time) {
+    return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
+  }
+  try {
+    const timestampString = `${date}T${time}:00`;   // ISO-Format z.B. 2024-01-15T07:30:00
+
+    let sql, params;
+    if (isPg) {
+      // Eingabe ist Berliner Ortszeit → als timestamptz mit Berlin-Zone speichern
+      // PostgreSQL speichert intern immer UTC
+      sql    = `INSERT INTO time_logs (user_id, type, note, timestamp)
+                VALUES (?, ?, ?, (? || ' Europe/Berlin')::timestamptz)`;
+      params = [user_id, type, note || null, timestampString];
+    } else {
+      // SQLite: Eingabe in UTC umrechnen (Berlin = UTC+1 oder UTC+2)
+      // Wir nutzen den Node.js-Prozess der bereits auf Europe/Berlin läuft
+      const localDate = new Date(timestampString);
+      const utcString = localDate.toISOString().replace('T', ' ').slice(0, 19);
+      sql    = `INSERT INTO time_logs (user_id, type, note, timestamp) VALUES (?, ?, ?, ?)`;
+      params = [user_id, type, note || null, utcString];
+    }
+
+    await dbQuery(sql, params);
+    res.redirect('/admin/timetracking');
+  } catch (err) {
+    console.error('Fehler beim Nachtragen der Arbeitszeit:', err.message);
+    res.status(500).send('Fehler beim Speichern des Eintrags.');
+  }
+});
+
+router.post('/timetracking/delete', requireAdmin, async (req, res) => {
+  const { log_id } = req.body;
+  try {
+    await dbQuery('DELETE FROM time_logs WHERE id = ?', [log_id]);
+    res.redirect('back');
+  } catch (err) {
+    console.error('Fehler beim Löschen des Stempel-Eintrags:', err.message);
+    res.status(500).send('Fehler beim Löschen');
+  }
+});
+
+router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
+  const { user_id, date } = req.query;
+  try {
+    const tsColPdf = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const dateFilterPdf = isPg
+      ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
+      : `date(time_logs.timestamp)`;
+
+    let query = `SELECT time_logs.*, users.username, ${tsColPdf} as local_timestamp FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
+    let queryParams = [];
+    if (user_id) { query += ` AND time_logs.user_id = ?`; queryParams.push(user_id); }
+    if (date)    { query += ` AND ${dateFilterPdf} = ?`;  queryParams.push(date); }
+    // Aufsteigend sortieren, damit IN/OUT pro Mitarbeiter korrekt zu Sitzungen gepaart werden können.
+    query += ` ORDER BY time_logs.user_id ASC, time_logs.timestamp ASC`;
+
+    const result = await dbQuery(query, queryParams);
+    const logs   = (result.rows || []).map(log => ({ ...log, timestamp: log.local_timestamp || log.timestamp }));
+
+    let employeeName = 'Alle Mitarbeiter';
+    if (user_id) {
+      const userRes = await dbQuery('SELECT username FROM users WHERE id = ?', [user_id]);
+      if (userRes.rows && userRes.rows.length > 0) employeeName = userRes.rows[0].username;
+    }
+
+    // IN- und OUT-Einträge je Mitarbeiter zu Sitzungen paaren (Kommen/Gehen nebeneinander statt untereinander).
+    const sessionsByUser = new Map();
+    for (const log of logs) {
+      if (!sessionsByUser.has(log.username)) sessionsByUser.set(log.username, { sessions: [], pendingIn: null });
+      const bucket = sessionsByUser.get(log.username);
+      if (log.type === 'IN') {
+        if (bucket.pendingIn) bucket.sessions.push({ in: bucket.pendingIn, out: null });
+        bucket.pendingIn = log;
+      } else if (log.type === 'OUT') {
+        bucket.sessions.push({ in: bucket.pendingIn, out: log });
+        bucket.pendingIn = null;
+      }
+    }
+    for (const bucket of sessionsByUser.values()) {
+      if (bucket.pendingIn) bucket.sessions.push({ in: bucket.pendingIn, out: null });
+    }
+
+    if (!PDFKit) return res.status(500).send('PDF-Generator nicht geladen.');
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Arbeitszeiten_${employeeName.replace(/\s+/g, '_')}.pdf`);
+    doc.pipe(res);
+
+    doc.fontSize(18).font('Helvetica-Bold').text('Arbeitszeiten-Übersicht', { align: 'left' });
+    doc.fontSize(12).font('Helvetica').text(`Mitarbeiter: ${employeeName}`, { align: 'left' });
+    if (date) doc.text(`Datum: ${date}`, { align: 'left' });
+    doc.fontSize(9).text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
+    doc.moveDown(1.5);
+
+    const usernames = Array.from(sessionsByUser.keys());
+    const showEmployeeCol = usernames.length > 1;
+    const col = showEmployeeCol
+      ? { emp: 50, date: 150, in: 235, out: 300, dur: 365, note: 435 }
+      : { date: 50, in: 145, out: 220, dur: 295, note: 370 };
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('de-DE') : '–';
+
+    const drawTableHeader = () => {
+      doc.fontSize(10).font('Helvetica-Bold');
+      const y = doc.y;
+      if (showEmployeeCol) doc.text('Mitarbeiter', col.emp, y, { width: 95 });
+      doc.text('Datum',   col.date, y, { width: 80 });
+      doc.text('Kommen',  col.in,   y, { width: 60 });
+      doc.text('Gehen',   col.out,  y, { width: 60 });
+      doc.text('Dauer',   col.dur,  y, { width: 65 });
+      doc.text('Notiz',   col.note, y, { width: showEmployeeCol ? 115 : 180 });
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.5);
+      doc.font('Helvetica').fontSize(9);
+    };
+
+    let totalSessions = 0;
+    drawTableHeader();
+
+    usernames.forEach((uname) => {
+      const { sessions } = sessionsByUser.get(uname);
+      totalSessions += sessions.length;
+
+      sessions.forEach(sess => {
+        if (doc.y > 750) { doc.addPage(); drawTableHeader(); }
+        const rowY  = doc.y;
+        const inD   = sess.in  ? sess.in.timestamp  : null;
+        const outD  = sess.out ? sess.out.timestamp : null;
+        const durMs = inD && outD ? (new Date(outD) - new Date(inD)) : 0;
+        const dur   = durMs > 0 ? `${Math.floor(durMs/3600000)}h ${Math.floor((durMs%3600000)/60000)}min` : (inD && !outD ? 'läuft…' : '–');
+        const note  = (sess.in && sess.in.note) || (sess.out && sess.out.note) || '-';
+        if (showEmployeeCol) doc.text(uname, col.emp, rowY, { width: 95, lineBreak: false });
+        doc.text(fmtDate(inD || outD),      col.date, rowY, { width: 80,  lineBreak: false });
+        doc.text(fmtTime(inD),              col.in,   rowY, { width: 60,  lineBreak: false });
+        doc.text(fmtTime(outD),             col.out,  rowY, { width: 60,  lineBreak: false });
+        doc.text(dur,                       col.dur,  rowY, { width: 65,  lineBreak: false });
+        doc.text(note,                      col.note, rowY, { width: showEmployeeCol ? 115 : 180 });
+        doc.moveDown(1.2);
+      });
+    });
+
+    if (totalSessions === 0) {
+      doc.text('Keine Einträge für diesen Filter gefunden.', 50, doc.y);
+    }
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim PDF-Export:', err.message);
+    res.status(500).send('Fehler beim Generieren der PDF.');
+  }
+});
+
+// ==========================================
+// MONATLICHER ÜBERSTUNDEN-BERICHT (PDF)
+// ==========================================
+router.get('/timetracking/overtime-pdf', requireAdmin, async (req, res) => {
+  const { month, user_id } = req.query;
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).send('Bitte einen gültigen Monat im Format YYYY-MM angeben.');
+  }
+  try {
+    const tsCol = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const monthFilter = isPg
+      ? `to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?`
+      : `strftime('%Y-%m', time_logs.timestamp) = ?`;
+
+    // Workdays in the given month (Mon–Fri)
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const targetHoursPerUser = workdaysInMonth * 8;
+
+    // Fetch users to report on
+    let users;
+    if (user_id) {
+      const uRes = await dbQuery('SELECT id, username FROM users WHERE id = ?', [user_id]);
+      users = uRes.rows || [];
+    } else {
+      const uRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
+      users = uRes.rows || [];
+    }
+
+    // For each user calculate worked hours
+    const rows = [];
+    for (const u of users) {
+      const logsRes = await dbQuery(
+        `SELECT ${tsCol} as local_timestamp, type FROM time_logs WHERE user_id = ? AND ${monthFilter} ORDER BY time_logs.timestamp ASC`,
+        [u.id, month]
+      );
+      const entries = (logsRes.rows || []).map(e => ({ ...e, timestamp: e.local_timestamp || e.timestamp }));
+      let workedMs = 0;
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i].type !== 'IN') continue;
+        const start = new Date(entries[i].timestamp).getTime();
+        const next  = entries[i + 1];
+        if (next && next.type === 'OUT') {
+          const end = new Date(next.timestamp).getTime();
+          if (end > start) workedMs += (end - start);
+        }
+      }
+      const workedHours   = workedMs / 3600000;
+      const overtimeHours = workedHours - targetHoursPerUser;
+      rows.push({ username: u.username, target: targetHoursPerUser, worked: workedHours, overtime: overtimeHours });
+    }
+
+    if (!PDFKit) return res.status(500).send('PDF-Generator nicht geladen.');
+
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Ueberstunden_${month}.pdf`);
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(18).font('Helvetica-Bold').text(`Überstunden-Bericht ${month}`, { align: 'left' });
+    doc.fontSize(9).font('Helvetica').text(`Erstellt am: ${new Date().toLocaleDateString('de-DE')}`, { align: 'left' });
+    doc.moveDown(1.5);
+
+    // Table header
+    const col1 = 50, col2 = 230, col3 = 320, col4 = 410;
+    doc.fontSize(10).font('Helvetica-Bold');
+    const hY = doc.y;
+    doc.text('Mitarbeiter',     col1, hY, { width: 175 });
+    doc.text('Soll-Std.',       col2, hY, { width: 85 });
+    doc.text('Ist-Std.',        col3, hY, { width: 85 });
+    doc.text('Überstunden',     col4, hY, { width: 120 });
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(0.8);
+
+    doc.font('Helvetica').fontSize(9);
+    let totalWorked = 0;
+    let totalTarget = 0;
+    for (const row of rows) {
+      if (doc.y > 750) doc.addPage();
+      const rY      = doc.y;
+      const otSign  = row.overtime >= 0 ? '+' : '';
+      totalWorked += row.worked;
+      totalTarget += row.target;
+      doc.text(row.username,                              col1, rY, { width: 175, lineBreak: false });
+      doc.text(row.target.toFixed(2) + ' h',             col2, rY, { width: 85,  lineBreak: false });
+      doc.text(row.worked.toFixed(2) + ' h',             col3, rY, { width: 85,  lineBreak: false });
+      doc.text(otSign + row.overtime.toFixed(2) + ' h',  col4, rY, { width: 120 });
+      doc.moveDown(1.2);
+    }
+
+    // Summary row
+    if (rows.length > 1) {
+      doc.moveDown(0.3);
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.5);
+      const sY       = doc.y;
+      const totOt    = totalWorked - totalTarget;
+      const totSign  = totOt >= 0 ? '+' : '';
+      doc.font('Helvetica-Bold').fontSize(9);
+      doc.text('Gesamt',                                   col1, sY, { width: 175, lineBreak: false });
+      doc.text(totalTarget.toFixed(2) + ' h',             col2, sY, { width: 85,  lineBreak: false });
+      doc.text(totalWorked.toFixed(2) + ' h',             col3, sY, { width: 85,  lineBreak: false });
+      doc.text(totSign + totOt.toFixed(2) + ' h',         col4, sY, { width: 120 });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim Überstunden-PDF:', err.message);
+    res.status(500).send('Fehler beim Generieren der PDF.');
+  }
+});
+
+// ==========================================
+// SCHWARZES BRETT (TICKER)
+// ==========================================
+router.post('/add', requireAdmin, async (req, res) => {
+  const { message } = req.body;
+  if (!message || message.trim() === '') return res.redirect('/');
+  try {
+    await dbQuery('INSERT INTO tickers (message, author) VALUES (?, ?)', [message.trim(), req.user.username]);
+
+    // WhatsApp-Benachrichtigung an alle Mitarbeiter mit aktivierter Benachrichtigung
+    const usersRes = await dbQuery(
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+    );
+    const msg = `📌 Schwarzes Brett (${req.user.username}): ${message.trim()}`;
+    for (const u of (usersRes.rows || [])) {
+      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+    }
+  } catch (err) {
+    console.error('Fehler beim Speichern des Tickers:', err.message);
+  }
+  res.redirect('/');
+});
+
+router.post('/delete', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  try {
+    await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
+  } catch (err) {
+    console.error('Fehler beim Löschen des Tickers:', err.message);
+  }
+  res.redirect('/');
+});
+
+// ==========================================
+// PERSONALPLANUNG – Wochenplan
+// ==========================================
+router.get('/staffplan', requireAdmin, async (req, res) => {
+  try {
+    // Woche berechnen (Mo–Sa)
+    const weekParam = req.query.week || '';
+    let monday;
+    if (weekParam) {
+      monday = new Date(weekParam);
+      // Sicherstellen dass es ein Montag ist
+      const dow = monday.getDay();
+      monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
+    } else {
+      monday = new Date();
+      const dow = monday.getDay();
+      monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1));
+    }
+    monday.setHours(0, 0, 0, 0);
+
+    // 6 Tage (Mo–Sa) als Datumsstrings
+    const days = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    const prevMonday = new Date(monday); prevMonday.setDate(monday.getDate() - 7);
+    const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
+
+    const [usersRes, projectsRes, assignmentsRes] = await Promise.all([
+      dbQuery(`SELECT id, username, role FROM users ORDER BY username ASC`),
+      dbQuery(`SELECT id, title FROM projects WHERE status != 'Abgeschlossen' ORDER BY title ASC`),
+      dbQuery(
+        `SELECT * FROM staff_assignments WHERE assignment_date >= ? AND assignment_date <= ?`,
+        [days[0], days[5]]
+      )
+    ]);
+
+    // Assignments als Map: user_id → date → assignment
+    const assignMap = {};
+    for (const a of (assignmentsRes.rows || [])) {
+      if (!assignMap[a.user_id]) assignMap[a.user_id] = {};
+      assignMap[a.user_id][a.assignment_date] = a;
+    }
+
+    res.render('staffplan', {
+      users:      usersRes.rows || [],
+      projects:   projectsRes.rows || [],
+      days,
+      assignMap,
+      mondayStr:     days[0],
+      prevMondayStr: prevMonday.toISOString().slice(0, 10),
+      nextMondayStr: nextMonday.toISOString().slice(0, 10),
+      weekLabel: new Date(days[0]).toLocaleDateString('de-DE', { day:'numeric', month:'long' })
+        + ' – ' + new Date(days[5]).toLocaleDateString('de-DE', { day:'numeric', month:'long', year:'numeric' })
+    });
+  } catch (err) {
+    console.error('Fehler Personalplanung:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+router.post('/staffplan/save', requireAdmin, async (req, res) => {
+  try {
+    const { user_id, date, project_id, note } = req.body;
+    if (!user_id || !date) return res.status(400).send('Fehlende Daten');
+    const pid = project_id && project_id !== '' ? parseInt(project_id, 10) : null;
+
+    // Upsert: löschen + neu anlegen
+    await dbQuery(`DELETE FROM staff_assignments WHERE user_id = ? AND assignment_date = ?`, [user_id, date]);
+    if (pid !== null || (note && note.trim())) {
+      await dbQuery(
+        `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
+        [user_id, pid, date, (note || '').trim() || null]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Zuweisung:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
+// RFID-UID setzen / löschen
+// ==========================================
+router.post('/users/set-rfid', requireAdmin, async (req, res) => {
+  const { user_id, rfid_uid } = req.body;
+  const uid = (rfid_uid || '').trim().toUpperCase() || null;
+  try {
+    await dbQuery('UPDATE users SET rfid_uid = ? WHERE id = ?', [uid, user_id]);
+  } catch (err) {
+    console.error('Fehler beim Setzen der RFID-UID:', err.message);
+  }
+  res.redirect('/admin/users');
+});
+
+module.exports = router;

@@ -6,25 +6,25 @@
 
     <!-- Page Header -->
     <div class="flex items-center justify-between gap-3 mb-4">
-      <%- include('partials/card-header', {
-        icon: 'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z',
-        iconBg: 'var(--primary-soft)', iconColor: 'var(--primary)',
-        title: 'Team-Chat',
-        subtitle: 'Für alle Mitarbeiter sichtbar',
-        mb: 'mb-0'
-      }) %>
-      <span id="chat-status" class="text-xs font-medium text-amber-500 inline-flex items-center gap-1.5 shrink-0"><span class="status-dot amber"></span>Verbinde…</span>
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
+          <span class="icon-tile" style="background:var(--primary-soft);color:var(--primary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          </span>
+          Team-Chat
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">Für alle Mitarbeiter sichtbar</p>
+      </div>
+      <span id="chat-status" class="text-xs font-medium text-amber-500 inline-flex items-center gap-1.5"><span class="status-dot amber"></span>Verbinde…</span>
     </div>
 
     <!-- Nachrichtenliste -->
     <div id="chat-list" class="card flex-1 min-h-0 overflow-y-auto p-3 md:p-5 mb-2 flex flex-col" style="scroll-behavior:smooth">
       <% if (messages.length === 0) { %>
-        <div class="flex-1 flex flex-col items-center justify-center py-10 chat-empty-state">
-          <%- include('partials/empty-state', {
-            icon: 'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z',
-            title: 'Noch keine Nachrichten',
-            text: 'Schreib die erste Nachricht ans Team.'
-          }) %>
+        <div class="flex-1 flex flex-col items-center justify-center text-center text-slate-400 py-10 chat-empty-state">
+          <svg class="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          <p class="text-sm font-medium">Noch keine Nachrichten</p>
+          <p class="text-xs mt-1">Schreib die erste Nachricht ans Team.</p>
         </div>
       <% } else { %>
         <% const isMod = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF'); %>

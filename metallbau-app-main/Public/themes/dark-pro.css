@@ -1,0 +1,48 @@
+/* ── Theme: Dark Pro ──────────────────────────────────────────────── */
+:root {
+  --primary:          #818cf8;
+  --primary-dark:     #6366f1;
+  --sidebar-bg:       #0f0f1a;
+  --sidebar-text:     #a5b4fc;
+  --sidebar-hover:    #1e1b4b;
+  --topbar-bg:        #13131f;
+  --page-bg:          #0f0f1a;
+}
+
+/* Erzwingt dunklen Modus bei diesem Theme */
+html { color-scheme: dark; }
+body {
+  background-color: var(--page-bg) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Karten */
+.card,
+.bg-white,
+[class*="bg-white"] {
+  background-color: #1a1a2e !important;
+  color: #e2e8f0;
+}
+
+/* Tabellen-Header */
+thead tr {
+  background-color: #1e1b4b !important;
+}
+
+/* Eingabefelder */
+input, select, textarea {
+  background-color: #1a1a2e !important;
+  border-color: #312e81 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Trennlinien */
+hr, .border-b, [class*="border-slate-200"] {
+  border-color: #312e81 !important;
+}
+
+/* Badges & Status */
+.badge { border-radius: 6px; }
+
+/* Scrollbar */
+::-webkit-scrollbar-thumb { background: #4338ca; }

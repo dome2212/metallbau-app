@@ -1,0 +1,33 @@
+/* ── Theme: Industrial (Anthrazit + Orange) ─────────────────────────── */
+:root {
+  --primary:          #ea580c;
+  --primary-dark:     #c2410c;
+  --sidebar-bg:       #0c0a09;
+  --sidebar-text:     #d6d3d1;
+  --sidebar-hover:    #1c1917;
+  --topbar-bg:        #fafaf9;
+  --page-bg:          #f5f5f4;
+}
+
+.bg-blue-600, .hover\:bg-blue-700:hover { background-color: #ea580c !important; }
+.text-blue-600 { color: #ea580c !important; }
+.border-blue-400, .focus\:ring-blue-500 { border-color: #fb923c !important; }
+
+#sidebar a.active { background-color: #ea580c !important; }
+
+.bg-blue-600.text-white.shadow {
+  background-color: #ea580c !important;
+}
+
+.btn-primary {
+  background: #ea580c;
+  box-shadow: 0 2px 10px rgba(234,88,12,0.35);
+}
+.btn-primary:hover { filter: brightness(1.12); }
+
+.badge { background: #ffedd5; color: #c2410c; }
+
+::-webkit-scrollbar-thumb { background: #a8a29e; }
+
+body { letter-spacing: 0.01em; }
+h1, h2, h3 { letter-spacing: -0.015em; font-weight: 700; }
