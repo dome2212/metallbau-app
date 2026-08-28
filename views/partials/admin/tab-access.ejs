@@ -1,0 +1,149 @@
+      <% if (tab === 'access') { %>
+      <div class="space-y-6">
+
+        <!-- Schnell-Links -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="15.5" r="1.3"/></svg>Schnell-Links</span></h2>
+          <div class="flex flex-wrap gap-3">
+            <a href="/admin/users" class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">👥 Mitarbeiter-Logins</a>
+            <a href="/admin/timetracking" class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">📋 Arbeitszeiten</a>
+            <a href="/admin/company-settings" class="px-4 py-2 rounded-lg border dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-200 transition">🏢 Firmendaten</a>
+          </div>
+        </div>
+
+        <!-- Berechtigungs-Matrix -->
+        <form action="/admin/panel/access" method="POST">
+        <%
+          // Bereiche: [key, label, chef_fest, admin_default, employee_default]
+          // chef_fest = CHEF hat immer Zugriff (nicht änderbar)
+          const accessAreas = [
+            { key: 'projects',     label: '🏗️ Aufträge & Baustellen',    empDef: true  },
+            { key: 'calendar',     label: '📅 Kalender',                  empDef: true  },
+            { key: 'timetracking', label: '⏱️ Zeiterfassung',             empDef: true  },
+            { key: 'vacations',    label: '🌴 Urlaub & Abwesenheit',      empDef: true  },
+            { key: 'customers',    label: '👤 Kunden',                    empDef: false },
+            { key: 'documents',    label: '📋 Angebote & Rechnungen',     empDef: false },
+            { key: 'articles',     label: '📦 Artikelstamm',              empDef: false },
+            { key: 'map',          label: '🗺️ Baustellen-Karte',          empDef: false },
+            { key: 'treppe',       label: '🪜 Treppen-Rechner',           empDef: false },
+            { key: 'steel_calc',   label: '⚖️ Stahl-Rechner',             empDef: false },
+            { key: 'money',        label: '💰 Geldbeträge & Summen',      empDef: false },
+          ];
+          // Hilfsfunktion: Wert aus DB lesen mit Fallback auf Default
+          function permVal(key, role, def) {
+            const k = 'perm_' + role + '_' + key;
+            return firma[k] !== undefined ? firma[k] !== 'false' : def;
+          }
+        %>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+          <div class="px-5 py-4 border-b dark:border-slate-700 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Berechtigungs-Matrix</span></h2>
+              <p class="text-xs text-slate-400 mt-0.5">Legt fest, welche Bereiche ADMIN und EMPLOYEE sehen und nutzen dürfen. CHEF hat immer vollen Zugriff.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-700/50 border-b dark:border-slate-700">
+                  <th class="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide w-1/2">Bereich</th>
+                  <th class="text-center py-3 px-4 text-xs font-semibold text-yellow-600 uppercase tracking-wide w-[16%]">👑 CHEF</th>
+                  <th class="text-center py-3 px-4 text-xs font-semibold text-blue-600 uppercase tracking-wide w-[17%]">🛠️ ADMIN</th>
+                  <th class="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide w-[17%]">👷 EMPLOYEE</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y dark:divide-slate-700">
+                <% for (const area of accessAreas) { %>
+                <%
+                  const adminOn = permVal(area.key, 'admin', true);
+                  const empOn   = permVal(area.key, 'employee', area.empDef);
+                  const isMoney = area.key === 'money';
+                %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 <%= isMoney ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : '' %>">
+                  <td class="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium"><%= area.label %></td>
+
+                  <!-- CHEF: immer ✅, nicht änderbar -->
+                  <td class="py-3 px-4 text-center text-lg">✅</td>
+
+                  <!-- ADMIN Toggle -->
+                  <td class="py-3 px-4 text-center">
+                    <div class="inline-flex items-center justify-center">
+                      <input type="hidden" name="perm_admin_<%= area.key %>" value="false">
+                      <input type="checkbox" name="perm_admin_<%= area.key %>" value="true"
+                        id="adm_<%= area.key %>" <%= adminOn ? 'checked' : '' %>
+                        class="sr-only peer">
+                      <label for="adm_<%= area.key %>"
+                        class="block w-10 h-5 rounded-full cursor-pointer transition
+                          bg-slate-200 dark:bg-slate-600 peer-checked:bg-blue-600 relative
+                          after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                          after:bg-white after:rounded-full after:h-4 after:w-4 after:transition
+                          peer-checked:after:translate-x-5">
+                      </label>
+                    </div>
+                  </td>
+
+                  <!-- EMPLOYEE Toggle -->
+                  <td class="py-3 px-4 text-center">
+                    <% if (isMoney) { %>
+                      <!-- Geldbeträge für EMPLOYEE nie freischaltbar -->
+                      <span class="text-lg text-slate-300 dark:text-slate-600" title="Nicht konfigurierbar">🔒</span>
+                      <input type="hidden" name="perm_employee_<%= area.key %>" value="false">
+                    <% } else { %>
+                    <div class="inline-flex items-center justify-center">
+                      <input type="hidden" name="perm_employee_<%= area.key %>" value="false">
+                      <input type="checkbox" name="perm_employee_<%= area.key %>" value="true"
+                        id="emp_<%= area.key %>" <%= empOn ? 'checked' : '' %>
+                        class="sr-only peer">
+                      <label for="emp_<%= area.key %>"
+                        class="block w-10 h-5 rounded-full cursor-pointer transition
+                          bg-slate-200 dark:bg-slate-600 peer-checked:bg-green-500 relative
+                          after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                          after:bg-white after:rounded-full after:h-4 after:w-4 after:transition
+                          peer-checked:after:translate-x-5">
+                      </label>
+                    </div>
+                    <% } %>
+                  </td>
+                </tr>
+                <% } %>
+
+                <!-- Feste Admin-Bereiche (immer Admin/Chef, nie Employee) -->
+                <% const fixedAdminAreas = [
+                    { label: '👥 Mitarbeiter-Logins',      note: 'Nur ADMIN & CHEF' },
+                    { label: '📊 Arbeitszeiten aller MA',  note: 'Nur ADMIN & CHEF' },
+                    { label: '🏢 Firmendaten',              note: 'Nur ADMIN & CHEF' },
+                    { label: '⚙️ Admin-Panel',              note: 'Nur ADMIN & CHEF' },
+                  ]; %>
+                <% for (const f of fixedAdminAreas) { %>
+                <tr class="bg-slate-50/50 dark:bg-slate-700/20 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td class="py-3 px-4 text-slate-500 dark:text-slate-400"><%= f.label %></td>
+                  <td class="py-3 px-4 text-center text-lg">✅</td>
+                  <td class="py-3 px-4 text-center text-lg">✅</td>
+                  <td class="py-3 px-4 text-center">
+                    <span class="text-lg text-slate-300 dark:text-slate-600" title="<%= f.note %>">🔒</span>
+                  </td>
+                </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl border dark:border-slate-600 p-4 text-xs text-slate-500 dark:text-slate-400">
+          <strong>Hinweis:</strong> Änderungen gelten sofort nach dem Speichern. Bereiche die für ADMIN deaktiviert sind, werden auch für EMPLOYEE gesperrt. 🔒 = systemseitig fest gesperrt, nicht änderbar.
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Berechtigungen speichern
+          </button>
+        </div>
+        </form>
+
+      </div>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: SYSTEM-INFO                                                   -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

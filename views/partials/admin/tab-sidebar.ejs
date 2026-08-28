@@ -1,0 +1,135 @@
+      <% if (tab === 'sidebar') { %>
+      <form action="/admin/panel/sidebar" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 00-5 5c0 3 2 4.5 3 6.5L12 22l2-8.5c1-2 3-3.5 3-6.5a5 5 0 00-5-5z"/><circle cx="12" cy="7" r="2"/></svg>Sidebar anpassen</span></h2>
+
+          <div class="space-y-5">
+
+            <!-- App-Kurzname -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Kurzname <span class="text-slate-400 font-normal">(erscheint oben in der Sidebar)</span>
+              </label>
+              <input type="text" name="nameKurz" value="<%= firma.nameKurz %>"
+                placeholder="z.B. Metallbau-Mustermann"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- App-Icon -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Sidebar-Icon <span class="text-slate-400 font-normal">(Emoji vor dem Kurznamen)</span>
+              </label>
+              <div class="flex flex-wrap gap-2 mb-3">
+                <% const icons = ['🔩','🏗️','⚙️','🏢','🔧','🛠️','⚒️','🏛️','🔨','🪛','🪚','🏭','⛏️','🪜']; %>
+                <% for (const ic of icons) { %>
+                  <button type="button"
+                    onclick="document.getElementById('appIconInput').value='<%= ic %>'; document.getElementById('iconPreview').textContent='<%= ic %>';"
+                    class="w-10 h-10 text-xl rounded-lg border dark:border-slate-600 hover:bg-blue-50 dark:hover:bg-slate-600 transition flex items-center justify-center
+                      <%= firma.app_icon === ic ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <%= ic %>
+                  </button>
+                <% } %>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="text" name="app_icon" id="appIconInput" value="<%= firma.app_icon || '🔩' %>"
+                  maxlength="5" placeholder="Eigenes Emoji eingeben"
+                  oninput="document.getElementById('iconPreview').textContent=this.value"
+                  class="w-40 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <span class="text-xs text-slate-400">Vorschau: <span id="iconPreview" class="text-2xl"><%= firma.app_icon || '🔩' %></span></span>
+              </div>
+            </div>
+
+            <!-- Dark Mode Standard -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Dark Mode (Standard für neue Nutzer / ohne gespeicherte Wahl)
+              </label>
+              <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.dark_mode_default !== 'false' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="dark_mode_default" value="true"
+                    <%= firma.dark_mode_default !== 'false' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Dunkel</p>
+                    <p class="text-xs text-slate-400">Empfohlen für Werkstatt / abends</p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.dark_mode_default === 'false' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="dark_mode_default" value="false"
+                    <%= firma.dark_mode_default === 'false' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Hell</p>
+                    <p class="text-xs text-slate-400">Klassisches helles Design</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Sidebar-Modus -->
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Sidebar-Kopf
+              </label>
+              <div class="flex gap-3 flex-wrap">
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.sidebar_modus !== 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="sidebar_modus" value="text"
+                    <%= firma.sidebar_modus !== 'logo' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Icon + Kurzname als Text</p>
+                    <p class="text-xs text-slate-400">z.B. <%= firma.app_icon || '🔩' %> <%= firma.nameKurz %></p>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer border-2 rounded-xl px-4 py-3 transition
+                  <%= firma.sidebar_modus === 'logo' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-600' %>">
+                  <input type="radio" name="sidebar_modus" value="logo"
+                    <%= firma.sidebar_modus === 'logo' ? 'checked' : '' %> class="accent-blue-600">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Logo anzeigen</p>
+                    <p class="text-xs text-slate-400">Das hochgeladene Sidebar-Logo</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Logo-Höhe -->
+            <div id="heightWrap" class="<%= firma.sidebar_modus === 'logo' ? '' : 'hidden' %> bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border dark:border-slate-600">
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+                Logo-Höhe in der Sidebar: <span id="heightVal" class="font-bold text-blue-600"><%= firma.sidebar_logo_height || 80 %>px</span>
+              </label>
+              <input type="range" name="sidebar_logo_height" id="heightRange"
+                min="40" max="200" step="5" value="<%= firma.sidebar_logo_height || 80 %>"
+                oninput="document.getElementById('heightVal').textContent=this.value+'px'"
+                class="w-full accent-blue-600 cursor-pointer">
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>Klein (40px)</span><span>Mittel (120px)</span><span>Groß (200px)</span>
+              </div>
+            </div>
+
+          </div><!-- /space-y-5 -->
+        </div>
+
+        <!-- Hinweis: Logos über Firmendaten hochladen -->
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-3">
+          <span class="text-lg shrink-0">💡</span>
+          <div>
+            Logos (PDF-Logo & Sidebar-Logo) kannst du unter
+            <a href="/admin/company-settings" class="underline font-semibold">Firmendaten</a>
+            hochladen.
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Sidebar-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: PDF & DOKUMENTE                                               -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

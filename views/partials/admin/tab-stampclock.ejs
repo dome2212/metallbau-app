@@ -1,0 +1,112 @@
+      <% if (tab === 'stampclock') { %>
+      <form action="/admin/panel/stampclock" method="POST" class="space-y-6">
+
+        <!-- Allgemeine Schalter -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Stempeluhr-Verhalten</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Steuert, wie und wann Mitarbeiter stempeln dürfen.</p>
+
+          <div class="space-y-3">
+
+            <%
+              const stampToggles = [
+                { key: 'stamp_require_gps',      label: '📍 GPS-Standort beim Stempeln erforderlich',        desc: 'Mitarbeiter müssen ihren Standort freigeben, bevor sie einstempeln können.' },
+                { key: 'stamp_allow_project',    label: '🏗️ Baustellen-Stempeln aktiviert',                  desc: 'Mitarbeiter können beim Stempeln ein Projekt / eine Baustelle auswählen.' },
+                { key: 'stamp_geofence_enabled', label: '📡 Geo-Fencing aktiv (Baustellen-Erkennung)',        desc: 'Erkennt automatisch ob sich der Mitarbeiter auf einer Baustelle befindet und schlägt das Projekt vor.' },
+                { key: 'stamp_allow_note',       label: '📝 Tätigkeits-Notiz beim Stempeln erlaubt',          desc: 'Mitarbeiter können beim Stempeln eine Notiz / Tätigkeit eingeben.' },
+                { key: 'stamp_allow_switch',     label: '🔄 Baustellen-Wechsel-Funktion aktiviert',           desc: 'Erlaubt das direkte Wechseln zwischen Projekten ohne manuelles Aus-/Einstempeln.' },
+                { key: 'stamp_admin_no_gps',     label: '🛡️ Admins sind von GPS-Pflicht ausgenommen',         desc: 'Admins und Chefs können ohne GPS-Standort stempeln (aktuelles Verhalten).' },
+              ];
+            %>
+            <% for (const t of stampToggles) { %>
+              <label class="flex items-center justify-between gap-4 p-4 rounded-xl border dark:border-slate-600 cursor-pointer
+                hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                <div>
+                  <p class="text-sm font-semibold text-slate-700 dark:text-slate-200"><%= t.label %></p>
+                  <p class="text-xs text-slate-400"><%= t.desc %></p>
+                </div>
+                <div class="relative shrink-0">
+                  <input type="hidden" name="<%= t.key %>" value="false">
+                  <input type="checkbox" name="<%= t.key %>" value="true"
+                    <%= firma[t.key] === 'false' ? '' : 'checked' %>
+                    class="sr-only peer" id="stamp_<%= t.key %>">
+                  <label for="stamp_<%= t.key %>"
+                    class="block w-11 h-6 rounded-full cursor-pointer transition
+                      bg-slate-200 dark:bg-slate-600 peer-checked:bg-blue-600 relative
+                      after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                      after:bg-white after:rounded-full after:h-5 after:w-5 after:transition
+                      peer-checked:after:translate-x-5">
+                  </label>
+                </div>
+              </label>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Erinnerung bei vergessenem Ausstempeln -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">⏰ Erinnerung bei vergessenem Ausstempeln</h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Ist ein Mitarbeiter länger als diese Anzahl Stunden am Stück eingestempelt, bekommt er automatisch
+            eine WhatsApp-Erinnerung (sofern WhatsApp-Benachrichtigungen für ihn aktiviert und Telefonnummer +
+            API-Key im Mitarbeiter-Profil hinterlegt sind). Die Prüfung läuft alle 30 Minuten im Hintergrund.
+          </p>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Erinnern nach (Stunden) <span class="text-slate-400 font-normal">(0 = deaktiviert)</span>
+            </label>
+            <input type="number" name="stamp_reminder_hours" value="<%= firma.stamp_reminder_hours || 10 %>"
+              min="0" max="24" step="0.5"
+              class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Firmen-Standort für Geo-Fencing -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.5-7-11a7 7 0 0114 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Firmen-Standort (Geo-Fencing)</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Mitarbeiter dürfen nur im Umkreis des Firmenstandorts oder einer Baustelle einstempeln. Koordinaten findest du z.B. bei Google Maps (Rechtsklick → Koordinaten kopieren).</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Breitengrad (Latitude)</label>
+              <input type="text" name="firm_lat" value="<%= firma.firm_lat || process.env.FIRM_LAT || '' %>"
+                placeholder="z.B. 51.3069467"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Längengrad (Longitude)</label>
+              <input type="text" name="firm_lng" value="<%= firma.firm_lng || process.env.FIRM_LNG || '' %>"
+                placeholder="z.B. 6.9483845"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlaubter Radius (Meter)</label>
+              <input type="number" name="firm_radius" value="<%= firma.firm_radius || process.env.FIRM_RADIUS_METERS || 300 %>"
+                min="50" max="5000" step="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-slate-400 mt-1">Standard: 300 m</p>
+            </div>
+          </div>
+          <% if (process.env.FIRM_LAT) { %>
+            <div class="mt-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+              ℹ️ Firmen-Koordinaten sind per <code>FIRM_LAT / FIRM_LNG / FIRM_RADIUS_METERS</code> in der <code>.env</code> gesetzt – diese haben Vorrang gegenüber den hier eingetragenen Werten.
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Hinweis-Box -->
+        <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl border dark:border-slate-600 p-4 text-xs text-slate-500 dark:text-slate-400">
+          <strong>Hinweis:</strong> Deaktivierte Optionen werden sofort wirksam. GPS-Pflicht und Geo-Fencing gelten nur für Mitarbeiter (EMPLOYEE) – Admins und Chefs sind standardmäßig ausgenommen (sofern der Schalter oben aktiv ist).
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Stempeluhr-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: AUFTRÄGE & PROJEKTE                                            -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

@@ -1,0 +1,89 @@
+      <% if (tab === 'security') { %>
+      <form action="/admin/panel/security" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>Sicherheits-Einstellungen</span></h2>
+          <div class="space-y-5">
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Session-Timeout (Minuten) <span class="text-slate-400 font-normal">(0 = niemals automatisch abmelden)</span>
+              </label>
+              <input type="number" name="session_timeout_minutes" value="<%= firma.session_timeout_minutes || 480 %>"
+                min="0" max="10080"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <p class="text-xs text-slate-400 mt-1">Standard: 480 Min. (8 Stunden). Empfehlung: 60–480 Min.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Max. Login-Fehlversuche <span class="text-slate-400 font-normal">(Rate-Limit vor temporärer Sperrung)</span>
+              </label>
+              <input type="number" name="max_login_attempts" value="<%= firma.max_login_attempts || 10 %>"
+                min="3" max="50"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Mindest-Passwortlänge <span class="text-slate-400 font-normal">(gilt bei Passwort-Vergabe)</span>
+              </label>
+              <input type="number" name="min_password_length" value="<%= firma.min_password_length || 6 %>"
+                min="4" max="32"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg><span>Datenaufbewahrung (Zeiterfassung)</span></span></h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Zeiterfassungs-Einträge (inkl. GPS-Standort beim Stempeln) werden nach Ablauf dieser Frist automatisch
+            und unwiderruflich gelöscht. Rechnungen, Angebote und Kundendaten sind davon <strong>nicht</strong>
+            betroffen (steuerlich aufbewahrungspflichtig). Bitte die Frist ggf. mit eurem Steuerberater abstimmen.
+          </p>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Aufbewahrungsfrist Zeiterfassung (Jahre) <span class="text-slate-400 font-normal">(0 = automatische Löschung deaktiviert)</span>
+            </label>
+            <input type="number" name="data_retention_years" value="<%= firma.data_retention_years || 10 %>"
+              min="0" max="30"
+              class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-slate-400 mt-1">Die Prüfung läuft einmal täglich um 01:00 Uhr, kurz nach dem automatischen Backup.</p>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>Automatisches Mahnwesen</span></span></h2>
+          <p class="text-xs text-slate-400 mb-4">
+            Bei Aktivierung wird täglich um 08:00 Uhr geprüft, welche Rechnungen überfällig sind
+            (Fälligkeitsdatum in der Vergangenheit, Status ≠ "Bezahlt"). Der Kunde bekommt automatisch
+            eine Zahlungserinnerung per E-Mail, das Admin-/Chef-Team eine WhatsApp-Sammelübersicht.
+          </p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="dunning_enabled" value="true"
+              <%= (firma.dunning_enabled === 'true' || firma.dunning_enabled === true) ? 'checked' : '' %>
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <span class="text-sm text-slate-700 dark:text-slate-200">Automatisches Mahnwesen aktivieren</span>
+          </label>
+        </div>
+
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-5 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-3">
+          <span class="text-xl shrink-0">⚠️</span>
+          <div>
+            Die Session-Timeout-Einstellung wird clientseitig (JavaScript) umgesetzt. Für serverseitige Token-Ablaufzeiten muss <code>JWT_SECRET</code> mit korrekter Ablaufzeit konfiguriert werden.
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 Sicherheits-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: DASHBOARD KPIs                                                 -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

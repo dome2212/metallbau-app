@@ -35,3 +35,9 @@ Nutzerwahl wird in `localStorage` unter `darkMode` gespeichert.
 ## Backup
 - Admin → System/Info: **Backup herunterladen** oder per E-Mail senden
 - Route: `GET /admin/backup/download` (nur Admin)
+
+## Architektur (kurz)
+- `server.js` – Bootstrap, Middleware, Cron
+- `routes/aiApiRoutes.js` – KI-Endpunkte unter `/api/ai`
+- `routes/rfidRoutes.js` – RFID-Stempel unter `/api/rfid`
+- `views/partials/admin/tab-*.ejs` – Admin-Panel Tabs

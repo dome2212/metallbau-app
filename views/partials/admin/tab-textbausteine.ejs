@@ -1,0 +1,78 @@
+      <% if (tab === 'textbausteine') {
+        let snippets = [];
+        try { snippets = JSON.parse(firma.text_snippets || '[]'); } catch (e) {}
+      %>
+      <form action="/admin/panel/textbausteine" method="POST" class="space-y-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
+          <div class="border-b dark:border-slate-700 pb-3">
+            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 013 3L10 16a4 4 0 01-5.7-5.7L13 1.6"/></svg>Textbausteine für Angebot &amp; Auftrag</span></h2>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              Fertige Klauseln (z.B. „Bauseits"), die beim Erfassen von Positionen in Angeboten und Nachträgen per Klick eingefügt werden können.
+            </p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Textbausteine</p>
+              <button type="button" onclick="addSnippetRow()"
+                class="flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg transition">
+                + Textbaustein hinzufügen
+              </button>
+            </div>
+
+            <div id="snippetsContainer" class="space-y-3">
+              <% if (snippets.length === 0) { %>
+              <p id="snippetsEmpty" class="text-sm text-slate-400 dark:text-slate-500 italic py-2">
+                Noch keine Textbausteine. Klicke auf „+ Textbaustein hinzufügen".
+              </p>
+              <% } %>
+              <% for (const sn of snippets) { %>
+              <div class="snippet-row bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4 space-y-2">
+                <div class="flex items-center gap-3">
+                  <input type="text" name="snippet_label" value="<%= sn.label %>" required placeholder="z.B. Bauseits"
+                    class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+                  <input type="hidden" name="snippet_key" value="<%= sn.key %>">
+                  <button type="button" onclick="this.closest('.snippet-row').remove()"
+                    class="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition" title="Löschen">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+                <textarea name="snippet_text" rows="2" required placeholder="Text, der eingefügt werden soll…"
+                  class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none"><%= sn.text %></textarea>
+              </div>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm shadow">
+              Speichern
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <script>
+        function addSnippetRow(label = '', text = '') {
+          const empty = document.getElementById('snippetsEmpty');
+          if (empty) empty.remove();
+          const container = document.getElementById('snippetsContainer');
+          const div = document.createElement('div');
+          div.className = 'snippet-row bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4 space-y-2';
+          div.innerHTML = `
+            <div class="flex items-center gap-3">
+              <input type="text" name="snippet_label" value="${label}" required placeholder="z.B. Bauseits"
+                class="flex-1 border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none">
+              <input type="hidden" name="snippet_key" value="">
+              <button type="button" onclick="this.closest('.snippet-row').remove()"
+                class="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg p-1.5 transition" title="Löschen">✕</button>
+            </div>
+            <textarea name="snippet_text" rows="2" required placeholder="Text, der eingefügt werden soll…"
+              class="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none">${text}</textarea>
+          `;
+          container.appendChild(div);
+        }
+      </script>
+      <% } %>
+
+    </div><!-- /max-w-5xl -->

@@ -1,0 +1,121 @@
+      <% if (tab === 'pdf') { %>
+      <form action="/admin/panel/pdf" method="POST" class="space-y-6">
+
+        <!-- Nummern-Schema -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>Nummern-Schema</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Prefix für automatisch generierte Dokumentnummern.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Rechnungs-Prefix <span class="text-slate-400 font-normal">(z.B. <code>RECH</code> → RECH-2025-0001)</span>
+              </label>
+              <input type="text" name="invoice_prefix" value="<%= firma.invoice_prefix || 'RECH' %>" maxlength="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Angebots-Prefix <span class="text-slate-400 font-normal">(z.B. <code>ANG</code> → ANG-2025-0001)</span>
+              </label>
+              <input type="text" name="offer_prefix" value="<%= firma.offer_prefix || 'ANG' %>" maxlength="10"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- MwSt & Zahlungsart -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9.5a2 2 0 012-2h1a2 2 0 010 4h-1a2 2 0 000 4h1a2 2 0 002-2M12 6v1.5M12 16.5V18"/></svg>Standard-Werte</span></h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Mehrwertsteuersatz (%)</label>
+              <div class="flex gap-2 flex-wrap mb-2">
+                <% for (const rate of [0, 7, 19]) { %>
+                  <label class="flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg border dark:border-slate-600 text-sm
+                    <%= (firma.default_tax_rate || '19') == rate ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
+                    <input type="radio" name="default_tax_rate" value="<%= rate %>"
+                      <%= (firma.default_tax_rate || '19') == rate ? 'checked' : '' %> class="accent-blue-600">
+                    <%= rate %> %
+                  </label>
+                <% } %>
+              </div>
+              <input type="number" name="default_tax_rate" value="<%= firma.default_tax_rate || 19 %>" min="0" max="100" step="0.1"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500"
+                placeholder="Eigener Wert">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Standard-Zahlungsart</label>
+              <select name="default_payment_method"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <% for (const method of ['Überweisung','Bar','EC-Karte','PayPal','Scheck','Lastschrift']) { %>
+                  <option value="<%= method %>" <%= firma.default_payment_method === method ? 'selected' : '' %>><%= method %></option>
+                <% } %>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF Briefkopf-Farbe -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/></svg>PDF-Erscheinungsbild</span></h2>
+          <div class="flex items-center gap-4">
+            <div>
+              <input type="color" name="pdf_color" value="<%= firma.pdf_color || '#1e3a5f' %>"
+                class="w-12 h-12 rounded-lg cursor-pointer border-2 border-slate-200 dark:border-slate-600 bg-transparent">
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Briefkopf-Akzentfarbe</p>
+              <p class="text-xs text-slate-400">Farbe der Trennlinie und Tabellen-Header im PDF</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Einleitungstexte -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span>Einleitungstexte</span></span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Einleitungstext Angebot</label>
+              <textarea name="pdf_intro_offer" rows="3"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_intro_offer || 'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:' %></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Einleitungstext Rechnung</label>
+              <textarea name="pdf_intro_invoice" rows="3"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_intro_invoice || 'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF-Fußzeile & AGB -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 18h4"/></svg>Fußzeile & AGB</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                PDF-Fußzeile <span class="text-slate-400 font-normal">(erscheint am Ende jedes PDFs, z.B. Hinweis auf Datenschutz)</span>
+              </label>
+              <textarea name="pdf_footer_text" rows="2" placeholder="z.B. Alle Preise zzgl. gesetzl. MwSt. · Es gelten unsere AGB."
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_footer_text || '' %></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                AGB-Text <span class="text-slate-400 font-normal">(erscheint als separate Sektion am Ende des PDFs)</span>
+              </label>
+              <textarea name="pdf_agb_text" rows="5" placeholder="Hier Ihre Allgemeinen Geschäftsbedingungen eingeben…"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500"><%= firma.pdf_agb_text || '' %></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 PDF-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: DATEV-EXPORT                                                   -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

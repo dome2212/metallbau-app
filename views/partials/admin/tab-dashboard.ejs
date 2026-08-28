@@ -1,0 +1,77 @@
+      <% if (tab === 'dashboard') { %>
+      <form action="/admin/panel/dashboard" method="POST" class="space-y-6">
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/></svg>Dashboard KPI-Schwellenwerte</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Ab diesen Werten wechselt die Farbe der Dashboard-Karten von grau → gelb → rot.</p>
+
+          <div class="space-y-6">
+
+            <!-- Überfällige Rechnungen -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border dark:border-slate-600">
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">🧾 Überfällige Rechnungen</p>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🟡 Ab dieser Anzahl: Warnung (gelb)</label>
+                  <input type="number" name="kpi_overdue_warn" value="<%= firma.kpi_overdue_warn || 3 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🔴 Ab dieser Anzahl: Kritisch (rot)</label>
+                  <input type="number" name="kpi_overdue_danger" value="<%= firma.kpi_overdue_danger || 6 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-400">
+                </div>
+              </div>
+            </div>
+
+            <!-- Offene Aufgaben -->
+            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border dark:border-slate-600">
+              <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">✅ Offene Aufgaben / Mängel</p>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🟡 Ab dieser Anzahl: Warnung (gelb)</label>
+                  <input type="number" name="kpi_tasks_warn" value="<%= firma.kpi_tasks_warn || 5 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1">🔴 Ab dieser Anzahl: Kritisch (rot)</label>
+                  <input type="number" name="kpi_tasks_danger" value="<%= firma.kpi_tasks_danger || 10 %>" min="1" max="100"
+                    class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-400">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Vorschau -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span>Live-Vorschau</span></span></h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div id="prevOverdue" class="p-4 rounded-xl border-l-4 border-gray-300 bg-gray-50 dark:bg-slate-700 transition">
+              <p class="text-xs text-gray-400 font-semibold uppercase">Überfällige Rechnungen</p>
+              <input type="number" id="previewOverdueVal" value="0" min="0"
+                oninput="updateKpiPreview()"
+                class="text-2xl font-bold w-20 bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-100">
+            </div>
+            <div id="prevTasks" class="p-4 rounded-xl border-l-4 border-gray-300 bg-gray-50 dark:bg-slate-700 transition">
+              <p class="text-xs text-gray-400 font-semibold uppercase">Offene Aufgaben</p>
+              <input type="number" id="previewTasksVal" value="0" min="0"
+                oninput="updateKpiPreview()"
+                class="text-2xl font-bold w-20 bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-100">
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3">Gib oben Testwerte ein um die Farblogik zu sehen.</p>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 KPI-Schwellen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: ZUGRIFF & ROLLEN                                              -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->

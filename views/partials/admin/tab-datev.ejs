@@ -1,0 +1,97 @@
+      <% if (tab === 'datev') { %>
+      <form action="/admin/panel/datev" method="POST" class="space-y-6">
+
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-blue-800 dark:text-blue-300">
+          ℹ️ Diese Werte stammen von deinem Steuerberater bzw. aus DATEV selbst.
+          Bitte vor dem ersten Export mit dem Steuerberater abgleichen – falsche
+          Kontonummern führen zu Fehlbuchungen.
+        </div>
+
+        <!-- Berater & Mandant -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg>Berater & Mandant</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Diese Nummern bekommst du von deinem Steuerberater / aus DATEV.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">DATEV-Beraternummer</label>
+              <input type="text" name="datev_berater_nr" value="<%= firma.datev_berater_nr || '' %>" placeholder="z.B. 1001"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">DATEV-Mandantennummer</label>
+              <input type="text" name="datev_mandanten_nr" value="<%= firma.datev_mandanten_nr || '' %>" placeholder="z.B. 1"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Kontenrahmen -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z"/><path d="M8 4v13"/></svg>Kontenrahmen</span></h2>
+          <p class="text-xs text-slate-400 mb-5">Welchen Kontenrahmen nutzt deine Kanzlei?</p>
+          <div class="flex gap-2 flex-wrap mb-2">
+            <% for (const skr of ['SKR03', 'SKR04']) { %>
+              <label class="flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg border dark:border-slate-600 text-sm
+                <%= (firma.datev_skr || 'SKR03') === skr ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-400 font-semibold' : 'bg-slate-50 dark:bg-slate-700' %>">
+                <input type="radio" name="datev_skr" value="<%= skr %>"
+                  <%= (firma.datev_skr || 'SKR03') === skr ? 'checked' : '' %> class="accent-blue-600">
+                <%= skr %>
+              </label>
+            <% } %>
+          </div>
+          <div class="mt-4">
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Länge der Sachkonten</label>
+            <input type="number" name="datev_sachkontenlaenge" value="<%= firma.datev_sachkontenlaenge || 4 %>" min="4" max="8"
+              class="w-full sm:w-40 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <!-- Konten -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 9a3.5 3.5 0 100 6M8 11h6M8 13h5"/></svg>Erlös- & Debitorenkonten</span></h2>
+          <p class="text-xs text-slate-400 mb-5">
+            Übliche Standardwerte (SKR03): Erlöse 19% → 8400, Erlöse 7% → 8300. SKR04: 4400 / 4300.
+            Debitorenkonto = Basis-Konto + Kundennummer (z.B. 10000 + 23 = 10023).
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlöskonto 19% MwSt.</label>
+              <input type="text" name="datev_erloeskonto_19" value="<%= firma.datev_erloeskonto_19 || '' %>" placeholder="z.B. 8400"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlöskonto 7% MwSt.</label>
+              <input type="text" name="datev_erloeskonto_7" value="<%= firma.datev_erloeskonto_7 || '' %>" placeholder="z.B. 8300"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlöskonto steuerfrei (0%)</label>
+              <input type="text" name="datev_erloeskonto_0" value="<%= firma.datev_erloeskonto_0 || '' %>" placeholder="z.B. 8200"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Basis-Konto Debitoren</label>
+              <input type="text" name="datev_debitoren_basis" value="<%= firma.datev_debitoren_basis || '10000' %>" placeholder="z.B. 10000"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Wirtschaftsjahr-Beginn (TTMM)</label>
+              <input type="text" name="datev_wj_beginn" value="<%= firma.datev_wj_beginn || '0101' %>" placeholder="0101" maxlength="4"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
+            💾 DATEV-Einstellungen speichern
+          </button>
+        </div>
+      </form>
+      <% } %>
+
+      <!-- ══════════════════════════════════════════════════════════════════ -->
+      <!-- TAB: ARBEITSZEIT                                                    -->
+      <!-- ══════════════════════════════════════════════════════════════════ -->
