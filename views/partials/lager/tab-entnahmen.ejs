@@ -1,0 +1,89 @@
+  <% if (tab === 'entnahmen') { %>
+  <div class="px-4 md:px-6 pb-10 w-full max-w-7xl mx-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <% if (entnahmen && entnahmen.length > 0) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[700px]">
+          <thead class="bg-gray-50 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 text-xs text-gray-500 dark:text-gray-400 uppercase">
+            <tr>
+              <th class="px-4 py-3">Material</th>
+              <th class="px-4 py-3">Menge</th>
+              <th class="px-4 py-3 text-right">Preis/Einh.</th>
+              <th class="px-4 py-3 text-right">Gesamt</th>
+              <th class="px-4 py-3">Auftrag</th>
+              <th class="px-4 py-3">Mitarbeiter</th>
+              <th class="px-4 py-3">Notiz</th>
+              <th class="px-4 py-3">Datum</th>
+              <th class="px-4 py-3 text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%
+              let entnahmenGesamtpreis = 0;
+              entnahmen.forEach(e => {
+                entnahmenGesamtpreis += Number(e.gesamtpreis || 0);
+            %>
+            <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm">
+              <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
+                <%= e.mat_bezeichnung || '–' %><% if (e.mat_profil) { %> <span class="text-gray-400 font-normal"><%= e.mat_profil %></span><% } %>
+              </td>
+              <td class="px-4 py-3 text-amber-600 dark:text-amber-400 font-semibold">
+                − <%= Number(e.menge).toLocaleString('de-DE') %> <%= e.einheit %>
+              </td>
+              <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400 text-xs">
+                <% if (Number(e.einheitspreis) > 0) { %>
+                  <%= Number(e.einheitspreis).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
+                <% } else { %>–<% } %>
+              </td>
+              <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-200 text-xs font-semibold">
+                <% if (Number(e.gesamtpreis) > 0) { %>
+                  <%= Number(e.gesamtpreis).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
+                <% } else { %>–<% } %>
+              </td>
+              <td class="px-4 py-3 text-gray-600 dark:text-gray-300 text-xs">
+                <% if (e.project_title) { %>
+                  <a href="/projects/<%= e.project_id %>" class="text-blue-600 hover:underline"><%= e.project_title %></a>
+                <% } else { %>–<% } %>
+              </td>
+              <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs"><%= e.username || '–' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs max-w-[160px] truncate"><%= e.notiz || '' %></td>
+              <td class="px-4 py-3 text-gray-400 text-xs"><%= new Date(e.created_at).toLocaleString('de-DE', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) %></td>
+              <td class="px-4 py-3 text-right">
+                <form action="/lager/entnahme/delete" method="POST"
+                  onsubmit="return confirm('Entnahme stornieren? Der Bestand wird wiederhergestellt.');" class="inline">
+                  <input type="hidden" name="id" value="<%= e.id %>">
+                  <button type="submit" class="px-2 py-1 bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 rounded text-xs font-semibold transition">
+                    Stornieren
+                  </button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+          <% if (entnahmenGesamtpreis > 0) { %>
+          <tfoot class="border-t-2 border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/50 text-sm font-semibold">
+            <tr>
+              <td colspan="3" class="px-4 py-3 text-gray-600 dark:text-gray-300">Summe Materialkosten</td>
+              <td class="px-4 py-3 text-right text-green-700 dark:text-green-400 font-bold">
+                <%= entnahmenGesamtpreis.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
+              </td>
+              <td colspan="5"></td>
+            </tr>
+          </tfoot>
+          <% } %>
+        </table>
+      </div>
+      <% } else { %>
+      <div class="text-center py-16">
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        <p class="text-gray-500 dark:text-gray-400 font-medium">Noch keine Entnahmen gebucht</p>
+        <p class="text-sm text-gray-400 mt-1">Materialverbrauch per "Entnahme buchen" einem Auftrag zuordnen</p>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+       TAB: RESTSTÜCKE
+  ═══════════════════════════════════════════════════════════════════════════ -->

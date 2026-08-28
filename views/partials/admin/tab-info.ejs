@@ -55,6 +55,20 @@
               </a>
             </div>
             <p class="text-xs text-slate-400 mt-2">Download erzeugt eine aktuelle Kopie der Datenbank und startet den Browser-Download.</p>
+
+            <form action="/admin/backup/restore" method="POST" enctype="multipart/form-data"
+              class="mt-3 p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20"
+              onsubmit="return confirm('Backup wirklich einspielen? Die aktuelle Datenbank wird überschrieben.');">
+              <p class="text-xs text-amber-800 dark:text-amber-200 mb-2"><strong>Wiederherstellen:</strong> SQLite (.sqlite) oder Postgres (.sql). Vorher ein frisches Backup herunterladen.</p>
+              <div class="flex flex-wrap gap-2 items-center">
+                <input type="file" name="backup" required accept=".sql,.sqlite,.db,.sqlite3"
+                  class="text-xs text-slate-600 dark:text-slate-300">
+                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
+                  ♻️ Backup einspielen
+                </button>
+              </div>
+            </form>
+
           </div>
 
           <!-- SMTP & Backup konfigurieren -->

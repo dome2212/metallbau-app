@@ -194,4 +194,36 @@ async function createBackupFile() {
   return { path: attachmentPath, name: `${filename}.sqlite` };
 }
 
-module.exports = { startBackupCron, runBackup, createBackupFile };
+
+// ── Backup wiederherstellen (Datei-Upload) ───────────────────────────────────
+// SQLite: ersetzt database.sqlite
+// PostgreSQL: führt .sql per psql aus (DATABASE_URL muss gesetzt sein)
+async function restoreBackupFile(uploadedPath, originalName) {
+  const lower = (originalName || '').toLowerCase();
+  if (isPg) {
+    if (!lower.endsWith('.sql')) {
+      throw new Error('Für PostgreSQL bitte eine .sql-Datei (pg_dump) hochladen.');
+    }
+    await new Promise((resolve, reject) => {
+      const cmd = `psql "${process.env.DATABASE_URL}" --no-password -v ON_ERROR_STOP=1 -f "${uploadedPath}"`;
+      exec(cmd, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve();
+      });
+    });
+    return { type: 'postgres', message: 'PostgreSQL-Backup eingespielt.' };
+  }
+
+  if (!lower.endsWith('.sqlite') && !lower.endsWith('.db') && !lower.endsWith('.sqlite3')) {
+    throw new Error('Für SQLite bitte eine .sqlite-Datei hochladen.');
+  }
+  const dbPath = path.join(__dirname, '..', 'database.sqlite');
+  const bakPath = path.join(__dirname, '..', `database.sqlite.bak-${Date.now()}`);
+  if (fs.existsSync(dbPath)) {
+    fs.copyFileSync(dbPath, bakPath);
+  }
+  fs.copyFileSync(uploadedPath, dbPath);
+  return { type: 'sqlite', message: 'SQLite-Backup wiederhergestellt. Server ggf. neu starten.', backupOfOld: bakPath };
+}
+
+module.exports = { startBackupCron, runBackup, createBackupFile, restoreBackupFile };

@@ -56,3 +56,7 @@ Nutzerwahl wird in `localStorage` unter `darkMode` gespeichert.
 ```bash
 JWT_SECRET=test node scripts/test-perms.js
 ```
+
+## Backup wiederherstellen
+Admin → System: Datei wählen (.sqlite lokal / .sql auf Render-Postgres) → **Backup einspielen**.
+Vorher immer ein frisches Download-Backup machen.

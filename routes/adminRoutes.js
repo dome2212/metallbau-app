@@ -603,7 +603,9 @@ router.post('/users/set-rfid', requireAdmin, async (req, res) => {
 // ==========================================
 // BACKUP
 // ==========================================
-const { runBackup, createBackupFile } = require('../utils/backup');
+const { runBackup, createBackupFile, restoreBackupFile } = require('../utils/backup');
+const multer = require('multer');
+const uploadBackup = multer({ dest: '/tmp/', limits: { fileSize: 80 * 1024 * 1024 } });
 const fs = require('fs');
 
 router.post('/backup/run', requireAdmin, async (req, res) => {
@@ -626,6 +628,19 @@ router.get('/backup/download', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     res.status(500).send('Backup-Erstellung fehlgeschlagen: ' + err.message);
+  }
+});
+
+
+router.post('/backup/restore', requireAdmin, uploadBackup.single('backup'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).send('Keine Datei hochgeladen.');
+    const result = await restoreBackupFile(req.file.path, req.file.originalname);
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    res.redirect('/admin/panel?tab=info&msg=restore_ok');
+  } catch (err) {
+    try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
+    res.status(500).send('Restore fehlgeschlagen: ' + err.message);
   }
 });
 
