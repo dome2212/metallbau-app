@@ -4,7 +4,7 @@ const multer  = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { requireAdmin, requireOffice, hasPerm } = require('../middleware/auth');
+const { requireAdmin, hasPerm } = require('../middleware/auth');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
 const { isNRWHoliday }      = require('../utils/holidays');
@@ -131,7 +131,7 @@ router.post('/add', upload.single('document'), async (req, res) => {
 // ==========================================
 // STATUS ÄNDERN (nur Admin)
 // ==========================================
-router.post('/status', requireOffice, async (req, res) => {
+router.post('/status', requireAdmin, async (req, res) => {
   const { id, status } = req.body;
   try {
     await dbQuery('UPDATE vacations SET status = ? WHERE id = ?', [status, id]);
@@ -166,7 +166,7 @@ router.post('/status', requireOffice, async (req, res) => {
 // ==========================================
 // URLAUBSANTRAG LÖSCHEN (nur Admin)
 // ==========================================
-router.post('/delete', requireOffice, async (req, res) => {
+router.post('/delete', requireAdmin, async (req, res) => {
   const { id } = req.body;
   try {
     await dbQuery('DELETE FROM vacations WHERE id = ?', [id]);

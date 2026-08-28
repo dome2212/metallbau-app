@@ -27,7 +27,7 @@
           }) %>
         </div>
       <% } else { %>
-        <% const isMod = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF' || currentUser.role === 'SECRETARY'); %>
+        <% const isMod = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF'); %>
         <% messages.forEach(m => { %>
           <% const mine = String(m.user_id) === String(currentUser.id); %>
           <% const canDelete = mine || isMod; %>
@@ -74,7 +74,7 @@
     inputEl: document.getElementById('chat-input'),
     statusEl: document.getElementById('chat-status'),
     currentUserId: <%= currentUser.id %>,
-    isModerator: <%= (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF' || currentUser.role === 'SECRETARY') ? 'true' : 'false' %>
+    isModerator: <%= (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') ? 'true' : 'false' %>
   });
 </script>
 

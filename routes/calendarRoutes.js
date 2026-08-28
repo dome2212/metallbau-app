@@ -5,7 +5,7 @@ const { dbQuery }        = require('../utils/db');
 const { sendWhatsApp }   = require('../utils/notifier');
 const { sendPush }       = require('../utils/webpush');
 const { getNRWHolidays, isNRWHoliday } = require('../utils/holidays');
-const { hasPerm, requireAdmin, requireOffice } = require('../middleware/auth');
+const { hasPerm, requireAdmin } = require('../middleware/auth');
 const { getFirma }       = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
@@ -288,7 +288,7 @@ router.get('/api/appointments', async (req, res) => {
 // ==========================================
 // TERMIN ANLEGEN (mit optionaler Mitarbeiter-Zuweisung)
 // ==========================================
-router.post('/api/appointments/add', requireOffice, async (req, res) => {
+router.post('/api/appointments/add', requireAdmin, async (req, res) => {
   const { title, customer_id, project_id, start_date, end_date, description } = req.body;
   // user_ids kommt als Array oder einzelner Wert (Checkboxen)
   let userIds = req.body.user_ids;
@@ -342,7 +342,7 @@ router.post('/api/appointments/add', requireOffice, async (req, res) => {
 // ==========================================
 // TERMIN LÖSCHEN (bereinigt Join-Tabelle)
 // ==========================================
-router.post('/api/appointments/delete/:id', requireOffice, async (req, res) => {
+router.post('/api/appointments/delete/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     await dbQuery('DELETE FROM appointment_users WHERE appointment_id = ?', [id]);

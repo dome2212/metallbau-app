@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
   const userRole = req.user.role;
 
   try {
-    if (userRole === 'EMPLOYEE') {  // SECRETARY nutzt das Büro-Dashboard
+    if (userRole === 'EMPLOYEE') {
       // ── Mitarbeiter-Dashboard ──────────────────────────────────────────────
       const now = new Date();
       const curYear  = now.getFullYear();
@@ -259,7 +259,7 @@ router.post('/api/user-settings', async (req, res) => {
 // das kommt dem Widget-Gefühl am nächsten.
 router.get('/heute', async (req, res) => {
   const userId = req.user.id;
-  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF' || req.user.role === 'SECRETARY';
+  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
 

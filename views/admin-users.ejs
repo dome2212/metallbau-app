@@ -29,11 +29,9 @@
           <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Rolle</label>
           <select name="role" class="input">
             <option value="EMPLOYEE">👷 Mitarbeiter – Zeiterfassung, Kalender, Aufträge</option>
-            <option value="SECRETARY">📋 Sekretärin – Kunden, Belege, Urlaub, Aufgaben, Kalender, Personalplanung, Arbeitszeiten</option>
             <option value="ADMIN">🛠️ Admin – Verwaltung & Einstellungen</option>
             <option value="CHEF">👑 Chef – Vollzugriff inkl. Finanzen & System</option>
           </select>
-          <p class="text-[10px] text-slate-400 mt-1">Sekretärin: Kunden, Angebote/Rechnungen, Urlaub, Aufgaben, Kalender, Personalplanung, Arbeitszeiten-Übersicht. Kein System-Admin / keine Mitarbeiter-Logins.</p>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">WhatsApp-Nummer (optional)</label>
@@ -109,8 +107,6 @@
                         <span class="badge bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Chef</span>
                       <% } else if (u.role === 'ADMIN') { %>
                         <span class="badge bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Admin</span>
-                      <% } else if (u.role === 'SECRETARY') { %>
-                        <span class="badge bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">Sekretärin</span>
                       <% } else { %>
                         <span class="badge bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Mitarbeiter</span>
                       <% } %>
@@ -118,7 +114,6 @@
                         <input type="hidden" name="user_id" value="<%= u.id %>">
                         <select name="role" class="input text-xs py-1 px-2" style="height:auto">
                           <option value="EMPLOYEE"  <%= u.role === 'EMPLOYEE'  ? 'selected' : '' %>>👷 Mitarbeiter</option>
-                          <option value="SECRETARY" <%= u.role === 'SECRETARY' ? 'selected' : '' %>>📋 Sekretärin</option>
                           <option value="ADMIN"     <%= u.role === 'ADMIN'     ? 'selected' : '' %>>🛠️ Admin</option>
                           <option value="CHEF"      <%= u.role === 'CHEF'      ? 'selected' : '' %>>👑 Chef</option>
                         </select>

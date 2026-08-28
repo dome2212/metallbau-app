@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { dbQuery }      = require('../utils/db');
-const { requireOffice } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 const { sendPush }     = require('../utils/webpush');
 
 // ==========================================
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 
   try {
     let tasksRes;
-    if (userRole === 'CHEF' || userRole === 'ADMIN' || userRole === 'SECRETARY') {
+    if (userRole === 'CHEF' || userRole === 'ADMIN') {
       // Chef/Admin sehen alle Aufgaben
       tasksRes = await dbQuery(`
         SELECT t.*, u1.username as assigned_to_name, u2.username as assigned_by_name
@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
 // ==========================================
 // AUFGABE ANLEGEN (nur Chef/Admin)
 // ==========================================
-router.post('/add', requireOffice, async (req, res) => {
+router.post('/add', requireAdmin, async (req, res) => {
   try {
     const { title, description, category, assigned_to, due_date, priority } = req.body;
     if (!title || !title.trim()) {
@@ -121,7 +121,7 @@ router.post('/status', async (req, res) => {
     if (!task) return res.status(404).send('Aufgabe nicht gefunden');
 
     const isOwner = task.assigned_to == req.user.id || task.assigned_to === null || task.assigned_to === undefined;
-    const isBoss  = req.user.role === 'CHEF' || req.user.role === 'ADMIN' || req.user.role === 'SECRETARY';
+    const isBoss  = req.user.role === 'CHEF' || req.user.role === 'ADMIN';
     if (!isOwner && !isBoss) {
       return res.status(403).send('Keine Berechtigung für diese Aufgabe');
     }
@@ -151,7 +151,7 @@ router.post('/status', async (req, res) => {
 // ==========================================
 // AUFGABE LÖSCHEN (nur Chef/Admin)
 // ==========================================
-router.post('/delete', requireOffice, async (req, res) => {
+router.post('/delete', requireAdmin, async (req, res) => {
   try {
     const { id } = req.body;
     await dbQuery('DELETE FROM tasks WHERE id = ?', [id]);

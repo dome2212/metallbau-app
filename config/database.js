@@ -34,7 +34,12 @@ if (process.env.DATABASE_URL) {
       // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
       db.query(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
         if (err) console.error("⚠️ Migration ADMIN→CHEF:", err.message);
-        else console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
+        else {
+        console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
+        db.query(`UPDATE users SET role = 'EMPLOYEE' WHERE role = 'SECRETARY'`, (e) => {
+          if (!e) console.log("✅ Rollen-Migration SECRETARY→EMPLOYEE abgeschlossen.");
+        });
+      }
       });
     }
   });
@@ -825,6 +830,7 @@ if (process.env.DATABASE_URL) {
 
       // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
       db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
+      db.run(`UPDATE users SET role = 'EMPLOYEE' WHERE role = 'SECRETARY'`, () => {});
         if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
       });
       // Chef-User lokal prüfen/anlegen (nur wenn noch kein CHEF existiert)

@@ -2,7 +2,7 @@ const express  = require('express');
 const { notifyIfLowStock } = require('../utils/lagerAlert');
 const router   = express.Router();
 
-// Zugriff: konfigurierbar (Sekretärin standardmäßig ja)
+// Zugriff: konfigurierbar (konfigurierbar über Zugriffsmatrix)
 router.use(async (req, res, next) => {
   try {
     const firma = await getFirma();

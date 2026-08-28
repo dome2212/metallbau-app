@@ -11,7 +11,7 @@
         Aufgaben
       </h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-        <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') { %>
+        <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
           Aufgaben für Werkstatt, Fahrzeuge & mehr an Mitarbeiter verteilen
         <% } else { %>
           Deine zugewiesenen Aufgaben für Werkstatt, Auto & mehr
@@ -21,7 +21,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') { %>
+      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
       <!-- Neue Aufgabe anlegen -->
       <div class="lg:col-span-4 card p-5">
         <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
@@ -77,7 +77,7 @@
       <% } %>
 
       <!-- Aufgabenliste -->
-      <div class="<%= (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') ? 'lg:col-span-8' : 'lg:col-span-12' %> space-y-3">
+      <div class="<%= (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') ? 'lg:col-span-8' : 'lg:col-span-12' %> space-y-3">
 
         <% const openTasks = tasks.filter(t => t.status !== 'Erledigt'); %>
         <% const doneTasks = tasks.filter(t => t.status === 'Erledigt'); %>
@@ -128,7 +128,7 @@
                           <span class="text-xs font-semibold <%= prioColor %>"><%= t.priority %></span>
                         <% } %>
                       </div>
-                      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') { %>
+                      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
                         <p class="text-[10px] text-slate-400 mt-1">von <%= t.assigned_by_name || '–' %> · <%= new Date(t.created_at).toLocaleDateString('de-DE') %></p>
                       <% } %>
                     </div>
@@ -142,7 +142,7 @@
                         Erledigt
                       </button>
                     </form>
-                    <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') { %>
+                    <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
                       <form action="/tasks/delete" method="POST" onsubmit="return confirm('Aufgabe wirklich löschen?')">
                         <input type="hidden" name="id" value="<%= t.id %>">
                         <button type="submit" class="btn btn-ghost text-xs px-2.5 py-2 text-red-500"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg></button>
@@ -176,7 +176,7 @@
                       <p class="text-[10px] text-slate-400"><%= t.assigned_to_name || 'Alle Mitarbeiter' %><% if (t.completed_at) { %> · erledigt am <%= new Date(t.completed_at).toLocaleDateString('de-DE') %><% } %></p>
                     </div>
                   </div>
-                  <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY') { %>
+                  <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
                     <form action="/tasks/delete" method="POST" onsubmit="return confirm('Aufgabe wirklich löschen?')">
                       <input type="hidden" name="id" value="<%= t.id %>">
                       <button type="submit" class="btn btn-ghost text-xs px-2.5 py-1.5 text-red-500 shrink-0"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3m2 0v13a1 1 0 01-1 1H8a1 1 0 01-1-1V7h10z"/></svg></button>
