@@ -4,15 +4,15 @@
   .icon-tile + <h2> + <p>, damit Farbe/Größe/Abstände an einer
   Stelle gepflegt werden statt in jeder View einzeln.
 
-  Aufruf-Beispiel:
-    <%- include('partials/card-header', {
+  Aufruf-Beispiel (kein echtes EJS – nur Dokumentation):
+    include('partials/card-header', {
       icon: 'M3 11l18-5v12L3 14v-3z',
       iconBg: '#fef3c7', iconColor: '#d97706',
       title: 'Schwarzes Brett',
       subtitle: 'Nachrichten an alle Mitarbeiter'
-    }) %>
+    })
 
-  Für Icons mit mehreren <path>-Elementen: "iconPaths" (Array) statt "icon".
+  Für Icons mit mehreren path-Elementen: "iconPaths" (Array) statt "icon".
   "subtitleClass" optional, falls die Unterzeile eine Sonderfarbe braucht
   (z.B. rot bei überfälligen Aufgaben) – Default ist neutral (text-slate-400).
   "mb" optional, Default "mb-5" (Abstand nach unten); manche Views nutzen "mb-4".

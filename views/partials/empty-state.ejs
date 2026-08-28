@@ -1,16 +1,16 @@
 <!--
   Wiederverwendbarer Leerzustand ("keine Daten").
-  Nutzt die App-eigene .empty-state-Klasse (siehe partials/header.ejs <style>),
+  Nutzt die App-eigene .empty-state-Klasse (siehe partials/header.ejs style),
   statt dass jede View eigene ad-hoc Absätze mit italic/text-center baut.
 
-  Aufruf-Beispiel:
-    <%- include('partials/empty-state', {
-      icon: 'M3 11l18-5v12L3 14v-3z',   // SVG-Pfad(e), 1:1 aus stroke-Icon
+  Aufruf-Beispiel (kein echtes EJS – nur Dokumentation):
+    include('partials/empty-state', {
+      icon: 'M3 11l18-5v12L3 14v-3z',
       title: 'Noch keine Nachrichten',
       text: 'Poste die erste Nachricht ans Team.'
-    }) %>
+    })
 
-  Für Icons mit mehreren <path>-Elementen kann statt "icon" auch
+  Für Icons mit mehreren path-Elementen kann statt "icon" auch
   "iconPaths" (Array von Pfad-Strings) übergeben werden.
 -->
 <div class="empty-state">
