@@ -170,14 +170,14 @@
     </a>
 
     <!-- Chef / Admin Bereich -->
-    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
+    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN' || currentUser.role === 'SECRETARY')) { %>
       <div class="pt-5 pb-1.5 px-3">
         <p class="text-[10px] font-semibold uppercase tracking-widest" style="color:rgba(255,255,255,.3)">
-          <%= currentUser.role === 'CHEF' ? 'Chef-Bereich' : 'Admin-Bereich' %>
+          <%= currentUser.role === 'CHEF' ? 'Chef-Bereich' : (currentUser.role === 'SECRETARY' ? 'Büro-Bereich' : 'Admin-Bereich') %>
         </p>
       </div>
 
-      <% if (_show('admin_users')) { %>
+      <% if (_show('admin_users') && currentUser.role !== 'SECRETARY') { %>
       <a href="/admin/users" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
         <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -246,7 +246,7 @@
         Schnittliste
       </a>
       <% } %>
-      <% if (_show('company_settings')) { %>
+      <% if (_show('company_settings') && currentUser.role !== 'SECRETARY') { %>
       <a href="/admin/company-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
         <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
@@ -400,9 +400,9 @@
     { key: 'vacations',          label: '🌴 Urlaub & Abwesenheit' },
     { key: 'tasks',              label: '🔧 Aufgaben' },
     { key: 'admin_users',        label: '👥 Mitarbeiter-Logins (Admin)' },
-    { key: 'admin_timetracking', label: '📋 Arbeitszeiten-Übersicht (Admin)' },
-    { key: 'staffplan',          label: '📅 Personalplanung (Admin)' },
-    { key: 'customers',          label: '👤 Kunden (Admin)' },
+    { key: 'admin_timetracking', label: '📋 Arbeitszeiten-Übersicht' },
+    { key: 'staffplan',          label: '📅 Personalplanung' },
+    { key: 'customers',          label: '👤 Kunden' },
     { key: 'documents',          label: '📋 Angebote & Rechnungen' },
     { key: 'articles',           label: '📦 Artikelstamm (Admin)' },
     { key: 'schnittliste',       label: '✂️ Schnittliste (Admin)' },

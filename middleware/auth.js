@@ -25,7 +25,7 @@ const ROLE_LABELS = {
 const SECRETARY_DEFAULTS = {
   projects: true,
   calendar: true,
-  timetracking: false,   // keine Werkstatt-Stempel-Übersicht nötig
+  timetracking: true,    // Arbeitszeiten-Übersicht (Büro)
   vacations: true,       // Abwesenheiten eintragen/sehen
   customers: true,
   documents: true,       // Angebote & Rechnungen
@@ -34,6 +34,9 @@ const SECRETARY_DEFAULTS = {
   treppe: false,
   steel_calc: false,
   lager: true,
+  tasks: true,
+  staffplan: true,
+  admin_timetracking: true,
   money: true,           // Beträge auf Belegen sichtbar
 };
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { dbQuery }      = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireOffice } = require('../middleware/auth');
 const { sendPush }     = require('../utils/webpush');
 
 // ==========================================
@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
 // ==========================================
 // AUFGABE ANLEGEN (nur Chef/Admin)
 // ==========================================
-router.post('/add', requireAdmin, async (req, res) => {
+router.post('/add', requireOffice, async (req, res) => {
   try {
     const { title, description, category, assigned_to, due_date, priority } = req.body;
     if (!title || !title.trim()) {
@@ -151,7 +151,7 @@ router.post('/status', async (req, res) => {
 // ==========================================
 // AUFGABE LÖSCHEN (nur Chef/Admin)
 // ==========================================
-router.post('/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireOffice, async (req, res) => {
   try {
     const { id } = req.body;
     await dbQuery('DELETE FROM tasks WHERE id = ?', [id]);

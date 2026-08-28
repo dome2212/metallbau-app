@@ -2,7 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const { dbQuery }      = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireOffice } = require('../middleware/auth');
 const { FIRMA }        = require('../utils/firma');
 const { sendWhatsApp } = require('../utils/notifier');
 
@@ -112,7 +112,7 @@ router.post('/users/delete', requireAdmin, async (req, res) => {
 // ==========================================
 // ADMIN ZEITERFASSUNG
 // ==========================================
-router.get('/timetracking', requireAdmin, async (req, res) => {
+router.get('/timetracking', requireOffice, async (req, res) => {
   try {
     const activeTab      = req.query.tab || 'daily';
     const selectedDate   = req.query.date || '';
@@ -189,7 +189,7 @@ router.get('/timetracking', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/timetracking/add', requireAdmin, async (req, res) => {
+router.post('/timetracking/add', requireOffice, async (req, res) => {
   const { user_id, type, date, time, note } = req.body;
   if (!user_id || !type || !date || !time) {
     return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
@@ -221,7 +221,7 @@ router.post('/timetracking/add', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/timetracking/delete', requireAdmin, async (req, res) => {
+router.post('/timetracking/delete', requireOffice, async (req, res) => {
   const { log_id } = req.body;
   try {
     await dbQuery('DELETE FROM time_logs WHERE id = ?', [log_id]);
@@ -232,7 +232,7 @@ router.post('/timetracking/delete', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
+router.get('/timetracking/pdf', requireOffice, async (req, res) => {
   const { user_id, date } = req.query;
   try {
     const tsColPdf = isPg
@@ -349,7 +349,7 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
 // ==========================================
 // MONATLICHER ÜBERSTUNDEN-BERICHT (PDF)
 // ==========================================
-router.get('/timetracking/overtime-pdf', requireAdmin, async (req, res) => {
+router.get('/timetracking/overtime-pdf', requireOffice, async (req, res) => {
   const { month, user_id } = req.query;
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return res.status(400).send('Bitte einen gültigen Monat im Format YYYY-MM angeben.');
@@ -503,7 +503,7 @@ router.post('/delete', requireAdmin, async (req, res) => {
 // ==========================================
 // PERSONALPLANUNG – Wochenplan
 // ==========================================
-router.get('/staffplan', requireAdmin, async (req, res) => {
+router.get('/staffplan', requireOffice, async (req, res) => {
   try {
     // Woche berechnen (Mo–Sa)
     const weekParam = req.query.week || '';
@@ -564,7 +564,7 @@ router.get('/staffplan', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/staffplan/save', requireAdmin, async (req, res) => {
+router.post('/staffplan/save', requireOffice, async (req, res) => {
   try {
     const { user_id, date, project_id, note } = req.body;
     if (!user_id || !date) return res.status(400).send('Fehlende Daten');

@@ -66,6 +66,8 @@ router.get('/check-duplicate', async (req, res) => {
 // KUNDE ANLEGEN
 // ==========================================
 router.post('/add', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) return res.status(403).send('Kein Zugriff');
   const { company_name, contact_person, email, phone, street, zip, city, customer_number } = req.body;
   try {
     await dbQuery(
@@ -82,6 +84,8 @@ router.post('/add', async (req, res) => {
 // KUNDE BEARBEITEN
 // ==========================================
 router.post('/edit', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) return res.status(403).send('Kein Zugriff');
   const { id, company_name, contact_person, email, phone, street, zip, city, customer_number } = req.body;
   try {
     await dbQuery(
