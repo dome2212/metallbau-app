@@ -2,7 +2,7 @@ const express  = require('express');
 const router   = require('express').Router();
 const crypto   = require('crypto');
 const { dbQuery }                    = require('../utils/db');
-const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
+const { requireOffice, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }                   = require('../utils/companySettings');
 const { generateDocumentPDF }        = require('../utils/pdfGenerator');
 const { buildDatevCsv }               = require('../utils/datevExport');
@@ -12,7 +12,7 @@ const { buildDatevCsv }               = require('../utils/datevExport');
 // ══════════════════════════════════════════════════════════════
 
 // GET: Angebots-Übersicht
-router.get('/offers', requireAdmin, async (req, res) => {
+router.get('/offers', requireOffice, async (req, res) => {
   const firma = await getFirma();
   if (!hasPerm(req.user, 'documents', firma, true, false)) {
     return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
@@ -43,7 +43,7 @@ router.get('/offers', requireAdmin, async (req, res) => {
 });
 
 // POST: Neues Angebot anlegen
-router.post('/create-offer', requireAdmin, async (req, res) => {
+router.post('/create-offer', requireOffice, async (req, res) => {
   const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
   try {
     const firma    = await getFirma();
@@ -94,7 +94,7 @@ router.post('/create-offer', requireAdmin, async (req, res) => {
 });
 
 // POST: Angebot löschen
-router.post('/offers/delete', requireAdmin, async (req, res) => {
+router.post('/offers/delete', requireOffice, async (req, res) => {
   const { offer_id } = req.body;
   try {
     await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [offer_id]);
@@ -107,7 +107,7 @@ router.post('/offers/delete', requireAdmin, async (req, res) => {
 });
 
 // POST: Angebot → Rechnung umwandeln
-router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
+router.post('/offers/convert-to-invoice', requireOffice, async (req, res) => {
   const { offer_id } = req.body;
   try {
     const offerRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
@@ -152,7 +152,7 @@ router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
 });
 
 // POST: Angebot → Projekt umwandeln
-router.post('/offers/convert-to-project', requireAdmin, async (req, res) => {
+router.post('/offers/convert-to-project', requireOffice, async (req, res) => {
   const { offer_id } = req.body;
   try {
     const offerRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
@@ -177,7 +177,7 @@ router.post('/offers/convert-to-project', requireAdmin, async (req, res) => {
 });
 
 // GET: Angebots-PDF — inline im Browser (echter PDF-Stream)
-router.get('/offers/:id/pdf', requireAdmin, async (req, res) => {
+router.get('/offers/:id/pdf', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const offerRes = await dbQuery(`
@@ -196,7 +196,7 @@ router.get('/offers/:id/pdf', requireAdmin, async (req, res) => {
 });
 
 // GET: Angebots-PDF Download — echte PDF-Datei (Content-Disposition: attachment)
-router.get('/offers/:id/pdf-download', requireAdmin, async (req, res) => {
+router.get('/offers/:id/pdf-download', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const offerRes = await dbQuery(`
@@ -219,7 +219,7 @@ router.get('/offers/:id/pdf-download', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 
 // GET: Rechnungs-Übersicht
-router.get('/invoices', requireAdmin, async (req, res) => {
+router.get('/invoices', requireOffice, async (req, res) => {
   const firma = await getFirma();
   if (!hasPerm(req.user, 'documents', firma, true, false)) {
     return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
@@ -248,7 +248,7 @@ router.get('/invoices', requireAdmin, async (req, res) => {
 });
 
 // GET: DATEV-Export (Buchungsstapel) für einen Zeitraum herunterladen
-router.get('/invoices/datev-export', requireAdmin, async (req, res) => {
+router.get('/invoices/datev-export', requireOffice, async (req, res) => {
   const firma = await getFirma();
   if (!hasPerm(req.user, 'documents', firma, true, false)) {
     return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
@@ -289,7 +289,7 @@ router.get('/invoices/datev-export', requireAdmin, async (req, res) => {
 });
 
 // POST: Neue Rechnung direkt anlegen
-router.post('/create-invoice', requireAdmin, async (req, res) => {
+router.post('/create-invoice', requireOffice, async (req, res) => {
   const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
   try {
     const _firma2  = await getFirma();
@@ -341,7 +341,7 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
 });
 
 // POST: Rechnung löschen
-router.post('/invoices/delete', requireAdmin, async (req, res) => {
+router.post('/invoices/delete', requireOffice, async (req, res) => {
   const { invoice_id } = req.body;
   try {
     await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [invoice_id]);
@@ -354,7 +354,7 @@ router.post('/invoices/delete', requireAdmin, async (req, res) => {
 });
 
 // POST: Rechnungs-Status aktualisieren (z.B. → Bezahlt)
-router.post('/invoices/update-status', requireAdmin, async (req, res) => {
+router.post('/invoices/update-status', requireOffice, async (req, res) => {
   const { invoice_id, status, status_note } = req.body;
   try {
     await dbQuery(`UPDATE documents SET status = ?, status_note = ? WHERE id = ?`,
@@ -367,7 +367,7 @@ router.post('/invoices/update-status', requireAdmin, async (req, res) => {
 });
 
 // POST: Rechnungsnummer ändern
-router.post('/invoices/update-number', requireAdmin, async (req, res) => {
+router.post('/invoices/update-number', requireOffice, async (req, res) => {
   const { invoice_id, invoice_number } = req.body;
   try {
     await dbQuery(`UPDATE documents SET doc_number = ? WHERE id = ?`, [invoice_number, invoice_id]);
@@ -379,7 +379,7 @@ router.post('/invoices/update-number', requireAdmin, async (req, res) => {
 });
 
 // GET: Rechnungs-Detail
-router.get('/invoices/:id', requireAdmin, async (req, res) => {
+router.get('/invoices/:id', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const firma      = await getFirma();
@@ -403,7 +403,7 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
 });
 
 // GET: Rechnungs-PDF — inline im Browser (echter PDF-Stream)
-router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
+router.get('/invoices/:id/pdf', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const invoiceRes = await dbQuery(`
@@ -422,7 +422,7 @@ router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
 });
 
 // GET: Rechnungs-PDF Download — echte PDF-Datei (Content-Disposition: attachment)
-router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
+router.get('/invoices/:id/pdf-download', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const invoiceRes = await dbQuery(`
@@ -445,7 +445,7 @@ router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 
 // GET: Vorlagen-Übersicht (JSON für Modal)
-router.get('/templates', requireAdmin, async (req, res) => {
+router.get('/templates', requireOffice, async (req, res) => {
   try {
     const tplRes = await dbQuery(
       `SELECT t.*, COUNT(i.id) as item_count
@@ -460,7 +460,7 @@ router.get('/templates', requireAdmin, async (req, res) => {
 });
 
 // GET: Einzelne Vorlage mit Positionen (für "Übernehmen"-Button)
-router.get('/templates/:id', requireAdmin, async (req, res) => {
+router.get('/templates/:id', requireOffice, async (req, res) => {
   try {
     const tRes = await dbQuery(`SELECT * FROM offer_templates WHERE id = ?`, [req.params.id]);
     const t    = tRes.rows[0];
@@ -476,7 +476,7 @@ router.get('/templates/:id', requireAdmin, async (req, res) => {
 });
 
 // POST: Neue Vorlage anlegen (name + beschreibung + kategorie + items[])
-router.post('/templates/create', requireAdmin, async (req, res) => {
+router.post('/templates/create', requireOffice, async (req, res) => {
   const { name, beschreibung, kategorie, beschreibung: descs, menge: mengen,
           einheit: einheiten, preis: preise } = req.body;
   try {
@@ -508,7 +508,7 @@ router.post('/templates/create', requireAdmin, async (req, res) => {
 });
 
 // POST: Vorlage löschen
-router.post('/templates/delete', requireAdmin, async (req, res) => {
+router.post('/templates/delete', requireOffice, async (req, res) => {
   const { template_id } = req.body;
   try {
     await dbQuery(`DELETE FROM offer_template_items WHERE template_id = ?`, [template_id]);
@@ -524,7 +524,7 @@ router.post('/templates/delete', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 
 // GET: Nachträge zu einem Angebot (JSON)
-router.get('/offers/:id/nachtraege', requireAdmin, async (req, res) => {
+router.get('/offers/:id/nachtraege', requireOffice, async (req, res) => {
   try {
     const nRes = await dbQuery(
       `SELECT n.*, u.username as ersteller
@@ -547,7 +547,7 @@ router.get('/offers/:id/nachtraege', requireAdmin, async (req, res) => {
 });
 
 // POST: Neuen Nachtrag anlegen
-router.post('/offers/:id/nachtraege/create', requireAdmin, async (req, res) => {
+router.post('/offers/:id/nachtraege/create', requireOffice, async (req, res) => {
   const docId = req.params.id;
   const { titel, beschreibung } = req.body;
   try {
@@ -588,7 +588,7 @@ router.post('/offers/:id/nachtraege/create', requireAdmin, async (req, res) => {
 });
 
 // POST: Nachtrag-Status ändern (z.B. Entwurf → Gesendet → Freigegeben)
-router.post('/nachtraege/:id/status', requireAdmin, async (req, res) => {
+router.post('/nachtraege/:id/status', requireOffice, async (req, res) => {
   const { status, document_id } = req.body;
   try {
     await dbQuery(
@@ -682,7 +682,7 @@ router.post('/nachtrag/approve/:token', async (req, res) => {
 });
 
 // POST: Nachtrag löschen
-router.post('/nachtraege/:id/delete', requireAdmin, async (req, res) => {
+router.post('/nachtraege/:id/delete', requireOffice, async (req, res) => {
   const { document_id } = req.body;
   try {
     await dbQuery(`DELETE FROM offer_nachtrag_items WHERE nachtrag_id = ?`, [req.params.id]);
@@ -694,7 +694,7 @@ router.post('/nachtraege/:id/delete', requireAdmin, async (req, res) => {
 });
 
 // GET: Angebots-Detail (mit Nachträgen)
-router.get('/offers/:id/detail', requireAdmin, async (req, res) => {
+router.get('/offers/:id/detail', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     const firma     = await getFirma();
@@ -739,7 +739,7 @@ router.get('/offers/:id/detail', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════
 
 // GET: Aktuelle Preise (JSON) – für Frontend-Widget
-router.get('/steel-prices', requireAdmin, async (req, res) => {
+router.get('/steel-prices', requireOffice, async (req, res) => {
   try {
     // Jeweils den neuesten Preis pro Material zurückgeben
     const result = await dbQuery(
@@ -756,7 +756,7 @@ router.get('/steel-prices', requireAdmin, async (req, res) => {
 });
 
 // POST: Stahlpreis manuell aktualisieren
-router.post('/steel-prices/update', requireAdmin, async (req, res) => {
+router.post('/steel-prices/update', requireOffice, async (req, res) => {
   const { material, preis_100kg, quelle } = req.body;
   const heute = new Date().toISOString().split('T')[0];
   try {
@@ -782,7 +782,7 @@ router.post('/steel-prices/update', requireAdmin, async (req, res) => {
 });
 
 // GET: Preisverlauf für ein Material (JSON, letzten 30 Tage)
-router.get('/steel-prices/history/:material', requireAdmin, async (req, res) => {
+router.get('/steel-prices/history/:material', requireOffice, async (req, res) => {
   try {
     const result = await dbQuery(
       `SELECT gueltig_am, preis_100kg, quelle FROM steel_prices
@@ -799,7 +799,7 @@ router.get('/steel-prices/history/:material', requireAdmin, async (req, res) => 
 // ══════════════════════════════════════════════════════════════
 // ÄLTERE KOMPATIBILITÄTS-ROUTE (aus altem server.js)
 // ══════════════════════════════════════════════════════════════
-router.post('/convert-to-invoice/:offerId', requireAdmin, async (req, res) => {
+router.post('/convert-to-invoice/:offerId', requireOffice, async (req, res) => {
   req.body.offer_id = req.params.offerId;
   // Weiterleitung an interne Logik
   const { offerId } = req.params;
