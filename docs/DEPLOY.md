@@ -41,3 +41,18 @@ Nutzerwahl wird in `localStorage` unter `darkMode` gespeichert.
 - `routes/aiApiRoutes.js` – KI-Endpunkte unter `/api/ai`
 - `routes/rfidRoutes.js` – RFID-Stempel unter `/api/rfid`
 - `views/partials/admin/tab-*.ejs` – Admin-Panel Tabs
+
+## Deploy-Checkliste (Smoke)
+
+1. `GET /health` → `{ ok: true, db: "up" }`
+2. Login Chef / Admin / Sekretärin / Mitarbeiter
+3. Dashboard lädt ohne EJS-Fehler
+4. Sekretärin: Kunden + Belege sichtbar, Admin-Panel 403
+5. Stempel (IN/OUT) einmal testen
+6. Optional: KI-Anfrage (wenn API-Key gesetzt)
+
+## Rechte-Test lokal
+
+```bash
+JWT_SECRET=test node scripts/test-perms.js
+```

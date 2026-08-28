@@ -1,0 +1,99 @@
+      <section id="sec-fotos" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-fotos" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/30">5 · Fotos</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+      <div class="sec-body">
+      <div class="card-clean space-y-4">
+        <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📸 Baustellen-Abschlussfotos</h2>
+
+        <!-- Upload-Formular für Fotos -->
+        <form id="photoUploadForm" action="/projects/<%= project.id %>/photos/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Fertiges Baustellenfoto hochladen (JPG, PNG)</label>
+
+          <div class="flex gap-2">
+            <label class="flex-1 text-center text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition">
+              📷 Kamera
+              <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleProjectPhotoPick(this)">
+            </label>
+            <label class="flex-1 text-center text-xs font-semibold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg py-2 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition">
+              🖼️ Galerie
+              <input type="file" accept="image/*" class="hidden" onchange="handleProjectPhotoPick(this)">
+            </label>
+          </div>
+
+          <!-- Verstecktes Feld, das tatsächlich mit dem Formular abgeschickt wird -->
+          <input type="file" name="photo" id="photoFormInput" accept="image/*" class="hidden">
+          <p id="photoFileName" class="text-xs text-slate-500 dark:text-slate-400 italic"></p>
+
+          <input type="text" name="caption" placeholder="Beschriftung / Kommentar (optional)"
+            class="w-full text-xs border border-slate-300 dark:border-slate-500 dark:bg-slate-600 dark:text-gray-100 rounded px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Foto hochladen</button>
+        </form>
+
+        <script>
+          function handleProjectPhotoPick(input) {
+            const formInput = document.getElementById('photoFormInput');
+            const nameLabel = document.getElementById('photoFileName');
+            if (input.files && input.files[0]) {
+              const dt = new DataTransfer();
+              dt.items.add(input.files[0]);
+              formInput.files = dt.files;
+              nameLabel.textContent = '✅ ' + input.files[0].name;
+            }
+          }
+          (function () {
+            const form = document.getElementById('photoUploadForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+              const formInput = document.getElementById('photoFormInput');
+              if (!formInput.files || formInput.files.length === 0) {
+                e.preventDefault();
+                alert('Bitte zuerst ein Foto über „Kamera“ oder „Galerie“ auswählen.');
+              }
+            });
+          })();
+        </script>
+
+        <!-- Galerie der hochgeladenen Fotos mit X-Löschbutton -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <% if (photos && photos.length > 0) { %>
+            <% photos.forEach(photo => { %>
+              <div class="relative bg-slate-50 dark:bg-slate-700 rounded border dark:border-slate-600 p-2 flex flex-col items-center group">
+
+                <!-- Löschen-Button -->
+                <form action="/projects/photos/delete" method="POST" onsubmit="return confirm('Foto wirklich löschen?');" class="absolute top-3 right-3 z-10">
+                  <input type="hidden" name="photo_id" value="<%= photo.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <button type="submit" class="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow transition opacity-80 group-hover:opacity-100" title="Foto löschen">&times;</button>
+                </form>
+
+                <a href="<%= photo.file_url %>" target="_blank" class="w-full">
+                  <img src="<%= photo.file_url %>" alt="Baustellenfoto" class="w-full h-32 object-cover rounded hover:opacity-90 transition">
+                </a>
+
+                <!-- Beschriftung anzeigen / bearbeiten -->
+                <% if (photo.caption) { %>
+                  <p class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 text-center w-full px-1 leading-snug"><%= photo.caption %></p>
+                <% } %>
+                <form action="/projects/photos/caption" method="POST" class="w-full mt-1">
+                  <input type="hidden" name="photo_id" value="<%= photo.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <input type="text" name="caption" value="<%= photo.caption || '' %>"
+                    placeholder="Beschriftung…"
+                    class="w-full text-[10px] border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500 truncate">
+                  <button type="submit" class="mt-1 w-full text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded py-0.5 transition">💾 Speichern</button>
+                </form>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <p class="text-xs text-slate-400 dark:text-slate-500 italic col-span-full">Noch keine Abschlussfotos für dieses Projekt hochgeladen.</p>
+          <% } %>
+        </div>
+      </div>
+
+            </div><!-- /sec-body -->
+</section>
+
+      <!-- ========== 6 TERMINE ========== -->

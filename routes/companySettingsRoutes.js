@@ -323,7 +323,7 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
 router.post('/panel/access', requireAdmin, async (req, res) => {
   try {
     const areas = ['projects','calendar','timetracking','vacations','customers',
-                   'documents','articles','map','treppe','steel_calc','money'];
+                   'documents','articles','map','treppe','steel_calc','lager','money'];
     for (const key of areas) {
       for (const role of ['admin','secretary','employee']) {
         const fieldName = `perm_${role}_${key}`;

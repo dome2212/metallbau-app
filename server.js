@@ -167,6 +167,22 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele KI-Anfragen. Bitte kurz warten.' }
+});
+const rfidLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Zu viele RFID-Anfragen.' }
+});
+
+
 // ==========================================
 // ÖFFENTLICHE ROUTEN (Login / Logout)
 // ==========================================
@@ -175,6 +191,17 @@ app.use('/', authRoutes);
 // ==========================================
 // ALLE FOLGENDEN ROUTEN ERFORDERN LOGIN
 // ==========================================
+
+// Health-Check für Render / Monitoring (ohne Auth)
+app.get('/health', async (req, res) => {
+  try {
+    await dbQuery('SELECT 1 AS ok');
+    res.json({ ok: true, db: 'up', ts: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ ok: false, db: 'down', error: err.message });
+  }
+});
+
 app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
@@ -255,8 +282,8 @@ app.use('/', miscRoutes);
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/v2', apiRoutes);
 app.use('/api', appApiRoutes);  // search, today-hours, dark-mode
-app.use('/api/rfid', rfidRoutes);
-app.use('/api/ai', aiApiRoutes);
+app.use('/api/rfid', rfidLimiter, rfidRoutes);
+app.use('/api/ai', aiLimiter, aiApiRoutes);
 
 
 // ==========================================

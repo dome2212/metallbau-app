@@ -10,13 +10,9 @@ if (process.env.DATABASE_URL) {
   // Cloud (Render / PostgreSQL)
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-
-  // Pool-Verbindungen auf UTC halten — Timestamps werden als UTC gespeichert
-  // und beim Lesen serverseitig nach Europe/Berlin konvertiert
-  db.on('connect', (client) => {
-    client.query("SET timezone = 'UTC';").catch(() => {});
+    ssl: { rejectUnauthorized: false },
+    // Timezone über Startup-Option statt query-on-connect (vermeidet pg-Deprecation)
+    options: '-c timezone=UTC'
   });
 
   console.log("🟢 Versuche mit PostgreSQL zu verbinden und Tabellen zu erstellen...");

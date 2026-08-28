@@ -33,6 +33,7 @@ const SECRETARY_DEFAULTS = {
   map: true,
   treppe: false,
   steel_calc: false,
+  lager: true,
   money: true,           // Beträge auf Belegen sichtbar
 };
 

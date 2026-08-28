@@ -1,0 +1,177 @@
+      <section id="sec-uebersicht" class="scroll-mt-28 space-y-3">
+        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-uebersicht" role="button" tabindex="0" aria-expanded="true">
+          <span class="sec-label text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">1 · Übersicht</span>
+          <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+          <span class="chev" aria-hidden="true">▼</span>
+        </div>
+      <div class="sec-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Kundendaten & Details -->
+        <div class="card-clean space-y-4">
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📋 Projektdetails</h2>
+          <div>
+            <span class="text-xs text-slate-400 dark:text-slate-500 block">Kunde / Baustelle</span>
+            <strong class="text-slate-700 dark:text-gray-200"><%= project.company_name || project.contact_person %></strong>
+            <p class="text-sm text-slate-600 dark:text-slate-300"><%= project.street %>, <%= project.zip %> <%= project.city %></p>
+
+            <!-- ── Navigations-Widget ── -->
+            <% if (project.street && project.city) {
+              const encAddr = encodeURIComponent((project.street + ', ' + (project.zip || '') + ' ' + project.city).trim());
+              const googleUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encAddr;
+              const appleUrl  = 'maps://?daddr=' + encAddr;
+              const wazeUrl   = 'https://waze.com/ul?q=' + encAddr + '&navigate=yes';
+            %>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <a href="<%= googleUrl %>" target="_blank"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition shadow-sm">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                Google Maps
+              </a>
+              <a href="<%= appleUrl %>" target="_blank"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold transition shadow-sm">
+                🍎 Apple Maps
+              </a>
+              <a href="<%= wazeUrl %>" target="_blank"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold transition shadow-sm">
+                🗺 Waze
+              </a>
+            </div>
+            <% } %>
+
+            <!-- ── Anfahrtshinweis (für alle sichtbar, wenn gesetzt) ── -->
+            <% if (project.site_note) { %>
+            <div class="mt-3 flex gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg px-3 py-2.5">
+              <span class="text-amber-500 text-base mt-0.5 shrink-0">⚠️</span>
+              <div>
+                <p class="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-0.5">Anfahrtshinweis</p>
+                <p class="text-xs text-amber-700 dark:text-amber-400 leading-snug"><%= project.site_note %></p>
+              </div>
+            </div>
+            <% } %>
+          </div>
+          
+          <!-- Auftragssumme nur für den Chef (ADMIN) sichtbar -->
+          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+            <div>
+              <span class="text-xs text-slate-400 dark:text-slate-500 block">Auftragssumme</span>
+              <span class="text-xl font-bold text-slate-800 dark:text-gray-100"><%= (Number(project.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+            </div>
+          <% } %>
+
+          <div>
+            <span class="text-xs text-slate-400 dark:text-slate-500 block">Beschreibung</span>
+            <p class="text-sm text-slate-600 dark:text-slate-300"><%= project.description || 'Keine Beschreibung hinterlegt.' %></p>
+          </div>
+
+          <!-- Baustellenkoordinaten (Geo-Fencing) — nur Admin -->
+          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+            <div class="border-t dark:border-slate-700 pt-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">📍 Geo-Fencing Standort</span>
+                <% if (project.site_lat && project.site_lng) { %>
+                  <span class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Aktiv</span>
+                <% } else { %>
+                  <span class="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-full">Nicht gesetzt</span>
+                <% } %>
+              </div>
+              <% if (project.site_lat && project.site_lng) { %>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  Lat: <strong><%= project.site_lat %></strong> · Lng: <strong><%= project.site_lng %></strong> · Radius: <strong><%= project.site_radius || 200 %> m</strong>
+                </p>
+              <% } %>
+              <form action="/projects/<%= project.id %>/set-location" method="POST" class="space-y-2" id="geo-form">
+
+                <!-- Adresssuche via OpenStreetMap Nominatim -->
+                <div>
+                  <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Adresse suchen</label>
+                  <div class="flex gap-1">
+                    <input type="text" id="geo-address-input"
+                      placeholder="z.B. Musterstraße 5, 45678 Musterstadt"
+                      class="flex-1 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    <button type="button" onclick="geocodeAddress()"
+                      class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-2.5 py-1.5 rounded transition whitespace-nowrap">
+                      🔍 Suchen
+                    </button>
+                  </div>
+                  <!-- Kundenadresse als Schnellauswahl -->
+                  <% if (project.street && project.city) { %>
+                    <button type="button"
+                      onclick="useCustomerAddress('<%= (project.street + ', ' + (project.zip || '') + ' ' + project.city).trim().replace(/'/g, "\\'") %>')"
+                      class="mt-1 w-full text-left text-[10px] text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded border border-indigo-200 transition truncate">
+                      🏢 Kundenadresse übernehmen: <%= project.street %>, <%= project.zip %> <%= project.city %>
+                    </button>
+                  <% } %>
+                  <!-- Suchergebnis-Feedback -->
+                  <p id="geo-status" class="text-[10px] mt-1 hidden"></p>
+                </div>
+
+                <!-- Koordinaten (werden automatisch gefüllt oder können manuell eingegeben werden) -->
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Breitengrad (Lat)</label>
+                      <input type="number" step="0.0000001" name="site_lat" id="geo-lat" value="<%= project.site_lat || '' %>" placeholder="z.B. 51.3069" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
+                    </div>
+                    <div>
+                      <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Längengrad (Lng)</label>
+                      <input type="number" step="0.0000001" name="site_lng" id="geo-lng" value="<%= project.site_lng || '' %>" placeholder="z.B. 6.9483" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Erkennungsradius (Meter)</label>
+                    <input type="number" name="site_radius" value="<%= project.site_radius || 200 %>" min="50" max="2000" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
+                  </div>
+                  <!-- Anfahrtshinweis bearbeiten -->
+                  <div>
+                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">⚠️ Anfahrtshinweis für Monteure</label>
+                    <textarea name="site_note" rows="2"
+                      placeholder="z.B. Zufahrt nur über Hintereingang · Schrankenschlüssel im Büro abholen"
+                      class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"><%= project.site_note || '' %></textarea>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded transition">Speichern</button>
+                    <button type="button" onclick="useMyLocationForProject()" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-medium py-1.5 rounded transition">📍 Meinen Standort</button>
+                </div>
+              </form>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Technische Zeichnungen & Dateien -->
+        <div class="card-clean space-y-4">
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Technische Zeichnungen & Pläne</h2>
+          
+          <!-- Upload-Formular -->
+          <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Zeichnung / Skizze / Foto hochladen (PDF, Bild)</label>
+            <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
+          </form>
+
+          <!-- Liste der hochgeladenen Dateien -->
+          <div class="space-y-2">
+            <% if (files && files.length > 0) { %>
+              <% files.forEach(file => { %>
+                <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-700 p-2.5 rounded border dark:border-slate-600 text-sm">
+                    <span class="truncate max-w-xs text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
+                  <div class="flex items-center gap-3 shrink-0">
+                    <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
+                    
+                    <!-- Lösch-Button für Dateien -->
+                    <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei wirklich löschen?');" class="inline">
+                      <input type="hidden" name="file_id" value="<%= file.id %>">
+                      <input type="hidden" name="project_id" value="<%= project.id %>">
+                      <button type="submit" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            <% } else { %>
+              <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch keine Zeichnungen oder Dokumente hochgeladen.</p>
+            <% } %>
+          </div>
+        </div>
+      </div>
+            </div><!-- /sec-body -->
+</section>
+
+      <!-- ========== 2 AUFMASS ========== -->

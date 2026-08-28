@@ -1,9 +1,24 @@
 const express  = require('express');
 const { notifyIfLowStock } = require('../utils/lagerAlert');
 const router   = express.Router();
+
+// Zugriff: konfigurierbar (Sekretärin standardmäßig ja)
+router.use(async (req, res, next) => {
+  try {
+    const firma = await getFirma();
+    if (!hasPerm(req.user, 'lager', firma, true, false)) {
+      return res.status(403).send('<h1>403</h1><p>Kein Zugriff auf das Lager.</p><a href="/">Zurück</a>');
+    }
+    next();
+  } catch (e) {
+    next(e);
+  }
+});
+
 const multer   = require('multer');
 const { dbQuery } = require('../utils/db');
 const { getFirma } = require('../utils/companySettings');
+const { hasPerm } = require('../middleware/auth');
 
 // Bild im Speicher halten (für KI-Vision-Analyse)
 const upload = multer({

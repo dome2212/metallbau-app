@@ -1,5 +1,14 @@
 <%- include('partials/header') %>
+
 <%- include('partials/sidebar') %>
+<% if (typeof currentUser !== 'undefined' && currentUser.role === 'SECRETARY') { %>
+<div class="max-w-7xl mx-auto px-4 pt-16 md:pt-4">
+  <div class="mb-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 px-4 py-2.5 text-sm text-violet-800 dark:text-violet-200">
+    📋 <strong>Büro-Ansicht</strong> – Kunden, Belege und Termine. System-Einstellungen sind dem Admin/Chef vorbehalten.
+  </div>
+</div>
+<% } %>
+
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
   <div id="dash-skeleton" class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-4 md:hidden">
