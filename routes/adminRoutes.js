@@ -599,4 +599,34 @@ router.post('/users/set-rfid', requireAdmin, async (req, res) => {
   res.redirect('/admin/users');
 });
 
+
+// ==========================================
+// BACKUP
+// ==========================================
+const { runBackup, createBackupFile } = require('../utils/backup');
+const fs = require('fs');
+
+router.post('/backup/run', requireAdmin, async (req, res) => {
+  try {
+    await runBackup();
+    res.redirect('/admin/panel?tab=info&msg=backup_ok');
+  } catch (err) {
+    res.status(500).send('Backup fehlgeschlagen: ' + err.message);
+  }
+});
+
+router.get('/backup/download', requireAdmin, async (req, res) => {
+  try {
+    const { path: filePath, name } = await createBackupFile();
+    res.download(filePath, name, (err) => {
+      try { fs.unlinkSync(filePath); } catch (_) {}
+      if (err && !res.headersSent) {
+        res.status(500).send('Download fehlgeschlagen: ' + (err.message || 'Unbekannt'));
+      }
+    });
+  } catch (err) {
+    res.status(500).send('Backup-Erstellung fehlgeschlagen: ' + err.message);
+  }
+});
+
 module.exports = router;

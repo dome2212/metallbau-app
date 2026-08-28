@@ -166,4 +166,32 @@ function startBackupCron() {
   schedule();
 }
 
-module.exports = { startBackupCron, runBackup };
+
+// ── Backup-Datei erzeugen (ohne E-Mail) – für Download im Admin ──────────────
+async function createBackupFile() {
+  const dateStr  = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
+  const timeStr  = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }).replace(':', '-');
+  const filename = `backup_${dateStr}_${timeStr}`;
+
+  if (isPg) {
+    const attachmentPath = path.join('/tmp', `${filename}.sql`);
+    await new Promise((resolve, reject) => {
+      const cmd = `pg_dump "${process.env.DATABASE_URL}" --no-password -F p -f "${attachmentPath}"`;
+      exec(cmd, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve();
+      });
+    });
+    return { path: attachmentPath, name: `${filename}.sql` };
+  }
+
+  const dbPath   = path.join(__dirname, '..', 'database.sqlite');
+  const attachmentPath = path.join('/tmp', `${filename}.sqlite`);
+  if (!fs.existsSync(dbPath)) {
+    throw new Error('SQLite-Datei nicht gefunden: ' + dbPath);
+  }
+  fs.copyFileSync(dbPath, attachmentPath);
+  return { path: attachmentPath, name: `${filename}.sqlite` };
+}
+
+module.exports = { startBackupCron, runBackup, createBackupFile };

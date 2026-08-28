@@ -101,7 +101,7 @@ const colorsRoutes              = require('./routes/colorsRoutes');
 const pushRoutes                = require('./routes/pushRoutes');
 const taskRoutes                = require('./routes/taskRoutes');
 const chatRoutes                = require('./routes/chatRoutes');
-const { startBackupCron, runBackup } = require('./utils/backup');
+const { startBackupCron } = require('./utils/backup');
 const { startRetentionCron } = require('./utils/dataRetention');
 const { startStampReminderCron } = require('./utils/stampReminder');
 const { startDunningCron } = require('./utils/dunning');
@@ -286,15 +286,6 @@ app.post('/sidebar-settings', (req, res) => {
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/v2', apiRoutes);
 
-// Admin: Backup manuell auslösen (zum Testen)
-app.post('/admin/backup/run', require('./middleware/auth').requireAdmin, async (req, res) => {
-  try {
-    await runBackup();
-    res.redirect('/admin/company-settings?saved=1');
-  } catch (err) {
-    res.status(500).send('Backup fehlgeschlagen: ' + err.message);
-  }
-});
 
 // ==========================================
 // GLOBALE SUCHE

@@ -88,8 +88,14 @@
             <span class="badge bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"><%= openTasks.length %></span>
           </div>
 
-          <% if (openTasks.length === 0) { %>
-            <p class="text-sm text-slate-400 dark:text-slate-500 italic px-4 md:px-5 py-6 text-center">Keine offenen Aufgaben - alles erledigt.</p>
+                    <% if (openTasks.length === 0) { %>
+            <div class="px-4 md:px-5 py-4">
+              <%- include('partials/empty-state', {
+                icon: 'M9 11l3 3L22 4',
+                title: 'Keine offenen Aufgaben',
+                text: 'Alles erledigt – oder lege oben eine neue Aufgabe an.'
+              }) %>
+            </div>
           <% } else { %>
             <div class="divide-y divide-slate-100 dark:divide-slate-700">
               <% openTasks.forEach(t => { %>

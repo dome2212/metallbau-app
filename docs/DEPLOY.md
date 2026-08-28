@@ -31,3 +31,7 @@ Siehe `.env.example`. Mindestens:
 ## Dark Mode
 Standard ist Dark Mode (`dark_mode_default: true` in Firmeneinstellungen).  
 Nutzerwahl wird in `localStorage` unter `darkMode` gespeichert.
+
+## Backup
+- Admin → System/Info: **Backup herunterladen** oder per E-Mail senden
+- Route: `GET /admin/backup/download` (nur Admin)

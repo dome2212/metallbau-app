@@ -1203,13 +1203,20 @@
                 </div>
               <% } %>
             </div>
-            <form action="/admin/backup/run" method="POST"
-              onsubmit="return confirm('Jetzt sofort ein Backup erstellen?')">
-              <button type="submit"
-                class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
-                🗄️ Backup jetzt erstellen
-              </button>
-            </form>
+            <div class="flex flex-wrap gap-2">
+              <form action="/admin/backup/run" method="POST"
+                onsubmit="return confirm('Jetzt sofort ein Backup per E-Mail senden?')">
+                <button type="submit"
+                  class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
+                  🗄️ Backup per E-Mail
+                </button>
+              </form>
+              <a href="/admin/backup/download"
+                class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
+                ⬇️ Backup herunterladen
+              </a>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Download erzeugt eine aktuelle Kopie der Datenbank und startet den Browser-Download.</p>
           </div>
 
           <!-- SMTP & Backup konfigurieren -->
