@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment variables
 .env
@@ -36,9 +35,9 @@ temp/
 
 # OS files
 Thumbs.db
-.DS_Store
 
 # Sensitive data
 config/secrets.js
 uploads/
 public/uploads/
+Public/uploads/

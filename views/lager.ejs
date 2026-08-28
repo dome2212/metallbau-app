@@ -1191,7 +1191,7 @@
     document.getElementById('moveCurrentType').textContent = _typeLabel[currentType] || currentType;
 
     // Alle Tabs (inkl. Custom-Tabs) einfärben
-    const _allTabKeys = ['baustahl', 'edelstahl', 'schrauben', <%- (customTabs||[]).map(t=>`'${t.key}'`).join(',') %>];
+    const _allTabKeys = ['baustahl', 'edelstahl', 'schrauben', <%- (customTabs||[]).map(t=>JSON.stringify(String(t.key||''))).join(',') %>];
     _allTabKeys.forEach(t => {
       const btn = document.getElementById('moveBtn' + t.charAt(0).toUpperCase() + t.slice(1))
                || document.getElementById('moveBtn_' + t);
@@ -1363,7 +1363,7 @@
       { key: 'baustahl',  label: '🔩 Baustahl',  cls: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30' },
       { key: 'edelstahl', label: '✨ Edelstahl',  cls: 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/30' },
       { key: 'schrauben', label: '🔧 Schrauben',  cls: 'text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/30' },
-      <%- (customTabs||[]).map(t => `{ key: '${t.key}', label: '${t.name}', cls: 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700' }`).join(',') %>
+      <%- (customTabs||[]).map(t => `{ key: ${JSON.stringify(String(t.key||''))}, label: ${JSON.stringify(String(t.name||''))}, cls: 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700' }`).join(',') %>
     ];
     const summaryBar = document.getElementById('scanSummaryBar');
     if (scannedItems.length > 0) {
@@ -1385,10 +1385,10 @@
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="col-span-2 flex items-center gap-2 mb-1">
               <select onchange="scannedItems[${i}].material_type=this.value;renderScanResults()" class="text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 px-2 py-1">
-                <option value="baustahl" ${item.material_type==='baustahl'||(!['edelstahl','schrauben',<%- (customTabs||[]).map(t=>`'${t.key}'`).join(',') %>].includes(item.material_type))?'selected':''}>🔩 Baustahl</option>
+                <option value="baustahl" ${item.material_type==='baustahl'||(!['edelstahl','schrauben',<%- (customTabs||[]).map(t=>JSON.stringify(String(t.key||''))).join(',') %>].includes(item.material_type))?'selected':''}>🔩 Baustahl</option>
                 <option value="edelstahl" ${item.material_type==='edelstahl'?'selected':''}>✨ Edelstahl</option>
                 <option value="schrauben" ${item.material_type==='schrauben'?'selected':''}>🔧 Schrauben</option>
-                <%- (customTabs||[]).map(t => `<option value="${t.key}" \${item.material_type==='${t.key}'?'selected':''}>${t.name}</option>`).join('') %>
+                <%- (customTabs||[]).map(t => { const k=String(t.key||'').replace(/"/g,'&quot;'); const n=String(t.name||'').replace(/</g,'&lt;').replace(/"/g,'&quot;'); return `<option value="${k}" \${item.material_type==='${k.replace(/'/g,"\\'")}'?'selected':''}>${n}</option>`; }).join('') %>
               </select>
               <input type="text" value="${esc(item.bezeichnung)}" onchange="scannedItems[${i}].bezeichnung=this.value"
                 class="flex-1 text-xs rounded border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-2 py-1 font-semibold">

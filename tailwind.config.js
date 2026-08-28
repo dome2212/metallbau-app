@@ -14,7 +14,6 @@ module.exports = {
     { pattern: /^bg-(amber|red|emerald|blue|orange|slate|green)-(50|100|400|500|600)$/ },
     { pattern: /^text-(amber|red|emerald|blue|orange|slate|green)-(400|500|600)$/ },
     { pattern: /^border-(amber|red|emerald|blue|orange|slate|green)-(400|500)$/ },
-    { pattern: /^badge-(success|warning|danger|info|neutral)$/ },
   ],
   theme: {
     extend: {
