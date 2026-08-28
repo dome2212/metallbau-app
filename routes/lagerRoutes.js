@@ -307,11 +307,12 @@ router.post('/edit', async (req, res) => {
 // ==========================================
 router.post('/move', async (req, res) => {
   const { id, new_type, from_tab } = req.body;
-  const firma2 = await getFirma();
-  const customKeys2 = JSON.parse(firma2.lager_custom_tabs || '[]').map(t => t.key);
-  const validTypes = ['baustahl', 'edelstahl', 'schrauben', ...customKeys2];
-  if (!validTypes.includes(new_type)) return res.status(400).send('Ungültiger Typ.');
   try {
+    const firma2 = await getFirma();
+    let customKeys2 = [];
+    try { customKeys2 = JSON.parse(firma2.lager_custom_tabs || '[]').map(t => t.key); } catch (e) {}
+    const validTypes = ['baustahl', 'edelstahl', 'schrauben', ...customKeys2];
+    if (!validTypes.includes(new_type)) return res.status(400).send('Ungültiger Typ.');
     await dbQuery('UPDATE lager_items SET material_type = ? WHERE id = ?', [new_type, id]);
     res.redirect('/lager?tab=' + new_type + '&moved=1');
   } catch (err) {
