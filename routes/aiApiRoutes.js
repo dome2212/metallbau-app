@@ -64,7 +64,7 @@ function stripThinking(text) {
     .trim();
 }
 
-const { getFirma } = require('./utils/companySettings');
+const { getFirma } = require('../utils/companySettings');
 
 router.post('/offer-assistant', async (req, res) => {
   if (!process.env.GROQ_API_KEY) return res.status(500).json({ error: 'GROQ_API_KEY nicht konfiguriert.' });
