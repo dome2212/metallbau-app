@@ -242,7 +242,13 @@
               <% }) %>
             <% } else { %>
               <tr>
-                <td colspan="3" class="p-6 text-center text-slate-400 dark:text-slate-500 text-sm">Keine Stempel-Einträge in diesem Monat vorhanden.</td>
+                <td colspan="3" class="p-6">
+                  <%- include('partials/empty-state', {
+                    icon: 'M12 8v4l3 3',
+                    title: 'Keine Stempel-Einträge',
+                    text: 'In diesem Monat gibt es noch keine Stempelzeiten.'
+                  }) %>
+                </td>
               </tr>
             <% } %>
           </tbody>
