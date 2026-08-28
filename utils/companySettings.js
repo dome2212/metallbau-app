@@ -35,7 +35,7 @@ const DEFAULTS = {
   color_topbar_bg:    '#ffffff',
   color_page_bg:      '#f8fafc',
   app_icon:           '🔩',
-  dark_mode_default:  'false',
+  dark_mode_default:  'true',
 
   // ── Feature-Schalter ───────────────────────────────────────────
   feature_map:        'true',

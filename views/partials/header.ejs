@@ -14,7 +14,7 @@
   <script>
     (function() {
       try {
-        const dmDefault = '<%= typeof firma !== "undefined" && firma.dark_mode_default === "true" ? "true" : "false" %>';
+        const dmDefault = '<%= (typeof firma === "undefined" || firma.dark_mode_default !== "false") ? "true" : "false" %>';
         const stored = localStorage.getItem('darkMode');
         const active = stored !== null ? stored === 'true' : dmDefault === 'true';
         if (active) document.documentElement.classList.add('dark');

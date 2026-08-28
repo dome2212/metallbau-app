@@ -11,7 +11,8 @@
     (function() {
       try {
         var d = localStorage.getItem('darkMode');
-        if (d === 'true' || (d === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        // Standard: Dark Mode
+        if (d === 'true' || d === null) {
           document.documentElement.classList.add('dark');
         }
       } catch (e) {}
