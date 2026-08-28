@@ -21,11 +21,26 @@
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
     <!-- ── Page Header ──────────────────────────────────────────────────── -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Dashboard</h1>
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Dashboard</h1>
+          <% if (typeof roleLabel !== 'undefined') { %>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+              <%= (typeof userRole !== 'undefined' && userRole === 'CHEF')
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' %>">
+              <%= roleLabel %>
+            </span>
+          <% } %>
+        </div>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           <%= new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) %>
+          <% if (typeof userRole !== 'undefined' && userRole === 'CHEF') { %>
+            · Betriebsübersicht inkl. Finanzen
+          <% } else if (typeof userRole !== 'undefined' && userRole === 'ADMIN') { %>
+            · Verwaltung<%= typeof canSeeMoney !== 'undefined' && canSeeMoney ? ' inkl. Beträge' : ' (ohne Geldbeträge)' %>
+          <% } %>
         </p>
       </div>
       <div class="flex items-center gap-2">

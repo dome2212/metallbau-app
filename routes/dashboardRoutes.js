@@ -144,7 +144,13 @@ router.get('/', async (req, res) => {
         LIMIT 5
       `, [userId]);
 
-      res.render('dashboard-employee', { stats, recentLogs, tickers: tickerRes.rows || [], myTasks: myTasksRes.rows || [] });
+      res.render('dashboard-employee', {
+        stats,
+        recentLogs,
+        tickers: tickerRes.rows || [],
+        myTasks: myTasksRes.rows || [],
+        roleLabel: 'Mitarbeiter'
+      });
 
     } else {
       // ── Chef-Dashboard ────────────────────────────────────────────────────
@@ -220,7 +226,18 @@ router.get('/', async (req, res) => {
       }
 
       const lowStockItems = lowStockRes.rows || [];
-      res.render('dashboard', { stats, recentDocs: formattedDocs, tickers: tickerRes.rows || [], widgetSettings, overdueTasks: overdueTasksRes.rows || [], lowStockItems, generalTasks: generalTasksRes.rows || [] });
+      const roleLabel = userRole === 'CHEF' ? 'Chef' : (userRole === 'ADMIN' ? 'Admin' : userRole);
+      res.render('dashboard', {
+        stats,
+        recentDocs: formattedDocs,
+        tickers: tickerRes.rows || [],
+        widgetSettings,
+        overdueTasks: overdueTasksRes.rows || [],
+        lowStockItems,
+        generalTasks: generalTasksRes.rows || [],
+        roleLabel,
+        userRole
+      });
     }
   } catch (err) {
     console.error('Fehler im Dashboard:', err.message);
