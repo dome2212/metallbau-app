@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 
   try {
     let tasksRes;
-    if (userRole === 'CHEF' || userRole === 'ADMIN') {
+    if (userRole === 'CHEF' || userRole === 'ADMIN' || userRole === 'SECRETARY') {
       // Chef/Admin sehen alle Aufgaben
       tasksRes = await dbQuery(`
         SELECT t.*, u1.username as assigned_to_name, u2.username as assigned_by_name
@@ -121,7 +121,7 @@ router.post('/status', async (req, res) => {
     if (!task) return res.status(404).send('Aufgabe nicht gefunden');
 
     const isOwner = task.assigned_to == req.user.id || task.assigned_to === null || task.assigned_to === undefined;
-    const isBoss  = req.user.role === 'CHEF' || req.user.role === 'ADMIN';
+    const isBoss  = req.user.role === 'CHEF' || req.user.role === 'ADMIN' || req.user.role === 'SECRETARY';
     if (!isOwner && !isBoss) {
       return res.status(403).send('Keine Berechtigung für diese Aufgabe');
     }

@@ -29,7 +29,7 @@ router.post('/users/add', requireAdmin, async (req, res) => {
   const { username, password, role, whatsapp_phone } = req.body;
   if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const allowedRoles = ['CHEF', 'ADMIN', 'SECRETARY', 'EMPLOYEE'];
   const userRole = allowedRoles.includes(role) ? role : 'EMPLOYEE';
   const phone    = (whatsapp_phone || '').trim() || null;
   try {
@@ -82,7 +82,7 @@ router.post('/users/change-password', requireAdmin, async (req, res) => {
 
 router.post('/users/change-role', requireAdmin, async (req, res) => {
   const { user_id, role } = req.body;
-  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const allowedRoles = ['CHEF', 'ADMIN', 'SECRETARY', 'EMPLOYEE'];
   if (!allowedRoles.includes(role)) return res.status(400).send('Ungültige Rolle.');
   // Eigene Chef-Rolle darf nicht selbst entzogen werden
   if (parseInt(user_id) === req.user.id && role !== 'CHEF') {

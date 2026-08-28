@@ -9,7 +9,7 @@
       <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Mein Profil</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
         Eingeloggt als <strong class="text-slate-700 dark:text-slate-200"><%= currentUser.username %></strong>
-        · <span class="badge bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><%= currentUser.role %></span>
+        · <span class="badge bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"><%= ({CHEF:'Chef',ADMIN:'Admin',SECRETARY:'Sekretärin',EMPLOYEE:'Mitarbeiter'})[currentUser.role] || currentUser.role %></span>
       </p>
     </div>
 
@@ -81,7 +81,7 @@
       </h2>
       <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">
         Erhalte Benachrichtigungen direkt auf diesem Gerät – z.B. bei neuen Aufträgen, Pinnwand-Meldungen,
-        neuen Terminen<% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %> und Urlaubs-/Krankmeldungsanträgen<% } %>.
+        neuen Terminen<% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF' || currentUser.role === 'SECRETARY') { %> und Urlaubs-/Krankmeldungsanträgen<% } %>.
       </p>
       <div id="push-status" class="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 text-sm text-slate-600 dark:text-slate-300">
         Status wird geprüft…

@@ -8,7 +8,7 @@ router.get('/search', async (req, res) => {
   if (q.length < 2) return res.json({ results: [] });
 
   const like   = `%${q}%`;
-  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF' || req.user.role === 'SECRETARY';
   const likeOp  = isPg ? 'ILIKE' : 'LIKE';
 
   try {
