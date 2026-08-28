@@ -1,8 +1,7 @@
       <section id="sec-abnahme" class="scroll-mt-28 space-y-3">
-        <div class="flex items-center gap-2 sec-toggle" data-sec="sec-abnahme" role="button" tabindex="0" aria-expanded="true">
+        <div class="flex items-center gap-2" data-sec="sec-abnahme">
           <span class="sec-label text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30">10 · Kunden-Abnahme</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-          <span class="chev" aria-hidden="true">▼</span>
         </div>
         <div class="sec-body">
           <div class="card-clean space-y-3">
@@ -37,39 +36,6 @@
       </section>
 
     </div><!-- /max-w-7xl content -->
-
-
-<script>
-(function(){
-  const KEY = 'mb-project-sections';
-  function loadState(){
-    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){ return {}; }
-  }
-  function saveState(st){
-    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(e){}
-  }
-  const state = loadState();
-  document.querySelectorAll('section[id^="sec-"]').forEach(sec => {
-    const id = sec.id;
-    const toggle = sec.querySelector('.sec-toggle');
-    if (!toggle) return;
-    if (state[id] === 'collapsed') {
-      sec.classList.add('sec-collapsed');
-      toggle.setAttribute('aria-expanded', 'false');
-    }
-    function flip(){
-      const collapsed = sec.classList.toggle('sec-collapsed');
-      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      state[id] = collapsed ? 'collapsed' : 'open';
-      saveState(state);
-    }
-    toggle.addEventListener('click', flip);
-    toggle.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
-    });
-  });
-})();
-</script>
 
 <script>
 (function(){
