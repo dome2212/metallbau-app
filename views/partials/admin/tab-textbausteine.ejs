@@ -5,10 +5,15 @@
       <form action="/admin/panel/textbausteine" method="POST" class="space-y-6">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
           <div class="border-b dark:border-slate-700 pb-3">
-            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 013 3L10 16a4 4 0 01-5.7-5.7L13 1.6"/></svg>Textbausteine für Angebot &amp; Auftrag</span></h2>
-            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-              Fertige Klauseln (z.B. „Bauseits"), die beim Erfassen von Positionen in Angeboten und Nachträgen per Klick eingefügt werden können.
-            </p>
+            <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#fae8ff;color:#a21caf;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 013 3L10 16a4 4 0 01-5.7-5.7L13 1.6"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Textbausteine für Angebot &amp; Auftrag</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Fertige Klauseln (z.B. „Bauseits"), die beim Erfassen von Positionen in Angeboten und Nachträgen per Klick eingefügt werden können.</p>
+            </div>
+          </div>
           </div>
 
           <div>
@@ -74,5 +79,3 @@
         }
       </script>
       <% } %>
-
-    </div><!-- /max-w-5xl -->

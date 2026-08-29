@@ -9,8 +9,15 @@
 
         <!-- Berater & Mandant -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg>Berater & Mandant</span></h2>
-          <p class="text-xs text-slate-400 mb-5">Diese Nummern bekommst du von deinem Steuerberater / aus DATEV.</p>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#d1fae5;color:#059669;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l2 2M14 9l2 2"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Berater & Mandant</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Diese Nummern bekommst du von deinem Steuerberater / aus DATEV.</p>
+            </div>
+          </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">DATEV-Beraternummer</label>
@@ -27,8 +34,15 @@
 
         <!-- Kontenrahmen -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z"/><path d="M8 4v13"/></svg>Kontenrahmen</span></h2>
-          <p class="text-xs text-slate-400 mb-5">Welchen Kontenrahmen nutzt deine Kanzlei?</p>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#d1fae5;color:#059669;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4H6.5A2.5 2.5 0 004 6.5v13z"/><path d="M8 4v13"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Kontenrahmen</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Welchen Kontenrahmen nutzt deine Kanzlei?</p>
+            </div>
+          </div>
           <div class="flex gap-2 flex-wrap mb-2">
             <% for (const skr of ['SKR03', 'SKR04']) { %>
               <label class="flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg border dark:border-slate-600 text-sm
@@ -48,11 +62,16 @@
 
         <!-- Konten -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 9a3.5 3.5 0 100 6M8 11h6M8 13h5"/></svg>Erlös- & Debitorenkonten</span></h2>
-          <p class="text-xs text-slate-400 mb-5">
-            Übliche Standardwerte (SKR03): Erlöse 19% → 8400, Erlöse 7% → 8300. SKR04: 4400 / 4300.
-            Debitorenkonto = Basis-Konto + Kundennummer (z.B. 10000 + 23 = 10023).
-          </p>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#d1fae5;color:#059669;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 9a3.5 3.5 0 100 6M8 11h6M8 13h5"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Erlös- & Debitorenkonten</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Übliche Standardwerte (SKR03): Erlöse 19% → 8400, Erlöse 7% → 8300. SKR04: 4400 / 4300.
+            Debitorenkonto = Basis-Konto + Kundennummer (z.B. 10000 + 23 = 10023).</p>
+            </div>
+          </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Erlöskonto 19% MwSt.</label>

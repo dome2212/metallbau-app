@@ -10,10 +10,15 @@
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6 space-y-6">
           <div class="border-b dark:border-slate-700 pb-3">
-            <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/></svg>Eigene Lagerkategorien</span></h2>
-            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-              Tabs neben den Standard-Tabs (Baustahl, Edelstahl …) hinzufügen – z.B. „Aluminium" oder „Werkzeuge".
-            </p>
+            <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#ccfbf1;color:#0d9488;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Eigene Lagerkategorien</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Tabs neben den Standard-Tabs (Baustahl, Edelstahl …) hinzufügen – z.B. „Aluminium" oder „Werkzeuge".</p>
+            </div>
+          </div>
           </div>
 
           <!-- Standard-Tabs Info -->
@@ -116,12 +121,17 @@
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2"><span class="inline-flex items-center gap-2"><svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>Proaktive Lagerbestand-Warnung</span></h2>
-          <p class="text-xs text-slate-400 mb-4">
-            Bei Aktivierung wird täglich um 07:00 Uhr geprüft, welche Artikel unter ihrem Mindestbestand
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#ccfbf1;color:#0d9488;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Proaktive Lagerbestand-Warnung</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Bei Aktivierung wird täglich um 07:00 Uhr geprüft, welche Artikel unter ihrem Mindestbestand
             liegen, und das Admin-/Chef-Team bekommt eine WhatsApp-Sammelübersicht — statt nur passiv im
-            Dashboard-Widget angezeigt zu werden.
-          </p>
+            Dashboard-Widget angezeigt zu werden.</p>
+            </div>
+          </div>
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="lager_alert_enabled" value="true"
               <%= (firma.lager_alert_enabled === 'true' || firma.lager_alert_enabled === true) ? 'checked' : '' %>

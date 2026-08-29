@@ -5,14 +5,19 @@
 
     <!-- Seitenüberschrift -->
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex justify-between items-center mb-6">
-      <div>
-        <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">⚙️ Admin-Panel</h1>
-        <p class="text-xs text-slate-400 mt-0.5">App-Design, Sidebar, Features und Berechtigungen verwalten</p>
+      <div class="flex items-center gap-3">
+        <span class="icon-tile w-10 h-10 shrink-0" style="background:#e0e7ff;color:#4f46e5;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </span>
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-gray-100">Admin-Panel</h1>
+          <p class="text-xs text-slate-400 mt-0.5">App-Design, Sidebar, Features und Berechtigungen verwalten</p>
+        </div>
       </div>
       <a href="/" class="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition">← Dashboard</a>
     </header>
 
-    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full pb-12">
+    <div class="px-4 md:px-6 max-w-7xl mx-auto w-full pb-12">
 
       <!-- Erfolgsmeldung -->
       <% if (success) { %>
@@ -22,34 +27,54 @@
         <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 4000);</script>
       <% } %>
 
-      <!-- Tab-Navigation -->
-      <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-3 overflow-x-auto">
-        <% const svgIcon = (path) => `<svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; %>
+      <% const svgIcon = (path, cls) => `<svg class="${cls || 'w-4 h-4'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; %>
         <% const tabs = [
-            { id: 'design',   label: 'Design', icon: svgIcon('<path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/>') },
-            { id: 'sidebar',  label: 'Sidebar', icon: svgIcon('<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="12" y="3" width="9" height="18" rx="1"/>') },
-            { id: 'pdf',      label: 'PDF & Dokumente', icon: svgIcon('<path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 12h6"/>') },
-            { id: 'datev',    label: 'DATEV-Export', icon: svgIcon('<path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/>') },
-            { id: 'worktime',   label: 'Arbeitszeit', icon: svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') },
-            { id: 'stampclock', label: 'Stempeluhr', icon: svgIcon('<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 1.5M9 3h6M11 1.5v1.5M13 1.5v1.5"/>') },
-            { id: 'projects',   label: 'Aufträge', icon: svgIcon('<rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01"/>') },
-            { id: 'lager',    label: 'Lager-Tabs', icon: svgIcon('<path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/>') },
-            { id: 'textbausteine', label: 'Textbausteine', icon: svgIcon('<path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>') },
-            { id: 'security', label: 'Sicherheit', icon: svgIcon('<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/>') },
-            { id: 'dashboard',label: 'Dashboard KPIs', icon: svgIcon('<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/>') },
-            { id: 'access',   label: 'Zugriff', icon: svgIcon('<rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/>') },
-            { id: 'info',     label: 'System', icon: svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>') },
+            { id: 'design',   label: 'Design', path: '<path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/>', bg:'#e0e7ff', fg:'#4f46e5' },
+            { id: 'sidebar',  label: 'Sidebar', path: '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="12" y="3" width="9" height="18" rx="1"/>', bg:'#e2e8f0', fg:'#475569' },
+            { id: 'pdf',      label: 'PDF & Dokumente', path: '<path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 12h6"/>', bg:'#dbeafe', fg:'#2563eb' },
+            { id: 'datev',    label: 'DATEV-Export', path: '<path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/>', bg:'#d1fae5', fg:'#059669' },
+            { id: 'worktime',   label: 'Arbeitszeit', path: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', bg:'#fef3c7', fg:'#d97706' },
+            { id: 'stampclock', label: 'Stempeluhr', path: '<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 1.5M9 3h6M11 1.5v1.5M13 1.5v1.5"/>', bg:'#cffafe', fg:'#0891b2' },
+            { id: 'projects',   label: 'Aufträge', path: '<rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01"/>', bg:'#ffedd5', fg:'#ea580c' },
+            { id: 'lager',    label: 'Lager-Tabs', path: '<path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/>', bg:'#ccfbf1', fg:'#0d9488' },
+            { id: 'textbausteine', label: 'Textbausteine', path: '<path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>', bg:'#fae8ff', fg:'#a21caf' },
+            { id: 'security', label: 'Sicherheit', path: '<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/>', bg:'#fee2e2', fg:'#dc2626' },
+            { id: 'dashboard',label: 'Dashboard KPIs', path: '<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/>', bg:'#ede9fe', fg:'#7c3aed' },
+            { id: 'access',   label: 'Zugriff', path: '<rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/>', bg:'#e0f2fe', fg:'#0284c7' },
+            { id: 'info',     label: 'System', path: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>', bg:'#f1f5f9', fg:'#475569' },
           ]; %>
-        <% for (const t of tabs) { %>
-          <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
-            class="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition
-              <%= tab === t.id
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700' %>">
-            <%- t.icon %><%= t.label %>
-          </a>
-        <% } %>
-      </div>
+
+      <div class="md:flex md:gap-6 items-start">
+
+        <!-- Tab-Navigation: mobil als horizontale Pillen -->
+        <div class="md:hidden flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 mb-4 overflow-x-auto">
+          <% for (const t of tabs) { %>
+            <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
+              class="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition"
+              style="<%= tab === t.id ? `background:${t.fg};color:#fff;` : `color:#475569;` %>">
+              <span style="display:inline-flex;<%= tab === t.id ? 'color:#fff' : `color:${t.fg}` %>"><%- svgIcon(t.path, 'w-3.5 h-3.5') %></span>
+              <%= t.label %>
+            </a>
+          <% } %>
+        </div>
+
+        <!-- Tab-Navigation: Desktop als feste Seitenleiste -->
+        <nav class="hidden md:block w-60 shrink-0 sticky top-20 bg-white dark:bg-slate-800 rounded-xl shadow p-2 space-y-0.5">
+          <% for (const t of tabs) { %>
+            <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
+              class="flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition
+                <%= tab === t.id
+                  ? 'bg-slate-100 dark:bg-slate-700/70 text-slate-900 dark:text-white'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40' %>">
+              <span class="icon-tile w-8 h-8 shrink-0" style="background:<%= t.bg %>;color:<%= t.fg %>;"><%- svgIcon(t.path, 'w-4 h-4') %></span>
+              <span class="flex-1 truncate"><%= t.label %></span>
+              <% if (tab === t.id) { %><span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:<%= t.fg %>;"></span><% } %>
+            </a>
+          <% } %>
+        </nav>
+
+        <!-- Inhalt -->
+        <div class="flex-1 min-w-0">
 
       <!-- Schnellsuche über alle Einstellungen -->
       <div class="relative mb-6" id="admin-search-wrap">
@@ -144,6 +169,10 @@
       <%- include('partials/admin/tab-info') %>
       <%- include('partials/admin/tab-lager') %>
       <%- include('partials/admin/tab-textbausteine') %>
+
+        </div><!-- /Inhalt -->
+      </div><!-- /md:flex -->
+    </div><!-- /max-w-7xl -->
 </main>
 
 <script>
