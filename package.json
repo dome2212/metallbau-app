@@ -10,12 +10,10 @@
   "scripts": {
     "start": "node server.js",
     "start:force": "node server.js",
-    "prestart": "npm run build:css",
     "build:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --minify",
     "watch:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --watch",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
-    "postinstall": "npm run build:css",
     "test:perms": "node scripts/test-perms.js"
   },
   "dependencies": {
