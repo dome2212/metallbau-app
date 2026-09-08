@@ -4,17 +4,16 @@
   "description": "Metallbau Management System",
   "main": "server.js",
   "type": "commonjs",
-  "engines": {
-    "node": "20.x"
-  },
   "scripts": {
     "start": "node server.js",
     "start:force": "node server.js",
+    "prestart": "npm run build:css",
     "build:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --minify",
     "watch:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --watch",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
-    "test:perms": "node scripts/test-perms.js"
+    "postinstall": "npm run build:css",
+    "rebuild:sqlite": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",
@@ -37,7 +36,7 @@
     "web-push": "^3.6.7",
     "ws": "^8.18.0"
   },
-  "devDependencies": {
+  "optionalDependencies": {
     "sqlite3": "^6.0.1"
   }
 }
