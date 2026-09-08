@@ -1,4 +1,11 @@
 const { Pool } = require('pg');
+let sqlite3;
+try {
+  sqlite3 = require('sqlite3').verbose();
+} catch (e) {
+  // sqlite3 ist auf Render (nur PostgreSQL via DATABASE_URL) absichtlich nicht installiert
+  sqlite3 = null;
+}
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -9,9 +16,13 @@ if (process.env.DATABASE_URL) {
   // Cloud (Render / PostgreSQL)
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    // Timezone über Startup-Option statt query-on-connect (vermeidet pg-Deprecation)
-    options: '-c timezone=UTC'
+    ssl: { rejectUnauthorized: false }
+  });
+
+  // Pool-Verbindungen auf UTC halten — Timestamps werden als UTC gespeichert
+  // und beim Lesen serverseitig nach Europe/Berlin konvertiert
+  db.on('connect', (client) => {
+    client.query("SET timezone = 'UTC';").catch(() => {});
   });
 
   console.log("🟢 Versuche mit PostgreSQL zu verbinden und Tabellen zu erstellen...");
@@ -33,12 +44,7 @@ if (process.env.DATABASE_URL) {
       // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
       db.query(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
         if (err) console.error("⚠️ Migration ADMIN→CHEF:", err.message);
-        else {
-        console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
-        db.query(`UPDATE users SET role = 'EMPLOYEE' WHERE role = 'SECRETARY'`, (e) => {
-          if (!e) console.log("✅ Rollen-Migration SECRETARY→EMPLOYEE abgeschlossen.");
-        });
-      }
+        else console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
       });
     }
   });
@@ -483,10 +489,7 @@ if (process.env.DATABASE_URL) {
   db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_notify BOOLEAN DEFAULT true`, () => {});
 
 } else {
-  // Lokale Entwicklung (SQLite) – wird nur hier benötigt, daher lazy require,
-  // damit sqlite3 auf Render (wo DATABASE_URL gesetzt ist) gar nicht erst
-  // installiert/geladen werden muss.
-  const sqlite3 = require('sqlite3').verbose();
+  // Lokale Entwicklung (SQLite)
   const dbPath = path.join(__dirname, '../database.sqlite');
   db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -832,7 +835,6 @@ if (process.env.DATABASE_URL) {
 
       // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
       db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
-      db.run(`UPDATE users SET role = 'EMPLOYEE' WHERE role = 'SECRETARY'`, () => {});
         if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
       });
       // Chef-User lokal prüfen/anlegen (nur wenn noch kein CHEF existiert)
