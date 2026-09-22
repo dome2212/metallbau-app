@@ -49,6 +49,41 @@
           </button>
         </div>
 
+        <!-- Schnell-Einfügen: Artikelstamm & Textbausteine -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-[11px] font-bold text-blue-700 dark:text-blue-400 mb-1 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
+              Aus Artikelstamm hinzufügen
+            </label>
+            <select id="articleSelectInv" onchange="addArticleRow(this)"
+              class="w-full border border-blue-200 dark:border-blue-700 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-blue-50/50 dark:bg-slate-700">
+              <option value="">-- Artikel/Leistung wählen --</option>
+              <% if (typeof articles !== 'undefined' && articles.length > 0) { %>
+                <% articles.forEach(art => { %>
+                  <option value="<%= art.id %>"
+                    data-title="<%= art.title %>"
+                    data-unit="<%= art.unit %>"
+                    data-price="<%= art.unit_price %>"
+                    data-desc="<%= art.description || '' %>">
+                    <%= art.title %> (<%= parseFloat(art.unit_price || 0).toFixed(2) %> € / <%= art.unit %>)
+                  </option>
+                <% }); %>
+              <% } %>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.1 2.1 0 013 3L10 16a4 4 0 01-5.7-5.7L13 1.6"/></svg>
+              Textbaustein einfügen
+            </label>
+            <select id="snippetSelectInv" onchange="addSnippetRow(this)"
+              class="w-full border border-purple-200 dark:border-purple-700 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2 text-sm bg-purple-50/50">
+              <option value="">-- Textbaustein wählen --</option>
+            </select>
+          </div>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-sm min-w-[600px]" id="positions-table">
             <thead>
@@ -168,25 +203,59 @@ function updateSums() {
   document.getElementById('total-display').textContent    = fmt(total);
 }
 
+// ── Artikel aus Artikelstamm als Position übernehmen ────────────────────────
+function addArticleRow(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt.value) return;
+  const title = opt.getAttribute('data-title') + (opt.getAttribute('data-desc') ? ' - ' + opt.getAttribute('data-desc') : '');
+  addRow({ description: title, unit: opt.getAttribute('data-unit') || 'Stk', price: opt.getAttribute('data-price') || 0 });
+  selectEl.value = '';
+}
+
+// ── Textbaustein als Position übernehmen ─────────────────────────────────────
+function addSnippetRow(selectEl) {
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt.value) return;
+  addRow({ description: opt.getAttribute('data-text') || opt.textContent, unit: 'Psch', price: 0 });
+  selectEl.value = '';
+}
+
+// ── Textbaustein-Dropdown beim Laden befüllen ────────────────────────────────
+(function populateSnippets() {
+  const sel = document.getElementById('snippetSelectInv');
+  if (!sel || typeof window.TEXT_SNIPPETS === 'undefined') return;
+  window.TEXT_SNIPPETS.forEach(sn => {
+    const o = document.createElement('option');
+    o.value = sn.key || sn.label;
+    o.textContent = sn.label;
+    o.setAttribute('data-text', sn.text || '');
+    sel.appendChild(o);
+  });
+})();
+
 // ── Zeile hinzufügen ────────────────────────────────────────────────────────
-function addRow() {
+function addRow(prefill) {
   const tbody = document.getElementById('positions-body');
   const tr = document.createElement('tr');
   tr.className = 'pos-row border-b dark:border-slate-700';
+  const desc  = prefill && prefill.description ? prefill.description : '';
+  const unit  = prefill && prefill.unit ? prefill.unit : 'Stk';
+  const price = prefill && prefill.price !== undefined ? parseFloat(prefill.price) || 0 : 0;
   tr.innerHTML = `
-    <td class="p-2"><input type="text" name="description" placeholder="Beschreibung"
+    <td class="p-2"><input type="text" name="description" value="${desc.replace(/"/g, '&quot;')}" placeholder="Beschreibung"
       class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
     <td class="p-2"><input type="number" name="quantity" value="1" min="0.01" step="0.01" onchange="recalc(this)"
       class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
-    <td class="p-2"><input type="text" name="unit" value="Stk"
+    <td class="p-2"><input type="text" name="unit" value="${unit}"
       class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
-    <td class="p-2"><input type="number" name="price" value="0.00" min="0" step="0.01" onchange="recalc(this)"
+    <td class="p-2"><input type="number" name="price" value="${price.toFixed(2)}" min="0" step="0.01" onchange="recalc(this)"
       class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1 text-sm text-right focus:ring-1 focus:ring-blue-400 focus:outline-none"></td>
-    <td class="p-2 text-right font-semibold text-slate-700 dark:text-slate-200 row-total">0,00 €</td>
+    <td class="p-2 text-right font-semibold text-slate-700 dark:text-slate-200 row-total">${price.toFixed(2)} €</td>
     <td class="p-2"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-600 text-lg font-bold leading-none">×</button></td>
   `;
   tbody.appendChild(tr);
-  tr.querySelector('[name="description"]').focus();
+  updateSums();
+  if (!prefill) tr.querySelector('[name="description"]').focus();
 }
 
 // ── Zeile entfernen ─────────────────────────────────────────────────────────

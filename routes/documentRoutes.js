@@ -144,7 +144,8 @@ router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
     }
 
     await dbQuery(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?`, [offer_id]);
-    res.redirect('/documents/invoices');
+    // Direkt zur neuen Rechnung statt zur Liste – ein Klick weniger bis zum Ergebnis
+    res.redirect('/documents/invoices/' + newDocId);
   } catch (err) {
     console.error('Fehler beim Umwandeln Angebot→Rechnung:', err.message);
     res.status(500).send('Fehler beim Umwandeln.');
@@ -333,7 +334,8 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
         [docId, item.description, item.quantity, item.unit, item.price]
       );
     }
-    res.redirect('/documents/invoices');
+    // Direkt zur neuen Rechnung – sofort sichtbar, PDF/Versand ohne Umweg über die Liste
+    res.redirect('/documents/invoices/' + docId);
   } catch (err) {
     console.error('Fehler bei POST /documents/create-invoice:', err.message);
     res.status(500).send('Fehler beim Anlegen der Rechnung.');

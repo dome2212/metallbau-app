@@ -959,7 +959,8 @@ router.get('/:id/create-invoice', requireAdmin, async (req, res) => {
       .map(r => ({ ...r, hours: Math.round(parseFloat(r.hours) * 100) / 100 }));
 
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    res.render('project-invoice-create', { project, hourRows, invoiceNumber });
+    const articlesRes = await dbQuery(`SELECT id, title, unit, unit_price, description FROM articles ORDER BY title ASC`).catch(() => ({ rows: [] }));
+    res.render('project-invoice-create', { project, hourRows, invoiceNumber, articles: articlesRes.rows || [] });
   } catch (err) {
     console.error('Fehler bei Rechnungsvorschau:', err.message);
     res.status(500).send('Fehler beim Laden der Rechnungsvorschau');
@@ -976,12 +977,12 @@ router.post('/:id/create-invoice', requireAdmin, async (req, res) => {
   const prices = Array.isArray(price)       ? price       : (price       ? [price]       : []);
 
   const itemsToInsert = [];
-  let totalAmount = 0;
+  let subtotal = 0;
   for (let i = 0; i < descs.length; i++) {
     if (!descs[i] || descs[i].trim() === '') continue;
     const qty = parseFloat(String(qtys[i]   || '1').replace(',', '.')) || 1;
     const prc = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
-    totalAmount += qty * prc;
+    subtotal += qty * prc;
     itemsToInsert.push({ description: descs[i].trim(), quantity: qty, unit: units[i] || 'Psch', price: prc });
   }
 
@@ -990,20 +991,30 @@ router.post('/:id/create-invoice', requireAdmin, async (req, res) => {
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + days);
 
+  const taxRate    = parseFloat(_firma.default_tax_rate || 19);
+  const taxAmount  = subtotal * (taxRate / 100);
+  const totalGross = subtotal + taxAmount;
+
   try {
     const projRes    = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [id]);
     const customerId = projRes.rows[0]?.customer_id || null;
-    const invRes     = await dbQuery(
-      `INSERT INTO invoices (invoice_number, customer_id, total_amount, status, due_date) VALUES (?, ?, ?, 'Gesendet', ?)`,
-      [invoice_number, customerId, totalAmount, dueDate.toISOString().split('T')[0]]
+
+    // Rechnung im selben "documents"-System anlegen wie Angebote & direkt erstellte
+    // Rechnungen (doc_type = 'INVOICE'), damit sie überall konsistent auftaucht
+    // (Liste, PDF, DATEV-Export, Mahnwesen) und die Weiterleitung danach funktioniert.
+    const insertRes = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
+      [invoice_number, customerId, taxRate, subtotal, taxAmount, totalGross, dueDate.toISOString().split('T')[0]]
     );
-    const invoiceId = invRes.lastID;
+    const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
+
     for (const item of itemsToInsert) {
-      await dbQuery('INSERT INTO invoice_items (invoice_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
-        [invoiceId, item.description, item.quantity, item.unit, item.price]);
+      await dbQuery('INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
+        [docId, item.description, item.quantity, item.unit, item.price]);
     }
     await dbQuery("UPDATE projects SET status = 'Abgeschlossen' WHERE id = ?", [id]).catch(() => {});
-    res.redirect('/documents/invoices/' + invoiceId);
+    res.redirect('/documents/invoices/' + docId);
   } catch (err) {
     console.error('Fehler beim Erstellen der Rechnung aus Auftrag:', err.message);
     res.status(500).send('Fehler beim Erstellen der Rechnung');
