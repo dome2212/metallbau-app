@@ -8,8 +8,8 @@
     "node": "20.x"
   },
   "scripts": {
-    "start": "node server.js",
-    "start:force": "node server.js",
+    "start": "node --env-file=.env server.js",
+    "start:force": "node --env-file=.env server.js",
     "prestart": "npm run build:css",
     "build:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --minify",
     "watch:css": "tailwindcss -i ./Public/css/input.css -o ./Public/css/tailwind.min.css --watch",
@@ -41,5 +41,8 @@
   },
   "optionalDependencies": {
     "sqlite3": "^6.0.1"
+  },
+  "allowScripts": {
+    "sqlite3@6.0.1": true
   }
 }
