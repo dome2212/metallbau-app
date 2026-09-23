@@ -447,10 +447,26 @@ router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
       [level, note, subtotal, taxAmount, totalAmount, id]
     );
 
+    // Mahnungs-Historie speichern
+    const feeLogged = applyFee ? (parseFloat(
+      (req.body.dunning_fee_override !== undefined && req.body.dunning_fee_override !== '')
+        ? req.body.dunning_fee_override
+        : (firma[level === 1 ? 'dunning_fee_1' : level === 2 ? 'dunning_fee_2' : 'dunning_fee_3'] || 0)
+    ) || 0) : 0;
+    try {
+      await dbQuery(
+        `INSERT INTO dunning_history (document_id, dunning_level, fee_amount, note, created_by)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, level, feeLogged, note, req.user?.id || null]
+      );
+    } catch (histErr) {
+      console.warn('dunning_history Insert (Migration 15 nötig?):', histErr.message);
+    }
+
     if (downloadPdf) {
       return res.redirect(`/documents/invoices/${id}/pdf-download`);
     }
-    res.redirect(`/documents/invoices/${id}?mahnung=1`);
+    res.redirect(`/documents/invoices/${id}?mahnung=1&tab=mahnungen`);
   } catch (err) {
     console.error('Fehler bei POST /invoices/:id/create-dunning:', err.message);
     res.status(500).send('Fehler beim Erstellen der Mahnung.');
@@ -534,10 +550,26 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    let dunningHistory = [];
+    try {
+      const histRes = await dbQuery(
+        `SELECT h.*, u.username AS created_by_name
+         FROM dunning_history h
+         LEFT JOIN users u ON h.created_by = u.id
+         WHERE h.document_id = ?
+         ORDER BY h.created_at DESC, h.id DESC`,
+        [id]
+      );
+      dunningHistory = histRes.rows || [];
+    } catch (_) {
+      dunningHistory = [];
+    }
     res.render('invoice-detail', {
       invoice,
       items: itemsRes.rows || [],
       firma,
+      dunningHistory,
+      activeTab: req.query.tab === 'mahnungen' ? 'mahnungen' : 'rechnung',
       canSeeMoney: canSeeMoney(req.user, firma),
       mahnungOk: req.query.mahnung === '1',
       savedOk: req.query.saved === '1'
