@@ -179,7 +179,8 @@ router.get('/', async (req, res) => {
         dbQuery(`SELECT COUNT(*) as count FROM project_tasks WHERE status = 'Offen'`),
         dbQuery(`SELECT documents.id, documents.doc_number, documents.doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
           FROM documents LEFT JOIN customers ON documents.customer_id = customers.id
-          ORDER BY documents.id DESC LIMIT 5`),
+          WHERE documents.doc_type IN ('OFFER','INVOICE','CREDIT')
+          ORDER BY documents.id DESC LIMIT 8`),
         dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10'),
         dbQuery('SELECT settings_json FROM user_settings WHERE user_id = ?', [userId]),
         dbQuery(sqlOverdueTasks),

@@ -441,12 +441,15 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
 router.post('/invoices/delete', requireAdmin, async (req, res) => {
   const { invoice_id } = req.body;
   try {
-    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [invoice_id]);
-    await dbQuery(`DELETE FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [invoice_id]);
+    const id = invoice_id;
+    try { await dbQuery(`DELETE FROM invoice_payments WHERE document_id = ?`, [id]); } catch (_) {}
+    try { await dbQuery(`DELETE FROM dunning_history WHERE document_id = ?`, [id]); } catch (_) {}
+    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
+    await dbQuery(`DELETE FROM documents WHERE id = ?`, [id]);
     res.redirect('/documents/invoices');
   } catch (err) {
     console.error('Fehler beim Löschen der Rechnung:', err.message);
-    res.status(500).send('Fehler beim Löschen.');
+    res.status(500).send('Fehler beim Löschen: ' + err.message);
   }
 });
 
@@ -1460,6 +1463,30 @@ router.post('/delivery/:id/status', requireAdmin, async (req, res) => {
     res.redirect('/documents/delivery/' + id);
   } catch (err) {
     res.status(500).send(err.message);
+  }
+});
+
+
+
+
+// ADMIN: Alle Belege zurücksetzen
+router.post('/admin/reset-documents', requireAdmin, async (req, res) => {
+  try {
+    const confirm = (req.body.confirm || '').toString().trim().toUpperCase();
+    if (confirm !== 'RESET') {
+      return res.status(400).send('Zur Bestätigung muss confirm=RESET gesendet werden.');
+    }
+    try { await dbQuery(`DELETE FROM invoice_payments`); } catch (_) {}
+    try { await dbQuery(`DELETE FROM dunning_history`); } catch (_) {}
+    try { await dbQuery(`DELETE FROM document_items`); } catch (_) {}
+    try { await dbQuery(`DELETE FROM offer_nachtrag_items`); } catch (_) {}
+    try { await dbQuery(`DELETE FROM offer_nachtraege`); } catch (_) {}
+    await dbQuery(`DELETE FROM documents`);
+    console.log('[Admin] Alle Belege gelöscht von', req.user && req.user.username);
+    res.redirect('/documents/invoices?reset=ok');
+  } catch (err) {
+    console.error('reset-documents:', err.message);
+    res.status(500).send('Reset fehlgeschlagen: ' + err.message);
   }
 });
 
