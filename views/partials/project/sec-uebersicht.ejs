@@ -4,6 +4,18 @@
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
       <div class="sec-body">
+      <div class="mt-4 flex flex-wrap gap-2">
+        <% if (project.customer_id) { %>
+          <a href="/customers/<%= project.customer_id %>" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50">Kundenakte</a>
+          <form action="/documents/delivery/create" method="POST" class="inline">
+            <input type="hidden" name="customer_id" value="<%= project.customer_id %>">
+            <input type="hidden" name="project_id" value="<%= project.id %>">
+            <button type="submit" class="text-xs px-3 py-1.5 rounded-lg bg-orange-600 text-white font-semibold">Lieferschein erstellen</button>
+          </form>
+        <% } %>
+        <a href="#sec-abnahme" class="text-xs px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 nav-chip-link" data-target="sec-abnahme">Zur Abnahme</a>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Kundendaten & Details -->
         <div class="card-clean space-y-4">
