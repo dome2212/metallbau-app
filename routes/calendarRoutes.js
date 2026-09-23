@@ -358,12 +358,11 @@ router.post('/api/appointments/delete/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // WOCHEN- / MONTAGEPLAN
 // ==========================================
+
 router.get('/montageplan', async (req, res) => {
   try {
-    // Woche: ?week=YYYY-MM-DD (Montag) oder aktuell
     let start = req.query.week ? new Date(req.query.week + 'T12:00:00') : new Date();
-    // auf Montag normalisieren
-    const day = start.getDay(); // 0 So
+    const day = start.getDay();
     const diff = day === 0 ? -6 : 1 - day;
     start.setDate(start.getDate() + diff);
     start.setHours(0, 0, 0, 0);
@@ -374,18 +373,43 @@ router.get('/montageplan', async (req, res) => {
     const startStr = start.toISOString().slice(0, 10);
     const endStr = end.toISOString().slice(0, 10);
 
-    const appsRes = await dbQuery(`
-      SELECT a.*,
-             c.company_name, c.contact_person,
-             p.title AS project_name, p.id AS pid
-      FROM appointments a
-      LEFT JOIN customers c ON a.customer_id = c.id
-      LEFT JOIN projects p ON a.project_id = p.id
-      WHERE a.start_date >= ? AND a.start_date <= ?
-      ORDER BY a.start_date ASC
-    `, [startStr + 'T00:00:00', endStr + 'T23:59:59']);
+    const [appsRes, usersRes, vacRes, staffRes, projRes] = await Promise.all([
+      dbQuery(`
+        SELECT a.*,
+               c.company_name, c.contact_person,
+               p.title AS project_name, p.id AS pid
+        FROM appointments a
+        LEFT JOIN customers c ON a.customer_id = c.id
+        LEFT JOIN projects p ON a.project_id = p.id
+        WHERE a.start_date >= ? AND a.start_date <= ?
+        ORDER BY a.start_date ASC
+      `, [startStr + 'T00:00:00', endStr + 'T23:59:59']),
+      dbQuery(`SELECT id, username, role FROM users WHERE role IN ('EMPLOYEE','CHEF','ADMIN') ORDER BY username ASC`),
+      dbQuery(`
+        SELECT v.*, u.username
+        FROM vacations v
+        LEFT JOIN users u ON v.user_id = u.id
+        WHERE v.status = 'Genehmigt'
+          AND v.start_date <= ?
+          AND v.end_date >= ?
+      `, [endStr, startStr]).catch(() => ({ rows: [] })),
+      dbQuery(`
+        SELECT sa.*, u.username, p.title AS project_title
+        FROM staff_assignments sa
+        LEFT JOIN users u ON sa.user_id = u.id
+        LEFT JOIN projects p ON sa.project_id = p.id
+        WHERE sa.assignment_date >= ? AND sa.assignment_date <= ?
+      `, [startStr, endStr]).catch(() => ({ rows: [] })),
+      dbQuery(`SELECT id, title, status FROM projects WHERE status IS NULL OR status NOT IN ('Abgeschlossen','Archiviert') ORDER BY title ASC`).catch(() => ({ rows: [] }))
+    ]);
 
     const apps = appsRes.rows || [];
+    const users = usersRes.rows || [];
+    const vacations = vacRes.rows || [];
+    const staffRows = staffRes.rows || [];
+    const projects = projRes.rows || [];
+
+    // appointment → assigned users
     const ids = apps.map(a => a.id);
     let assignMap = {};
     if (ids.length) {
@@ -398,8 +422,24 @@ router.get('/montageplan', async (req, res) => {
       );
       for (const row of (au.rows || [])) {
         if (!assignMap[row.appointment_id]) assignMap[row.appointment_id] = [];
-        assignMap[row.appointment_id].push(row.username);
+        assignMap[row.appointment_id].push({ id: row.user_id, username: row.username });
       }
+    }
+
+    // staff_assignments by user+date
+    const staffMap = {}; // userId -> { date -> assignment }
+    for (const sa of staffRows) {
+      if (!staffMap[sa.user_id]) staffMap[sa.user_id] = {};
+      staffMap[sa.user_id][sa.assignment_date] = sa;
+    }
+
+    // vacation check helper
+    function isOnVacation(userId, dateStr) {
+      for (const v of vacations) {
+        if (Number(v.user_id) !== Number(userId)) continue;
+        if (v.start_date <= dateStr && v.end_date >= dateStr) return v;
+      }
+      return null;
     }
 
     const days = [];
@@ -411,19 +451,56 @@ router.get('/montageplan', async (req, res) => {
         ...a,
         assignees: assignMap[a.id] || []
       }));
+
+      // personal summary for this day
+      const personal = users.map(u => {
+        const vac = isOnVacation(u.id, ds);
+        const staff = (staffMap[u.id] && staffMap[u.id][ds]) || null;
+        const onApps = dayApps.filter(a => (a.assignees || []).some(x => Number(x.id) === Number(u.id)));
+        let status = 'frei';
+        let label = 'Frei / Werkstatt';
+        if (vac) {
+          status = 'urlaub';
+          label = vac.type || 'Abwesend';
+        } else if (onApps.length) {
+          status = 'termin';
+          label = onApps.map(a => a.title || a.project_name || 'Termin').join(', ');
+        } else if (staff && staff.project_id) {
+          status = 'baustelle';
+          label = staff.project_title || staff.note || 'Baustelle';
+        } else if (staff && staff.note) {
+          status = 'notiz';
+          label = staff.note;
+        }
+        return { user: u, status, label, vac, staff, onApps };
+      });
+
       days.push({
         date: ds,
         label: d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' }),
         isToday: ds === new Date().toISOString().slice(0, 10),
-        apps: dayApps
+        apps: dayApps,
+        personal
       });
     }
 
     const prev = new Date(start); prev.setDate(prev.getDate() - 7);
     const next = new Date(start); next.setDate(next.getDate() + 7);
 
+    // week overview matrix: users x days (for personalplanung table)
+    const matrix = users.map(u => {
+      const cells = days.map(day => {
+        const p = day.personal.find(x => Number(x.user.id) === Number(u.id));
+        return p || { status: 'frei', label: '—' };
+      });
+      return { user: u, cells };
+    });
+
     res.render('montageplan', {
       days,
+      matrix,
+      users,
+      projects,
       weekStart: startStr,
       weekLabel: start.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
         + ' – ' + end.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }),
