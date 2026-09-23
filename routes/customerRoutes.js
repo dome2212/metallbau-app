@@ -86,11 +86,12 @@ router.post('/add', async (req, res) => {
 router.post('/edit', async (req, res) => {
   const firma = await getFirma();
   if (!hasPerm(req.user, 'customers', firma, true, false)) return res.status(403).send('Kein Zugriff');
-  const { id, company_name, contact_person, email, phone, street, zip, city, customer_number } = req.body;
+  const { id, company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id, leitweg_id, notes } = req.body;
   try {
     await dbQuery(
-      `UPDATE customers SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?, customer_number = ? WHERE id = ?`,
-      [company_name || null, contact_person || null, email || null, phone || null, street || null, zip || null, city || null, customer_number || null, id]
+      `UPDATE customers SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?, customer_number = ?,
+        ust_id = ?, leitweg_id = ?, notes = COALESCE(?, notes) WHERE id = ?`,
+      [company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id || null, leitweg_id || null, notes || null, id]
     );
     res.redirect('/customers');
   } catch (err) {
@@ -114,6 +115,68 @@ router.post('/delete', async (req, res) => {
 // ==========================================
 // PROJEKTE EINES KUNDEN
 // ==========================================
+
+// ==========================================
+// KUNDENAKTE
+// ==========================================
+router.get('/:id', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/customers">← Zurück</a>');
+  }
+  const { id } = req.params;
+  try {
+    const custRes = await dbQuery('SELECT * FROM customers WHERE id = ?', [id]);
+    const customer = custRes.rows?.[0];
+    if (!customer) return res.status(404).send('Kunde nicht gefunden');
+
+    const [offersRes, invoicesRes, deliveriesRes, projectsRes, filesRes] = await Promise.all([
+      dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC`, [id]),
+      dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type IN ('INVOICE','CREDIT') ORDER BY created_at DESC`, [id]),
+      dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'DELIVERY' ORDER BY created_at DESC`, [id]).catch(() => ({ rows: [] })),
+      dbQuery(`SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC`, [id]),
+      dbQuery(`SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC`, [id]).catch(() => ({ rows: [] })),
+    ]);
+
+    res.render('customer-detail', {
+      customer,
+      offers: offersRes.rows || [],
+      invoices: invoicesRes.rows || [],
+      deliveries: deliveriesRes.rows || [],
+      projects: projectsRes.rows || [],
+      files: filesRes.rows || [],
+      user: req.user,
+      currentUser: req.user,
+      firma
+    });
+  } catch (err) {
+    console.error('Kundenakte:', err.message);
+    res.status(500).send('Fehler beim Laden der Kundenakte: ' + err.message);
+  }
+});
+
+
+
+router.post('/:id/edit', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) return res.status(403).send('403');
+  const { id } = req.params;
+  const { company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id, leitweg_id, notes } = req.body;
+  try {
+    await dbQuery(
+      `UPDATE customers SET company_name = ?, contact_person = ?, email = ?, phone = ?, street = ?, zip = ?, city = ?, customer_number = ?,
+       ust_id = ?, leitweg_id = ?, notes = ? WHERE id = ?`,
+      [company_name, contact_person, email, phone, street, zip, city, customer_number || null,
+       ust_id || null, leitweg_id || null, notes || null, id]
+    );
+    res.redirect('/customers/' + id);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Fehler beim Speichern');
+  }
+});
+
+
 router.get('/:id/projects', async (req, res) => {
   const { id } = req.params;
   try {

@@ -6,7 +6,7 @@ const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma, setFirmaValue }    = require('../utils/companySettings');
 const { sendEmail }                  = require('../utils/notifier');
 const { generateDocumentPDF, generateDocumentPDFBuffer } = require('../utils/pdfGenerator');
-const { buildXRechnungXml } = require('../utils/xrechnung');
+const { buildXRechnungXml, validateXRechnung } = require('../utils/xrechnung');
 const { buildDatevCsv }               = require('../utils/datevExport');
 
 // ══════════════════════════════════════════════════════════════
@@ -1351,6 +1351,19 @@ router.get('/invoices/:id/xrechnung', requireAdmin, async (req, res) => {
       email: invoice.email, phone: invoice.phone,
       ust_id: invoice.ust_id, leitweg_id: invoice.leitweg_id
     };
+    const check = validateXRechnung({
+      invoice, items: itemsRes.rows || [], customer, firma
+    });
+    if (req.query.check === '1' || req.query.validate === '1') {
+      return res.json(check);
+    }
+    if (!check.ok && req.query.force !== '1') {
+      return res.status(400).send(
+        'E-Rechnung unvollständig:\n- ' + check.errors.join('\n- ') +
+        (check.warnings.length ? '\n\nHinweise:\n- ' + check.warnings.join('\n- ') : '') +
+        '\n\nKundenakte öffnen und Leitweg-ID pflegen, oder mit ?force=1 trotzdem laden.'
+      );
+    }
     const xml = buildXRechnungXml({ invoice, items: itemsRes.rows || [], customer, firma });
     const filename = `XRechnung-${invoice.invoice_number || id}.xml`;
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
@@ -1359,6 +1372,94 @@ router.get('/invoices/:id/xrechnung', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('XRechnung:', err.message);
     res.status(500).send('Fehler E-Rechnung: ' + err.message);
+  }
+});
+
+
+
+
+// ==========================================
+// LIEFERSCHEIN
+// ==========================================
+router.post('/delivery/create', requireAdmin, async (req, res) => {
+  try {
+    const { customer_id, project_id, related_document_id, note } = req.body;
+    if (!customer_id) return res.status(400).send('customer_id erforderlich');
+    const year = new Date().getFullYear();
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'DELIVERY'`);
+    const nextNum = String((parseInt(countRes.rows[0]?.count || countRes.rows[0]?.COUNT || 0, 10)) + 1).padStart(4, '0');
+    const docNumber = `LS-${year}-${nextNum}`;
+    const ins = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, project_id, related_document_id)
+       VALUES ('DELIVERY', ?, ?, 'OFFEN', 0, 0, 0, 0, ?, ?)`,
+      [docNumber, customer_id, project_id || null, related_document_id || null]
+    );
+    const newId = ins.lastID || ins.rows?.[0]?.id;
+    // optional: copy items from related invoice/offer
+    if (related_document_id) {
+      const items = await dbQuery(`SELECT * FROM document_items WHERE document_id = ?`, [related_document_id]);
+      for (const it of (items.rows || [])) {
+        await dbQuery(
+          `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
+          [newId, it.description, it.quantity, it.unit, 0]
+        );
+      }
+    }
+    if (note) {
+      await dbQuery(`INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, 1, 'pausch', 0)`,
+        [newId, note]);
+    }
+    res.redirect('/documents/delivery/' + newId);
+  } catch (err) {
+    console.error('Lieferschein create:', err.message);
+    res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+router.get('/delivery/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const docRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type = 'DELIVERY'`, [id]);
+    const doc = docRes.rows?.[0];
+    if (!doc) return res.status(404).send('Lieferschein nicht gefunden');
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id`, [id]);
+    res.render('delivery-detail', {
+      delivery: doc,
+      items: itemsRes.rows || [],
+      user: req.user,
+      currentUser: req.user
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/delivery/:id/items', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, quantity, unit } = req.body;
+    if (!description) return res.status(400).send('Beschreibung fehlt');
+    await dbQuery(
+      `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, 0)`,
+      [id, description, quantity || 1, unit || 'Stk']
+    );
+    res.redirect('/documents/delivery/' + id);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/delivery/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    await dbQuery(`UPDATE documents SET status = ? WHERE id = ? AND doc_type = 'DELIVERY'`, [status || 'OFFEN', id]);
+    res.redirect('/documents/delivery/' + id);
+  } catch (err) {
+    res.status(500).send(err.message);
   }
 });
 
