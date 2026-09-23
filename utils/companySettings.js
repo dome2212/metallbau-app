@@ -56,7 +56,8 @@ const DEFAULTS = {
   pdf_intro_invoice:   'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:',          // Einleitungstext Rechnung
 
   // ── Arbeitszeit ────────────────────────────────────────────────
-  work_hours_per_day:  '8',        // Soll-Stunden pro Arbeitstag
+  work_hours_per_day:  '8',
+  hourly_rate:        '55',       // Interner Stundensatz Nachkalkulation (€)        // Soll-Stunden pro Arbeitstag
   vacation_days_default: '30',     // Urlaubstage pro Jahr (neue MA)
   break_auto_minutes:  '0',        // Pausenabzug ab X Minuten Arbeitszeit (0 = deaktiviert)
   break_trigger_hours: '6',        // Pause abziehen wenn Arbeitstag > X Stunden

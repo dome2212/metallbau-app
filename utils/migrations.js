@@ -583,6 +583,31 @@ const MIGRATIONS = [
     }
   },
 
+
+  // ── 016 ── Zahlungen, Gutschriften-Felder ───────────────────────────────────
+  {
+    id: 16,
+    description: 'invoice_payments + paid_amount/related_document_id/sent_at an documents',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS invoice_payments (
+        id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        document_id   INT NOT NULL,
+        amount        NUMERIC(12,2) NOT NULL,
+        payment_date  TEXT NOT NULL,
+        method        TEXT DEFAULT 'Überweisung',
+        note          TEXT,
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_invoice_payments_doc ON invoice_payments(document_id)`);
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} paid_amount NUMERIC(12,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} related_document_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} sent_at TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_percent NUMERIC(5,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_days INT DEFAULT 0`); } catch (_) {}
+    }
+  },
+
   // ── 017 ── Putzplan ─────────────────────────────────────────────────────────
   {
     id: 17,
@@ -638,8 +663,19 @@ const MIGRATIONS = [
     }
   },
 
-];
+  // ── 018 ── Nachkalkulation / E-Rechnung Kundenfelder ────────────────────────
+  {
+    id: 18,
+    description: 'offer_id/planned_hours an projects, ust_id/leitweg_id an customers',
+    async up() {
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} offer_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} planned_hours NUMERIC(10,2)`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE customers ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} ust_id TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE customers ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} leitweg_id TEXT`); } catch (_) {}
+    }
+  },
 
+];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 async function runMigrations() {
