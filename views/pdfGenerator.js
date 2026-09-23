@@ -281,11 +281,21 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
        .text(`${docLabel} Nr. ${docNr}`, ML, titleY);
   }
 
-  const introText = isDunning
-    ? 'Sehr geehrte Damen und Herren,\ntrotz unserer Rechnung haben wir bisher keinen Zahlungseingang feststellen können.\nWir bitten Sie, den ausstehenden Betrag umgehend zu begleichen.'
-    : isOffer
-      ? (firma.pdf_intro_offer || 'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:')
-      : (firma.pdf_intro_invoice || 'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:');
+  let introText;
+  if (isDunning) {
+    const lvl = invoice.dunning_level || 1;
+    if (lvl === 1) {
+      introText = 'Sehr geehrte Damen und Herren,\nleider konnten wir bisher keinen Zahlungseingang zu unserer Rechnung feststellen.\nWir bitten Sie höflich, den offenen Betrag zeitnah zu überweisen.';
+    } else if (lvl === 2) {
+      introText = 'Sehr geehrte Damen und Herren,\ntrotz unserer Zahlungserinnerung ist der Rechnungsbetrag noch nicht bei uns eingegangen.\nWir fordern Sie auf, den ausstehenden Betrag innerhalb von 7 Tagen zu begleichen.';
+    } else {
+      introText = 'Sehr geehrte Damen und Herren,\ndies ist unsere letzte Mahnung. Der Rechnungsbetrag ist nach wie vor offen.\nSollte die Zahlung nicht innerhalb von 5 Tagen erfolgen, behalten wir uns weitere rechtliche Schritte vor.';
+    }
+  } else if (isOffer) {
+    introText = firma.pdf_intro_offer || 'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:';
+  } else {
+    introText = firma.pdf_intro_invoice || 'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:';
+  }
 
   doc.fontSize(9).fillColor(grayText).font('Helvetica')
      .text(introText, ML, doc.y + 8, { width: PAGE_W, lineGap: 2 });
