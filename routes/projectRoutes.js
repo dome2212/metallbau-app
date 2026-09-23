@@ -427,6 +427,41 @@ router.get('/:id', async (req, res) => {
     })).sort((a, b) => b.hours - a.hours);
     const projectTotalHours = projectHours.reduce((s, r) => s + parseFloat(r.hours), 0).toFixed(2);
 
+    const firma = await getFirma().catch(() => ({}));
+    const hourlyRate = parseFloat(firma.hourly_rate || 55) || 55;
+    const materialCost = (entnahmenRes.rows || []).reduce((s, e) => s + (parseFloat(e.gesamtpreis) || 0), 0);
+    const laborCost = parseFloat(projectTotalHours) * hourlyRate;
+    const actualCost = materialCost + laborCost;
+    let linkedOffer = null;
+    try {
+      if (project.offer_id) {
+        const oRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [project.offer_id]);
+        linkedOffer = oRes.rows?.[0] || null;
+      }
+      if (!linkedOffer && project.customer_id) {
+        const oRes = await dbQuery(
+          `SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER'
+           AND UPPER(COALESCE(status,'')) IN ('ANGENOMMEN','OFFEN','ANGENOMMEN')
+           ORDER BY created_at DESC LIMIT 1`,
+          [project.customer_id]
+        );
+        linkedOffer = oRes.rows?.[0] || null;
+      }
+    } catch (_) {}
+    const offerNet = linkedOffer ? parseFloat(linkedOffer.subtotal || linkedOffer.total_amount || 0) : 0;
+    const offerGross = linkedOffer ? parseFloat(linkedOffer.total_amount || 0) : 0;
+    const plannedHours = project.planned_hours != null ? parseFloat(project.planned_hours) : null;
+    const profitNet = offerNet - actualCost;
+    const nachkalk = {
+      hourlyRate, materialCost, laborCost, actualCost, offerNet, offerGross,
+      offerNumber: linkedOffer ? (linkedOffer.doc_number || linkedOffer.id) : null,
+      offerId: linkedOffer ? linkedOffer.id : null,
+      plannedHours,
+      hoursDiff: plannedHours != null ? parseFloat(projectTotalHours) - plannedHours : null,
+      profitNet,
+      marginPct: offerNet > 0 ? (profitNet / offerNet) * 100 : null
+    };
+
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
     const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
     const appointmentsWithWeather = await Promise.all(
@@ -452,6 +487,7 @@ router.get('/:id', async (req, res) => {
       users:        usersRes.rows        || [],
       projectHours,
       projectTotalHours,
+      nachkalk,
       statusLog:    statusLogRes.rows    || [],
       lagerItems:   lagerRes.rows        || [],
       entnahmen:    entnahmenRes.rows    || [],

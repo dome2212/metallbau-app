@@ -354,4 +354,89 @@ router.post('/api/appointments/delete/:id', requireAdmin, async (req, res) => {
   }
 });
 
+
+// ==========================================
+// WOCHEN- / MONTAGEPLAN
+// ==========================================
+router.get('/montageplan', async (req, res) => {
+  try {
+    // Woche: ?week=YYYY-MM-DD (Montag) oder aktuell
+    let start = req.query.week ? new Date(req.query.week + 'T12:00:00') : new Date();
+    // auf Montag normalisieren
+    const day = start.getDay(); // 0 So
+    const diff = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = end.toISOString().slice(0, 10);
+
+    const appsRes = await dbQuery(`
+      SELECT a.*,
+             c.company_name, c.contact_person,
+             p.title AS project_name, p.id AS pid
+      FROM appointments a
+      LEFT JOIN customers c ON a.customer_id = c.id
+      LEFT JOIN projects p ON a.project_id = p.id
+      WHERE a.start_date >= ? AND a.start_date <= ?
+      ORDER BY a.start_date ASC
+    `, [startStr + 'T00:00:00', endStr + 'T23:59:59']);
+
+    const apps = appsRes.rows || [];
+    const ids = apps.map(a => a.id);
+    let assignMap = {};
+    if (ids.length) {
+      const placeholders = ids.map(() => '?').join(',');
+      const au = await dbQuery(
+        `SELECT au.appointment_id, u.username, u.id as user_id
+         FROM appointment_users au JOIN users u ON au.user_id = u.id
+         WHERE au.appointment_id IN (${placeholders})`,
+        ids
+      );
+      for (const row of (au.rows || [])) {
+        if (!assignMap[row.appointment_id]) assignMap[row.appointment_id] = [];
+        assignMap[row.appointment_id].push(row.username);
+      }
+    }
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const ds = d.toISOString().slice(0, 10);
+      const dayApps = apps.filter(a => String(a.start_date).slice(0, 10) === ds).map(a => ({
+        ...a,
+        assignees: assignMap[a.id] || []
+      }));
+      days.push({
+        date: ds,
+        label: d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' }),
+        isToday: ds === new Date().toISOString().slice(0, 10),
+        apps: dayApps
+      });
+    }
+
+    const prev = new Date(start); prev.setDate(prev.getDate() - 7);
+    const next = new Date(start); next.setDate(next.getDate() + 7);
+
+    res.render('montageplan', {
+      days,
+      weekStart: startStr,
+      weekLabel: start.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
+        + ' – ' + end.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }),
+      prevWeek: prev.toISOString().slice(0, 10),
+      nextWeek: next.toISOString().slice(0, 10),
+      user: req.user,
+      currentUser: req.user
+    });
+  } catch (err) {
+    console.error('Montageplan:', err.message);
+    res.status(500).send('Fehler beim Laden des Montageplans: ' + err.message);
+  }
+});
+
+
 module.exports = router;

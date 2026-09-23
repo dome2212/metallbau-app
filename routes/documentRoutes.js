@@ -6,6 +6,7 @@ const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma, setFirmaValue }    = require('../utils/companySettings');
 const { sendEmail }                  = require('../utils/notifier');
 const { generateDocumentPDF, generateDocumentPDFBuffer } = require('../utils/pdfGenerator');
+const { buildXRechnungXml } = require('../utils/xrechnung');
 const { buildDatevCsv }               = require('../utils/datevExport');
 
 // ══════════════════════════════════════════════════════════════
@@ -1328,5 +1329,38 @@ router.post('/convert-to-invoice/:offerId', requireAdmin, async (req, res) => {
     res.status(500).send('Datenbankfehler beim Umwandeln des Angebots.');
   }
 });
+
+
+
+// GET: E-Rechnung XRechnung 3.0 XML
+router.get('/invoices/:id/xrechnung', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const firma = await getFirma();
+    const invRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
+             c.ust_id, c.leitweg_id, d.doc_number AS invoice_number
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
+    const invoice = invRes.rows?.[0];
+    if (!invoice) return res.status(404).send('Rechnung nicht gefunden');
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    const customer = {
+      company_name: invoice.company_name, contact_person: invoice.contact_person,
+      street: invoice.street, zip: invoice.zip, city: invoice.city,
+      email: invoice.email, phone: invoice.phone,
+      ust_id: invoice.ust_id, leitweg_id: invoice.leitweg_id
+    };
+    const xml = buildXRechnungXml({ invoice, items: itemsRes.rows || [], customer, firma });
+    const filename = `XRechnung-${invoice.invoice_number || id}.xml`;
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(xml);
+  } catch (err) {
+    console.error('XRechnung:', err.message);
+    res.status(500).send('Fehler E-Rechnung: ' + err.message);
+  }
+});
+
 
 module.exports = router;
