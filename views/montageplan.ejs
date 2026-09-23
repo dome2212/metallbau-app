@@ -1,0 +1,60 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-5">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Wochen- / Montageplan</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5"><%= weekLabel %></p>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">‹ Vorherige</a>
+        <a href="/montageplan" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Diese Woche</a>
+        <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">Nächste ›</a>
+        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-blue-600 hover:underline">Kalender</a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+      <% (days || []).forEach(function(day) { %>
+        <div class="card p-0 overflow-hidden border <%= day.isToday ? 'border-blue-400 ring-1 ring-blue-300' : 'border-slate-200 dark:border-slate-700' %>">
+          <div class="px-3 py-2.5 border-b <%= day.isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100' %>">
+            <p class="text-sm font-bold"><%= day.label %><% if (day.isToday) { %> · Heute<% } %></p>
+            <p class="text-[10px] opacity-80"><%= day.apps.length %> Termin<%= day.apps.length === 1 ? '' : 'e' %></p>
+          </div>
+          <div class="p-2 space-y-2 min-h-[80px]">
+            <% if (!day.apps.length) { %>
+              <p class="text-xs text-slate-400 px-1 py-3 text-center">Keine Termine</p>
+            <% } else { %>
+              <% day.apps.forEach(function(a) {
+                   const time = a.start_date ? new Date(a.start_date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+              %>
+                <div class="rounded-lg border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-2.5 text-sm">
+                  <p class="font-semibold text-slate-800 dark:text-slate-100"><%= a.title || 'Termin' %></p>
+                  <p class="text-xs text-slate-500 mt-0.5">
+                    <% if (time) { %><span class="font-medium text-slate-600 dark:text-slate-300"><%= time %></span> · <% } %>
+                    <%= a.company_name || a.contact_person || '—' %>
+                  </p>
+                  <% if (a.project_name || a.pid) { %>
+                    <p class="text-xs mt-1">
+                      <a href="/projects/<%= a.project_id || a.pid %>" class="text-blue-600 hover:underline">Auftrag: <%= a.project_name || ('#' + (a.project_id || a.pid)) %></a>
+                    </p>
+                  <% } %>
+                  <% if (a.assignees && a.assignees.length) { %>
+                    <p class="text-[11px] text-slate-400 mt-1">👤 <%= a.assignees.join(', ') %></p>
+                  <% } %>
+                  <% if (a.description) { %>
+                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-2"><%= a.description %></p>
+                  <% } %>
+                </div>
+              <% }); %>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+</main>
+</body>
+</html>
