@@ -675,6 +675,19 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 019 ── Lieferschein + Beleg-Verknüpfungen ───────────────────────────────
+  {
+    id: 19,
+    description: 'related_document_id, project_id an documents; delivery notes',
+    async up() {
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} related_document_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} project_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE customers ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} ust_id TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE customers ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} leitweg_id TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE customers ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} notes TEXT`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

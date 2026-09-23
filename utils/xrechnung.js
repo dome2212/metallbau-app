@@ -167,4 +167,36 @@ function buildXRechnungXml({ invoice, items, customer, firma }) {
   return xml.trim() + '\n';
 }
 
-module.exports = { buildXRechnungXml };
+/**
+ * Prüft, ob die Pflichtangaben für eine praxistaugliche XRechnung vorhanden sind.
+ * @returns {{ ok: boolean, errors: string[], warnings: string[] }}
+ */
+function validateXRechnung({ invoice, items, customer, firma }) {
+  const errors = [];
+  const warnings = [];
+
+  const sellerName = firma && (firma.name || firma.nameKurz);
+  if (!sellerName) errors.push('Firmenname fehlt in den Firmeneinstellungen');
+  const sellerVat = ((firma && (firma.steuernr || firma.ust_id)) || '').toString();
+  if (!/DE\d{9}/i.test(sellerVat) && !(firma && firma.ust_id)) {
+    warnings.push('USt-IdNr. der Firma prüfen (Format DE123456789)');
+  }
+  if (!(firma && firma.iban)) warnings.push('IBAN der Firma fehlt (Zahlungsinformationen)');
+  if (!(firma && (firma.street || firma.city))) warnings.push('Adresse der Firma unvollständig');
+
+  const buyerName = customer && (customer.company_name || customer.contact_person);
+  if (!buyerName) errors.push('Kundenname fehlt');
+  if (!(customer && (customer.street || customer.city))) warnings.push('Kundenadresse unvollständig');
+
+  const leitweg = (customer && (customer.leitweg_id || '')).toString().trim();
+  if (!leitweg) {
+    errors.push('Leitweg-ID des Kunden fehlt (Pflicht bei öffentlicher Hand / vielen Portalen)');
+  }
+
+  if (!(items && items.length)) errors.push('Keine Rechnungspositionen');
+  if (!invoice || !(invoice.doc_number || invoice.invoice_number)) errors.push('Rechnungsnummer fehlt');
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+module.exports = { buildXRechnungXml, validateXRechnung };
