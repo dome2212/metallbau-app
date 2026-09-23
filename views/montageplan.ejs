@@ -3,23 +3,91 @@
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-5">
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Wochen- / Montageplan</h1>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
+          <svg class="w-6 h-6 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 20h20"/><path d="M5 20V10l7-6 7 6v10"/><path d="M9 20v-6h6v6"/>
+          </svg>
+          Montage- &amp; Personalplan
+        </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5"><%= weekLabel %></p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">‹ Vorherige</a>
-        <a href="/montageplan" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Diese Woche</a>
+        <a href="/montageplan" class="px-3 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold">Diese Woche</a>
         <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">Nächste ›</a>
-        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-blue-600 hover:underline">Kalender</a>
+        <a href="/admin/staffplan?week=<%= weekStart %>" class="px-3 py-2 rounded-lg text-sm text-blue-600 hover:underline">Personalplanung bearbeiten</a>
+        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500 hover:underline">Kalender</a>
       </div>
     </div>
 
+    <div class="flex flex-wrap gap-2 text-xs items-center">
+      <span class="font-semibold text-slate-500">Legende:</span>
+      <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800">Baustelle / Personalplan</span>
+      <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800">Termin (Kalender)</span>
+      <span class="px-2 py-1 rounded-full bg-amber-100 text-amber-800">Urlaub / Abwesend</span>
+      <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-600">Frei / Werkstatt</span>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Personalplanung (Woche)</h2>
+        <a href="/admin/staffplan?week=<%= weekStart %>" class="text-xs text-blue-600 hover:underline">Einträge ändern →</a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs min-w-[720px]">
+          <thead>
+            <tr class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700">
+              <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-32">Mitarbeiter</th>
+              <% (days || []).forEach(function(day) { %>
+                <th class="px-2 py-2.5 text-center font-semibold <%= day.isToday ? 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-500' %>">
+                  <%= day.label.split(' ')[0] %><br>
+                  <span class="font-normal text-[10px]"><%= day.date.slice(8,10) %>.<%= day.date.slice(5,7) %>.</span>
+                </th>
+              <% }); %>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+            <% (matrix || []).forEach(function(row) { %>
+              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                      <%= (row.user.username || '?').charAt(0).toUpperCase() %>
+                    </div>
+                    <span class="font-semibold text-slate-800 dark:text-slate-100 truncate"><%= row.user.username %></span>
+                  </div>
+                </td>
+                <% (row.cells || []).forEach(function(cell) {
+                     let cls = 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+                     if (cell.status === 'baustelle') cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
+                     if (cell.status === 'termin')    cls = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
+                     if (cell.status === 'urlaub')    cls = 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200';
+                     if (cell.status === 'notiz')     cls = 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200';
+                %>
+                  <td class="px-1.5 py-1.5 align-top">
+                    <div class="rounded-md px-1.5 py-1 min-h-[36px] <%= cls %>" title="<%= cell.label %>">
+                      <span class="line-clamp-2 leading-snug"><%= cell.label %></span>
+                    </div>
+                  </td>
+                <% }); %>
+              </tr>
+            <% }); %>
+            <% if (!matrix || !matrix.length) { %>
+              <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Keine Mitarbeiter gefunden.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 pt-2">Termine &amp; Montagen</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
       <% (days || []).forEach(function(day) { %>
-        <div class="card p-0 overflow-hidden border <%= day.isToday ? 'border-blue-400 ring-1 ring-blue-300' : 'border-slate-200 dark:border-slate-700' %>">
-          <div class="px-3 py-2.5 border-b <%= day.isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100' %>">
+        <div class="card p-0 overflow-hidden border <%= day.isToday ? 'border-orange-400 ring-1 ring-orange-300' : 'border-slate-200 dark:border-slate-700' %>">
+          <div class="px-3 py-2.5 border-b <%= day.isToday ? 'bg-orange-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100' %>">
             <p class="text-sm font-bold"><%= day.label %><% if (day.isToday) { %> · Heute<% } %></p>
             <p class="text-[10px] opacity-80"><%= day.apps.length %> Termin<%= day.apps.length === 1 ? '' : 'e' %></p>
           </div>
@@ -42,10 +110,11 @@
                     </p>
                   <% } %>
                   <% if (a.assignees && a.assignees.length) { %>
-                    <p class="text-[11px] text-slate-400 mt-1">👤 <%= a.assignees.join(', ') %></p>
-                  <% } %>
-                  <% if (a.description) { %>
-                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-2"><%= a.description %></p>
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                      <% a.assignees.forEach(function(u) { %>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">👤 <%= u.username || u %></span>
+                      <% }); %>
+                    </div>
                   <% } %>
                 </div>
               <% }); %>
