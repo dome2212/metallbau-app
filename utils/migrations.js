@@ -565,6 +565,24 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 015 ── Mahnungs-Historie pro Rechnung ───────────────────────────────────
+  {
+    id: 15,
+    description: 'dunning_history: Mahnungen mit Datum, Stufe, Gebühr pro Rechnung',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS dunning_history (
+        id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        document_id   INT NOT NULL,
+        dunning_level INT NOT NULL DEFAULT 1,
+        fee_amount    NUMERIC(12,2) DEFAULT 0,
+        note          TEXT,
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_dunning_history_doc ON dunning_history(document_id, created_at)`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
