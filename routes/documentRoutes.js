@@ -380,6 +380,46 @@ router.post('/invoices/update-number', requireAdmin, async (req, res) => {
   }
 });
 
+// POST: Mahnung erstellen (Mahnstufe setzen + optional PDF)
+router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  let level = parseInt(req.body.dunning_level, 10);
+  if (![1, 2, 3].includes(level)) level = 1;
+  const downloadPdf = req.body.download_pdf === '1' || req.body.download_pdf === 'true';
+
+  try {
+    const invRes = await dbQuery(
+      `SELECT id, status, dunning_level FROM documents WHERE id = ? AND doc_type = 'INVOICE'`,
+      [id]
+    );
+    const inv = invRes.rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+    if (inv.status === 'Bezahlt') {
+      return res.status(400).send('Für bezahlte Rechnungen kann keine Mahnung erstellt werden.');
+    }
+
+    const note = level === 1
+      ? '1. Zahlungserinnerung erstellt'
+      : level === 2
+        ? '2. Mahnung erstellt'
+        : '3. Letzte Mahnung erstellt';
+
+    await dbQuery(
+      `UPDATE documents SET dunning_level = ?, status = CASE WHEN status = 'Bezahlt' THEN status ELSE 'Gemahnt' END,
+       status_note = ? WHERE id = ?`,
+      [level, note, id]
+    );
+
+    if (downloadPdf) {
+      return res.redirect(`/documents/invoices/${id}/pdf-download`);
+    }
+    res.redirect(`/documents/invoices/${id}?mahnung=1`);
+  } catch (err) {
+    console.error('Fehler bei POST /invoices/:id/create-dunning:', err.message);
+    res.status(500).send('Fehler beim Erstellen der Mahnung.');
+  }
+});
+
 // GET: Rechnungs-Detail
 router.get('/invoices/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
@@ -396,7 +436,8 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
     res.render('invoice-detail', {
       invoice,
       items: itemsRes.rows || [],
-      canSeeMoney: canSeeMoney(req.user, firma)
+      canSeeMoney: canSeeMoney(req.user, firma),
+      mahnungOk: req.query.mahnung === '1'
     });
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices/:id:', err.message);
