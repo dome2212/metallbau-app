@@ -3,7 +3,7 @@ const router   = require('express').Router();
 const crypto   = require('crypto');
 const { dbQuery }                    = require('../utils/db');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
-const { getFirma }                   = require('../utils/companySettings');
+const { getFirma, setFirmaValue }    = require('../utils/companySettings');
 const { sendEmail }                  = require('../utils/notifier');
 const { generateDocumentPDF, generateDocumentPDFBuffer } = require('../utils/pdfGenerator');
 const { buildDatevCsv }               = require('../utils/datevExport');
@@ -63,6 +63,7 @@ router.get('/offers', requireAdmin, async (req, res) => {
       offers:      offersRes.rows    || [],
       customers:   customersRes.rows || [],
       articles:    articlesRes.rows  || [],
+      textSnippets: (function(){ try { return JSON.parse(firma.text_snippets||'[]'); } catch(e){ return []; } })(),
       req,
       canSeeMoney: canSeeMoney(req.user, firma),
       savedMsg:    req.query.saved || null
@@ -268,10 +269,13 @@ router.get('/invoices', requireAdmin, async (req, res) => {
       dbQuery(`SELECT id, company_name, contact_person FROM customers ORDER BY company_name ASC`),
       dbQuery(`SELECT id, title, unit, unit_price, description FROM articles ORDER BY title ASC`)
     ]);
+    let textSnippets = [];
+    try { textSnippets = JSON.parse(firma.text_snippets || '[]'); } catch (_) {}
     res.render('invoices', {
       invoices:  invoicesRes.rows  || [],
       customers: customersRes.rows || [],
-      articles:  articlesRes.rows  || []
+      articles:  articlesRes.rows  || [],
+      textSnippets
     });
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices:', err.message);
@@ -317,6 +321,65 @@ router.get('/invoices/datev-export', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices/datev-export:', err.message);
     res.status(500).send('Fehler beim Erstellen des DATEV-Exports.');
+  }
+});
+
+
+// POST: Neue Positionen in Artikelstamm / Textbausteine übernehmen
+router.post('/api/save-catalog-items', requireAdmin, async (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    const asArticle = req.body.as_article !== false && req.body.as_article !== '0';
+    const asSnippet = req.body.as_snippet === true || req.body.as_snippet === '1' || req.body.as_snippet === 'true';
+
+    let articlesAdded = 0;
+    let snippetsAdded = 0;
+
+    if (asArticle) {
+      const existing = await dbQuery(`SELECT LOWER(title) AS t FROM articles`);
+      const titles = new Set((existing.rows || []).map(r => (r.t || '').trim()));
+      for (const it of items) {
+        const title = (it.title || it.description || '').trim();
+        if (!title) continue;
+        const key = title.toLowerCase();
+        if (titles.has(key)) continue;
+        const unit = (it.unit || 'Stk').trim() || 'Stk';
+        const price = parseFloat(it.price) || 0;
+        await dbQuery(
+          `INSERT INTO articles (title, unit, unit_price, description) VALUES (?, ?, ?, ?)`,
+          [title, unit, price, it.description || title]
+        );
+        titles.add(key);
+        articlesAdded++;
+      }
+    }
+
+    if (asSnippet) {
+      const firma = await getFirma();
+      let snippets = [];
+      try { snippets = JSON.parse(firma.text_snippets || '[]'); } catch (_) { snippets = []; }
+      if (!Array.isArray(snippets)) snippets = [];
+      const existingKeys = new Set(snippets.map(s => (s.label || s.text || '').toLowerCase().trim()));
+      for (const it of items) {
+        const title = (it.title || it.description || '').trim();
+        if (!title) continue;
+        if (existingKeys.has(title.toLowerCase())) continue;
+        let key = title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+        if (!key) key = 'pos_' + Date.now();
+        // unique key
+        let k = key, n = 1;
+        while (snippets.some(s => s.key === k)) { k = key + '_' + n; n++; }
+        snippets.push({ key: k, label: title, text: title });
+        existingKeys.add(title.toLowerCase());
+        snippetsAdded++;
+      }
+      await setFirmaValue('text_snippets', JSON.stringify(snippets));
+    }
+
+    res.json({ ok: true, articlesAdded, snippetsAdded });
+  } catch (err) {
+    console.error('save-catalog-items:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
