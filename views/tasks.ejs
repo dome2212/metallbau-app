@@ -19,6 +19,23 @@
       </p>
     </div>
 
+    <!-- Tabs -->
+    <% const tab = (typeof activeTab !== 'undefined' && activeTab === 'putzplan') ? 'putzplan' : 'aufgaben'; %>
+    <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700 mb-2">
+      <a href="/tasks"
+        class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition <%= tab === 'aufgaben' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400' %>">
+        Aufgaben
+      </a>
+      <a href="/tasks/putzplan"
+        class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition <%= tab === 'putzplan' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400' %>">
+        Putzplan
+        <% if (typeof putzDoneCount !== 'undefined' && typeof putzTotalToday !== 'undefined' && putzTotalToday > 0) { %>
+          <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full <%= putzDoneCount >= putzTotalToday ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' %>"><%= putzDoneCount %>/<%= putzTotalToday %></span>
+        <% } %>
+      </a>
+    </div>
+
+    <% if (tab === 'aufgaben') { %>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
       <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
@@ -90,11 +107,10 @@
 
                     <% if (openTasks.length === 0) { %>
             <div class="px-4 md:px-5 py-4">
-              <%- include('partials/empty-state', {
-                icon: 'M9 11l3 3L22 4',
-                title: 'Keine offenen Aufgaben',
-                text: 'Alles erledigt – oder lege oben eine neue Aufgabe an.'
-              }) %>
+              <div class="text-center py-6 text-sm text-slate-400">
+                <p class="font-medium text-slate-600 dark:text-slate-300">Keine offenen Aufgaben</p>
+                <p class="mt-1">Alles erledigt – oder lege oben eine neue Aufgabe an.</p>
+              </div>
             </div>
           <% } else { %>
             <div class="divide-y divide-slate-100 dark:divide-slate-700">
@@ -190,8 +206,142 @@
 
       </div>
     </div>
+    </div><!-- /grid aufgaben -->
+
+    <% } else if (tab === 'putzplan') { %>
+
+    <!-- PUTZPLAN -->
+    <div class="space-y-4">
+      <!-- Fortschritt heute -->
+      <div class="card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <span class="text-lg">🧹</span> Putzplan · Heute
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <%= typeof putzToday !== 'undefined' ? new Date(putzToday + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '' %>
+          </p>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-bold <%= (putzDoneCount >= putzTotalToday && putzTotalToday > 0) ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-100' %>">
+            <%= putzDoneCount || 0 %> / <%= putzTotalToday || 0 %>
+          </p>
+          <p class="text-[10px] uppercase tracking-wide text-slate-400">erledigt heute</p>
+        </div>
+      </div>
+
+      <% if (putzTotalToday > 0) { %>
+      <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+        <div class="h-full bg-emerald-500 transition-all" style="width: <%= putzTotalToday ? Math.round(100 * putzDoneCount / putzTotalToday) : 0 %>%"></div>
+      </div>
+      <% } %>
+
+      <!-- Liste Heute -->
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+          <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Heutige Punkte</h3>
+        </div>
+        <% const items = (typeof putzItems !== 'undefined' && putzItems) ? putzItems : []; %>
+        <% if (items.length === 0) { %>
+          <div class="px-4 py-8 text-center text-sm text-slate-400">Keine Putzaufgaben für heute. Chef kann Positionen anlegen.</div>
+        <% } else { %>
+          <div class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% items.forEach(function(it) { %>
+              <div class="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 <%= it.done ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : '' %>">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm text-slate-800 dark:text-slate-100 <%= it.done ? 'line-through opacity-70' : '' %>"><%= it.title %></p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[10px] font-semibold mr-1"><%= it.area || 'Allgemein' %></span>
+                    <%= it.frequency === 'weekly' ? 'Wöchentlich' : 'Täglich' %>
+                    <% if (it.assigned_to_name) { %> · <%= it.assigned_to_name %><% } %>
+                    <% if (it.done && it.log) { %>
+                      · <span class="text-emerald-600">✓ <%= it.log.done_by_name || 'erledigt' %></span>
+                    <% } %>
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <% if (it.done) { %>
+                    <form action="/tasks/putzplan/undo" method="POST" class="inline">
+                      <input type="hidden" name="id" value="<%= it.id %>">
+                      <button type="submit" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700">Rückgängig</button>
+                    </form>
+                    <span class="text-xs font-semibold text-emerald-600 px-2">Erledigt</span>
+                  <% } else { %>
+                    <form action="/tasks/putzplan/done" method="POST" class="inline">
+                      <input type="hidden" name="id" value="<%= it.id %>">
+                      <button type="submit" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Erledigt</button>
+                    </form>
+                  <% } %>
+                  <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+                    <form action="/tasks/putzplan/delete" method="POST" class="inline" onsubmit="return confirm('Position deaktivieren?');">
+                      <input type="hidden" name="id" value="<%= it.id %>">
+                      <button type="submit" class="text-xs text-red-400 hover:text-red-600 px-1" title="Deaktivieren">✕</button>
+                    </form>
+                  <% } %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+
+      <% if (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN') { %>
+      <!-- Neue Position -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Neue Putz-Position</h3>
+        <form action="/tasks/putzplan/add" method="POST" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Titel *</label>
+            <input type="text" name="title" required placeholder="z. B. Späne unter Säge entfernen" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Bereich</label>
+            <select name="area" class="input text-sm w-full">
+              <option>Werkstatt</option>
+              <option>Sanitär</option>
+              <option>Büro</option>
+              <option>Lager</option>
+              <option>Außen</option>
+              <option>Sonstiges</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Rhythmus</label>
+            <select name="frequency" id="putzFreq" class="input text-sm w-full" onchange="document.getElementById('putzWdWrap').classList.toggle('hidden', this.value !== 'weekly')">
+              <option value="daily">Täglich</option>
+              <option value="weekly">Wöchentlich</option>
+            </select>
+          </div>
+          <div id="putzWdWrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Wochentag</label>
+            <select name="weekday" class="input text-sm w-full">
+              <option value="1">Montag</option>
+              <option value="2">Dienstag</option>
+              <option value="3">Mittwoch</option>
+              <option value="4">Donnerstag</option>
+              <option value="5">Freitag</option>
+              <option value="6">Samstag</option>
+              <option value="7">Sonntag</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Zuständig</label>
+            <select name="assigned_to" class="input text-sm w-full">
+              <option value="">Alle</option>
+              <% (users || []).forEach(function(u) { %>
+                <option value="<%= u.id %>"><%= u.username %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-5">
+            <button type="submit" class="btn font-semibold text-white px-4 py-2.5" style="background:var(--primary)">Hinzufügen</button>
+          </div>
+        </form>
+      </div>
+      <% } %>
+    </div>
+
+    <% } %>
+
   </div>
 </main>
-
-</body>
-</html>
