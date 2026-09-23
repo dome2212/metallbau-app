@@ -583,31 +583,64 @@ const MIGRATIONS = [
     }
   },
 
-  // ── 016 ── Zahlungen, Gutschriften, Skonto-Felder ──────────────────────────
+,
+// ── 017 ── Putzplan ─────────────────────────────────────────────────────────
   {
-    id: 16,
-    description: 'invoice_payments + documents credit/storno Felder',
+    id: 17,
+    description: 'cleaning_plan + cleaning_logs für Putzplan im Aufgaben-Reiter',
     async up() {
-      await safeRaw(`CREATE TABLE IF NOT EXISTS invoice_payments (
+      await safeRaw(`CREATE TABLE IF NOT EXISTS cleaning_plan (
+        id           ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        title        TEXT NOT NULL,
+        area         TEXT DEFAULT 'Werkstatt',
+        frequency    TEXT DEFAULT 'daily',
+        weekday      INT,
+        assigned_to  INT,
+        sort_order   INT DEFAULT 0,
+        active       INT DEFAULT 1,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE TABLE IF NOT EXISTS cleaning_logs (
         id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
-        document_id   INT NOT NULL,
-        amount        NUMERIC(12,2) NOT NULL,
-        payment_date  TEXT NOT NULL,
-        method        TEXT DEFAULT 'Überweisung',
+        plan_item_id  INT NOT NULL,
+        done_date     TEXT NOT NULL,
+        done_by       INT,
         note          TEXT,
-        created_by    INT,
         created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
-      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_invoice_payments_doc ON invoice_payments(document_id)`);
-      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} paid_amount NUMERIC(12,2) DEFAULT 0`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} related_document_id INT`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} sent_at TEXT`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_percent NUMERIC(5,2) DEFAULT 0`); } catch (_) {}
-      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_days INT DEFAULT 0`); } catch (_) {}
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_cleaning_logs_item_date ON cleaning_logs(plan_item_id, done_date)`);
+
+      try {
+        const cntRes = await raw('SELECT COUNT(*) AS c FROM cleaning_plan');
+        const rows = cntRes.rows || [];
+        const n = Number(rows[0] && (rows[0].c != null ? rows[0].c : rows[0].count) || 0) || 0;
+        if (n === 0) {
+          const defaults = [
+            ['Werkstatt kehren / fegen', 'Werkstatt', 'daily', null, 10],
+            ['Arbeitsplätze aufräumen', 'Werkstatt', 'daily', null, 20],
+            ['Maschinen abwischen / Späne entfernen', 'Werkstatt', 'daily', null, 30],
+            ['Mülltonnen leeren', 'Werkstatt', 'daily', null, 40],
+            ['Toilette / Sanitär reinigen', 'Sanitär', 'daily', null, 50],
+            ['Küche / Aufenthaltsraum sauber halten', 'Büro', 'daily', null, 60],
+            ['Büro / Empfang wischen', 'Büro', 'weekly', 5, 70],
+            ['Lager ordnen / Wege freiräumen', 'Lager', 'weekly', 1, 80],
+            ['Hof / Eingang kehren', 'Außen', 'weekly', 3, 90],
+          ];
+          for (const row of defaults) {
+            await raw(
+              'INSERT INTO cleaning_plan (title, area, frequency, weekday, sort_order, active) VALUES (?, ?, ?, ?, ?, 1)',
+              row
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('Putzplan-Seed:', e.message);
+      }
     }
   },
 
 ];
+
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 async function runMigrations() {
