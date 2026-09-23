@@ -4,7 +4,8 @@ const crypto   = require('crypto');
 const { dbQuery }                    = require('../utils/db');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }                   = require('../utils/companySettings');
-const { generateDocumentPDF }        = require('../utils/pdfGenerator');
+const { sendEmail }                  = require('../utils/notifier');
+const { generateDocumentPDF, generateDocumentPDFBuffer } = require('../utils/pdfGenerator');
 const { buildDatevCsv }               = require('../utils/datevExport');
 
 // ══════════════════════════════════════════════════════════════
@@ -12,6 +13,36 @@ const { buildDatevCsv }               = require('../utils/datevExport');
 // ══════════════════════════════════════════════════════════════
 
 // GET: Angebots-Übersicht
+
+async function recalcInvoicePaid(docId) {
+  const payRes = await dbQuery(
+    `SELECT COALESCE(SUM(amount), 0) AS paid FROM invoice_payments WHERE document_id = ?`,
+    [docId]
+  );
+  const paid = parseFloat(payRes.rows?.[0]?.paid || 0) || 0;
+  const invRes = await dbQuery(`SELECT total_amount, status FROM documents WHERE id = ?`, [docId]);
+  const inv = invRes.rows?.[0];
+  if (!inv) return paid;
+  const total = parseFloat(inv.total_amount || 0) || 0;
+  let status = inv.status;
+  if (status !== 'Storniert' && status !== 'Gutschrift') {
+    if (paid <= 0.001) {
+      // keep Gemahnt/Überfällig/Offen etc. unless was Bezahlt
+      if (status === 'Bezahlt' || status === 'Teilbezahlt') status = 'Offen';
+    } else if (paid + 0.01 >= total) {
+      status = 'Bezahlt';
+    } else {
+      status = 'Teilbezahlt';
+    }
+  }
+  try {
+    await dbQuery(`UPDATE documents SET paid_amount = ?, status = ? WHERE id = ?`, [paid, status, docId]);
+  } catch (_) {
+    await dbQuery(`UPDATE documents SET status = ? WHERE id = ?`, [status, docId]);
+  }
+  return paid;
+}
+
 router.get('/offers', requireAdmin, async (req, res) => {
   const firma = await getFirma();
   if (!hasPerm(req.user, 'documents', firma, true, false)) {
@@ -532,10 +563,216 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
     await dbQuery(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
     res.redirect(`/documents/invoices/${id}?saved=1`);
   } catch (err) {
+
     console.error('Fehler bei POST /invoices/:id/update:', err.message);
     res.status(500).send('Fehler beim Speichern der Rechnung.');
   }
 });
+
+// POST: Zahlung buchen
+router.post('/invoices/:id/payments', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const amount = parseFloat(req.body.amount);
+  const payment_date = req.body.payment_date || new Date().toISOString().slice(0, 10);
+  const method = req.body.method || 'Überweisung';
+  const note = req.body.note || '';
+  try {
+    if (!amount || amount <= 0) return res.status(400).send('Betrag ungültig.');
+    const inv = (await dbQuery(`SELECT id, status FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id])).rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+    if (inv.status === 'Storniert') return res.status(400).send('Stornierte Rechnung.');
+    await dbQuery(
+      `INSERT INTO invoice_payments (document_id, amount, payment_date, method, note, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, amount, payment_date, method, note, req.user?.id || null]
+    );
+    await recalcInvoicePaid(id);
+    res.redirect(`/documents/invoices/${id}?tab=zahlungen&saved=1`);
+  } catch (err) {
+    console.error('Zahlung buchen:', err.message);
+    res.status(500).send('Fehler beim Buchen der Zahlung. (Migration 16?)');
+  }
+});
+
+// POST: Zahlung löschen
+router.post('/invoices/:id/payments/:payId/delete', requireAdmin, async (req, res) => {
+  const { id, payId } = req.params;
+  try {
+    await dbQuery(`DELETE FROM invoice_payments WHERE id = ? AND document_id = ?`, [payId, id]);
+    await recalcInvoicePaid(id);
+    res.redirect(`/documents/invoices/${id}?tab=zahlungen&saved=1`);
+  } catch (err) {
+    console.error('Zahlung löschen:', err.message);
+    res.status(500).send('Fehler beim Löschen der Zahlung.');
+  }
+});
+
+// POST: Rechnung per E-Mail senden (PDF-Anhang)
+router.post('/invoices/:id/send-email', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const to = (req.body.to || '').trim();
+  const subject = (req.body.subject || '').trim();
+  const message = (req.body.message || '').trim();
+  try {
+    const firma = await getFirma();
+    const invRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
+             d.doc_number AS invoice_number
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
+    const invoice = invRes.rows?.[0];
+    if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
+    const emailTo = to || invoice.email;
+    if (!emailTo) return res.status(400).send('Keine E-Mail-Adresse.');
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    const pdfBuf = await generateDocumentPDFBuffer(invoice, itemsRes.rows || []);
+    const docLabel = invoice.doc_type === 'CREDIT' ? 'Gutschrift' : 'Rechnung';
+    const docNr = invoice.invoice_number || invoice.doc_number || id;
+    const html = `<p>${(message || `Anbei erhalten Sie ${docLabel} ${docNr} als PDF.`).replace(/\n/g, '<br>')}</p>
+      <p>Mit freundlichen Grüßen<br>${firma.name || ''}</p>`;
+    const result = await sendEmail(
+      emailTo,
+      subject || `${docLabel} ${docNr}`,
+      html,
+      [{ filename: `${docLabel}-${docNr}.pdf`, content: pdfBuf, contentType: 'application/pdf' }]
+    );
+    if (!result.ok) {
+      return res.status(500).send('E-Mail-Versand fehlgeschlagen: ' + (result.error || 'unbekannt') +
+        '<br><a href="/documents/invoices/' + id + '">Zurück</a>');
+    }
+    try {
+      await dbQuery(`UPDATE documents SET sent_at = ?, status = CASE WHEN status IN ('ENTWURF','Offen') THEN 'Gesendet' ELSE status END WHERE id = ?`,
+        [new Date().toISOString(), id]);
+    } catch (_) {}
+    res.redirect(`/documents/invoices/${id}?sent=1`);
+  } catch (err) {
+    console.error('send-email:', err.message);
+    res.status(500).send('Fehler beim E-Mail-Versand: ' + err.message);
+  }
+});
+
+// POST: Rechnung stornieren
+router.post('/invoices/:id/storno', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const reason = (req.body.reason || 'Storniert').trim();
+  try {
+    const inv = (await dbQuery(`SELECT id, status FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id])).rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+    if (inv.status === 'Storniert') return res.redirect(`/documents/invoices/${id}`);
+    await dbQuery(
+      `UPDATE documents SET status = 'Storniert', status_note = ? WHERE id = ?`,
+      [reason, id]
+    );
+    res.redirect(`/documents/invoices/${id}?storno=1`);
+  } catch (err) {
+    console.error('storno:', err.message);
+    res.status(500).send('Fehler beim Stornieren.');
+  }
+});
+
+// POST: Gutschrift aus Rechnung erzeugen
+router.post('/invoices/:id/credit-note', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const firma = await getFirma();
+    const invRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id]);
+    const inv = invRes.rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+    const year = new Date().getFullYear();
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'CREDIT'`);
+    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
+    const prefix = (firma.credit_prefix || 'GS').toUpperCase();
+    const docNumber = `${prefix}-${year}-${nextNum}`;
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    const items = itemsRes.rows || [];
+    let subtotal = 0;
+    for (const it of items) {
+      subtotal += (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0);
+    }
+    const taxRate = parseFloat(inv.tax_rate || firma.default_tax_rate || 19);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+    const insertRes = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, related_document_id, status_note)
+       VALUES ('CREDIT', ?, ?, 'Gutschrift', ?, ?, ?, ?, ?, ?)`,
+      [docNumber, inv.customer_id, taxRate, subtotal, taxAmount, totalAmount, id,
+       `Gutschrift zu Rechnung ${inv.doc_number || id}`]
+    );
+    const newId = insertRes.lastID || insertRes.rows?.[0]?.id;
+    for (const it of items) {
+      await dbQuery(
+        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
+        [newId, it.description, it.quantity, it.unit, it.price]
+      );
+    }
+    res.redirect(`/documents/invoices/${newId}`);
+  } catch (err) {
+    console.error('credit-note:', err.message);
+    res.status(500).send('Fehler beim Erstellen der Gutschrift. (Migration 16 für related_document_id?)');
+  }
+});
+
+// GET: Offene-Posten-Liste
+router.get('/open-items', requireAdmin, async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'documents', firma, true, false)) {
+    return res.status(403).send('<h1>403</h1>');
+  }
+  try {
+    const rows = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.email,
+             d.doc_number AS invoice_number,
+             COALESCE(d.paid_amount, 0) AS paid_amount
+      FROM documents d
+      LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.doc_type = 'INVOICE'
+        AND d.status NOT IN ('Bezahlt', 'Storniert', 'Gutschrift')
+      ORDER BY d.due_date ASC, d.created_at DESC
+    `);
+    // SQLite may not support NULLS LAST - fallback query handled in catch
+    let list = (rows.rows || []).map(r => ({ ...r, open_amount: (parseFloat(r.total_amount||0) - parseFloat(r.paid_amount||0)) }));
+    const sumOpen = list.reduce((s, r) => s + Math.max(0, r.open_amount), 0);
+    const sumOverdue = list.reduce((s, r) => {
+      const open = Math.max(0, parseFloat(r.open_amount != null ? r.open_amount : (r.total_amount || 0) - (r.paid_amount || 0)));
+      if (r.due_date && new Date(r.due_date) < new Date() && open > 0.01) return s + open;
+      return s;
+    }, 0);
+    res.render('open-items', {
+      invoices: list,
+      sumOpen,
+      sumOverdue,
+      canSeeMoney: canSeeMoney(req.user, firma),
+      firma
+    });
+  } catch (err) {
+    // SQLite without NULLS LAST
+    try {
+      const rows = await dbQuery(`
+        SELECT d.*, c.company_name, c.contact_person, c.email,
+               d.doc_number AS invoice_number,
+               COALESCE(d.paid_amount, 0) AS paid_amount
+        FROM documents d
+        LEFT JOIN customers c ON d.customer_id = c.id
+        WHERE d.doc_type = 'INVOICE'
+          AND d.status NOT IN ('Bezahlt', 'Storniert', 'Gutschrift')
+        ORDER BY d.due_date ASC, d.created_at DESC
+      `);
+      let list = (rows.rows || []).map(r => ({
+        ...r,
+        open_amount: (parseFloat(r.total_amount || 0) - parseFloat(r.paid_amount || 0))
+      }));
+      const sumOpen = list.reduce((s, r) => s + Math.max(0, r.open_amount), 0);
+      const sumOverdue = list.reduce((s, r) => {
+        if (r.due_date && new Date(r.due_date) < new Date() && r.open_amount > 0.01) return s + r.open_amount;
+        return s;
+      }, 0);
+      res.render('open-items', { invoices: list, sumOpen, sumOverdue, canSeeMoney: canSeeMoney(req.user, firma), firma });
+    } catch (err2) {
+      console.error('open-items:', err2.message);
+      res.status(500).send('Fehler beim Laden der OP-Liste: ' + err2.message);
+    }
+  }
+});
+
 
 // GET: Rechnungs-Detail
 router.get('/invoices/:id', requireAdmin, async (req, res) => {
@@ -546,7 +783,7 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
       SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
              d.doc_number AS invoice_number
       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type = 'INVOICE'`, [id]);
+      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
@@ -564,15 +801,39 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
     } catch (_) {
       dunningHistory = [];
     }
+    let payments = [];
+    try {
+      const payRes = await dbQuery(
+        `SELECT p.*, u.username AS created_by_name
+         FROM invoice_payments p
+         LEFT JOIN users u ON p.created_by = u.id
+         WHERE p.document_id = ?
+         ORDER BY p.payment_date DESC, p.id DESC`,
+        [id]
+      );
+      payments = payRes.rows || [];
+    } catch (_) {
+      payments = [];
+    }
+    const paidSum = payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const totalAmt = parseFloat(invoice.total_amount || 0) || 0;
+    const openAmt = Math.max(0, totalAmt - paidSum);
+    const tabQ = req.query.tab;
+    const activeTab = ['mahnungen', 'zahlungen'].includes(tabQ) ? tabQ : 'rechnung';
     res.render('invoice-detail', {
       invoice,
       items: itemsRes.rows || [],
       firma,
       dunningHistory,
-      activeTab: req.query.tab === 'mahnungen' ? 'mahnungen' : 'rechnung',
+      payments,
+      paidSum,
+      openAmt,
+      activeTab,
       canSeeMoney: canSeeMoney(req.user, firma),
       mahnungOk: req.query.mahnung === '1',
-      savedOk: req.query.saved === '1'
+      savedOk: req.query.saved === '1',
+      sentOk: req.query.sent === '1',
+      stornoOk: req.query.storno === '1'
     });
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices/:id:', err.message);
@@ -588,7 +849,7 @@ router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
       SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
              d.doc_number AS invoice_number
       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type = 'INVOICE'`, [id]);
+      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
@@ -607,7 +868,7 @@ router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
       SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
              d.doc_number AS invoice_number
       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type = 'INVOICE'`, [id]);
+      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
     const invoice = invoiceRes.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
