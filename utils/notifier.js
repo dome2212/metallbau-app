@@ -1,45 +1,56 @@
 const nodemailer = require('nodemailer');
 
-// E-Mail Transporter konfigurieren
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.example.com',
-  port: process.env.SMTP_PORT || 465,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER || 'dein-benutzer@example.com',
-    pass: process.env.SMTP_PASS || 'dein-passwort'
-  }
-});
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.example.com',
+    port: parseInt(process.env.SMTP_PORT || '465', 10),
+    secure: String(process.env.SMTP_SECURE || 'true') !== 'false',
+    auth: {
+      user: process.env.SMTP_USER || 'dein-benutzer@example.com',
+      pass: process.env.SMTP_PASS || 'dein-passwort'
+    }
+  });
+}
 
-// 1. E-Mail senden
-async function sendEmail(to, subject, htmlContent) {
+/**
+ * E-Mail senden.
+ * @param {string} to
+ * @param {string} subject
+ * @param {string} htmlContent
+ * @param {Array<{filename:string, content:Buffer, contentType?:string}>} [attachments]
+ */
+async function sendEmail(to, subject, htmlContent, attachments) {
   try {
-    if (!to) return;
-    await transporter.sendMail({
-      from: '"Metallbau Management" <noreply@metallbau-management.de>',
+    if (!to) return { ok: false, error: 'Keine Empfänger-Adresse' };
+    const transporter = createTransporter();
+    const mail = {
+      from: process.env.SMTP_FROM || '"Metallbau Management" <noreply@metallbau-management.de>',
       to,
       subject,
       html: htmlContent
-    });
+    };
+    if (attachments && attachments.length) {
+      mail.attachments = attachments.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType || 'application/pdf'
+      }));
+    }
+    await transporter.sendMail(mail);
     console.log(`📧 E-Mail erfolgreich gesendet an: ${to}`);
+    return { ok: true };
   } catch (error) {
     console.error('Fehler beim E-Mail-Versand:', error);
+    return { ok: false, error: error.message };
   }
 }
 
-// 2. WhatsApp via CallMeBot senden
-// Jeder Empfänger benötigt einen eigenen API-Key:
-//   → WhatsApp an +34 644 52 74 21 senden: "I allow callmebot to send me messages"
-//   → API-Key wird zurückgeschickt und im Admin-Panel eingetragen
 async function sendWhatsApp(toPhone, message, apiKey) {
   try {
     if (!toPhone || !apiKey) return;
-
-    // Nummer normalisieren: führende 0 → +49, Leerzeichen entfernen
     let phone = toPhone.replace(/\s+/g, '').replace(/[^+\d]/g, '');
     if (phone.startsWith('0')) phone = '+49' + phone.substring(1);
-    if (phone.startsWith('+')) phone = phone.substring(1); // CallMeBot erwartet ohne +
-
+    if (phone.startsWith('+')) phone = phone.substring(1);
     const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(phone)}&apikey=${encodeURIComponent(apiKey)}&text=${encodeURIComponent(message)}`;
     const res = await fetch(url);
     if (res.ok) {

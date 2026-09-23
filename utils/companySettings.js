@@ -76,6 +76,8 @@ const DEFAULTS = {
   dunning_fee_1:   '0',            // Mahngebühr 1. Zahlungserinnerung (€)
   dunning_fee_2:   '5.00',         // Mahngebühr 2. Mahnung (€)
   dunning_fee_3:   '10.00',        // Mahngebühr 3. Letzte Mahnung (€)
+  skonto_percent:  '0',            // Skonto in % (0 = aus)
+  skonto_days:     '10',           // Skonto-Frist in Tagen
 
   // ── Lokalisierung ──────────────────────────────────────────────
   currency_symbol:     '€',        // Währungszeichen

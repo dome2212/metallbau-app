@@ -583,6 +583,30 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 016 ── Zahlungen, Gutschriften, Skonto-Felder ──────────────────────────
+  {
+    id: 16,
+    description: 'invoice_payments + documents credit/storno Felder',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS invoice_payments (
+        id            ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        document_id   INT NOT NULL,
+        amount        NUMERIC(12,2) NOT NULL,
+        payment_date  TEXT NOT NULL,
+        method        TEXT DEFAULT 'Überweisung',
+        note          TEXT,
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_invoice_payments_doc ON invoice_payments(document_id)`);
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} paid_amount NUMERIC(12,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} related_document_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} sent_at TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_percent NUMERIC(5,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} skonto_days INT DEFAULT 0`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
