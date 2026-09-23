@@ -189,7 +189,7 @@
                 </form>
                 <% } %>
                 <form action="/documents/invoices/delete" method="POST" class="inline"
-                  onsubmit="return confirm('Rechnung <%= (invoice.invoice_number || '').replace(/'/g, \"\\\\'\") %> wirklich löschen?');">
+                  onsubmit="return confirm('Rechnung wirklich löschen?');">
                   <input type="hidden" name="invoice_id" value="<%= invoice.id %>">
                   <button type="submit" class="btn btn-ghost text-xs text-red-600 border border-red-200 hover:bg-red-50">Löschen</button>
                 </form>
