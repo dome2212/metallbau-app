@@ -33,6 +33,7 @@ I will work with you to resolve the issue promptly.
 ## Dependencies Security
 
 We use:
+- `helmet` for HTTP security headers
 - `bcryptjs` for password hashing
 - `jsonwebtoken` for secure authentication
 - `express` with security middleware

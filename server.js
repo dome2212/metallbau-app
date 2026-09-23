@@ -4,6 +4,7 @@ const path         = require('path');
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
 const cors         = require('cors');
+const helmet       = require('helmet');
 const db           = require('./config/database');
 const { initChatServer, ensureChatTable } = require('./utils/chatSocket');
 
@@ -116,6 +117,16 @@ const PORT = process.env.PORT || 3000;
 // Trust the first proxy (Render / reverse-proxy environments) so that
 // express-rate-limit can read the real client IP from X-Forwarded-For.
 app.set('trust proxy', 1);
+
+// ==========================================
+// SECURITY HEADERS (helmet)
+// CSP bewusst gelockert: Inline-Scripts/Styles + Fonts/CDN für EJS-UI
+// ==========================================
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
 
 // ==========================================
 // CORS (für React Native Android-App)

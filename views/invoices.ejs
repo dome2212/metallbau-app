@@ -2,18 +2,6 @@
 
 <%- include('partials/sidebar') %>
 
-    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
-    <div class="card p-4 mb-4 border border-red-200 bg-red-50 dark:bg-red-900/20">
-      <p class="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">Belege zurücksetzen</p>
-      <p class="text-xs text-red-700 dark:text-red-300 mb-3">Löscht alle Angebote, Rechnungen, Gutschriften und Lieferscheine inkl. Positionen, Zahlungen und Mahnungen. Kunden und Aufträge bleiben.</p>
-      <form action="/documents/admin/reset-documents" method="POST" onsubmit="var v=prompt('Zur Bestätigung RESET eingeben:'); if(!v||v.toUpperCase()!=='RESET'){alert('Abgebrochen');return false;} this.confirm.value=v.toUpperCase(); return confirm('Alle Belege wirklich unwiderruflich löschen?');">
-        <input type="hidden" name="confirm" value="">
-        <button type="submit" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg">Alle Belege löschen</button>
-      </form>
-    </div>
-    <% } %>
-
-
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
     <!-- Header-Bereich -->
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -33,6 +21,19 @@
         </button>
       </div>
     </div>
+
+    <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
+    <div class="px-4 md:px-6 w-full max-w-7xl mx-auto mb-4">
+      <div class="card p-4 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+        <p class="text-sm font-semibold text-red-800 dark:text-red-200 mb-1">Belege zurücksetzen</p>
+        <p class="text-xs text-red-700 dark:text-red-300 mb-3">Löscht alle Angebote, Rechnungen, Gutschriften und Lieferscheine inkl. Positionen, Zahlungen und Mahnungen. Kunden und Aufträge bleiben.</p>
+        <form action="/documents/admin/reset-documents" method="POST" onsubmit="var v=prompt('Zur Bestätigung RESET eingeben:'); if(!v||v.toUpperCase()!=='RESET'){alert('Abgebrochen');return false;} this.confirm.value=v.toUpperCase(); return confirm('Alle Belege wirklich unwiderruflich löschen?');">
+          <input type="hidden" name="confirm" value="">
+          <button type="submit" class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg">Alle Belege löschen</button>
+        </form>
+      </div>
+    </div>
+    <% } %>
 
     <!-- Modal: DATEV-Export -->
     <div id="datevExportModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
