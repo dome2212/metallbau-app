@@ -40,7 +40,7 @@
                       <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
                         <%= (c.company_name || c.contact_person || '?').charAt(0).toUpperCase() %>
                       </div>
-                      <%= c.company_name || '-' %>
+                      <a href="/customers/<%= c.id %>" class="font-semibold text-blue-600 hover:underline"><%= c.company_name || '-' %></a>
                     </div>
                   </td>
                   <td class="px-4 py-3 text-slate-600 dark:text-slate-300"><%= c.contact_person || '-' %></td>
@@ -53,7 +53,7 @@
                   </td>
                   <td class="px-4 py-3 text-right">
                     <div class="flex items-center justify-end gap-1.5">
-                      <a href="/customers/<%= c.id %>/projects" class="btn btn-ghost py-1.5 px-2.5 text-xs">Projekte</a>
+                      <a href="/customers/<%= c.id %>" class="btn btn-ghost py-1.5 px-2.5 text-xs">Akte</a>
                       <button onclick='openEditModal(this)'
                         data-customer="<%= JSON.stringify(c) %>"
                         class="btn py-1.5 px-2.5 text-xs text-amber-600 border border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-900/20">Bearbeiten</button>
@@ -92,7 +92,7 @@
             <div class="flex items-center gap-3">
               <div class="avatar-initials"><%= (c.company_name || c.contact_person || '?').charAt(0).toUpperCase() %></div>
               <div class="min-w-0 flex-1">
-                <div class="m-card-title truncate"><%= c.company_name || c.contact_person || '—' %></div>
+                <div class="m-card-title truncate"><a href="/customers/<%= c.id %>" class="text-blue-600"><%= c.company_name || c.contact_person || '—' %></a></div>
                 <div class="m-card-meta">
                   <% if (c.contact_person && c.company_name) { %><span><%= c.contact_person %></span><% } %>
                   <% if (c.phone) { %><span><%= c.phone %></span><% } %>
@@ -100,7 +100,7 @@
               </div>
             </div>
             <div class="m-card-actions">
-              <a href="/customers/<%= c.id %>/projects" class="btn btn-primary text-xs">Projekte</a>
+              <a href="/customers/<%= c.id %>" class="btn btn-primary text-xs">Akte</a>
               <% if (c.phone) { %>
                 <a href="tel:<%= String(c.phone).replace(/\s+/g,'') %>" class="btn btn-ghost text-xs">Anrufen</a>
               <% } %>

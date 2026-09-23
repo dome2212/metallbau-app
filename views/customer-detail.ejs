@@ -1,0 +1,183 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-5">
+
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <div>
+        <a href="/customers" class="text-xs text-blue-600 hover:underline">← Kunden</a>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">
+          <%= customer.company_name || customer.contact_person || 'Kunde' %>
+        </h1>
+        <p class="text-sm text-slate-500 mt-0.5">
+          <% if (customer.customer_number) { %>Nr. <%= customer.customer_number %> · <% } %>
+          Kundenakte
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/documents/offers?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Angebot</a>
+        <a href="/projects" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Auftrag</a>
+        <a href="/documents/invoices?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold">Rechnung</a>
+      </div>
+    </div>
+
+    <!-- Stammdaten + E-Rechnung -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 card p-5">
+        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Stammdaten</h2>
+        <form action="/customers/<%= customer.id %>/edit" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">Firma</label>
+            <input name="company_name" value="<%= customer.company_name || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">Ansprechpartner</label>
+            <input name="contact_person" value="<%= customer.contact_person || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">E-Mail</label>
+            <input name="email" type="email" value="<%= customer.email || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">Telefon</label>
+            <input name="phone" value="<%= customer.phone || '' %>" class="input text-sm w-full">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-xs font-semibold text-slate-500 uppercase">Straße</label>
+            <input name="street" value="<%= customer.street || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">PLZ</label>
+            <input name="zip" value="<%= customer.zip || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">Ort</label>
+            <input name="city" value="<%= customer.city || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">Kundennummer</label>
+            <input name="customer_number" value="<%= customer.customer_number || '' %>" class="input text-sm w-full">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase">USt-IdNr. Kunde</label>
+            <input name="ust_id" value="<%= customer.ust_id || '' %>" placeholder="DE123456789" class="input text-sm w-full">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-xs font-semibold text-slate-500 uppercase">Leitweg-ID (E-Rechnung)</label>
+            <input name="leitweg_id" value="<%= customer.leitweg_id || '' %>" placeholder="z. B. 991-12345-67" class="input text-sm w-full">
+            <p class="text-[10px] text-slate-400 mt-1">Pflicht für XRechnung an öffentliche Auftraggeber / viele Portale.</p>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-xs font-semibold text-slate-500 uppercase">Interne Notizen</label>
+            <textarea name="notes" rows="2" class="input text-sm w-full"><%= customer.notes || '' %></textarea>
+          </div>
+          <div class="sm:col-span-2">
+            <button type="submit" class="btn text-white font-semibold px-4 py-2" style="background:var(--primary)">Speichern</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card p-5 space-y-3">
+        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Übersicht</h2>
+        <div class="grid grid-cols-2 gap-2 text-center">
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100"><%= (offers || []).length %></p>
+            <p class="text-[10px] uppercase text-slate-400">Angebote</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100"><%= (projects || []).length %></p>
+            <p class="text-[10px] uppercase text-slate-400">Aufträge</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100"><%= (invoices || []).length %></p>
+            <p class="text-[10px] uppercase text-slate-400">Rechnungen</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800 p-3">
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100"><%= (deliveries || []).length %></p>
+            <p class="text-[10px] uppercase text-slate-400">Lieferscheine</p>
+          </div>
+        </div>
+        <% const hasLeitweg = !!(customer.leitweg_id && String(customer.leitweg_id).trim()); %>
+        <div class="text-xs rounded-lg p-3 <%= hasLeitweg ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900' %>">
+          <% if (hasLeitweg) { %>
+            ✓ Leitweg-ID hinterlegt – E-Rechnung möglich
+          <% } else { %>
+            ⚠ Keine Leitweg-ID – für E-Rechnung an Behörden/Portale ergänzen
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Beleg-Flow Hinweis -->
+    <div class="card p-4 text-sm text-slate-600 dark:text-slate-300">
+      <strong class="text-slate-800 dark:text-slate-100">Beleg-Flow:</strong>
+      Angebot → Auftrag (aus Angebot) → Lieferschein / Abnahme → Rechnung
+    </div>
+
+    <!-- Tabellen -->
+    <% function money(v){ return Number(v||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}); } %>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-semibold text-sm">Angebote</div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-700 max-h-72 overflow-y-auto">
+          <% if (!(offers||[]).length) { %><p class="p-4 text-xs text-slate-400">Keine Angebote</p><% } %>
+          <% (offers||[]).forEach(function(o){ %>
+            <a href="/documents/offers/<%= o.id %>" class="flex justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+              <span><%= o.doc_number %> <span class="text-xs text-slate-400"><%= o.status %></span></span>
+              <span class="font-semibold"><%= money(o.total_amount) %> €</span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-semibold text-sm">Rechnungen</div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-700 max-h-72 overflow-y-auto">
+          <% if (!(invoices||[]).length) { %><p class="p-4 text-xs text-slate-400">Keine Rechnungen</p><% } %>
+          <% (invoices||[]).forEach(function(o){ %>
+            <a href="/documents/invoices/<%= o.id %>" class="flex justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+              <span><%= o.doc_number %> <span class="text-xs text-slate-400"><%= o.status %></span></span>
+              <span class="font-semibold"><%= money(o.total_amount) %> €</span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-semibold text-sm">Aufträge</div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-700 max-h-72 overflow-y-auto">
+          <% if (!(projects||[]).length) { %><p class="p-4 text-xs text-slate-400">Keine Aufträge</p><% } %>
+          <% (projects||[]).forEach(function(p){ %>
+            <a href="/projects/<%= p.id %>" class="flex justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+              <span class="truncate"><%= p.title %></span>
+              <span class="text-xs text-slate-400 shrink-0"><%= p.status %></span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="card p-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <span class="font-semibold text-sm">Lieferscheine</span>
+          <form action="/documents/delivery/create" method="POST" class="inline">
+            <input type="hidden" name="customer_id" value="<%= customer.id %>">
+            <button type="submit" class="text-xs text-blue-600 font-semibold hover:underline">+ Neu</button>
+          </form>
+        </div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-700 max-h-72 overflow-y-auto">
+          <% if (!(deliveries||[]).length) { %><p class="p-4 text-xs text-slate-400">Keine Lieferscheine</p><% } %>
+          <% (deliveries||[]).forEach(function(o){ %>
+            <a href="/documents/delivery/<%= o.id %>" class="flex justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+              <span><%= o.doc_number %> <span class="text-xs text-slate-400"><%= o.status %></span></span>
+              <span class="text-xs text-slate-400"><%= (o.created_at||'').toString().slice(0,10) %></span>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
