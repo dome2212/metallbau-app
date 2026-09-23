@@ -422,5 +422,145 @@
   })();
 </script>
 
+
+<!-- Modal: Neue Positionen speichern -->
+<div id="catalogSaveModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-700">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Neue Positionen speichern?</h3>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Diese Bezeichnungen sind noch nicht im Stamm. Für die nächste Rechnung/Angebot übernehmen?</p>
+    </div>
+    <div class="p-5 space-y-3">
+      <ul id="catalogSaveList" class="text-sm space-y-1.5 max-h-40 overflow-y-auto border border-gray-100 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-700/40"></ul>
+      <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+        <input type="checkbox" id="catalogAsArticle" checked class="rounded border-gray-300 text-blue-600">
+        Als <strong>Artikel</strong> speichern (mit Einheit &amp; Preis)
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+        <input type="checkbox" id="catalogAsSnippet" class="rounded border-gray-300 text-purple-600">
+        Als <strong>Textbaustein</strong> speichern
+      </label>
+    </div>
+    <div class="px-5 py-4 border-t border-gray-100 dark:border-slate-700 flex flex-wrap gap-2 justify-end">
+      <button type="button" id="catalogSkipBtn" class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Nein, nur speichern</button>
+      <button type="button" id="catalogSaveBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Ja, übernehmen</button>
+    </div>
+  </div>
+</div>
+<script>
+window.__CATALOG_ARTICLES = window.__CATALOG_ARTICLES || [];
+window.__CATALOG_SNIPPETS = window.__CATALOG_SNIPPETS || [];
+
+function collectFormPositions(form) {
+  const titles = form.querySelectorAll('[name="title"]');
+  const units = form.querySelectorAll('[name="unit"]');
+  const prices = form.querySelectorAll('[name="price"]');
+  const items = [];
+  titles.forEach(function(inp, i) {
+    const title = (inp.value || '').trim();
+    if (!title) return;
+    items.push({
+      title: title,
+      description: title,
+      unit: (units[i] && units[i].value) || 'Stk',
+      price: (prices[i] && prices[i].value) || 0
+    });
+  });
+  return items;
+}
+
+function findUnknownPositions(items) {
+  const artTitles = new Set((window.__CATALOG_ARTICLES || []).map(function(a) {
+    return String(a.title || '').toLowerCase().trim();
+  }));
+  const snipLabels = new Set((window.__CATALOG_SNIPPETS || []).map(function(s) {
+    return String(s.label || s.text || '').toLowerCase().trim();
+  }));
+  const unknown = [];
+  const seen = new Set();
+  items.forEach(function(it) {
+    const k = it.title.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    if (!artTitles.has(k) && !snipLabels.has(k)) unknown.push(it);
+  });
+  return unknown;
+}
+
+function promptSaveNewCatalog(form) {
+  return new Promise(function(resolve) {
+    const items = collectFormPositions(form);
+    const unknown = findUnknownPositions(items);
+    if (!unknown.length) { resolve(false); return; }
+
+    const modal = document.getElementById('catalogSaveModal');
+    const list = document.getElementById('catalogSaveList');
+    if (!modal || !list) { resolve(false); return; }
+
+    list.innerHTML = unknown.map(function(u) {
+      return '<li class="flex justify-between gap-2"><span class="font-medium text-gray-800 dark:text-gray-100">' +
+        u.title.replace(/</g,'&lt;') + '</span><span class="text-xs text-gray-400">' +
+        (Number(u.price)||0).toFixed(2) + ' € / ' + (u.unit||'Stk') + '</span></li>';
+    }).join('');
+
+    modal.classList.remove('hidden');
+
+    function cleanup() {
+      modal.classList.add('hidden');
+      document.getElementById('catalogSkipBtn').onclick = null;
+      document.getElementById('catalogSaveBtn').onclick = null;
+    }
+
+    document.getElementById('catalogSkipBtn').onclick = function() {
+      cleanup();
+      resolve(false);
+    };
+    document.getElementById('catalogSaveBtn').onclick = async function() {
+      const asArticle = document.getElementById('catalogAsArticle').checked;
+      const asSnippet = document.getElementById('catalogAsSnippet').checked;
+      const btn = document.getElementById('catalogSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Speichert…';
+      try {
+        if (asArticle || asSnippet) {
+          await fetch('/documents/api/save-catalog-items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ items: unknown, as_article: asArticle, as_snippet: asSnippet })
+          });
+        }
+      } catch (e) { console.warn(e); }
+      btn.disabled = false;
+      btn.textContent = 'Ja, übernehmen';
+      cleanup();
+      resolve(true);
+    };
+  });
+}
+
+function wireCatalogPrompt(form) {
+  if (!form || form.dataset.catalogWired) return;
+  form.dataset.catalogWired = '1';
+  form.addEventListener('submit', function(e) {
+    if (form.dataset.catalogDone === '1') return;
+    e.preventDefault();
+    promptSaveNewCatalog(form).then(function() {
+      form.dataset.catalogDone = '1';
+      form.submit();
+    });
+  });
+}
+</script>
+
+<script>
+window.__CATALOG_ARTICLES = <%- JSON.stringify((typeof articles !== 'undefined' ? articles : []).map(a => ({ title: a.title, unit: a.unit, unit_price: a.unit_price }))) %>;
+window.__CATALOG_SNIPPETS = <%- JSON.stringify(typeof textSnippets !== 'undefined' ? textSnippets : []) %>;
+document.addEventListener('DOMContentLoaded', function() {
+  var f = document.querySelector('form[action="/documents/create-invoice"]');
+  if (f) wireCatalogPrompt(f);
+});
+</script>
+
 </body>
 </html>
