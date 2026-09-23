@@ -180,3 +180,12 @@
       <!-- ══════════════════════════════════════════════════════════════════ -->
       <!-- TAB: DATEV-EXPORT                                                   -->
       <!-- ══════════════════════════════════════════════════════════════════ -->
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3">Nachkalkulation</h2>
+          <p class="text-xs text-slate-400 mb-3">Interner Stundensatz (Stunden × Satz + Material vs. Angebot).</p>
+          <label class="block text-xs font-medium mb-1">Stundensatz intern (€)</label>
+          <input type="number" name="hourly_rate" step="0.01" min="0"
+            value="<%= firma.hourly_rate != null ? firma.hourly_rate : '55' %>"
+            class="w-full max-w-xs border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+        </div>
