@@ -137,7 +137,7 @@
         <% if (typeof offers !== 'undefined' && offers.length > 0) { %>
           <% offers.forEach(offer => { %>
             <div class="m-card offer-card">
-              <a href="/documents/offers/<%= offer.id %>" class="block">
+              <a href="/documents/offers/<%= offer.id %>/detail" class="block">
                 <div class="m-card-title"><%= offer.offer_number || ('Angebot #' + offer.id) %></div>
                 <div class="m-card-meta">
                   <span><%= offer.company_name || offer.contact_person || '—' %></span>
@@ -149,7 +149,7 @@
                 </div>
               </a>
               <div class="m-card-actions">
-                <a href="/documents/offers/<%= offer.id %>" class="btn btn-primary text-xs">Öffnen</a>
+                <a href="/documents/offers/<%= offer.id %>/detail" class="btn btn-primary text-xs">Öffnen</a>
               </div>
             </div>
           <% }) %>
