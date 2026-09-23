@@ -380,16 +380,18 @@ router.post('/invoices/update-number', requireAdmin, async (req, res) => {
   }
 });
 
-// POST: Mahnung erstellen (Mahnstufe setzen + optional PDF)
+// POST: Mahnung erstellen (Mahnstufe + optionale Mahngebühr + PDF)
 router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
   const { id } = req.params;
   let level = parseInt(req.body.dunning_level, 10);
   if (![1, 2, 3].includes(level)) level = 1;
   const downloadPdf = req.body.download_pdf === '1' || req.body.download_pdf === 'true';
+  const applyFee = req.body.apply_fee !== '0' && req.body.apply_fee !== 'false';
 
   try {
+    const firma = await getFirma();
     const invRes = await dbQuery(
-      `SELECT id, status, dunning_level FROM documents WHERE id = ? AND doc_type = 'INVOICE'`,
+      `SELECT id, status, dunning_level, tax_rate FROM documents WHERE id = ? AND doc_type = 'INVOICE'`,
       [id]
     );
     const inv = invRes.rows?.[0];
@@ -404,10 +406,45 @@ router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
         ? '2. Mahnung erstellt'
         : '3. Letzte Mahnung erstellt';
 
+    // Alte Mahngebühr-Positionen entfernen
     await dbQuery(
-      `UPDATE documents SET dunning_level = ?, status = CASE WHEN status = 'Bezahlt' THEN status ELSE 'Gemahnt' END,
-       status_note = ? WHERE id = ?`,
-      [level, note, id]
+      `DELETE FROM document_items WHERE document_id = ? AND (description LIKE 'Mahngebühr%' OR description LIKE 'Mahngebuehr%')`,
+      [id]
+    );
+
+    if (applyFee) {
+      const feeKey = level === 1 ? 'dunning_fee_1' : level === 2 ? 'dunning_fee_2' : 'dunning_fee_3';
+      let fee = parseFloat(
+        (req.body.dunning_fee_override !== undefined && req.body.dunning_fee_override !== '')
+          ? req.body.dunning_fee_override
+          : (firma[feeKey] != null ? firma[feeKey] : 0)
+      ) || 0;
+      if (fee > 0) {
+        const feeLabel = level === 1
+          ? 'Mahngebühr (1. Zahlungserinnerung)'
+          : level === 2
+            ? 'Mahngebühr (2. Mahnung)'
+            : 'Mahngebühr (3. Letzte Mahnung)';
+        await dbQuery(
+          `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, 1, 'Psch', ?)`,
+          [id, feeLabel, fee]
+        );
+      }
+    }
+
+    const itemsRes = await dbQuery(`SELECT quantity, price FROM document_items WHERE document_id = ?`, [id]);
+    let subtotal = 0;
+    for (const it of (itemsRes.rows || [])) {
+      subtotal += (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0);
+    }
+    const taxRate = parseFloat(inv.tax_rate || firma.default_tax_rate || 19);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+
+    await dbQuery(
+      `UPDATE documents SET dunning_level = ?, status = 'Gemahnt', status_note = ?,
+       subtotal = ?, tax_amount = ?, total_amount = ? WHERE id = ?`,
+      [level, note, subtotal, taxAmount, totalAmount, id]
     );
 
     if (downloadPdf) {
@@ -417,6 +454,70 @@ router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Fehler bei POST /invoices/:id/create-dunning:', err.message);
     res.status(500).send('Fehler beim Erstellen der Mahnung.');
+  }
+});
+
+// POST: Rechnung bearbeiten (Positionen, Fälligkeit, MwSt., Status)
+router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const {
+    title: titles, quantity: quantities, unit: units, price: prices,
+    due_date, tax_rate, status, status_note
+  } = req.body;
+
+  try {
+    const invRes = await dbQuery(
+      `SELECT id, status FROM documents WHERE id = ? AND doc_type = 'INVOICE'`,
+      [id]
+    );
+    if (!invRes.rows?.[0]) return res.status(404).send('Rechnung nicht gefunden.');
+
+    const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
+    const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
+    const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
+    const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
+
+    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
+
+    let subtotal = 0;
+    for (let i = 0; i < titleArr.length; i++) {
+      const desc = (titleArr[i] || '').trim();
+      if (!desc) continue;
+      const q = parseFloat(quantityArr[i] || 1);
+      const p = parseFloat(priceArr[i] || 0);
+      subtotal += q * p;
+      await dbQuery(
+        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
+        [id, desc, q, unitArr[i] || 'Stk', p]
+      );
+    }
+
+    const taxRate = parseFloat(tax_rate != null && tax_rate !== '' ? tax_rate : 19);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+
+    const fields = ['subtotal = ?', 'tax_amount = ?', 'total_amount = ?', 'tax_rate = ?'];
+    const params = [subtotal, taxAmount, totalAmount, taxRate];
+
+    if (due_date !== undefined) {
+      fields.push('due_date = ?');
+      params.push(due_date || null);
+    }
+    if (status) {
+      fields.push('status = ?');
+      params.push(status);
+    }
+    if (status_note !== undefined) {
+      fields.push('status_note = ?');
+      params.push(status_note || null);
+    }
+    params.push(id);
+
+    await dbQuery(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
+    res.redirect(`/documents/invoices/${id}?saved=1`);
+  } catch (err) {
+    console.error('Fehler bei POST /invoices/:id/update:', err.message);
+    res.status(500).send('Fehler beim Speichern der Rechnung.');
   }
 });
 
@@ -436,8 +537,10 @@ router.get('/invoices/:id', requireAdmin, async (req, res) => {
     res.render('invoice-detail', {
       invoice,
       items: itemsRes.rows || [],
+      firma,
       canSeeMoney: canSeeMoney(req.user, firma),
-      mahnungOk: req.query.mahnung === '1'
+      mahnungOk: req.query.mahnung === '1',
+      savedOk: req.query.saved === '1'
     });
   } catch (err) {
     console.error('Fehler bei GET /documents/invoices/:id:', err.message);
