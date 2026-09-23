@@ -583,8 +583,7 @@ const MIGRATIONS = [
     }
   },
 
-,
-// ── 017 ── Putzplan ─────────────────────────────────────────────────────────
+  // ── 017 ── Putzplan ─────────────────────────────────────────────────────────
   {
     id: 17,
     description: 'cleaning_plan + cleaning_logs für Putzplan im Aufgaben-Reiter',
@@ -656,6 +655,7 @@ async function runMigrations() {
 
   let ran = 0;
   for (const migration of MIGRATIONS) {
+    if (!migration || migration.id == null) continue;
     if (appliedIds.has(migration.id)) continue;
     try {
       await migration.up();
