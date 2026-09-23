@@ -28,6 +28,10 @@
   const tax        = subtotal * (taxRate / 100);
   const total      = subtotal + tax;
   const fmt        = n => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Eigene Formatierung für Mengen: keine erzwungenen Nachkommastellen bei
+  // ganzen Zahlen (z. B. "1" statt "1,00"), aber bis zu 3 Nachkommastellen
+  // möglich, falls z. B. 2,5 m oder 0,75 Std. angegeben wurden.
+  const fmtQty     = n => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
   const fmtDate    = d => { try { return new Date(d).toLocaleDateString('de-DE'); } catch(_){ return ''; } };
   const isOverdue  = invoice.due_date && new Date(invoice.due_date) < new Date() && invoice.status !== 'Bezahlt';
 %>
@@ -186,7 +190,7 @@
               <td class="py-3 px-3 text-gray-400 text-center"><%= index + 1 %></td>
               <td class="py-3 px-3 font-medium text-gray-800"><%= item.description %></td>
               <td class="py-3 px-3 text-right text-gray-600">
-                <%= fmt(item.quantity) %> <span class="text-gray-400"><%= item.unit || '' %></span>
+                <%= fmtQty(item.quantity) %> <span class="text-gray-400"><%= item.unit || '' %></span>
               </td>
               <td class="py-3 px-3 text-right text-gray-600"><%= fmt(item.price) %> €</td>
               <td class="py-3 px-3 text-right font-semibold text-gray-900">
