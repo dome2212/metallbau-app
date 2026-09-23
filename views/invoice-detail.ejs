@@ -75,6 +75,13 @@
               class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold">
               <svg class="w-3.5 h-3.5 inline -mt-0.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 19h16"/></svg>PDF herunterladen
             </a>
+            <form action="/documents/invoices/delete" method="POST" class="inline"
+              onsubmit="return confirm('Rechnung wirklich löschen?');">
+              <input type="hidden" name="invoice_id" value="<%= invoice.id %>">
+              <button type="submit" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg text-xs font-semibold">
+                Löschen
+              </button>
+            </form>
             <a href="/documents/invoices" class="px-3 py-1.5 border dark:border-slate-600 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Zurück</a>
           </div>
         </div>
