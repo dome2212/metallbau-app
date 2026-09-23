@@ -1,0 +1,86 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+  <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Offene Posten (OP-Liste)</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Nicht bezahlte Rechnungen · überfällige Beträge zuerst</p>
+    </div>
+    <a href="/documents/invoices" class="text-sm text-blue-600 hover:text-blue-800 font-medium">← Zur Rechnungsverwaltung</a>
+  </div>
+
+  <div class="px-4 md:px-6 max-w-7xl mx-auto w-full pb-8 space-y-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border border-gray-100 dark:border-slate-700">
+        <p class="text-xs uppercase tracking-wide text-gray-400 font-semibold">Offener Betrag gesamt</p>
+        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+          <%= Number(sumOpen || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> €
+        </p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 border border-red-100 dark:border-red-900/40">
+        <p class="text-xs uppercase tracking-wide text-red-400 font-semibold">Davon überfällig</p>
+        <p class="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">
+          <%= Number(sumOverdue || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> €
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left min-w-[700px]">
+          <thead class="bg-slate-50 dark:bg-slate-700 text-[10px] uppercase text-gray-500 dark:text-gray-400">
+            <tr>
+              <th class="px-4 py-3">Nr.</th>
+              <th class="px-4 py-3">Kunde</th>
+              <th class="px-4 py-3">Datum</th>
+              <th class="px-4 py-3">Fällig</th>
+              <th class="px-4 py-3">Status</th>
+              <% if (canSeeMoney) { %>
+              <th class="px-4 py-3 text-right">Brutto</th>
+              <th class="px-4 py-3 text-right">Bezahlt</th>
+              <th class="px-4 py-3 text-right">Offen</th>
+              <% } %>
+              <th class="px-4 py-3 text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+            <% if (!invoices || invoices.length === 0) { %>
+            <tr>
+              <td colspan="9" class="px-4 py-10 text-center text-gray-400">Keine offenen Rechnungen.</td>
+            </tr>
+            <% } else { %>
+              <% invoices.forEach(function(inv) {
+                const open = Math.max(0, parseFloat(inv.open_amount != null ? inv.open_amount : (inv.total_amount||0) - (inv.paid_amount||0)));
+                const overdue = inv.due_date && new Date(inv.due_date) < new Date() && open > 0.01;
+              %>
+              <tr class="<%= overdue ? 'bg-red-50/50 dark:bg-red-900/10' : '' %> hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                <td class="px-4 py-3 font-semibold">
+                  <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline"><%= inv.invoice_number || inv.doc_number %></a>
+                </td>
+                <td class="px-4 py-3"><%= inv.company_name || inv.contact_person || '–' %></td>
+                <td class="px-4 py-3 text-gray-500"><%= inv.created_at ? new Date(inv.created_at).toLocaleDateString('de-DE') : '–' %></td>
+                <td class="px-4 py-3 <%= overdue ? 'text-red-600 font-semibold' : 'text-gray-600' %>">
+                  <%= inv.due_date ? new Date(inv.due_date).toLocaleDateString('de-DE') : '–' %>
+                  <% if (overdue) { %> <span class="text-[10px] uppercase">überfällig</span><% } %>
+                </td>
+                <td class="px-4 py-3"><span class="badge badge-warning"><%= inv.status %></span></td>
+                <% if (canSeeMoney) { %>
+                <td class="px-4 py-3 text-right"><%= Number(inv.total_amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
+                <td class="px-4 py-3 text-right text-gray-500"><%= Number(inv.paid_amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
+                <td class="px-4 py-3 text-right font-bold <%= overdue ? 'text-red-600' : '' %>"><%= open.toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
+                <% } %>
+                <td class="px-4 py-3 text-right">
+                  <a href="/documents/invoices/<%= inv.id %>?tab=zahlungen" class="text-xs font-medium text-emerald-600 hover:text-emerald-800">Zahlung</a>
+                </td>
+              </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

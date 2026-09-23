@@ -11,7 +11,17 @@
       <% } %>
       <% if (typeof savedOk !== 'undefined' && savedOk) { %>
       <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300 font-semibold">
-        Rechnung wurde gespeichert.
+        Gespeichert.
+      </div>
+      <% } %>
+      <% if (typeof sentOk !== 'undefined' && sentOk) { %>
+      <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300 font-semibold">
+        E-Mail mit PDF wurde gesendet.
+      </div>
+      <% } %>
+      <% if (typeof stornoOk !== 'undefined' && stornoOk) { %>
+      <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300 font-semibold">
+        Rechnung wurde storniert.
       </div>
       <% } %>
       
@@ -45,11 +55,20 @@
                 Mahnstufe <%= invoice.dunning_level %>
               </span>
             <% } %>
-            <% if (invoice.status !== 'Bezahlt') { %>
+            <button type="button" onclick="document.getElementById('emailModal').classList.remove('hidden')"
+              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold">E-Mail</button>
+            <% if (invoice.doc_type !== 'CREDIT' && invoice.status !== 'Storniert') { %>
+            <button type="button" onclick="document.getElementById('stornoModal').classList.remove('hidden')"
+              class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold">Storno</button>
+            <form action="/documents/invoices/<%= invoice.id %>/credit-note" method="POST" class="inline"
+              onsubmit="return confirm('Gutschrift zu dieser Rechnung anlegen?');">
+              <button type="submit" class="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold">Gutschrift</button>
+            </form>
+            <% } %>
+            <% if (invoice.status !== 'Bezahlt' && invoice.status !== 'Storniert' && invoice.doc_type !== 'CREDIT') { %>
             <button type="button" onclick="document.getElementById('dunningModal').classList.remove('hidden')"
               class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a1.5 1.5 0 001.3 2.3h16.4a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z"/></svg>
-              Mahnung schreiben
+              Mahnung
             </button>
             <% } %>
             <button onclick="openPaymentReminderModal()"
@@ -96,11 +115,19 @@
         </div>
 
         <!-- Tabs: Rechnung | Mahnungen -->
-        <% const invTab = (typeof activeTab !== 'undefined' && activeTab === 'mahnungen') ? 'mahnungen' : 'rechnung'; %>
+        <% const invTab = (typeof activeTab !== 'undefined' && (activeTab === 'mahnungen' || activeTab === 'zahlungen')) ? activeTab : 'rechnung'; %>
         <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700 mb-4">
           <button type="button" onclick="switchInvTab('rechnung')" id="tabBtnRechnung"
             class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px <%= invTab === 'rechnung' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
             Rechnung
+          </button>
+          <button type="button" onclick="switchInvTab('zahlungen')" id="tabBtnZahlungen"
+            class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px <%= invTab === 'zahlungen' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+            Zahlungen
+            <% const payCount = (typeof payments !== 'undefined' && payments) ? payments.length : 0; %>
+            <% if (payCount > 0) { %>
+              <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-100 text-emerald-700"><%= payCount %></span>
+            <% } %>
           </button>
           <button type="button" onclick="switchInvTab('mahnungen')" id="tabBtnMahnungen"
             class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px <%= invTab === 'mahnungen' ? 'border-red-600 text-red-600 dark:text-red-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
@@ -213,7 +240,93 @@
 
         </div><!-- /tabRechnung -->
 
-        <!-- TAB: MAHNUNGEN -->
+        
+        <!-- TAB: ZAHLUNGEN -->
+        <div id="tabZahlungen" class="<%= invTab === 'zahlungen' ? '' : 'hidden' %> space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="rounded-xl border border-gray-200 dark:border-slate-600 p-3 bg-slate-50 dark:bg-slate-700/40">
+              <p class="text-[10px] uppercase text-gray-400 font-semibold">Brutto</p>
+              <p class="text-lg font-bold"><%= Number(invoice.total_amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</p>
+            </div>
+            <div class="rounded-xl border border-emerald-200 dark:border-emerald-800 p-3 bg-emerald-50 dark:bg-emerald-900/20">
+              <p class="text-[10px] uppercase text-emerald-600 font-semibold">Bezahlt</p>
+              <p class="text-lg font-bold text-emerald-700"><%= Number(typeof paidSum !== 'undefined' ? paidSum : 0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</p>
+            </div>
+            <div class="rounded-xl border border-amber-200 dark:border-amber-800 p-3 bg-amber-50 dark:bg-amber-900/20">
+              <p class="text-[10px] uppercase text-amber-600 font-semibold">Offen</p>
+              <p class="text-lg font-bold text-amber-700"><%= Number(typeof openAmt !== 'undefined' ? openAmt : 0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</p>
+            </div>
+          </div>
+
+          <% if (invoice.status !== 'Storniert') { %>
+          <form action="/documents/invoices/<%= invoice.id %>/payments" method="POST"
+            class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Betrag (€) *</label>
+              <input type="number" name="amount" step="0.01" min="0.01" required
+                value="<%= (typeof openAmt !== 'undefined' && openAmt > 0) ? openAmt.toFixed(2) : '' %>"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Datum</label>
+              <input type="date" name="payment_date" value="<%= new Date().toISOString().slice(0,10) %>"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Zahlungsart</label>
+              <select name="method" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+                <% ['Überweisung','Bar','EC-Karte','PayPal','Lastschrift','Sonstiges'].forEach(function(m){ %>
+                  <option value="<%= m %>"><%= m %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Notiz</label>
+              <input type="text" name="note" placeholder="optional" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold">Zahlung buchen</button>
+          </form>
+          <% } %>
+
+          <% const pays = (typeof payments !== 'undefined' && payments) ? payments : []; %>
+          <% if (pays.length === 0) { %>
+          <p class="text-sm text-gray-400 text-center py-6">Noch keine Zahlungen erfasst.</p>
+          <% } else { %>
+          <div class="border border-gray-200 dark:border-slate-600 rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-700 text-[10px] uppercase text-gray-500">
+                <tr>
+                  <th class="px-3 py-2 text-left">Datum</th>
+                  <th class="px-3 py-2 text-right">Betrag</th>
+                  <th class="px-3 py-2">Art</th>
+                  <th class="px-3 py-2">Notiz</th>
+                  <th class="px-3 py-2">Von</th>
+                  <th class="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                <% pays.forEach(function(p) { %>
+                <tr>
+                  <td class="px-3 py-2"><%= p.payment_date ? new Date(p.payment_date).toLocaleDateString('de-DE') : '–' %></td>
+                  <td class="px-3 py-2 text-right font-semibold"><%= Number(p.amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
+                  <td class="px-3 py-2"><%= p.method || '–' %></td>
+                  <td class="px-3 py-2 text-gray-500 text-xs"><%= p.note || '–' %></td>
+                  <td class="px-3 py-2 text-gray-500 text-xs"><%= p.created_by_name || '–' %></td>
+                  <td class="px-3 py-2 text-right">
+                    <form action="/documents/invoices/<%= invoice.id %>/payments/<%= p.id %>/delete" method="POST" class="inline"
+                      onsubmit="return confirm('Zahlung löschen?');">
+                      <button type="submit" class="text-xs text-red-500 hover:text-red-700">✕</button>
+                    </form>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div><!-- /tabZahlungen -->
+
+<!-- TAB: MAHNUNGEN -->
         <div id="tabMahnungen" class="<%= (typeof activeTab !== 'undefined' && activeTab === 'mahnungen') ? '' : 'hidden' %> space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -301,6 +414,62 @@
 
     </div>
   </main>
+
+
+<!-- E-Mail Modal -->
+<div id="emailModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Rechnung per E-Mail</h3>
+      <button type="button" onclick="document.getElementById('emailModal').classList.add('hidden')" class="text-xl text-gray-400">&times;</button>
+    </div>
+    <form action="/documents/invoices/<%= invoice.id %>/send-email" method="POST" class="p-5 space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">An *</label>
+        <input type="email" name="to" required value="<%= invoice.email || '' %>"
+          class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm" placeholder="kunde@example.de">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Betreff</label>
+        <input type="text" name="subject" value="Rechnung <%= invoice.invoice_number || invoice.doc_number %>"
+          class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Nachricht</label>
+        <textarea name="message" rows="4" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm"
+          placeholder="Anbei erhalten Sie die Rechnung als PDF.">Anbei erhalten Sie die Rechnung <%= invoice.invoice_number || invoice.doc_number %> als PDF-Anhang.
+
+Mit freundlichen Grüßen</textarea>
+      </div>
+      <p class="text-xs text-gray-400">Das PDF wird automatisch angehängt. SMTP muss in der .env konfiguriert sein.</p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('emailModal').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-sm">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Senden</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Storno Modal -->
+<div id="stornoModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Rechnung stornieren</h3>
+      <button type="button" onclick="document.getElementById('stornoModal').classList.add('hidden')" class="text-xl text-gray-400">&times;</button>
+    </div>
+    <form action="/documents/invoices/<%= invoice.id %>/storno" method="POST" class="p-5 space-y-3">
+      <p class="text-sm text-gray-600 dark:text-gray-300">Die Rechnung bleibt erhalten (GoBD), wird aber als <strong>Storniert</strong> markiert und erscheint nicht mehr in den offenen Posten.</p>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Grund</label>
+        <input type="text" name="reason" value="Storniert" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('stornoModal').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-sm">Abbrechen</button>
+        <button type="submit" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold">Stornieren</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- ================================================ -->
 <!-- MAHNUNG ERSTELLEN                                  -->
@@ -565,24 +734,34 @@ function recalcEditTotals() {
 
 <script>
 function switchInvTab(tab) {
-  var rechnung = document.getElementById('tabRechnung');
-  var mahnungen = document.getElementById('tabMahnungen');
-  var btnR = document.getElementById('tabBtnRechnung');
-  var btnM = document.getElementById('tabBtnMahnungen');
-  if (!rechnung || !mahnungen) return;
-  if (tab === 'mahnungen') {
-    rechnung.classList.add('hidden');
-    mahnungen.classList.remove('hidden');
-    if (btnR) { btnR.classList.remove('border-blue-600','text-blue-600','dark:text-blue-400'); btnR.classList.add('border-transparent','text-gray-500'); }
-    if (btnM) { btnM.classList.add('border-red-600','text-red-600','dark:text-red-400'); btnM.classList.remove('border-transparent','text-gray-500'); }
-    if (history.replaceState) history.replaceState(null, '', '?tab=mahnungen');
-  } else {
-    mahnungen.classList.add('hidden');
-    rechnung.classList.remove('hidden');
-    if (btnM) { btnM.classList.remove('border-red-600','text-red-600','dark:text-red-400'); btnM.classList.add('border-transparent','text-gray-500'); }
-    if (btnR) { btnR.classList.add('border-blue-600','text-blue-600','dark:text-blue-400'); btnR.classList.remove('border-transparent','text-gray-500'); }
-    if (history.replaceState) history.replaceState(null, '', '?tab=rechnung');
-  }
+  var panels = {
+    rechnung: document.getElementById('tabRechnung'),
+    zahlungen: document.getElementById('tabZahlungen'),
+    mahnungen: document.getElementById('tabMahnungen')
+  };
+  var btns = {
+    rechnung: document.getElementById('tabBtnRechnung'),
+    zahlungen: document.getElementById('tabBtnZahlungen'),
+    mahnungen: document.getElementById('tabBtnMahnungen')
+  };
+  var activeCls = {
+    rechnung: ['border-blue-600','text-blue-600'],
+    zahlungen: ['border-emerald-600','text-emerald-600'],
+    mahnungen: ['border-red-600','text-red-600']
+  };
+  Object.keys(panels).forEach(function(k) {
+    if (panels[k]) panels[k].classList.toggle('hidden', k !== tab);
+    if (btns[k]) {
+      btns[k].classList.remove('border-blue-600','text-blue-600','border-emerald-600','text-emerald-600','border-red-600','text-red-600','dark:text-blue-400','dark:text-emerald-400','dark:text-red-400');
+      if (k === tab) {
+        (activeCls[k] || []).forEach(function(c){ btns[k].classList.add(c); });
+        btns[k].classList.remove('border-transparent','text-gray-500');
+      } else {
+        btns[k].classList.add('border-transparent','text-gray-500');
+      }
+    }
+  });
+  if (history.replaceState) history.replaceState(null, '', '?tab=' + tab);
 }
 </script>
 
