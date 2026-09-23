@@ -88,6 +88,26 @@
           <p class="text-xs text-gray-400 dark:text-slate-500 pt-1"><%= invoice.email || '' %> <%= invoice.phone ? '| ' + invoice.phone : '' %></p>
         </div>
 
+        <!-- Tabs: Rechnung | Mahnungen -->
+        <% const invTab = (typeof activeTab !== 'undefined' && activeTab === 'mahnungen') ? 'mahnungen' : 'rechnung'; %>
+        <div class="flex gap-0.5 border-b border-gray-200 dark:border-slate-700 mb-4">
+          <button type="button" onclick="switchInvTab('rechnung')" id="tabBtnRechnung"
+            class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px <%= invTab === 'rechnung' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+            Rechnung
+          </button>
+          <button type="button" onclick="switchInvTab('mahnungen')" id="tabBtnMahnungen"
+            class="px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px <%= invTab === 'mahnungen' ? 'border-red-600 text-red-600 dark:text-red-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' %>">
+            Mahnungen
+            <% const histCount = (typeof dunningHistory !== 'undefined' && dunningHistory) ? dunningHistory.length : 0; %>
+            <% if (histCount > 0) { %>
+              <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"><%= histCount %></span>
+            <% } %>
+          </button>
+        </div>
+
+        <!-- TAB: RECHNUNG -->
+        <div id="tabRechnung" class="<%= invTab === 'rechnung' ? '' : 'hidden' %> space-y-4">
+
         <!-- Bearbeiten: Positionen, Fälligkeit, Status -->
         <form action="/documents/invoices/<%= invoice.id %>/update" method="POST" id="invoiceEditForm" class="space-y-4">
           <div class="flex flex-wrap items-end gap-4">
@@ -182,6 +202,93 @@
             <strong>Hinweis/Statusgrund:</strong> <%= invoice.status_note %>
           </div>
         <% } %>
+
+
+        </div><!-- /tabRechnung -->
+
+        <!-- TAB: MAHNUNGEN -->
+        <div id="tabMahnungen" class="<%= (typeof activeTab !== 'undefined' && activeTab === 'mahnungen') ? '' : 'hidden' %> space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100">Mahnungs-Verlauf</h4>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Alle erstellten Mahnungen zu dieser Rechnung mit Datum und Gebühr</p>
+            </div>
+            <% if (invoice.status !== 'Bezahlt') { %>
+            <button type="button" onclick="document.getElementById('dunningModal').classList.remove('hidden')"
+              class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 self-start">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9L2.5 17a1.5 1.5 0 001.3 2.3h16.4a1.5 1.5 0 001.3-2.3L13.7 3.9a1.5 1.5 0 00-2.6 0z"/></svg>
+              Neue Mahnung
+            </button>
+            <% } %>
+          </div>
+
+          <% if ((invoice.dunning_level || 0) > 0) { %>
+          <div class="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-300">
+            Aktuelle Mahnstufe: <strong><%= invoice.dunning_level %></strong>
+            — <%= invoice.dunning_level === 1 ? '1. Zahlungserinnerung' : invoice.dunning_level === 2 ? '2. Mahnung' : '3. Letzte Mahnung' %>
+            <% if (invoice.status_note) { %> · <%= invoice.status_note %><% } %>
+          </div>
+          <% } %>
+
+          <% const hist = (typeof dunningHistory !== 'undefined' && dunningHistory) ? dunningHistory : []; %>
+          <% if (hist.length === 0) { %>
+          <div class="text-center py-10 border border-dashed border-gray-200 dark:border-slate-600 rounded-xl">
+            <p class="text-sm text-gray-400 dark:text-slate-500">Noch keine Mahnung zu dieser Rechnung erstellt.</p>
+            <% if (invoice.status !== 'Bezahlt') { %>
+            <button type="button" onclick="document.getElementById('dunningModal').classList.remove('hidden')"
+              class="mt-3 text-sm text-red-600 hover:text-red-800 font-medium">Erste Mahnung schreiben →</button>
+            <% } %>
+          </div>
+          <% } else { %>
+          <div class="border border-gray-200 dark:border-slate-600 rounded-xl overflow-hidden">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 dark:bg-slate-700/80 text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <tr>
+                  <th class="px-4 py-2.5">Datum / Uhrzeit</th>
+                  <th class="px-4 py-2.5">Stufe</th>
+                  <th class="px-4 py-2.5 text-right">Mahngebühr</th>
+                  <th class="px-4 py-2.5">Erstellt von</th>
+                  <th class="px-4 py-2.5">Hinweis</th>
+                  <th class="px-4 py-2.5 text-right">PDF</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                <% hist.forEach(function(h) {
+                  const lvl = h.dunning_level || 1;
+                  const label = lvl === 1 ? '1. Zahlungserinnerung' : lvl === 2 ? '2. Mahnung' : '3. Letzte Mahnung';
+                  const dt = h.created_at ? new Date(h.created_at) : null;
+                  const dateStr = dt ? dt.toLocaleDateString('de-DE') : '–';
+                  const timeStr = dt ? dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                %>
+                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/40">
+                  <td class="px-4 py-3">
+                    <span class="font-medium text-gray-800 dark:text-gray-100"><%= dateStr %></span>
+                    <% if (timeStr) { %><span class="text-xs text-gray-400 ml-1"><%= timeStr %></span><% } %>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                      <%= lvl === 1 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                        : lvl === 2 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' %>">
+                      <%= label %>
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right font-medium text-gray-800 dark:text-gray-200">
+                    <%= Number(h.fee_amount || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> €
+                  </td>
+                  <td class="px-4 py-3 text-gray-600 dark:text-gray-400"><%= h.created_by_name || '–' %></td>
+                  <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400"><%= h.note || '–' %></td>
+                  <td class="px-4 py-3 text-right">
+                    <a href="/documents/invoices/<%= invoice.id %>/pdf-download" download
+                      class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 font-medium">PDF</a>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div><!-- /tabMahnungen -->
 
       </div>
 
@@ -445,6 +552,30 @@ function recalcEditTotals() {
   var n = document.getElementById('editNet'); if (n) n.textContent = fmt(net);
   var v = document.getElementById('editVat'); if (v) v.textContent = fmt(vat);
   var g = document.getElementById('editGross'); if (g) g.textContent = fmt(gross);
+}
+</script>
+
+
+<script>
+function switchInvTab(tab) {
+  var rechnung = document.getElementById('tabRechnung');
+  var mahnungen = document.getElementById('tabMahnungen');
+  var btnR = document.getElementById('tabBtnRechnung');
+  var btnM = document.getElementById('tabBtnMahnungen');
+  if (!rechnung || !mahnungen) return;
+  if (tab === 'mahnungen') {
+    rechnung.classList.add('hidden');
+    mahnungen.classList.remove('hidden');
+    if (btnR) { btnR.classList.remove('border-blue-600','text-blue-600','dark:text-blue-400'); btnR.classList.add('border-transparent','text-gray-500'); }
+    if (btnM) { btnM.classList.add('border-red-600','text-red-600','dark:text-red-400'); btnM.classList.remove('border-transparent','text-gray-500'); }
+    if (history.replaceState) history.replaceState(null, '', '?tab=mahnungen');
+  } else {
+    mahnungen.classList.add('hidden');
+    rechnung.classList.remove('hidden');
+    if (btnM) { btnM.classList.remove('border-red-600','text-red-600','dark:text-red-400'); btnM.classList.add('border-transparent','text-gray-500'); }
+    if (btnR) { btnR.classList.add('border-blue-600','text-blue-600','dark:text-blue-400'); btnR.classList.remove('border-transparent','text-gray-500'); }
+    if (history.replaceState) history.replaceState(null, '', '?tab=rechnung');
+  }
 }
 </script>
 
