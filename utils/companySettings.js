@@ -73,6 +73,9 @@ const DEFAULTS = {
   min_password_length: '6',        // Mindest-Passwortlänge
   data_retention_years: '10',      // Aufbewahrungsfrist Zeiterfassung in Jahren (0 = keine automat. Löschung)
   dunning_enabled: 'false',        // Automatisches Mahnwesen bei überfälligen Rechnungen
+  dunning_fee_1:   '0',            // Mahngebühr 1. Zahlungserinnerung (€)
+  dunning_fee_2:   '5.00',         // Mahngebühr 2. Mahnung (€)
+  dunning_fee_3:   '10.00',        // Mahngebühr 3. Letzte Mahnung (€)
 
   // ── Lokalisierung ──────────────────────────────────────────────
   currency_symbol:     '€',        // Währungszeichen
