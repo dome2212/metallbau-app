@@ -9,6 +9,11 @@
         Mahnung wurde gespeichert. Du kannst das PDF herunterladen oder die Vorschau öffnen.
       </div>
       <% } %>
+      <% if (typeof savedOk !== 'undefined' && savedOk) { %>
+      <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300 font-semibold">
+        Rechnung wurde gespeichert.
+      </div>
+      <% } %>
       
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-6">
         <!-- Header -->
@@ -83,52 +88,94 @@
           <p class="text-xs text-gray-400 dark:text-slate-500 pt-1"><%= invoice.email || '' %> <%= invoice.phone ? '| ' + invoice.phone : '' %></p>
         </div>
 
-        <!-- Positionen (Material & Arbeitsstunden) -->
-        <div>
-          <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-3">Verbautes Material & Leistungen</h4>
-          <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
-            <table class="w-full text-left text-sm border-collapse min-w-[600px]">
-              <thead class="bg-gray-50 dark:bg-slate-700 text-gray-700 dark:text-slate-300 uppercase text-xs border-b dark:border-slate-600">
-                <tr>
-                  <th class="p-3">Beschreibung (Material / Arbeitszeit)</th>
-                  <th class="p-3 text-center w-24">Menge</th>
-                  <th class="p-3 text-center w-24">Einheit</th>
-                  <% if (canSeeMoney) { %>
-                    <th class="p-3 text-end w-28">Einzelpreis</th>
-                    <th class="p-3 text-end w-28">Gesamt</th>
-                  <% } %>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
-                <% if (items.length === 0) { %>
-                  <tr>
-                    <td colspan="<%= canSeeMoney ? 5 : 3 %>" class="text-center text-gray-400 dark:text-slate-500 py-6 text-xs">Keine Positionen hinterlegt.</td>
-                  </tr>
-                <% } else { %>
-                  <% items.forEach(item => { %>
-                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700">
-                      <td class="p-3 text-gray-800 dark:text-gray-100"><%= item.description %></td>
-                      <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.quantity %></td>
-                      <td class="p-3 text-center text-gray-600 dark:text-gray-300"><%= item.unit %></td>
-                      <% if (canSeeMoney) { %>
-                        <td class="p-3 text-end text-gray-600 dark:text-gray-300"><%= Number(item.price || 0).toFixed(2) %> €</td>
-                        <td class="p-3 text-end font-semibold text-gray-800 dark:text-gray-100"><%= (Number(item.quantity || 1) * Number(item.price || 0)).toFixed(2) %> €</td>
-                      <% } %>
-                    </tr>
-                  <% }) %>
-                <% } %>
-              </tbody>
-              <% if (canSeeMoney) { %>
-              <tfoot class="bg-gray-50 dark:bg-slate-700 border-t dark:border-slate-600">
-                <tr>
-                  <td colspan="4" class="p-3 text-end font-bold text-gray-800 dark:text-gray-100 text-sm">Gesamtbetrag (Brutto):</td>
-                  <td class="p-3 text-end font-bold text-emerald-600 text-base"><%= Number(invoice.total_amount || 0).toFixed(2) %> €</td>
-                </tr>
-              </tfoot>
-              <% } %>
-            </table>
+        <!-- Bearbeiten: Positionen, Fälligkeit, Status -->
+        <form action="/documents/invoices/<%= invoice.id %>/update" method="POST" id="invoiceEditForm" class="space-y-4">
+          <div class="flex flex-wrap items-end gap-4">
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Fällig am</label>
+              <input type="date" name="due_date" value="<%= invoice.due_date ? String(invoice.due_date).slice(0,10) : '' %>"
+                class="border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">MwSt. %</label>
+              <input type="number" name="tax_rate" step="0.1" min="0" value="<%= invoice.tax_rate != null ? invoice.tax_rate : 19 %>"
+                class="border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm w-24"
+                oninput="recalcEditTotals()">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Status</label>
+              <select name="status" class="border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm">
+                <% ['ENTWURF','Offen','Gesendet','Gemahnt','Überfällig','Bezahlt'].forEach(function(s) { %>
+                  <option value="<%= s %>" <%= invoice.status === s ? 'selected' : '' %>><%= s %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Status-Hinweis</label>
+              <input type="text" name="status_note" value="<%= invoice.status_note || '' %>" placeholder="optional"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-3 py-2 text-sm">
+            </div>
           </div>
-        </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100">Positionen</h4>
+              <button type="button" onclick="addEditRow()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 flex items-center gap-1">
+                + Position
+              </button>
+            </div>
+            <div class="border dark:border-slate-600 rounded-xl overflow-hidden">
+              <div class="hidden sm:grid grid-cols-[1fr_72px_64px_88px_88px_36px] gap-1 bg-slate-100 dark:bg-slate-700/80 px-2 py-2 text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400">
+                <div>Bezeichnung</div>
+                <div class="text-right">Menge</div>
+                <div>Einh.</div>
+                <div class="text-right">EP €</div>
+                <div class="text-right">Gesamt</div>
+                <div></div>
+              </div>
+              <div id="editItemsContainer" class="divide-y divide-gray-100 dark:divide-slate-700">
+                <% (items || []).forEach(function(item) { %>
+                <div data-edit-row class="grid grid-cols-1 sm:grid-cols-[1fr_72px_64px_88px_88px_36px] gap-1.5 items-center px-2 py-2">
+                  <input type="text" name="title" value="<%= (item.description||'').replace(/"/g,'&quot;') %>" required
+                    class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-800 dark:text-gray-100" placeholder="Beschreibung">
+                  <input type="number" step="0.01" name="quantity" value="<%= item.quantity %>" required
+                    class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm text-right dark:bg-slate-800" oninput="recalcEditTotals()">
+                  <select name="unit" class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-1 py-1.5 text-sm dark:bg-slate-800">
+                    <% ['Stk','m','Std','kg','m²','Psch'].forEach(function(u) { %>
+                      <option value="<%= u %>" <%= item.unit === u ? 'selected' : '' %>><%= u %></option>
+                    <% }); %>
+                  </select>
+                  <input type="number" step="0.01" name="price" value="<%= item.price %>" required
+                    class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm text-right dark:bg-slate-800" oninput="recalcEditTotals()">
+                  <div data-line class="text-right text-sm font-semibold text-gray-800 dark:text-gray-200 hidden sm:block">
+                    <%= (Number(item.quantity||0)*Number(item.price||0)).toFixed(2) %> €
+                  </div>
+                  <button type="button" onclick="this.closest('[data-edit-row]').remove();recalcEditTotals()"
+                    class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 rounded-lg">✕</button>
+                </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+
+          <% if (canSeeMoney) { %>
+          <div class="flex justify-end">
+            <div class="w-full sm:w-64 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-gray-200 dark:border-slate-600 px-4 py-3 space-y-1 text-sm">
+              <div class="flex justify-between text-gray-500"><span>Netto</span><span id="editNet"><%= Number(invoice.subtotal||0).toFixed(2) %> €</span></div>
+              <div class="flex justify-between text-gray-500"><span>MwSt.</span><span id="editVat"><%= Number(invoice.tax_amount||0).toFixed(2) %> €</span></div>
+              <div class="flex justify-between font-bold text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-slate-600">
+                <span>Brutto</span><span id="editGross" class="text-emerald-600"><%= Number(invoice.total_amount||0).toFixed(2) %> €</span>
+              </div>
+            </div>
+          </div>
+          <% } %>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-sm">
+              Änderungen speichern
+            </button>
+          </div>
+        </form>
 
         <% if (invoice.status_note) { %>
           <div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg text-xs space-y-1">
@@ -194,10 +241,40 @@
           </label>
         </div>
       </div>
+      <%
+        const f = typeof firma !== 'undefined' ? firma : {};
+        const fee1 = parseFloat(f.dunning_fee_1 != null ? f.dunning_fee_1 : 0) || 0;
+        const fee2 = parseFloat(f.dunning_fee_2 != null ? f.dunning_fee_2 : 5) || 0;
+        const fee3 = parseFloat(f.dunning_fee_3 != null ? f.dunning_fee_3 : 10) || 0;
+      %>
+      <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-gray-200 dark:border-slate-600 p-3 space-y-2">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input type="checkbox" name="apply_fee" value="1" checked id="applyFeeChk" class="rounded border-gray-300 text-red-600 focus:ring-red-500" onchange="document.getElementById('feeOverrideWrap').classList.toggle('opacity-40', !this.checked)">
+          Mahngebühr als Position hinzufügen
+        </label>
+        <div id="feeOverrideWrap" class="flex items-center gap-2 text-sm">
+          <label class="text-xs text-gray-500 whitespace-nowrap">Betrag (€ netto)</label>
+          <input type="number" name="dunning_fee_override" id="dunningFeeInput" step="0.01" min="0"
+            value="<%= fee1 %>"
+            data-fee1="<%= fee1 %>" data-fee2="<%= fee2 %>" data-fee3="<%= fee3 %>"
+            class="w-28 border dark:border-slate-600 dark:bg-slate-800 rounded-lg px-2 py-1.5 text-sm">
+          <span class="text-[10px] text-gray-400">Standard je Stufe im Admin unter PDF</span>
+        </div>
+      </div>
       <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
         <input type="checkbox" name="download_pdf" value="1" checked class="rounded border-gray-300 text-red-600 focus:ring-red-500">
         PDF der Mahnung direkt herunterladen
       </label>
+      <script>
+        document.querySelectorAll('input[name="dunning_level"]').forEach(function(r) {
+          r.addEventListener('change', function() {
+            var inp = document.getElementById('dunningFeeInput');
+            if (!inp) return;
+            var v = this.value;
+            inp.value = v === '2' ? inp.dataset.fee2 : v === '3' ? inp.dataset.fee3 : inp.dataset.fee1;
+          });
+        });
+      </script>
       <div class="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-700">
         <button type="button" onclick="document.getElementById('dunningModal').classList.add('hidden')"
           class="px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Abbrechen</button>
@@ -331,5 +408,45 @@ function cancelEditNum() {
   invNumInput.blur();
 }
 </script>
+
+<script>
+function addEditRow(title, qty, unit, price) {
+  title = title || ''; qty = qty != null ? qty : 1; unit = unit || 'Stk'; price = price != null ? price : '';
+  var c = document.getElementById('editItemsContainer');
+  if (!c) return;
+  var units = ['Stk','m','Std','kg','m²','Psch'].map(function(u) {
+    return '<option value="'+u+'"'+(u===unit?' selected':'')+'>'+u+'</option>';
+  }).join('');
+  c.insertAdjacentHTML('beforeend',
+    '<div data-edit-row class="grid grid-cols-1 sm:grid-cols-[1fr_72px_64px_88px_88px_36px] gap-1.5 items-center px-2 py-2">' +
+    '<input type="text" name="title" value="'+String(title).replace(/"/g,'&quot;')+'" required placeholder="Beschreibung" class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-800 dark:text-gray-100">' +
+    '<input type="number" step="0.01" name="quantity" value="'+qty+'" required class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm text-right dark:bg-slate-800" oninput="recalcEditTotals()">' +
+    '<select name="unit" class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-1 py-1.5 text-sm dark:bg-slate-800">'+units+'</select>' +
+    '<input type="number" step="0.01" name="price" value="'+price+'" required class="w-full border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm text-right dark:bg-slate-800" oninput="recalcEditTotals()">' +
+    '<div data-line class="text-right text-sm font-semibold text-gray-800 dark:text-gray-200 hidden sm:block">0,00 €</div>' +
+    '<button type="button" onclick="this.closest(\'[data-edit-row]\').remove();recalcEditTotals()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 rounded-lg">✕</button>' +
+    '</div>');
+  recalcEditTotals();
+}
+function recalcEditTotals() {
+  var net = 0;
+  document.querySelectorAll('#editItemsContainer [data-edit-row]').forEach(function(row) {
+    var q = parseFloat(row.querySelector('[name="quantity"]')?.value) || 0;
+    var p = parseFloat(row.querySelector('[name="price"]')?.value) || 0;
+    var line = q * p;
+    net += line;
+    var el = row.querySelector('[data-line]');
+    if (el) el.textContent = line.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €';
+  });
+  var rate = parseFloat(document.querySelector('#invoiceEditForm [name="tax_rate"]')?.value) || 19;
+  var vat = net * (rate / 100);
+  var gross = net + vat;
+  var fmt = function(v) { return v.toLocaleString('de-DE', { minimumFractionDigits: 2 }) + ' €'; };
+  var n = document.getElementById('editNet'); if (n) n.textContent = fmt(net);
+  var v = document.getElementById('editVat'); if (v) v.textContent = fmt(vat);
+  var g = document.getElementById('editGross'); if (g) g.textContent = fmt(gross);
+}
+</script>
+
 </body>
 </html>
