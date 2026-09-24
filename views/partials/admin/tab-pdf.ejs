@@ -169,9 +169,29 @@
           </div>
         </div>
 
+
+        <!-- Nachkalkulation -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#ecfdf5;color:#059669;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Nachkalkulation</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Interner Stundensatz für Auftragskosten (Stunden × Satz + Material vs. Angebot).</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Stundensatz intern (€)</label>
+            <input type="number" name="hourly_rate" step="0.01" min="0"
+              value="<%= firma.hourly_rate != null ? firma.hourly_rate : '55' %>"
+              class="w-full max-w-xs border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm">
+          </div>
+        </div>
+
         <div class="flex justify-end">
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">
-            💾 PDF-Einstellungen speichern
+            💾 Belege &amp; PDF speichern
           </button>
         </div>
       </form>
@@ -180,12 +200,3 @@
       <!-- ══════════════════════════════════════════════════════════════════ -->
       <!-- TAB: DATEV-EXPORT                                                   -->
       <!-- ══════════════════════════════════════════════════════════════════ -->
-
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3">Nachkalkulation</h2>
-          <p class="text-xs text-slate-400 mb-3">Interner Stundensatz (Stunden × Satz + Material vs. Angebot).</p>
-          <label class="block text-xs font-medium mb-1">Stundensatz intern (€)</label>
-          <input type="number" name="hourly_rate" step="0.01" min="0"
-            value="<%= firma.hourly_rate != null ? firma.hourly_rate : '55' %>"
-            class="w-full max-w-xs border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
-        </div>
