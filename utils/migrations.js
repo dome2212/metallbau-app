@@ -688,6 +688,18 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 020 ── Rechnungserweiterung: Teil/Schluss, Rabatt, Kleinunternehmer ────
+  {
+    id: 20,
+    description: 'invoice_subtype, discount on items, document discount, kleinunternehmer settings',
+    async up() {
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} invoice_subtype TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} discount_percent NUMERIC(5,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} discount_amount NUMERIC(12,2) DEFAULT 0`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE document_items ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} discount_percent NUMERIC(5,2) DEFAULT 0`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

@@ -49,11 +49,13 @@ const DEFAULTS = {
   invoice_prefix:      'RECH',     // Prefix Rechnungsnummer
   offer_prefix:        'ANG',      // Prefix Angebotsnummer
   default_tax_rate:    '19',       // Standard-MwSt. in %
+  kleinunternehmer:    'false',    // § 19 UStG – Rechnungen ohne MwSt.-Ausweis
   default_payment_method: 'Überweisung', // Zahlungsart auf PDFs
   pdf_footer_text:     '',         // Fußzeile auf allen PDFs
   pdf_agb_text:        '',         // AGB-Text am Ende des PDFs
   pdf_intro_offer:     'Sehr geehrte Damen und Herren,\nvielen Dank für Ihre Anfrage. Wir unterbreiten Ihnen folgendes Angebot:', // Einleitungstext Angebot
   pdf_intro_invoice:   'Sehr geehrte Damen und Herren,\nwir erlauben uns, folgende Leistungen in Rechnung zu stellen:',          // Einleitungstext Rechnung
+  pdf_qr_payment:      'true',     // EPC/GiroCode-QR auf Rechnungs-PDF
 
   // ── Arbeitszeit ────────────────────────────────────────────────
   work_hours_per_day:  '8',

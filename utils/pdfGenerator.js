@@ -65,15 +65,37 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   const isCredit  = invoice.doc_type === 'CREDIT' || invoice.status === 'Gutschrift';
   const isStorno  = invoice.status === 'Storniert';
   const isDunning = !isCredit && !isStorno && (invoice.dunning_level || 0) > 0;
-  const docLabel  = isOffer ? 'Angebot' : (isCredit ? 'Gutschrift' : (isStorno ? 'Storno' : (isDunning ? 'Mahnung' : 'Rechnung')));
+  const subtype   = (invoice.invoice_subtype || '').toUpperCase();
+  const isPartial = subtype === 'PARTIAL' || subtype === 'TEIL';
+  const isFinal   = subtype === 'FINAL' || subtype === 'SCHLUSS';
+  let baseLabel = isOffer ? 'Angebot' : (isCredit ? 'Gutschrift' : (isStorno ? 'Storno' : (isDunning ? 'Mahnung' : 'Rechnung')));
+  if (!isOffer && !isCredit && !isStorno && !isDunning) {
+    if (isPartial) baseLabel = 'Teilrechnung';
+    else if (isFinal) baseLabel = 'Schlussrechnung';
+  }
+  const docLabel  = baseLabel;
   const docNr     = invoice.invoice_number || invoice.doc_number || '';
-  const taxRate   = parseFloat(invoice.tax_rate || firma.default_tax_rate || 19);
+  const isKleinunternehmer = String(firma.kleinunternehmer || '').toLowerCase() === 'true'
+    || parseFloat(invoice.tax_rate) === 0;
+  const taxRate   = isKleinunternehmer ? 0 : parseFloat(invoice.tax_rate != null ? invoice.tax_rate : (firma.default_tax_rate || 19));
 
-  const subtotal = (items || []).reduce(
-    (s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.price) || 0), 0
-  );
-  const tax   = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  // Positionssummen inkl. optionalem Positions-Rabatt
+  const lineNet = (it) => {
+    const qty = parseFloat(it.quantity) || 0;
+    const price = parseFloat(it.price) || 0;
+    const disc = parseFloat(it.discount_percent) || 0;
+    const raw = qty * price;
+    return raw * (1 - disc / 100);
+  };
+  let subtotal = (items || []).reduce((s, i) => s + lineNet(i), 0);
+  const docDiscPct = parseFloat(invoice.discount_percent) || 0;
+  const docDiscAmt = parseFloat(invoice.discount_amount) || 0;
+  let discountTotal = 0;
+  if (docDiscPct > 0) discountTotal = subtotal * (docDiscPct / 100);
+  else if (docDiscAmt > 0) discountTotal = docDiscAmt;
+  const netAfterDiscount = Math.max(0, subtotal - discountTotal);
+  const tax   = netAfterDiscount * (taxRate / 100);
+  const total = netAfterDiscount + tax;
 
   const fmt = n =>
     Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -349,12 +371,14 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   let rowY = tableTop + TH;
 
   (items || []).forEach((item, idx) => {
-    const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
+    const lineTotal = lineNet(item);
     const bg        = idx % 2 === 0 ? '#f9fafb' : '#ffffff';
 
     // Beschreibungshöhe berechnen
     doc.font('Helvetica').fontSize(8.5);
-    const descText  = item.description || '';
+    const discPct = parseFloat(item.discount_percent) || 0;
+    let descText  = item.description || '';
+    if (discPct > 0) descText += ` (Rabatt ${discPct.toLocaleString('de-DE')} %)`;
     const descH     = doc.heightOfString(descText, { width: C.desc.w - 6 });
     const rowHeight = Math.max(20, descH + ROW_PAD * 2);
 
@@ -426,10 +450,31 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
      .text(fmt(subtotal), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
   sumY += 15;
 
-  doc.fillColor(grayMuted)
-     .text(`${taxRate} % MwSt.`, SUM_X, sumY, { width: SUM_W * 0.55 });
-  doc.fillColor(grayText)
-     .text(fmt(tax), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
+  if (discountTotal > 0) {
+    const discLabel = docDiscPct > 0
+      ? `Rabatt (${docDiscPct.toLocaleString('de-DE')} %)`
+      : 'Rabatt';
+    doc.fillColor(grayMuted).text(discLabel, SUM_X, sumY, { width: SUM_W * 0.55 });
+    doc.fillColor('#b91c1c')
+       .text('- ' + fmt(discountTotal), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
+    sumY += 15;
+    doc.fillColor(grayMuted).text('Netto nach Rabatt', SUM_X, sumY, { width: SUM_W * 0.55 });
+    doc.fillColor(grayText)
+       .text(fmt(netAfterDiscount), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
+    sumY += 15;
+  }
+
+  if (isKleinunternehmer) {
+    doc.fillColor(grayMuted)
+       .text('MwSt. (nicht ausgewiesen)', SUM_X, sumY, { width: SUM_W * 0.55 });
+    doc.fillColor(grayText)
+       .text(fmt(0), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
+  } else {
+    doc.fillColor(grayMuted)
+       .text(`${taxRate} % MwSt.`, SUM_X, sumY, { width: SUM_W * 0.55 });
+    doc.fillColor(grayText)
+       .text(fmt(tax), SUM_X + SUM_W * 0.55, sumY, { width: SUM_W * 0.45, align: 'right' });
+  }
   sumY += 12;
 
   // Trennlinie
@@ -441,7 +486,7 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   const totalBoxH = 28;
   doc.roundedRect(SUM_X - 4, sumY - 4, SUM_W + 8, totalBoxH, 3).fill(accent);
   doc.fontSize(10).fillColor('#ffffff').font('Helvetica-Bold');
-  doc.text('Gesamtbetrag (Brutto)', SUM_X, sumY + 4, { width: SUM_W * 0.55 });
+  doc.text(isKleinunternehmer ? 'Gesamtbetrag' : 'Gesamtbetrag (Brutto)', SUM_X, sumY + 4, { width: SUM_W * 0.55 });
   doc.fontSize(11)
      .text(fmt(total), SUM_X + SUM_W * 0.50, sumY + 3, { width: SUM_W * 0.50, align: 'right' });
   sumY += totalBoxH + 16;
@@ -528,10 +573,76 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   taxLines.forEach ((l, i) => doc.text(l, ML + bankColW * 2 + 10, sumY + 22 + i * 10, { width: bankColW - 16 }));
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // OPTIONALE AGB / FUSSNOTENTEXT
+  // KLEINUNTERNEHMER-HINWEIS (§ 19 UStG)
   // ═══════════════════════════════════════════════════════════════════════════
 
   let footerY = sumY + BOX_H + 12;
+
+  if (isKleinunternehmer && !isOffer) {
+    if (footerY + 28 > doc.page.height - MB) {
+      doc.addPage();
+      footerY = MT + 10;
+    }
+    doc.fontSize(7.5).fillColor(grayText).font('Helvetica')
+       .text(
+         'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).',
+         ML, footerY, { width: PAGE_W }
+       );
+    footerY = doc.y + 8;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EPC / GIROCODE QR (Bezahl-Code für fehlerfreie Überweisung)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const qrEnabled = String(firma.pdf_qr_payment || 'true').toLowerCase() !== 'false';
+  if (qrEnabled && !isOffer && !isCredit && !isStorno && firma.iban && total > 0) {
+    try {
+      const ibanClean = String(firma.iban).replace(/\s+/g, '');
+      const bicClean  = String(firma.bic || '').replace(/\s+/g, '');
+      const nameClean = String(firma.name || 'Empfaenger').slice(0, 70);
+      const amountStr = Number(total).toFixed(2);
+      const refClean  = String(docNr || '').replace(/[^\w\-./]/g, ' ').slice(0, 35);
+      // EPC QR Code (GiroCode) Version 002
+      const epcPayload = [
+        'BCD',
+        '002',
+        '1',
+        'SCT',
+        bicClean,
+        nameClean,
+        ibanClean,
+        `EUR${amountStr}`,
+        '',
+        '',
+        refClean,
+        ''
+      ].join('\n');
+      const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=0&data=' +
+        encodeURIComponent(epcPayload);
+      const qrBuf = await fetchImageBuffer(qrUrl);
+      if (qrBuf) {
+        if (footerY + 90 > doc.page.height - MB) {
+          doc.addPage();
+          footerY = MT + 10;
+        }
+        const qrSize = 72;
+        doc.image(qrBuf, ML, footerY, { width: qrSize, height: qrSize });
+        doc.fontSize(7.5).fillColor(accent).font('Helvetica-Bold')
+           .text('Bezahl-Code (GiroCode)', ML + qrSize + 10, footerY + 4, { width: PAGE_W - qrSize - 12 });
+        doc.fontSize(7).fillColor(grayMuted).font('Helvetica')
+           .text(
+             'Mit der Banking-App scannen für eine fehlerfreie Überweisung. Betrag und Verwendungszweck werden automatisch übernommen.',
+             ML + qrSize + 10, footerY + 16, { width: PAGE_W - qrSize - 12 }
+           );
+        footerY += qrSize + 10;
+      }
+    } catch (_) { /* QR optional */ }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPTIONALE AGB / FUSSNOTENTEXT
+  // ═══════════════════════════════════════════════════════════════════════════
 
   if (firma.pdf_agb_text) {
     if (footerY + 40 > doc.page.height - MB) {
