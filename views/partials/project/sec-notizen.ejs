@@ -8,13 +8,46 @@
         <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📝 Baustellen-Notizbuch</h2>
 
         <!-- ── Text-Notiz ──────────────────────────────── -->
-        <form action="/projects/<%= project.id %>/notes/add" method="POST" class="space-y-3 bg-slate-50 dark:bg-slate-700/50 p-4 rounded border dark:border-slate-600">
+        <form action="/projects/<%= project.id %>/notes/add" method="POST" class="space-y-3 bg-slate-50 dark:bg-slate-700/50 p-4 rounded border dark:border-slate-600" id="noteForm">
           <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Neue Notiz / Absprache / Baustellen-Info hinzufügen</label>
-          <textarea name="note_text" rows="2" required
+          <textarea name="note_text" id="noteTextArea" rows="2" required
             class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="z.B. Kunde wünscht nachträglich eine Änderung der RAL-Farbe..."></textarea>
-          <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-4 py-2 rounded transition">Notiz speichern</button>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-4 py-2 rounded transition">Notiz speichern</button>
+            <button type="button" id="btnSpeechNote" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium px-4 py-2 rounded transition">🎤 Diktieren</button>
+            <span id="speechNoteStatus" class="text-xs text-slate-500"></span>
+          </div>
         </form>
+        <script>
+        (function(){
+          var btn = document.getElementById('btnSpeechNote');
+          var ta = document.getElementById('noteTextArea');
+          var st = document.getElementById('speechNoteStatus');
+          if (!btn || !ta) return;
+          var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SR) { btn.style.display = 'none'; return; }
+          var rec = new SR();
+          rec.lang = 'de-DE';
+          rec.continuous = false;
+          rec.interimResults = false;
+          var listening = false;
+          btn.addEventListener('click', function(){
+            if (listening) { try { rec.stop(); } catch(e){} listening = false; btn.textContent = '🎤 Diktieren'; st.textContent = ''; return; }
+            listening = true;
+            btn.textContent = '⏹ Stop';
+            st.textContent = 'Hört zu…';
+            try { rec.start(); } catch(e) { st.textContent = 'Mikrofon-Fehler'; listening = false; btn.textContent = '🎤 Diktieren'; }
+          });
+          rec.onresult = function(ev){
+            var t = '';
+            for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+            if (t) ta.value = (ta.value ? ta.value + ' ' : '') + t.trim();
+          };
+          rec.onerror = function(){ listening = false; btn.textContent = '🎤 Diktieren'; st.textContent = 'Fehler / Mikrofon?'; };
+          rec.onend = function(){ listening = false; btn.textContent = '🎤 Diktieren'; if (st.textContent === 'Hört zu…') st.textContent = 'Fertig'; };
+        })();
+        </script>
 
         <!-- ── Notizliste ──────────────────────────────── -->
         <div class="space-y-3 pt-2">

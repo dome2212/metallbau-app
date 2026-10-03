@@ -4,6 +4,52 @@
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
       <div class="sec-body">
+      <!-- Auftrags-Cockpit -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Stunden</p>
+          <p class="text-xl font-bold text-slate-800 dark:text-slate-100"><%= typeof projectTotalHours !== 'undefined' ? projectTotalHours : '0' %> h</p>
+          <% if (typeof nachkalk !== 'undefined' && nachkalk && nachkalk.plannedHours != null) { %>
+            <p class="text-[10px] text-slate-400">Plan: <%= nachkalk.plannedHours %> h</p>
+          <% } %>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Nächster Termin</p>
+          <% if (typeof nextAppointment !== 'undefined' && nextAppointment) { %>
+            <p class="text-sm font-bold text-slate-800 dark:text-slate-100"><%= new Date(nextAppointment.start_date).toLocaleDateString('de-DE') %></p>
+            <p class="text-[10px] text-slate-400 truncate"><%= nextAppointment.title || nextAppointment.note || 'Termin' %></p>
+          <% } else { %>
+            <p class="text-sm font-semibold text-slate-400">—</p>
+          <% } %>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Fotos</p>
+          <p class="text-xl font-bold text-slate-800 dark:text-slate-100"><%= (typeof photos !== 'undefined' && photos) ? photos.length : 0 %></p>
+        </div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Offene Rechnungen</p>
+          <% const oi = (typeof openInvoices !== 'undefined' && openInvoices) ? openInvoices : []; %>
+          <p class="text-xl font-bold <%= oi.length ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100' %>"><%= oi.length %></p>
+          <% if (typeof canSeeMoney !== 'undefined' && canSeeMoney && oi.length) {
+               const sum = oi.reduce((s,i)=>s+Math.max(0,parseFloat(i.total_amount||0)-parseFloat(i.paid_amount||0)),0);
+          %>
+            <p class="text-[10px] text-amber-600"><%= sum.toLocaleString('de-DE',{minimumFractionDigits:2}) %> € offen</p>
+          <% } %>
+        </div>
+      </div>
+      <% if (typeof openInvoices !== 'undefined' && openInvoices && openInvoices.length) { %>
+      <div class="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-3">
+        <p class="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2">Offene Rechnungen</p>
+        <ul class="space-y-1">
+          <% openInvoices.forEach(function(inv) { %>
+          <li class="flex justify-between text-sm">
+            <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline font-medium"><%= inv.doc_number %></a>
+            <span class="text-slate-600 dark:text-slate-300"><%= inv.status %><% if (typeof canSeeMoney !== 'undefined' && canSeeMoney) { %> · <%= Number(inv.total_amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €<% } %></span>
+          </li>
+          <% }); %>
+        </ul>
+      </div>
+      <% } %>
       <div class="mt-4 flex flex-wrap gap-2">
         <% if (project.customer_id) { %>
           <a href="/customers/<%= project.customer_id %>" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50">Kundenakte</a>
