@@ -8,6 +8,9 @@ const { sendEmail }                  = require('../utils/notifier');
 const { generateDocumentPDF, generateDocumentPDFBuffer } = require('../utils/pdfGenerator');
 const { buildXRechnungXml, validateXRechnung } = require('../utils/xrechnung');
 const { buildDatevCsv }               = require('../utils/datevExport');
+const { parseBankCsv, matchAndBookPayments } = require('../utils/bankImport');
+const multer = require('multer');
+const bankUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -1513,6 +1516,261 @@ router.post('/admin/reset-documents', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('reset-documents:', err.message);
     res.status(500).send('Reset fehlgeschlagen: ' + err.message);
+  }
+});
+
+
+
+
+// ══════════════════════════════════════════════════════════════
+// BANK-CSV-IMPORT (Zahlungsabgleich)
+// ══════════════════════════════════════════════════════════════
+router.get('/bank-import', requireAdmin, async (req, res) => {
+  try {
+    const logs = await dbQuery(`SELECT * FROM bank_import_log ORDER BY imported_at DESC LIMIT 20`).catch(() => ({ rows: [] }));
+    res.render('bank-import', { logs: logs.rows || [], result: null, firma: await getFirma() });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/bank-import', requireAdmin, bankUpload.single('csv'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).send('Keine CSV-Datei hochgeladen.');
+    const text = req.file.buffer.toString('utf8');
+    const entries = parseBankCsv(text);
+    const dryRun = req.body.dry_run === '1' || req.body.dry_run === 'true';
+    const result = await matchAndBookPayments(entries, { dryRun });
+    if (!dryRun) {
+      await dbQuery(
+        `INSERT INTO bank_import_log (filename, matched, unmatched, note) VALUES (?, ?, ?, ?)`,
+        [req.file.originalname || 'import.csv', result.matched.length, result.unmatched.length, dryRun ? 'Vorschau' : 'Import']
+      ).catch(() => {});
+    }
+    const logs = await dbQuery(`SELECT * FROM bank_import_log ORDER BY imported_at DESC LIMIT 20`).catch(() => ({ rows: [] }));
+    res.render('bank-import', {
+      logs: logs.rows || [],
+      result,
+      dryRun,
+      firma: await getFirma(),
+    });
+  } catch (err) {
+    console.error('bank-import:', err.message);
+    res.status(500).send('Import-Fehler: ' + err.message);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// TEIL- / SCHLUSSRECHNUNG aus bestehender Rechnung
+// ══════════════════════════════════════════════════════════════
+router.post('/invoices/:id/create-partial', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const percent = parseFloat(req.body.percent) || 30;
+  try {
+    const invRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id]);
+    const inv = invRes.rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ?`, [id]);
+    const firma = await getFirma();
+    const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
+    const year = new Date().getFullYear();
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
+    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
+    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+
+    const factor = Math.min(100, Math.max(1, percent)) / 100;
+    let subtotal = 0;
+    const newItems = (itemsRes.rows || []).map((it) => {
+      const q = (parseFloat(it.quantity) || 0) * factor;
+      const p = parseFloat(it.price) || 0;
+      const d = parseFloat(it.discount_percent) || 0;
+      subtotal += q * p * (1 - d / 100);
+      return { ...it, quantity: q };
+    });
+    const taxRate = parseFloat(inv.tax_rate != null ? inv.tax_rate : 19);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+    const due = new Date();
+    due.setDate(due.getDate() + (firma.zahlungsfrist || 14));
+
+    const ins = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, invoice_subtype, related_document_id, parent_document_id, project_id)
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?, 'PARTIAL', ?, ?, ?)`,
+      [invoiceNumber, inv.customer_id, taxRate, subtotal, taxAmount, totalAmount, due.toISOString().slice(0, 10), id, id, inv.project_id || null]
+    );
+    const newId = ins.lastID || ins.rows?.[0]?.id;
+    for (const it of newItems) {
+      await dbQuery(
+        `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
+        [newId, (it.description || '') + ` (Teil ${percent} %)`, it.quantity, it.unit || 'Stk', it.price, it.discount_percent || 0]
+      );
+    }
+    res.redirect('/documents/invoices/' + newId);
+  } catch (err) {
+    console.error('create-partial:', err.message);
+    res.status(500).send('Teilrechnung fehlgeschlagen: ' + err.message);
+  }
+});
+
+router.post('/invoices/:id/create-final', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const invRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id]);
+    const inv = invRes.rows?.[0];
+    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
+
+    // Summe bisheriger Teilrechnungen (related oder parent)
+    const parts = await dbQuery(
+      `SELECT COALESCE(SUM(total_amount), 0) AS sum FROM documents
+       WHERE doc_type = 'INVOICE' AND invoice_subtype = 'PARTIAL'
+         AND (related_document_id = ? OR parent_document_id = ?)
+         AND status != 'Storniert'`,
+      [id, id]
+    );
+    const alreadyBilled = parseFloat(parts.rows?.[0]?.sum || 0);
+    const fullTotal = parseFloat(inv.total_amount || 0);
+    const remaining = Math.max(0, fullTotal - alreadyBilled);
+
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ?`, [id]);
+    const firma = await getFirma();
+    const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
+    const year = new Date().getFullYear();
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
+    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
+    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+
+    const taxRate = parseFloat(inv.tax_rate != null ? inv.tax_rate : 19);
+    // Restbetrag als eine Position
+    const netRemaining = taxRate > 0 ? remaining / (1 + taxRate / 100) : remaining;
+    const taxAmount = remaining - netRemaining;
+    const due = new Date();
+    due.setDate(due.getDate() + (firma.zahlungsfrist || 14));
+
+    const ins = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, invoice_subtype, related_document_id, parent_document_id, project_id)
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?, 'FINAL', ?, ?, ?)`,
+      [invoiceNumber, inv.customer_id, taxRate, netRemaining, taxAmount, remaining, due.toISOString().slice(0, 10), id, id, inv.project_id || null]
+    );
+    const newId = ins.lastID || ins.rows?.[0]?.id;
+    await dbQuery(
+      `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
+      [newId, `Schlussrechnung zu ${inv.doc_number} – Restbetrag (bisher abgerechnet: ${alreadyBilled.toFixed(2)} €)`, 1, 'Psch', netRemaining, 0]
+    );
+    res.redirect('/documents/invoices/' + newId);
+  } catch (err) {
+    console.error('create-final:', err.message);
+    res.status(500).send('Schlussrechnung fehlgeschlagen: ' + err.message);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// WIEDERKEHRENDE RECHNUNGEN
+// ══════════════════════════════════════════════════════════════
+router.get('/recurring', requireAdmin, async (req, res) => {
+  try {
+    const rows = await dbQuery(`
+      SELECT r.*, c.company_name, c.contact_person
+      FROM recurring_invoices r
+      LEFT JOIN customers c ON r.customer_id = c.id
+      ORDER BY r.active DESC, r.next_due_date ASC
+    `).catch(() => ({ rows: [] }));
+    const customers = await dbQuery(`SELECT id, company_name, contact_person FROM customers ORDER BY company_name`).catch(() => ({ rows: [] }));
+    res.render('recurring-invoices', {
+      items: rows.rows || [],
+      customers: customers.rows || [],
+      firma: await getFirma(),
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/recurring/create', requireAdmin, async (req, res) => {
+  try {
+    const { customer_id, title, interval_months, next_due_date, tax_rate, line_desc, line_qty, line_price } = req.body;
+    const template = JSON.stringify({
+      items: [{
+        description: line_desc || title || 'Wiederkehrende Leistung',
+        quantity: parseFloat(line_qty) || 1,
+        unit: 'Stk',
+        price: parseFloat(line_price) || 0,
+      }],
+    });
+    await dbQuery(
+      `INSERT INTO recurring_invoices (customer_id, title, interval_months, next_due_date, active, tax_rate, template_json)
+       VALUES (?, ?, ?, ?, 1, ?, ?)`,
+      [customer_id, title || 'Abo', parseInt(interval_months, 10) || 1, next_due_date || new Date().toISOString().slice(0, 10), parseFloat(tax_rate) || 19, template]
+    );
+    res.redirect('/documents/recurring');
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/recurring/:id/toggle', requireAdmin, async (req, res) => {
+  try {
+    const row = (await dbQuery(`SELECT active FROM recurring_invoices WHERE id = ?`, [req.params.id])).rows?.[0];
+    if (row) {
+      await dbQuery(`UPDATE recurring_invoices SET active = ? WHERE id = ?`, [row.active ? 0 : 1, req.params.id]);
+    }
+    res.redirect('/documents/recurring');
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/recurring/:id/generate', requireAdmin, async (req, res) => {
+  try {
+    const r = (await dbQuery(`SELECT * FROM recurring_invoices WHERE id = ?`, [req.params.id])).rows?.[0];
+    if (!r) return res.status(404).send('Nicht gefunden');
+    const firma = await getFirma();
+    const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
+    const year = new Date().getFullYear();
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
+    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
+    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+    let items = [];
+    try { items = JSON.parse(r.template_json || '{}').items || []; } catch (_) {}
+    let subtotal = 0;
+    items.forEach((it) => { subtotal += (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0); });
+    const taxRate = parseFloat(r.tax_rate) || 19;
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+    const due = r.next_due_date || new Date().toISOString().slice(0, 10);
+
+    const ins = await dbQuery(
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, recurring_id)
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?, ?)`,
+      [invoiceNumber, r.customer_id, taxRate, subtotal, taxAmount, totalAmount, due, r.id]
+    );
+    const newId = ins.lastID || ins.rows?.[0]?.id;
+    for (const it of items) {
+      await dbQuery(
+        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
+        [newId, it.description || r.title, it.quantity || 1, it.unit || 'Stk', it.price || 0]
+      );
+    }
+    // next due
+    const next = new Date(due);
+    next.setMonth(next.getMonth() + (parseInt(r.interval_months, 10) || 1));
+    await dbQuery(
+      `UPDATE recurring_invoices SET next_due_date = ?, last_generated_at = ? WHERE id = ?`,
+      [next.toISOString().slice(0, 10), new Date().toISOString(), r.id]
+    );
+    res.redirect('/documents/invoices/' + newId);
+  } catch (err) {
+    console.error('recurring generate:', err.message);
+    res.status(500).send(err.message);
+  }
+});
+
+router.post('/recurring/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    await dbQuery(`DELETE FROM recurring_invoices WHERE id = ?`, [req.params.id]);
+    res.redirect('/documents/recurring');
+  } catch (err) {
+    res.status(500).send(err.message);
   }
 });
 
