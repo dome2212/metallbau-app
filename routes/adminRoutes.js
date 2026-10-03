@@ -531,13 +531,19 @@ router.get('/staffplan', requireAdmin, async (req, res) => {
     const prevMonday = new Date(monday); prevMonday.setDate(monday.getDate() - 7);
     const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
 
-    const [usersRes, projectsRes, assignmentsRes] = await Promise.all([
+    const [usersRes, projectsRes, assignmentsRes, vacRes] = await Promise.all([
       dbQuery(`SELECT id, username, role FROM users ORDER BY username ASC`),
       dbQuery(`SELECT id, title FROM projects WHERE status != 'Abgeschlossen' ORDER BY title ASC`),
       dbQuery(
         `SELECT * FROM staff_assignments WHERE assignment_date >= ? AND assignment_date <= ?`,
         [days[0], days[5]]
-      )
+      ),
+      dbQuery(
+        `SELECT user_id, start_date, end_date, type, status FROM vacations
+         WHERE status IN ('Genehmigt','genehmigt','APPROVED','Beantragt')
+           AND end_date >= ? AND start_date <= ?`,
+        [days[0], days[5]]
+      ).catch(() => ({ rows: [] }))
     ]);
 
     // Assignments als Map: user_id → date → assignment
@@ -547,11 +553,39 @@ router.get('/staffplan', requireAdmin, async (req, res) => {
       assignMap[a.user_id][a.assignment_date] = a;
     }
 
+    // Abwesenheiten: user_id → date → { type, status }
+    const absenceMap = {};
+    for (const v of (vacRes.rows || [])) {
+      const start = String(v.start_date || '').slice(0, 10);
+      const end = String(v.end_date || '').slice(0, 10);
+      if (!start || !end) continue;
+      let d = new Date(start + 'T12:00:00');
+      const endD = new Date(end + 'T12:00:00');
+      while (d <= endD) {
+        const key = d.toISOString().slice(0, 10);
+        if (days.includes(key)) {
+          if (!absenceMap[v.user_id]) absenceMap[v.user_id] = {};
+          absenceMap[v.user_id][key] = { type: v.type || 'Urlaub', status: v.status };
+        }
+        d.setDate(d.getDate() + 1);
+      }
+    }
+
+    // Konflikte: Zuweisung + Abwesenheit am selben Tag
+    let conflictCount = 0;
+    for (const uid of Object.keys(assignMap)) {
+      for (const day of Object.keys(assignMap[uid] || {})) {
+        if (absenceMap[uid] && absenceMap[uid][day]) conflictCount++;
+      }
+    }
+
     res.render('staffplan', {
       users:      usersRes.rows || [],
       projects:   projectsRes.rows || [],
       days,
       assignMap,
+      absenceMap,
+      conflictCount,
       mondayStr:     days[0],
       prevMondayStr: prevMonday.toISOString().slice(0, 10),
       nextMondayStr: nextMonday.toISOString().slice(0, 10),

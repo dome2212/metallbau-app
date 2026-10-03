@@ -144,12 +144,28 @@ router.get('/', async (req, res) => {
         LIMIT 5
       `, [userId]);
 
+      // Heutige Baustelle aus Personalplanung
+      const todayStr = now.toISOString().slice(0, 10);
+      let todaySite = null;
+      try {
+        const sa = await dbQuery(
+          `SELECT sa.*, p.title as project_title, p.id as pid, p.street, p.zip, p.city
+           FROM staff_assignments sa
+           LEFT JOIN projects p ON sa.project_id = p.id
+           WHERE sa.user_id = ? AND sa.assignment_date = ?`,
+          [userId, todayStr]
+        );
+        todaySite = sa.rows?.[0] || null;
+      } catch (_) {}
+
       res.render('dashboard-employee', {
         stats,
         recentLogs,
         tickers: tickerRes.rows || [],
         myTasks: myTasksRes.rows || [],
-        roleLabel: 'Mitarbeiter'
+        roleLabel: 'Mitarbeiter',
+        todaySite,
+        isStampedIn: stats.isStampedIn
       });
 
     } else {

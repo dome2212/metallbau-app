@@ -4,7 +4,7 @@ const multer    = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { requireAdmin, hasPerm } = require('../middleware/auth');
+const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
@@ -476,6 +476,42 @@ router.get('/:id', async (req, res) => {
       })
     );
 
+    // Offene Rechnungen zu diesem Auftrag / Kunden
+    let openInvoices = [];
+    try {
+      const invQ = await dbQuery(
+        `SELECT id, doc_number, status, total_amount, paid_amount, due_date, invoice_subtype
+         FROM documents
+         WHERE doc_type = 'INVOICE'
+           AND status NOT IN ('Bezahlt','Storniert','Gutschrift')
+           AND (project_id = ? OR customer_id = ?)
+         ORDER BY due_date ASC NULLS LAST
+         LIMIT 10`,
+        [id, project.customer_id]
+      );
+      openInvoices = invQ.rows || [];
+    } catch (_) {
+      try {
+        const invQ = await dbQuery(
+          `SELECT id, doc_number, status, total_amount, paid_amount, due_date, invoice_subtype
+           FROM documents
+           WHERE doc_type = 'INVOICE'
+             AND status NOT IN ('Bezahlt','Storniert','Gutschrift')
+             AND (project_id = ? OR customer_id = ?)
+           ORDER BY due_date ASC
+           LIMIT 10`,
+          [id, project.customer_id]
+        );
+        openInvoices = invQ.rows || [];
+      } catch (__) {}
+    }
+
+    const nextAppointment = (appointmentsWithWeather || []).find(a => {
+      try { return new Date(a.start_date) >= new Date(new Date().toDateString()); } catch(_) { return false; }
+    }) || null;
+
+    const seeMoney = canSeeMoney(req.user, firma);
+
     res.render('project-detail', {
       project,
       files:        filesRes.rows        || [],
@@ -487,11 +523,15 @@ router.get('/:id', async (req, res) => {
       users:        usersRes.rows        || [],
       projectHours,
       projectTotalHours,
-      nachkalk,
+      nachkalk:     seeMoney ? nachkalk : null,
       statusLog:    statusLogRes.rows    || [],
       lagerItems:   lagerRes.rows        || [],
       entnahmen:    entnahmenRes.rows    || [],
-      sketches:     sketchesRes.rows     || []
+      sketches:     sketchesRes.rows     || [],
+      openInvoices,
+      nextAppointment,
+      canSeeMoney: seeMoney,
+      firma
     });
   } catch (err) {
     res.status(500).send('Datenbankfehler');

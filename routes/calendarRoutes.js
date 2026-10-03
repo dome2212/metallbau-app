@@ -516,4 +516,81 @@ router.get('/montageplan', async (req, res) => {
 });
 
 
+
+
+// ── ICS-Export (Google / Outlook / Apple Kalender) ───────────────────────────
+function icsEscape(s) {
+  return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+}
+function toIcsDate(d) {
+  const x = new Date(d);
+  if (isNaN(x.getTime())) return null;
+  const p = (n) => String(n).padStart(2, '0');
+  return x.getUTCFullYear() + p(x.getUTCMonth()+1) + p(x.getUTCDate()) + 'T' + p(x.getUTCHours()) + p(x.getUTCMinutes()) + p(x.getUTCSeconds()) + 'Z';
+}
+
+router.get('/calendar.ics', async (req, res) => {
+  try {
+    const firma = await getFirma().catch(() => ({}));
+    const rows = await dbQuery(
+      `SELECT a.*, c.company_name, c.city
+       FROM appointments a
+       LEFT JOIN customers c ON a.customer_id = c.id
+       WHERE a.start_date >= date('now', '-30 days')
+       ORDER BY a.start_date ASC
+       LIMIT 500`
+    ).catch(async () => {
+      // Postgres
+      return dbQuery(
+        `SELECT a.*, c.company_name, c.city
+         FROM appointments a
+         LEFT JOIN customers c ON a.customer_id = c.id
+         WHERE a.start_date >= CURRENT_DATE - INTERVAL '30 days'
+         ORDER BY a.start_date ASC
+         LIMIT 500`
+      );
+    });
+
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Metallbau-App//DE',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:' + icsEscape(firma.name || 'Metallbau Termine'),
+    ];
+    for (const a of (rows.rows || [])) {
+      const start = toIcsDate(a.start_date);
+      if (!start) continue;
+      let end = toIcsDate(a.end_date || a.start_date);
+      if (!end || end === start) {
+        // +1 Stunde
+        const e = new Date(a.start_date); e.setHours(e.getHours() + 2);
+        end = toIcsDate(e);
+      }
+      const uid = 'appt-' + a.id + '@metallbau-app';
+      const summary = icsEscape(a.title || a.note || 'Termin');
+      const loc = icsEscape([a.company_name, a.city].filter(Boolean).join(', '));
+      const desc = icsEscape(a.note || '');
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:' + uid);
+      lines.push('DTSTAMP:' + toIcsDate(new Date()));
+      lines.push('DTSTART:' + start);
+      lines.push('DTEND:' + end);
+      lines.push('SUMMARY:' + summary);
+      if (loc) lines.push('LOCATION:' + loc);
+      if (desc) lines.push('DESCRIPTION:' + desc);
+      lines.push('END:VEVENT');
+    }
+    lines.push('END:VCALENDAR');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="metallbau-termine.ics"');
+    res.send(lines.join('\r\n'));
+  } catch (err) {
+    console.error('ICS:', err.message);
+    res.status(500).send('ICS-Export fehlgeschlagen');
+  }
+});
+
+
 module.exports = router;
