@@ -225,8 +225,9 @@ router.post('/panel/pdf', requireAdmin, async (req, res) => {
     await saveFields(req.body, [
       'invoice_prefix','offer_prefix','default_tax_rate','default_payment_method',
       'pdf_color','pdf_footer_text','pdf_agb_text','pdf_intro_offer','pdf_intro_invoice',
-      'dunning_fee_1','dunning_fee_2','dunning_fee_3','hourly_rate','skonto_percent','skonto_days','skonto_percent','skonto_days'
+      'dunning_fee_1','dunning_fee_2','dunning_fee_3','hourly_rate','skonto_percent','skonto_days'
     ]);
+    await saveCheckboxes(req.body, ['kleinunternehmer', 'pdf_qr_payment']);
     res.redirect('/admin/panel?tab=pdf&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);

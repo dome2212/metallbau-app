@@ -386,50 +386,60 @@ router.post('/api/save-catalog-items', requireAdmin, async (req, res) => {
 
 // POST: Neue Rechnung direkt anlegen
 router.post('/create-invoice', requireAdmin, async (req, res) => {
-  const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
+  const {
+    customer_id, title: titles, quantity: quantities, unit: units, price: prices,
+    discount_percent: itemDiscs, invoice_subtype, discount_percent_doc, discount_amount_doc
+  } = req.body;
   try {
     const _firma2  = await getFirma();
     const invPfx   = (_firma2.invoice_prefix || 'RECH').toUpperCase();
-    const taxRate  = parseFloat(_firma2.default_tax_rate || 19);
+    const isKlein  = String(_firma2.kleinunternehmer || '').toLowerCase() === 'true';
+    const taxRate  = isKlein ? 0 : parseFloat(_firma2.default_tax_rate || 19);
     const year     = new Date().getFullYear();
     const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
     const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
     const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
 
-    const titleArr    = Array.isArray(titles)    ? titles    : (titles    ? [titles]    : []);
+    const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
     const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
     const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
     const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
+    const discArr     = Array.isArray(itemDiscs)  ? itemDiscs  : (itemDiscs  ? [itemDiscs]  : []);
 
     let subtotal = 0;
     const items = titleArr.map((t, i) => {
       const q = parseFloat(quantityArr[i] || 1);
       const p = parseFloat(priceArr[i]    || 0);
-      subtotal += q * p;
-      return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p };
+      const d = parseFloat(discArr[i]     || 0);
+      subtotal += q * p * (1 - d / 100);
+      return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p, discount_percent: d };
     });
-    const taxAmount   = subtotal * (taxRate / 100);
-    const totalAmount = subtotal + taxAmount;
+    const docDiscPct = parseFloat(discount_percent_doc) || 0;
+    const docDiscAmt = parseFloat(discount_amount_doc) || 0;
+    const discountTotal = docDiscPct > 0 ? subtotal * (docDiscPct / 100) : docDiscAmt;
+    const netAfter = Math.max(0, subtotal - discountTotal);
+    const taxAmount   = netAfter * (taxRate / 100);
+    const totalAmount = netAfter + taxAmount;
+    const subtype = (invoice_subtype || '').toUpperCase() || null;
 
     const today   = new Date();
     const dueDate = new Date(today);
     dueDate.setDate(dueDate.getDate() + (_firma2.zahlungsfrist || 14));
 
     const insertRes = await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
-      [invoiceNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, dueDate.toISOString().split('T')[0]]
+      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, invoice_subtype, discount_percent, discount_amount)
+       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [invoiceNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, dueDate.toISOString().split('T')[0], subtype, docDiscPct || 0, discountTotal || 0]
     );
     const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
 
     for (const item of items) {
       if (!item.description?.trim()) continue;
       await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
-        [docId, item.description, item.quantity, item.unit, item.price]
+        `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
+        [docId, item.description, item.quantity, item.unit, item.price, item.discount_percent || 0]
       );
     }
-    // Direkt zur neuen Rechnung – sofort sichtbar, PDF/Versand ohne Umweg über die Liste
     res.redirect('/documents/invoices/' + docId);
   } catch (err) {
     console.error('Fehler bei POST /documents/create-invoice:', err.message);
@@ -576,7 +586,9 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const {
     title: titles, quantity: quantities, unit: units, price: prices,
-    due_date, tax_rate, status, status_note
+    discount_percent: itemDiscs,
+    due_date, tax_rate, status, status_note, invoice_subtype,
+    discount_percent_doc, discount_amount_doc
   } = req.body;
 
   try {
@@ -586,10 +598,14 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
     );
     if (!invRes.rows?.[0]) return res.status(404).send('Rechnung nicht gefunden.');
 
+    const firma = await getFirma().catch(() => ({}));
+    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
+
     const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
     const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
     const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
     const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
+    const discArr     = Array.isArray(itemDiscs)  ? itemDiscs  : (itemDiscs  ? [itemDiscs]  : []);
 
     await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
 
@@ -599,19 +615,26 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
       if (!desc) continue;
       const q = parseFloat(quantityArr[i] || 1);
       const p = parseFloat(priceArr[i] || 0);
-      subtotal += q * p;
+      const d = parseFloat(discArr[i] || 0);
+      subtotal += q * p * (1 - d / 100);
       await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
-        [id, desc, q, unitArr[i] || 'Stk', p]
+        `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, desc, q, unitArr[i] || 'Stk', p, d || 0]
       );
     }
 
-    const taxRate = parseFloat(tax_rate != null && tax_rate !== '' ? tax_rate : 19);
-    const taxAmount = subtotal * (taxRate / 100);
-    const totalAmount = subtotal + taxAmount;
+    const docDiscPct = parseFloat(discount_percent_doc) || 0;
+    const docDiscAmt = parseFloat(discount_amount_doc) || 0;
+    const discountTotal = docDiscPct > 0 ? subtotal * (docDiscPct / 100) : docDiscAmt;
+    const netAfter = Math.max(0, subtotal - discountTotal);
 
-    const fields = ['subtotal = ?', 'tax_amount = ?', 'total_amount = ?', 'tax_rate = ?'];
-    const params = [subtotal, taxAmount, totalAmount, taxRate];
+    let taxRate = parseFloat(tax_rate != null && tax_rate !== '' ? tax_rate : 19);
+    if (isKlein) taxRate = 0;
+    const taxAmount = netAfter * (taxRate / 100);
+    const totalAmount = netAfter + taxAmount;
+
+    const fields = ['subtotal = ?', 'tax_amount = ?', 'total_amount = ?', 'tax_rate = ?', 'discount_percent = ?', 'discount_amount = ?'];
+    const params = [subtotal, taxAmount, totalAmount, taxRate, docDiscPct || 0, discountTotal || 0];
 
     if (due_date !== undefined) {
       fields.push('due_date = ?');
@@ -625,12 +648,15 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
       fields.push('status_note = ?');
       params.push(status_note || null);
     }
+    if (invoice_subtype !== undefined) {
+      fields.push('invoice_subtype = ?');
+      params.push((invoice_subtype || '').toUpperCase() || null);
+    }
     params.push(id);
 
     await dbQuery(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
     res.redirect(`/documents/invoices/${id}?saved=1`);
   } catch (err) {
-
     console.error('Fehler bei POST /invoices/:id/update:', err.message);
     res.status(500).send('Fehler beim Speichern der Rechnung.');
   }
