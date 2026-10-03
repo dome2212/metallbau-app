@@ -98,12 +98,26 @@
             <p class="text-[10px] uppercase text-slate-400">Lieferscheine</p>
           </div>
         </div>
-        <% const hasLeitweg = !!(customer.leitweg_id && String(customer.leitweg_id).trim()); %>
-        <div class="text-xs rounded-lg p-3 <%= hasLeitweg ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900' %>">
-          <% if (hasLeitweg) { %>
-            ✓ Leitweg-ID hinterlegt – E-Rechnung möglich
+        <% 
+          const hasLeitweg = !!(customer.leitweg_id && String(customer.leitweg_id).trim());
+          const hasUst = !!(customer.ust_id && String(customer.ust_id).trim());
+          const hasAddr = !!(customer.street || customer.city || (customer.zip && customer.city));
+          const hasEmail = !!(customer.email && String(customer.email).trim());
+          const eScore = [hasLeitweg, hasUst, hasAddr, hasEmail].filter(Boolean).length;
+          const eReady = hasLeitweg && hasAddr;
+        %>
+        <div class="text-xs rounded-lg p-3 space-y-1 <%= eReady ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200' : 'bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-200' %>">
+          <p class="font-semibold">E-Rechnung-Check (<%= eScore %>/4)</p>
+          <ul class="space-y-0.5">
+            <li><%= hasLeitweg ? '✓' : '○' %> Leitweg-ID <%= hasLeitweg ? '' : '(Pflicht für Behörden/Portale)' %></li>
+            <li><%= hasUst ? '✓' : '○' %> USt-IdNr.</li>
+            <li><%= hasAddr ? '✓' : '○' %> Adresse</li>
+            <li><%= hasEmail ? '✓' : '○' %> E-Mail (für Versand)</li>
+          </ul>
+          <% if (eReady) { %>
+            <p class="pt-1">Bereit für strukturierte E-Rechnung (XRechnung).</p>
           <% } else { %>
-            ⚠ Keine Leitweg-ID – für E-Rechnung an Behörden/Portale ergänzen
+            <p class="pt-1">Angaben ergänzen, bevor E-Rechnung versendet wird.</p>
           <% } %>
         </div>
       </div>

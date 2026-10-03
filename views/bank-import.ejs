@@ -1,0 +1,101 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+  <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Bank-CSV-Import</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Zahlungseingänge abgleichen und offene Rechnungen verbuchen</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/documents/open-items" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Offene Posten</a>
+      <a href="/documents/invoices" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Rechnungen</a>
+    </div>
+  </div>
+
+  <div class="px-4 md:px-6 max-w-4xl mx-auto w-full pb-10 space-y-6">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border border-gray-100 dark:border-slate-700">
+      <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">CSV hochladen</h2>
+      <p class="text-xs text-gray-500 mb-4">
+        Erwartet Spalten wie <code>Datum;Betrag;Verwendungszweck</code> (Semikolon oder Komma).
+        Zuordnung erfolgt über Rechnungsnummer im Verwendungszweck oder eindeutigen Betrag.
+      </p>
+      <form action="/documents/bank-import" method="POST" enctype="multipart/form-data" class="space-y-3">
+        <input type="file" name="csv" accept=".csv,.txt,text/csv" required
+          class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input type="checkbox" name="dry_run" value="1" class="accent-blue-600" checked>
+          Nur Vorschau (nichts verbuchen)
+        </label>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">
+          Import starten
+        </button>
+      </form>
+    </div>
+
+    <% if (result) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border border-gray-100 dark:border-slate-700 space-y-4">
+      <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">
+        Ergebnis <%= typeof dryRun !== 'undefined' && dryRun ? '(Vorschau)' : '' %>
+      </h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3">
+          <p class="text-xs text-emerald-600 font-semibold">Zugeordnet</p>
+          <p class="text-2xl font-bold text-emerald-700"><%= (result.matched || []).length %></p>
+        </div>
+        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-3">
+          <p class="text-xs text-amber-600 font-semibold">Ohne Treffer</p>
+          <p class="text-2xl font-bold text-amber-700"><%= (result.unmatched || []).length %></p>
+        </div>
+      </div>
+
+      <% if (result.matched && result.matched.length) { %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-[10px] uppercase text-gray-400">
+            <tr><th class="text-left py-2">Rechnung</th><th class="text-right py-2">Betrag</th><th class="text-left py-2 pl-4">Verwendungszweck</th></tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+            <% result.matched.forEach(function(m) { %>
+            <tr>
+              <td class="py-2"><a class="text-blue-600" href="/documents/invoices/<%= m.invoice.id %>"><%= m.invoice.doc_number %></a></td>
+              <td class="py-2 text-right font-semibold"><%= Number(m.entry.amount).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</td>
+              <td class="py-2 pl-4 text-gray-500 truncate max-w-xs"><%= m.entry.reference %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+      <% if (result.unmatched && result.unmatched.length) { %>
+      <details class="text-sm">
+        <summary class="cursor-pointer text-amber-700 font-medium">Nicht zugeordnete Buchungen (<%= result.unmatched.length %>)</summary>
+        <ul class="mt-2 space-y-1 text-xs text-gray-500">
+          <% result.unmatched.slice(0, 30).forEach(function(u) { %>
+          <li><%= u.date %> · <%= Number(u.amount).toLocaleString('de-DE',{minimumFractionDigits:2}) %> € · <%= u.reference %></li>
+          <% }); %>
+        </ul>
+      </details>
+      <% } %>
+    </div>
+    <% } %>
+
+    <% if (logs && logs.length) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border border-gray-100 dark:border-slate-700">
+      <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-3">Letzte Importe</h2>
+      <ul class="text-sm space-y-2">
+        <% logs.forEach(function(l) { %>
+        <li class="flex justify-between gap-2 text-gray-600 dark:text-gray-300">
+          <span><%= l.filename || '—' %> · <%= l.matched || 0 %> Treffer / <%= l.unmatched || 0 %> offen</span>
+          <span class="text-xs text-gray-400"><%= l.imported_at ? new Date(l.imported_at).toLocaleString('de-DE') : '' %></span>
+        </li>
+        <% }); %>
+      </ul>
+    </div>
+    <% } %>
+  </div>
+</main>
+
+</body>
+</html>

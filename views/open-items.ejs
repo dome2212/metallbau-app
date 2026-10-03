@@ -5,9 +5,13 @@
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
     <div>
       <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Offene Posten (OP-Liste)</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">Nicht bezahlte Rechnungen · überfällige Beträge zuerst</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Nicht bezahlte Rechnungen · überfällige Beträge zuerst · Skonto-Hinweis</p>
     </div>
-    <a href="/documents/invoices" class="text-sm text-blue-600 hover:text-blue-800 font-medium">← Zur Rechnungsverwaltung</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="/documents/bank-import" class="text-sm px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700">Bank-Import</a>
+      <a href="/documents/recurring" class="text-sm px-3 py-1.5 rounded-lg border dark:border-slate-600 font-medium text-gray-700 dark:text-gray-200">Wiederkehrend</a>
+      <a href="/documents/invoices" class="text-sm text-blue-600 hover:text-blue-800 font-medium">← Rechnungen</a>
+    </div>
   </div>
 
   <div class="px-4 md:px-6 max-w-7xl mx-auto w-full pb-8 space-y-4">
@@ -28,13 +32,14 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left min-w-[700px]">
+        <table class="w-full text-sm text-left min-w-[800px]">
           <thead class="bg-slate-50 dark:bg-slate-700 text-[10px] uppercase text-gray-500 dark:text-gray-400">
             <tr>
               <th class="px-4 py-3">Nr.</th>
               <th class="px-4 py-3">Kunde</th>
               <th class="px-4 py-3">Datum</th>
               <th class="px-4 py-3">Fällig</th>
+              <th class="px-4 py-3">Skonto</th>
               <th class="px-4 py-3">Status</th>
               <% if (canSeeMoney) { %>
               <th class="px-4 py-3 text-right">Brutto</th>
@@ -47,22 +52,41 @@
           <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
             <% if (!invoices || invoices.length === 0) { %>
             <tr>
-              <td colspan="9" class="px-4 py-10 text-center text-gray-400">Keine offenen Rechnungen.</td>
+              <td colspan="10" class="px-4 py-10 text-center text-gray-400">Keine offenen Rechnungen.</td>
             </tr>
             <% } else { %>
               <% invoices.forEach(function(inv) {
                 const open = Math.max(0, parseFloat(inv.open_amount != null ? inv.open_amount : (inv.total_amount||0) - (inv.paid_amount||0)));
                 const overdue = inv.due_date && new Date(inv.due_date) < new Date() && open > 0.01;
+                const skontoP = parseFloat(inv.skonto_percent != null ? inv.skonto_percent : (firma && firma.skonto_percent) || 0) || 0;
+                const skontoD = parseInt(inv.skonto_days != null ? inv.skonto_days : (firma && firma.skonto_days) || 0, 10) || 0;
+                let skontoLabel = '–';
+                if (skontoP > 0 && skontoD > 0 && inv.created_at) {
+                  const created = new Date(inv.created_at);
+                  const skontoEnd = new Date(created);
+                  skontoEnd.setDate(skontoEnd.getDate() + skontoD);
+                  const daysLeft = Math.ceil((skontoEnd - new Date()) / 86400000);
+                  if (daysLeft > 0) {
+                    skontoLabel = daysLeft + ' T. · ' + skontoP.toLocaleString('de-DE') + ' %';
+                  } else {
+                    skontoLabel = 'abgelaufen';
+                  }
+                }
               %>
               <tr class="<%= overdue ? 'bg-red-50/50 dark:bg-red-900/10' : '' %> hover:bg-gray-50 dark:hover:bg-slate-700/40">
                 <td class="px-4 py-3 font-semibold">
                   <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline"><%= inv.invoice_number || inv.doc_number %></a>
+                  <% if (inv.invoice_subtype === 'PARTIAL') { %><span class="ml-1 text-[10px] text-amber-600">Teil</span><% } %>
+                  <% if (inv.invoice_subtype === 'FINAL') { %><span class="ml-1 text-[10px] text-violet-600">Schluss</span><% } %>
                 </td>
                 <td class="px-4 py-3"><%= inv.company_name || inv.contact_person || '–' %></td>
                 <td class="px-4 py-3 text-gray-500"><%= inv.created_at ? new Date(inv.created_at).toLocaleDateString('de-DE') : '–' %></td>
                 <td class="px-4 py-3 <%= overdue ? 'text-red-600 font-semibold' : 'text-gray-600' %>">
                   <%= inv.due_date ? new Date(inv.due_date).toLocaleDateString('de-DE') : '–' %>
                   <% if (overdue) { %> <span class="text-[10px] uppercase">überfällig</span><% } %>
+                </td>
+                <td class="px-4 py-3 text-xs <%= skontoLabel !== '–' && skontoLabel !== 'abgelaufen' ? 'text-emerald-600 font-semibold' : 'text-gray-400' %>">
+                  <%= skontoLabel %>
                 </td>
                 <td class="px-4 py-3"><span class="badge badge-warning"><%= inv.status %></span></td>
                 <% if (canSeeMoney) { %>

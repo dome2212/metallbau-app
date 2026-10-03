@@ -1,0 +1,103 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+  <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Wiederkehrende Rechnungen</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Wartung, Miete, Pauschalen – auf Knopfdruck erzeugen</p>
+    </div>
+    <a href="/documents/invoices" class="text-sm text-blue-600 hover:text-blue-800 font-medium">← Rechnungen</a>
+  </div>
+
+  <div class="px-4 md:px-6 max-w-5xl mx-auto w-full pb-10 space-y-6">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border border-gray-100 dark:border-slate-700">
+      <h2 class="text-sm font-bold mb-3 text-gray-800 dark:text-gray-100">Neue Vorlage</h2>
+      <form action="/documents/recurring/create" method="POST" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-[10px] uppercase font-semibold text-gray-500">Kunde</label>
+          <select name="customer_id" required class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+            <option value="">— wählen —</option>
+            <% (customers || []).forEach(function(c) { %>
+              <option value="<%= c.id %>"><%= c.company_name || c.contact_person %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-semibold text-gray-500">Titel</label>
+          <input name="title" required placeholder="z. B. Wartungsvertrag" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-semibold text-gray-500">Intervall (Monate)</label>
+          <input type="number" name="interval_months" value="1" min="1" max="24" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-semibold text-gray-500">Nächste Fälligkeit</label>
+          <input type="date" name="next_due_date" value="<%= new Date().toISOString().slice(0,10) %>" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-[10px] uppercase font-semibold text-gray-500">Positionsbeschreibung</label>
+          <input name="line_desc" placeholder="Leistung" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] uppercase font-semibold text-gray-500">Menge</label>
+            <input type="number" step="0.01" name="line_qty" value="1" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-semibold text-gray-500">Preis €</label>
+            <input type="number" step="0.01" name="line_price" value="0" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-semibold text-gray-500">MwSt %</label>
+            <input type="number" step="0.1" name="tax_rate" value="<%= (firma && firma.default_tax_rate) || 19 %>" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm">
+          </div>
+        </div>
+        <div class="sm:col-span-2">
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold">Anlegen</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden border border-gray-100 dark:border-slate-700">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700 text-[10px] uppercase text-gray-500">
+          <tr>
+            <th class="px-4 py-3 text-left">Titel</th>
+            <th class="px-4 py-3 text-left">Kunde</th>
+            <th class="px-4 py-3 text-left">Intervall</th>
+            <th class="px-4 py-3 text-left">Nächste Fälligkeit</th>
+            <th class="px-4 py-3 text-left">Status</th>
+            <th class="px-4 py-3 text-right">Aktion</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+          <% if (!items || !items.length) { %>
+          <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Noch keine wiederkehrenden Vorlagen.</td></tr>
+          <% } else { items.forEach(function(r) { %>
+          <tr class="<%= r.active ? '' : 'opacity-50' %>">
+            <td class="px-4 py-3 font-semibold"><%= r.title %></td>
+            <td class="px-4 py-3"><%= r.company_name || r.contact_person || '–' %></td>
+            <td class="px-4 py-3"><%= r.interval_months %> Mon.</td>
+            <td class="px-4 py-3"><%= r.next_due_date ? new Date(r.next_due_date).toLocaleDateString('de-DE') : '–' %></td>
+            <td class="px-4 py-3"><%= r.active ? 'Aktiv' : 'Pausiert' %></td>
+            <td class="px-4 py-3 text-right space-x-2">
+              <form action="/documents/recurring/<%= r.id %>/generate" method="POST" class="inline">
+                <button type="submit" class="text-xs font-semibold text-emerald-600 hover:text-emerald-800">Jetzt erzeugen</button>
+              </form>
+              <form action="/documents/recurring/<%= r.id %>/toggle" method="POST" class="inline">
+                <button type="submit" class="text-xs text-gray-500 hover:text-gray-800"><%= r.active ? 'Pausieren' : 'Aktivieren' %></button>
+              </form>
+              <form action="/documents/recurring/<%= r.id %>/delete" method="POST" class="inline" onsubmit="return confirm('Löschen?')">
+                <button type="submit" class="text-xs text-red-500 hover:text-red-700">Löschen</button>
+              </form>
+            </td>
+          </tr>
+          <% }); } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</body>
+</html>
