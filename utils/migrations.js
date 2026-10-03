@@ -700,6 +700,36 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 021 ── Wiederkehrende Rechnungen + Bank-Import-Log ─────────────────────
+  {
+    id: 21,
+    description: 'recurring_invoices, bank_import_log',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS recurring_invoices (
+        id              ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        customer_id     INT NOT NULL,
+        title           TEXT,
+        interval_months INT NOT NULL DEFAULT 1,
+        next_due_date   TEXT,
+        active          INT NOT NULL DEFAULT 1,
+        tax_rate        NUMERIC(5,2) DEFAULT 19,
+        template_json   TEXT,
+        last_generated_at TEXT,
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE TABLE IF NOT EXISTS bank_import_log (
+        id          ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        filename    TEXT,
+        imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        matched     INT DEFAULT 0,
+        unmatched   INT DEFAULT 0,
+        note        TEXT
+      )`);
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} parent_document_id INT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE documents ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} recurring_id INT`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
