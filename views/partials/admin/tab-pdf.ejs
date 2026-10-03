@@ -69,6 +69,38 @@
           </div>
         </div>
 
+        <!-- Kleinunternehmer & Bezahl-QR -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="icon-tile w-9 h-9 shrink-0" style="background:#fef3c7;color:#d97706;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            </span>
+            <div>
+              <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Kleinunternehmer &amp; Bezahl-Code</h2>
+              <p class="text-xs text-slate-500">§ 19 UStG und GiroCode auf Rechnungs-PDFs</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <label class="flex items-start gap-3 p-3 rounded-xl border dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50">
+              <input type="checkbox" name="kleinunternehmer" value="true"
+                <%= String(firma.kleinunternehmer||'').toLowerCase() === 'true' ? 'checked' : '' %>
+                class="mt-1 accent-amber-600">
+              <span>
+                <span class="block text-sm font-semibold text-slate-800 dark:text-gray-100">Kleinunternehmerregelung (§ 19 UStG)</span>
+                <span class="block text-xs text-slate-500 mt-0.5">Rechnungen ohne Umsatzsteuerausweis. Standard-MwSt. wird auf 0 % gesetzt und der gesetzliche Hinweis erscheint auf dem PDF.</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-3 p-3 rounded-xl border dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50">
+              <input type="checkbox" name="pdf_qr_payment" value="true"
+                <%= String(firma.pdf_qr_payment||'true').toLowerCase() !== 'false' ? 'checked' : '' %>
+                class="mt-1 accent-blue-600">
+              <span>
+                <span class="block text-sm font-semibold text-slate-800 dark:text-gray-100">Bezahl-Code (GiroCode / EPC-QR)</span>
+                <span class="block text-xs text-slate-500 mt-0.5">Automatisch generierter QR-Code auf der Rechnung für fehlerfreie Überweisung per Banking-App.</span>
+              </span>
+            </label>
+          </div>
+        </div>
 
         <!-- Skonto -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 md:p-6">
