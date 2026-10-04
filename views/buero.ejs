@@ -1,0 +1,133 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<style>
+  .bu-wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 96px; }
+  .bu-h1 { font-size: 1.9rem; font-weight: 800; }
+  .bu-sub { font-size: 1.1rem; color: #64748b; margin-top: 2px; }
+  .bu-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 22px; }
+  .bu-tile { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 150px; padding: 22px 24px;
+    border-radius: 20px; color: #fff; text-decoration: none; box-shadow: 0 6px 18px rgba(15,23,42,.18); transition: transform .12s, filter .12s; }
+  .bu-tile:hover { transform: translateY(-2px); filter: brightness(1.07); }
+  .bu-tile:focus-visible { outline: 4px solid #fde047; outline-offset: 3px; }
+  .bu-tile .ico { font-size: 2.4rem; line-height: 1; }
+  .bu-tile .ttl { font-size: 1.6rem; font-weight: 800; }
+  .bu-tile .sub { font-size: 1.05rem; opacity: .92; }
+  .bu-blue  { background: #2563eb; }
+  .bu-green { background: #059669; }
+  .bu-amber { background: #d97706; }
+  .bu-info { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 1.05rem; }
+  .bu-chip { padding: 8px 14px; border-radius: 999px; background: #f1f5f9; color: #334155; font-weight: 600; }
+  .dark .bu-chip { background: #1e293b; color: #e2e8f0; }
+  .bu-chip.warn { background: #fee2e2; color: #991b1b; }
+  .bu-card { margin-top: 26px; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; }
+  .dark .bu-card { background: #1e293b; border-color: #334155; }
+  .bu-card h2 { font-size: 1.25rem; font-weight: 800; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; }
+  .dark .bu-card h2 { border-color: #334155; }
+  .bu-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid #f1f5f9; text-decoration: none; color: inherit; font-size: 1.05rem; }
+  .dark .bu-row { border-color: #334155; }
+  .bu-row:last-child { border-bottom: 0; }
+  .bu-row:hover { background: #f8fafc; }
+  .dark .bu-row:hover { background: #0f172a; }
+  .bu-badge { font-size: .85rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #dbeafe; color: #1e40af; white-space: nowrap; }
+  .bu-badge.inv { background: #d1fae5; color: #065f46; }
+  .bu-adv summary { cursor: pointer; font-size: 1.1rem; font-weight: 700; padding: 14px 18px; list-style: none; }
+  .bu-adv summary::-webkit-details-marker { display: none; }
+  .bu-adv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 0 18px 18px; }
+  .bu-adv-grid a { padding: 12px 14px; border-radius: 12px; background: #f1f5f9; color: #1e293b; text-decoration: none; font-weight: 600; font-size: 1rem; }
+  .dark .bu-adv-grid a { background: #0f172a; color: #e2e8f0; }
+  .bu-adv-grid a:hover { background: #e2e8f0; }
+  .bu-size { display: inline-flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 1rem; color: #64748b; }
+  .bu-size button { padding: 8px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; font-weight: 700; font-size: 1rem; color: #0f172a; }
+</style>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
+  <div class="bu-wrap w-full">
+
+    <h1 class="bu-h1 text-slate-800 dark:text-slate-100">Büro</h1>
+    <p class="bu-sub">Was möchten Sie tun?</p>
+
+    <div class="bu-tiles">
+      <a href="/documents/neu/angebot" class="bu-tile bu-blue">
+        <span class="ico">📝</span>
+        <span class="ttl">Neues Angebot</span>
+        <span class="sub">Schritt für Schritt schreiben</span>
+      </a>
+      <a href="/documents/neu/rechnung" class="bu-tile bu-green">
+        <span class="ico">🧾</span>
+        <span class="ttl">Neue Rechnung</span>
+        <span class="sub">Schritt für Schritt schreiben</span>
+      </a>
+      <a href="/documents/open-items" class="bu-tile bu-amber">
+        <span class="ico">💶</span>
+        <span class="ttl">Offene Rechnungen</span>
+        <span class="sub">
+          <% if (openCount > 0) { %>
+            <%= openCount %> offen<% if (canSeeMoney) { %> · <%= openSum.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) %><% } %>
+          <% } else { %>
+            Alles bezahlt 👍
+          <% } %>
+        </span>
+      </a>
+    </div>
+
+    <div class="bu-info">
+      <% if (overdueCount > 0) { %><span class="bu-chip warn">⚠ <%= overdueCount %> Rechnung(en) überfällig</span><% } %>
+      <% if (draftCount > 0) { %><span class="bu-chip">✉ <%= draftCount %> Rechnung(en) noch nicht verschickt</span><% } %>
+      <% if (waitingOffers > 0) { %><span class="bu-chip">⏳ <%= waitingOffers %> Angebot(e) warten auf Antwort</span><% } %>
+    </div>
+
+    <div class="bu-card">
+      <h2>Zuletzt erstellt</h2>
+      <% if (!recent.length) { %>
+        <p style="padding:18px;font-size:1.05rem;color:#64748b">Noch nichts erstellt. Klicken Sie oben auf „Neues Angebot".</p>
+      <% } %>
+      <% recent.forEach(function(d) {
+           const isInv = d.doc_type === 'INVOICE';
+           const href = isInv ? '/documents/invoices/' + d.id : '/documents/offers/' + d.id + '/detail';
+           const who = d.company_name || d.contact_person || '—';
+      %>
+        <a class="bu-row" href="<%= href %>">
+          <span>
+            <strong><%= d.doc_number %></strong> · <%= who %>
+            <% if (canSeeMoney) { %> · <%= (parseFloat(d.total_amount) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) %><% } %>
+          </span>
+          <span class="bu-badge <%= isInv ? 'inv' : '' %>"><%= isInv ? 'Rechnung' : 'Angebot' %></span>
+        </a>
+      <% }); %>
+    </div>
+
+    <details class="bu-card bu-adv">
+      <summary>⚙ Erweitert (Vorlagen, Mahnungen, Stahlpreise, Export …)</summary>
+      <div class="bu-adv-grid">
+        <a href="/documents/offers">Alle Angebote</a>
+        <a href="/documents/invoices">Alle Rechnungen</a>
+        <a href="/documents/open-items">Offene Posten &amp; Mahnungen</a>
+        <a href="/documents/offers">Vorlagen &amp; Stahlpreise</a>
+        <a href="/customers">Kunden</a>
+        <a href="/articles">Artikel</a>
+        <a href="/documents/bank-import">Bank-Import</a>
+        <a href="/documents/invoices/datev-export">DATEV-Export</a>
+      </div>
+    </details>
+
+    <div class="bu-size">
+      Schriftgröße:
+      <button type="button" onclick="bigTextStep(-1)" aria-label="Schrift kleiner">A−</button>
+      <button type="button" onclick="bigTextStep(1)" aria-label="Schrift größer">A+</button>
+    </div>
+  </div>
+</main>
+
+<script>
+function bigTextStep(d) {
+  var cur = 16;
+  try { cur = parseInt(localStorage.getItem('fontPx') || '16', 10) || 16; } catch (e) {}
+  var next = Math.max(14, Math.min(22, cur + d * 2));
+  try { localStorage.setItem('fontPx', String(next)); } catch (e) {}
+  document.documentElement.style.fontSize = next + 'px';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<%
+  const isInv = doc.doc_type === 'INVOICE';
+  const word = isInv ? 'Rechnung' : 'Angebot';
+  const pdfUrl = isInv ? '/documents/invoices/' + doc.id + '/pdf' : '/documents/offers/' + doc.id + '/pdf';
+  const dlUrl  = isInv ? '/documents/invoices/' + doc.id + '/pdf-download' : '/documents/offers/' + doc.id + '/pdf-download';
+  const mailAction = isInv ? '/documents/invoices/' + doc.id + '/send-email' : '/documents/offers/' + doc.id + '/send-email';
+  const detailUrl = isInv ? '/documents/invoices/' + doc.id : '/documents/offers/' + doc.id + '/detail';
+  const who = doc.company_name || doc.contact_person || '';
+  const eur = function (n) { return (parseFloat(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); };
+%>
+
+<style>
+  .dn { max-width: 820px; margin: 0 auto; padding: 0 16px 100px; font-size: 1.1rem; }
+  .dn-ok { text-align: center; padding: 26px 20px; border-radius: 20px; background: #dcfce7; color: #14532d; }
+  .dn-ok .big { font-size: 3rem; line-height: 1; }
+  .dn-ok h1 { font-size: 1.8rem; font-weight: 800; margin-top: 6px; }
+  .dn-ok p { font-size: 1.15rem; margin-top: 4px; }
+  .dn-banner { margin-top: 14px; padding: 14px 16px; border-radius: 14px; font-weight: 700; }
+  .dn-banner.ok { background: #dbeafe; color: #1e3a8a; }
+  .dn-banner.err { background: #fee2e2; color: #991b1b; }
+  .dn-actions { display: grid; gap: 14px; margin-top: 22px; }
+  .dn-btn { display: flex; align-items: center; gap: 14px; padding: 20px 22px; border-radius: 18px; border: 0; width: 100%;
+    text-decoration: none; font-size: 1.35rem; font-weight: 800; cursor: pointer; color: #fff; text-align: left; }
+  .dn-btn small { display: block; font-size: 1rem; font-weight: 500; opacity: .92; }
+  .dn-btn .ico { font-size: 2rem; }
+  .dn-btn:focus-visible { outline: 4px solid #fde047; outline-offset: 3px; }
+  .dn-blue { background: #2563eb; }
+  .dn-green { background: #059669; }
+  .dn-slate { background: #475569; }
+  .dn-light { background: #e2e8f0; color: #0f172a; }
+  .dn-card { margin-top: 22px; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px; }
+  .dark .dn-card { background: #1e293b; border-color: #334155; }
+  .dn-card label { display: block; font-weight: 700; font-size: .95rem; margin: 10px 0 4px; color: #475569; }
+  .dark .dn-card label { color: #cbd5e1; }
+  .dn-card input, .dn-card textarea { width: 100%; border: 2px solid #cbd5e1; border-radius: 12px; padding: 12px 14px; font-size: 1.1rem; background: #fff; color: #0f172a; }
+  .dark .dn-card input, .dark .dn-card textarea { background: #0f172a; color: #f1f5f9; border-color: #475569; }
+</style>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
+  <div class="dn w-full">
+
+    <div class="dn-ok">
+      <div class="big">✅</div>
+      <h1><%= word %> ist fertig!</h1>
+      <p><strong><%= doc.doc_number %></strong><% if (who) { %> · <%= who %><% } %> · <%= eur(doc.total_amount) %></p>
+    </div>
+
+    <% if (sent) { %><div class="dn-banner ok">✉ Die E-Mail wurde verschickt.</div><% } %>
+    <% if (mailError) { %><div class="dn-banner err"><%= mailError %></div><% } %>
+
+    <div class="dn-actions">
+      <a class="dn-btn dn-blue" href="<%= pdfUrl %>" target="_blank" rel="noopener">
+        <span class="ico">👁</span><span>PDF ansehen<small>Öffnet das <%= word %> zum Prüfen und Drucken</small></span>
+      </a>
+      <a class="dn-btn dn-slate" href="<%= dlUrl %>">
+        <span class="ico">⬇</span><span>PDF herunterladen<small>Als Datei auf dem Computer speichern</small></span>
+      </a>
+      <button type="button" class="dn-btn dn-green" onclick="document.getElementById('mailBox').style.display='block'; this.style.display='none'; document.getElementById('mailTo').focus();">
+        <span class="ico">✉</span><span>Per E-Mail senden<small>Das PDF wird automatisch angehängt</small></span>
+      </button>
+    </div>
+
+    <div class="dn-card" id="mailBox" style="display:<%= (mailError ? 'block' : 'none') %>">
+      <form action="<%= mailAction %>" method="POST">
+        <label for="mailTo">E-Mail-Adresse des Kunden</label>
+        <input id="mailTo" type="email" name="to" required value="<%= doc.email || '' %>" placeholder="kunde@beispiel.de">
+        <label for="mailSub">Betreff</label>
+        <input id="mailSub" type="text" name="subject" value="<%= word %> <%= doc.doc_number %>">
+        <label for="mailMsg">Nachricht</label>
+        <textarea id="mailMsg" name="message" rows="5">Sehr geehrte Damen und Herren,
+
+anbei erhalten Sie <%= isInv ? 'unsere Rechnung' : 'unser Angebot' %> <%= doc.doc_number %> als PDF.</textarea>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+          <button type="submit" class="dn-btn dn-green" style="width:auto;padding:16px 28px;font-size:1.2rem" onclick="return confirm('E-Mail jetzt an den Kunden schicken?');">✉ Jetzt senden</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="dn-actions" style="margin-top:26px">
+      <% if (!isInv) { %>
+        <form action="/documents/offers/convert-to-invoice" method="POST"
+              onsubmit="return confirm('Aus diesem Angebot jetzt die Rechnung erstellen?');">
+          <input type="hidden" name="offer_id" value="<%= doc.id %>">
+          <button type="submit" class="dn-btn dn-green"><span class="ico">🧾</span><span>Rechnung daraus erstellen<small>Alle Positionen werden übernommen</small></span></button>
+        </form>
+      <% } else { %>
+        <a class="dn-btn dn-light" href="<%= detailUrl %>?tab=zahlungen"><span class="ico">💶</span><span>Zahlung eingegangen?<small>Hier die Zahlung eintragen</small></span></a>
+      <% } %>
+      <a class="dn-btn dn-light" href="<%= detailUrl %>"><span class="ico">✏️</span><span>Ändern oder weitere Funktionen<small>Alle Einstellungen zu diesem <%= word %></small></span></a>
+      <a class="dn-btn dn-light" href="/documents/neu/<%= isInv ? 'rechnung' : 'angebot' %>"><span class="ico">➕</span><span>Noch <%= isInv ? 'eine Rechnung' : 'ein Angebot' %> schreiben</span></a>
+      <a class="dn-btn dn-light" href="/documents/buero"><span class="ico">🏠</span><span>Zurück zum Büro</span></a>
+    </div>
+
+  </div>
+</main>
+</body>
+</html>

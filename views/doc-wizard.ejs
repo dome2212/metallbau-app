@@ -1,0 +1,465 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<%
+  const isInv = type === 'rechnung';
+  const word = isInv ? 'Rechnung' : 'Angebot';
+  const accent = isInv ? '#059669' : '#2563eb';
+%>
+
+<style>
+  .wz { max-width: 920px; margin: 0 auto; padding: 0 16px 120px; font-size: 1.1rem; }
+  .wz h1 { font-size: 1.8rem; font-weight: 800; }
+  .wz-steps { display: flex; gap: 8px; margin: 16px 0 22px; flex-wrap: wrap; }
+  .wz-step { flex: 1 1 140px; padding: 10px 14px; border-radius: 14px; background: #e2e8f0; color: #475569; font-weight: 700; text-align: center; font-size: 1rem; }
+  .wz-step.on { background: <%= accent %>; color: #fff; }
+  .wz-step.done { background: #bbf7d0; color: #14532d; }
+  .wz-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; }
+  .dark .wz-card { background: #1e293b; border-color: #334155; }
+  .wz-q { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+  .wz-hint { color: #64748b; font-size: 1rem; margin-bottom: 14px; }
+  .wz input, .wz select, .wz textarea { width: 100%; border: 2px solid #cbd5e1; border-radius: 12px; padding: 12px 14px; font-size: 1.1rem; background: #fff; color: #0f172a; }
+  .dark .wz input, .dark .wz select, .dark .wz textarea { background: #0f172a; color: #f1f5f9; border-color: #475569; }
+  .wz input:focus, .wz select:focus, .wz textarea:focus { outline: 3px solid <%= accent %>55; border-color: <%= accent %>; }
+  .wz-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 24px; border-radius: 14px; border: 0;
+    font-size: 1.15rem; font-weight: 800; cursor: pointer; background: #e2e8f0; color: #0f172a; }
+  .wz-btn.main { background: <%= accent %>; color: #fff; }
+  .wz-btn.big { font-size: 1.3rem; padding: 18px 30px; }
+  .wz-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .wz-btn:focus-visible { outline: 4px solid #fde047; outline-offset: 2px; }
+  .wz-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+  .wz-list { max-height: 340px; overflow-y: auto; margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 14px; }
+  .dark .wz-list { border-color: #334155; }
+  .wz-cust { display: block; width: 100%; text-align: left; padding: 14px 16px; border: 0; border-bottom: 1px solid #f1f5f9; background: transparent; font-size: 1.1rem; cursor: pointer; color: inherit; }
+  .dark .wz-cust { border-color: #334155; }
+  .wz-cust small { display: block; color: #64748b; font-size: .92rem; }
+  .wz-cust:hover { background: #f1f5f9; }
+  .dark .wz-cust:hover { background: #0f172a; }
+  .wz-cust.sel { background: <%= accent %>; color: #fff; }
+  .wz-cust.sel small { color: #e2e8f0; }
+  .wz-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) { .wz-grid2 { grid-template-columns: 1fr; } }
+  .wz-lbl { display: block; font-size: .95rem; font-weight: 700; margin: 10px 0 4px; color: #475569; }
+  .dark .wz-lbl { color: #cbd5e1; }
+  .wz-box { margin-top: 14px; padding: 14px; border-radius: 14px; background: #f8fafc; border: 1px dashed #cbd5e1; }
+  .dark .wz-box { background: #0f172a; border-color: #475569; }
+  .wz-pos { border: 2px solid #e2e8f0; border-radius: 16px; padding: 12px; margin-top: 12px; }
+  .dark .wz-pos { border-color: #334155; }
+  .wz-pos-row { display: grid; grid-template-columns: 90px 110px 130px 1fr; gap: 10px; margin-top: 8px; align-items: end; }
+  @media (max-width: 640px) { .wz-pos-row { grid-template-columns: 1fr 1fr; } }
+  .wz-sum { text-align: right; font-weight: 800; font-size: 1.15rem; padding-bottom: 12px; }
+  .wz-rm { background: transparent; border: 0; color: #b91c1c; font-weight: 700; font-size: 1rem; cursor: pointer; padding: 6px 4px; }
+  .wz-tot { margin-top: 18px; padding: 16px 18px; background: #f1f5f9; border-radius: 14px; font-size: 1.15rem; }
+  .dark .wz-tot { background: #0f172a; }
+  .wz-tot div { display: flex; justify-content: space-between; padding: 3px 0; }
+  .wz-tot .grand { font-size: 1.5rem; font-weight: 800; border-top: 2px solid #cbd5e1; margin-top: 6px; padding-top: 8px; }
+  .wz-err { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fee2e2; color: #991b1b; font-weight: 600; display: none; }
+  .wz-ok  { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #dcfce7; color: #166534; font-weight: 600; display: none; }
+  .wz-rev-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .wz-rev-table th { text-align: left; font-size: .9rem; color: #64748b; padding: 6px 8px; border-bottom: 2px solid #e2e8f0; }
+  .wz-rev-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .dark .wz-rev-table td { border-color: #334155; }
+  .wz-rev-table td.r, .wz-rev-table th.r { text-align: right; white-space: nowrap; }
+  .wz-draft { margin-bottom: 14px; padding: 12px 16px; border-radius: 14px; background: #fef9c3; color: #713f12; font-weight: 600; display: none; }
+  .wz-draft button { margin-left: 8px; }
+</style>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
+  <div class="wz w-full">
+
+    <a href="/documents/buero" style="font-size:1rem;color:#64748b;text-decoration:none">← zurück zum Büro</a>
+    <h1 class="text-slate-800 dark:text-slate-100" style="margin-top:6px">Neue<%= isInv ? '' : 's' %> <%= word %></h1>
+
+    <div class="wz-draft" id="draftBox">
+      Es gibt einen nicht abgeschlossenen Entwurf.
+      <button type="button" class="wz-btn main" style="padding:8px 14px;font-size:1rem" onclick="restoreDraft()">Weitermachen</button>
+      <button type="button" class="wz-btn" style="padding:8px 14px;font-size:1rem" onclick="discardDraft()">Verwerfen</button>
+    </div>
+
+    <div class="wz-steps">
+      <div class="wz-step on" id="ind1">1. Für wen?</div>
+      <div class="wz-step" id="ind2">2. Was wurde gemacht?</div>
+      <div class="wz-step" id="ind3">3. Prüfen</div>
+    </div>
+
+    <!-- ── Schritt 1: Kunde ─────────────────────────────────────── -->
+    <section id="step1" class="wz-card">
+      <div class="wz-q">Für wen ist <%= isInv ? 'die' : 'das' %> <%= word %>?</div>
+      <div class="wz-hint">Tippen Sie einen Teil des Namens ein und klicken Sie dann auf den Kunden.</div>
+      <input type="search" id="custSearch" placeholder="Kunde suchen …" autocomplete="off" oninput="renderCustomers()">
+      <div class="wz-list" id="custList"></div>
+
+      <div style="margin-top:14px">
+        <button type="button" class="wz-btn" onclick="toggleNewCust()">➕ Neuen Kunden anlegen</button>
+      </div>
+      <div class="wz-box" id="newCust" style="display:none">
+        <label class="wz-lbl" for="nc_name">Name / Firma *</label>
+        <input id="nc_name" type="text" autocomplete="off">
+        <label class="wz-lbl" for="nc_person">Ansprechpartner</label>
+        <input id="nc_person" type="text" autocomplete="off">
+        <label class="wz-lbl" for="nc_street">Straße und Hausnummer</label>
+        <input id="nc_street" type="text" autocomplete="off">
+        <div class="wz-grid2">
+          <div><label class="wz-lbl" for="nc_zip">PLZ</label><input id="nc_zip" type="text" inputmode="numeric" autocomplete="off"></div>
+          <div><label class="wz-lbl" for="nc_city">Ort</label><input id="nc_city" type="text" autocomplete="off"></div>
+          <div><label class="wz-lbl" for="nc_mail">E-Mail</label><input id="nc_mail" type="email" autocomplete="off"></div>
+          <div><label class="wz-lbl" for="nc_phone">Telefon</label><input id="nc_phone" type="tel" autocomplete="off"></div>
+        </div>
+        <div class="wz-err" id="ncErr"></div>
+        <div style="margin-top:14px">
+          <button type="button" class="wz-btn main" id="ncSave" onclick="saveNewCust()">Kunde speichern</button>
+        </div>
+      </div>
+
+      <div class="wz-nav">
+        <span></span>
+        <button type="button" class="wz-btn main big" id="to2" onclick="goStep(2)" disabled>Weiter →</button>
+      </div>
+    </section>
+
+    <!-- ── Schritt 2: Positionen ────────────────────────────────── -->
+    <section id="step2" class="wz-card" style="display:none">
+      <div class="wz-q">Was wurde gemacht oder geliefert?</div>
+      <div class="wz-hint">Pro Zeile eine Leistung. Mit der Enter-Taste springen Sie zum nächsten Feld.</div>
+
+      <div class="wz-box">
+        <label class="wz-lbl" for="kiText">✨ Lieber in einem Satz beschreiben? (Vorschlag per KI)</label>
+        <textarea id="kiText" rows="2" placeholder="z. B. Geländer 12 m für Familie Müller, verzinkt, mit Montage"></textarea>
+        <div style="margin-top:10px"><button type="button" class="wz-btn" id="kiBtn" onclick="kiSuggest()">Vorschlag erstellen</button></div>
+        <div class="wz-err" id="kiErr"></div>
+        <div class="wz-ok" id="kiOk"></div>
+      </div>
+
+      <div class="wz-grid2" style="margin-top:6px">
+        <div>
+          <label class="wz-lbl" for="snipSel">Standardtext einfügen</label>
+          <select id="snipSel" onchange="addSnippet(this)">
+            <option value="">— auswählen —</option>
+            <% (snippets || []).forEach(function(s) { %>
+              <option value="<%= s.text || s.label %>"><%= s.label || s.text %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div>
+          <label class="wz-lbl" for="artSel">Aus Artikelliste übernehmen</label>
+          <select id="artSel" onchange="addArticle(this)">
+            <option value="">— auswählen —</option>
+            <% (articles || []).forEach(function(a) { %>
+              <option value="<%= a.id %>"><%= a.title %></option>
+            <% }); %>
+          </select>
+        </div>
+      </div>
+
+      <div id="posList"></div>
+
+      <div style="margin-top:14px">
+        <button type="button" class="wz-btn" onclick="addRow(); focusLastRow()">➕ Weitere Zeile</button>
+      </div>
+
+      <div class="wz-tot" id="totals1"></div>
+      <div class="wz-err" id="posErr"></div>
+
+      <div class="wz-nav">
+        <button type="button" class="wz-btn" onclick="goStep(1)">← Zurück</button>
+        <button type="button" class="wz-btn main big" onclick="goStep(3)">Weiter →</button>
+      </div>
+    </section>
+
+    <!-- ── Schritt 3: Prüfen ────────────────────────────────────── -->
+    <section id="step3" class="wz-card" style="display:none">
+      <div class="wz-q">Bitte prüfen</div>
+      <div class="wz-hint">Stimmt alles? Dann unten auf den grünen Knopf drücken.</div>
+      <p style="font-size:1.2rem"><strong>Für:</strong> <span id="revCust"></span></p>
+      <table class="wz-rev-table">
+        <thead><tr><th>Leistung</th><th class="r">Menge</th><th class="r">Einzelpreis</th><th class="r">Summe</th></tr></thead>
+        <tbody id="revBody"></tbody>
+      </table>
+      <div class="wz-tot" id="totals3"></div>
+      <% if (isInv) { %><p class="wz-hint" style="margin-top:12px">Zahlungsziel: <%= parseInt(firma.zahlungsfrist, 10) || 14 %> Tage. Die Rechnung wird als Entwurf angelegt – verschickt wird erst im nächsten Schritt.</p><% } %>
+      <div class="wz-err" id="saveErr"></div>
+      <div class="wz-nav">
+        <button type="button" class="wz-btn" onclick="goStep(2)">← Etwas ändern</button>
+        <button type="button" class="wz-btn main big" id="saveBtn" onclick="saveDoc()">✔ <%= word %> erstellen</button>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+(function () {
+  var TYPE = <%- JSON.stringify(type) %>;
+  var TAX = <%= Number(taxRate) || 0 %>;
+  var KLEIN = <%= isKlein ? 'true' : 'false' %>;
+  var CUSTOMERS = <%- JSON.stringify(customers || []).replace(/</g, '\\u003c') %>;
+  var ARTICLES = <%- JSON.stringify(articles || []).replace(/</g, '\\u003c') %>;
+  var PRE = <%- JSON.stringify(preCustomer || '') %>;
+  var UNITS = ['Stk', 'm', 'Std', 'kg', 'm²', 'Psch'];
+  var DRAFT_KEY = 'wizardDraft_' + TYPE;
+  var selected = null;
+  var rowSeq = 0;
+  var draftPending = false;
+  function dirty() { if (draftPending) { draftPending = false; $('draftBox').style.display = 'none'; } }
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function eur(n) { return (Number(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
+  function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\./g, function (m, off, str) { return str.indexOf(',') > -1 ? '' : m; }).replace(',', '.')); return isNaN(n) ? 0 : n; }
+  function custLabel(c) { return c.company_name || c.contact_person || ('Kunde ' + c.id); }
+
+  /* ── Kunden ─────────────────────────────────────────────── */
+  window.renderCustomers = function () {
+    var q = ($('custSearch').value || '').toLowerCase().trim();
+    var html = '';
+    CUSTOMERS.forEach(function (c) {
+      var hay = [c.company_name, c.contact_person, c.city, c.street].join(' ').toLowerCase();
+      if (q && hay.indexOf(q) === -1) return;
+      var sub = [c.contact_person && c.contact_person !== c.company_name ? c.contact_person : '', [c.zip, c.city].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+      html += '<button type="button" class="wz-cust' + (selected && String(selected.id) === String(c.id) ? ' sel' : '') + '" data-id="' + esc(c.id) + '">' +
+        esc(custLabel(c)) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
+    });
+    $('custList').innerHTML = html || '<p style="padding:16px;color:#64748b">Keinen Kunden gefunden. Legen Sie unten einen neuen an.</p>';
+  };
+  $('custList').addEventListener('click', function (e) {
+    var b = e.target.closest('.wz-cust'); if (!b) return;
+    var c = CUSTOMERS.filter(function (x) { return String(x.id) === b.getAttribute('data-id'); })[0];
+    if (c) selectCustomer(c);
+  });
+  function selectCustomer(c) {
+    dirty();
+    selected = c;
+    $('to2').disabled = false;
+    window.renderCustomers();
+    saveDraft();
+  }
+  window.toggleNewCust = function () {
+    var b = $('newCust'); b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    if (b.style.display === 'block') $('nc_name').focus();
+  };
+  window.saveNewCust = async function () {
+    var err = $('ncErr'); err.style.display = 'none';
+    var body = {
+      company_name: $('nc_name').value, contact_person: $('nc_person').value, street: $('nc_street').value,
+      zip: $('nc_zip').value, city: $('nc_city').value, email: $('nc_mail').value, phone: $('nc_phone').value
+    };
+    if (!body.company_name.trim() && !body.contact_person.trim()) { err.textContent = 'Bitte einen Namen eintragen.'; err.style.display = 'block'; return; }
+    $('ncSave').disabled = true;
+    try {
+      var r = await fetch('/documents/wizard/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) });
+      var d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Fehler');
+      var c = { id: d.id, company_name: body.company_name || body.contact_person, contact_person: body.contact_person, street: body.street, zip: body.zip, city: body.city };
+      CUSTOMERS.unshift(c);
+      $('newCust').style.display = 'none';
+      ['nc_name', 'nc_person', 'nc_street', 'nc_zip', 'nc_city', 'nc_mail', 'nc_phone'].forEach(function (i) { $(i).value = ''; });
+      $('custSearch').value = '';
+      selectCustomer(c);
+    } catch (e) {
+      err.textContent = e.message || 'Kunde konnte nicht gespeichert werden.'; err.style.display = 'block';
+    } finally { $('ncSave').disabled = false; }
+  };
+
+  /* ── Positionen ─────────────────────────────────────────── */
+  function unitOpts(sel) {
+    var list = UNITS.slice(); if (sel && list.indexOf(sel) === -1) list.push(sel);
+    return list.map(function (u) { return '<option' + (u === sel ? ' selected' : '') + '>' + esc(u) + '</option>'; }).join('');
+  }
+  window.addRow = function (desc, qty, unit, price) {
+    var id = 'r' + (++rowSeq);
+    var div = document.createElement('div');
+    div.className = 'wz-pos'; div.id = id;
+    div.innerHTML =
+      '<label class="wz-lbl" style="margin-top:0">Leistung / Beschreibung</label>' +
+      '<input type="text" class="p-desc" placeholder="z. B. Geländer verzinkt, inkl. Montage" value="' + esc(desc || '') + '">' +
+      '<div class="wz-pos-row">' +
+        '<div><label class="wz-lbl">Menge</label><input type="text" inputmode="decimal" class="p-qty" value="' + esc(qty == null ? '1' : String(qty).replace('.', ',')) + '"></div>' +
+        '<div><label class="wz-lbl">Einheit</label><select class="p-unit">' + unitOpts(unit || 'Stk') + '</select></div>' +
+        '<div><label class="wz-lbl">Preis pro Einheit (€)</label><input type="text" inputmode="decimal" class="p-price" placeholder="0,00" value="' + esc(price ? String(price).replace('.', ',') : '') + '"></div>' +
+        '<div class="wz-sum"><span class="p-sum">0,00 €</span> <button type="button" class="wz-rm" data-rm="' + id + '">Zeile entfernen</button></div>' +
+      '</div>';
+    $('posList').appendChild(div);
+    updateTotals();
+    return div;
+  };
+  window.focusLastRow = function () {
+    var rows = $('posList').querySelectorAll('.wz-pos'); if (!rows.length) return;
+    var d = rows[rows.length - 1].querySelector('.p-desc'); if (d) d.focus();
+  };
+  function rowsData() {
+    var out = [];
+    $('posList').querySelectorAll('.wz-pos').forEach(function (r) {
+      out.push({
+        description: r.querySelector('.p-desc').value.trim(),
+        quantity: num(r.querySelector('.p-qty').value),
+        unit: r.querySelector('.p-unit').value,
+        price: num(r.querySelector('.p-price').value)
+      });
+    });
+    return out;
+  }
+  function totalsHtml(items) {
+    var net = 0; items.forEach(function (i) { if (i.description) net += i.quantity * i.price; });
+    net = Math.round(net * 100) / 100;
+    var tax = Math.round(net * TAX) / 100;
+    var h = '<div><span>Netto</span><span>' + eur(net) + '</span></div>';
+    if (KLEIN) h += '<div><span>Umsatzsteuer</span><span>nicht ausgewiesen (§ 19 UStG)</span></div>';
+    else h += '<div><span>MwSt. ' + String(TAX).replace('.', ',') + ' %</span><span>' + eur(tax) + '</span></div>';
+    h += '<div class="grand"><span>Gesamt</span><span>' + eur(net + tax) + '</span></div>';
+    return h;
+  }
+  function updateTotals() {
+    var items = rowsData();
+    $('posList').querySelectorAll('.wz-pos').forEach(function (r, i) {
+      r.querySelector('.p-sum').textContent = eur(items[i].quantity * items[i].price);
+    });
+    $('totals1').innerHTML = totalsHtml(items);
+    saveDraft();
+  }
+  $('posList').addEventListener('input', function () { dirty(); updateTotals(); });
+  $('posList').addEventListener('change', function () { dirty(); updateTotals(); });
+  $('posList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rm]'); if (!b) return;
+    var row = $(b.getAttribute('data-rm'));
+    if ($('posList').querySelectorAll('.wz-pos').length <= 1) {
+      row.querySelector('.p-desc').value = ''; row.querySelector('.p-qty').value = '1'; row.querySelector('.p-price').value = '';
+    } else if (confirm('Diese Zeile wirklich entfernen?')) { row.remove(); }
+    updateTotals();
+  });
+  // Enter = nächstes Feld; im letzten Feld = neue Zeile
+  $('posList').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    var fields = Array.prototype.slice.call($('posList').querySelectorAll('input, select'));
+    var i = fields.indexOf(e.target);
+    if (i === -1) return;
+    if (e.target.classList.contains('p-price')) {
+      if (e.target.closest('.wz-pos').querySelector('.p-desc').value.trim() === '') return;
+      var nr = addRow(); nr.querySelector('.p-desc').focus(); return;
+    }
+    if (fields[i + 1]) fields[i + 1].focus();
+  });
+  window.addSnippet = function (sel) {
+    var t = sel.value; sel.value = ''; if (!t) return;
+    var rows = $('posList').querySelectorAll('.wz-pos');
+    var last = rows[rows.length - 1];
+    if (last && !last.querySelector('.p-desc').value.trim() && !num(last.querySelector('.p-price').value)) {
+      last.querySelector('.p-desc').value = t; updateTotals(); last.querySelector('.p-price').focus();
+    } else { var nr = addRow(t); nr.querySelector('.p-price').focus(); }
+  };
+  window.addArticle = function (sel) {
+    var id = sel.value; sel.value = ''; if (!id) return;
+    var a = ARTICLES.filter(function (x) { return String(x.id) === String(id); })[0]; if (!a) return;
+    var rows = $('posList').querySelectorAll('.wz-pos');
+    var last = rows[rows.length - 1];
+    if (last && !last.querySelector('.p-desc').value.trim() && !num(last.querySelector('.p-price').value)) last.remove();
+    var nr = addRow(a.title, 1, a.unit || 'Stk', parseFloat(a.unit_price) || 0);
+    nr.querySelector('.p-qty').focus(); nr.querySelector('.p-qty').select();
+  };
+
+  /* ── KI-Vorschlag ───────────────────────────────────────── */
+  function parsePositions(text) {
+    try {
+      var m = String(text).match(/POSITIONEN_JSON[^[]*(\[[\s\S]*?\])/) || String(text).match(/(\[\s*\{[\s\S]*?\}\s*\])/);
+      if (!m) return [];
+      var arr = JSON.parse(m[1]); return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  window.kiSuggest = async function () {
+    var txt = $('kiText').value.trim(), err = $('kiErr'), ok = $('kiOk');
+    err.style.display = 'none'; ok.style.display = 'none';
+    if (!txt) { err.textContent = 'Bitte erst kurz beschreiben, was gemacht wurde.'; err.style.display = 'block'; return; }
+    $('kiBtn').disabled = true; $('kiBtn').textContent = 'Einen Moment …';
+    try {
+      var r = await fetch('/api/ai/offer-assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ message: txt }) });
+      var d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Fehler');
+      var pos = parsePositions(d.reply);
+      if (!pos.length) throw new Error('Daraus konnte ich keine Positionen machen. Bitte etwas genauer beschreiben.');
+      var rows = $('posList').querySelectorAll('.wz-pos');
+      var last = rows[rows.length - 1];
+      if (last && !last.querySelector('.p-desc').value.trim() && !num(last.querySelector('.p-price').value)) last.remove();
+      pos.forEach(function (p) { addRow(p.title || p.description || '', p.quantity == null ? 1 : p.quantity, p.unit || 'Stk', parseFloat(p.price) || 0); });
+      ok.textContent = pos.length + ' Zeile(n) wurden eingetragen. Bitte Preise und Mengen kontrollieren!'; ok.style.display = 'block';
+      $('kiText').value = '';
+    } catch (e) {
+      err.textContent = (e.message || 'Der Vorschlag hat nicht geklappt.') + ' Sie können die Zeilen auch von Hand eintragen.'; err.style.display = 'block';
+    } finally { $('kiBtn').disabled = false; $('kiBtn').textContent = 'Vorschlag erstellen'; }
+  };
+
+  /* ── Schritte ───────────────────────────────────────────── */
+  window.goStep = function (n) {
+    if (n === 2 && !selected) return;
+    if (n === 3) {
+      var items = rowsData().filter(function (i) { return i.description; });
+      var pe = $('posErr'); pe.style.display = 'none';
+      if (!items.length) { pe.textContent = 'Bitte mindestens eine Leistung eintragen.'; pe.style.display = 'block'; return; }
+      var bad = items.filter(function (i) { return i.quantity <= 0; });
+      if (bad.length) { pe.textContent = 'Bei „' + bad[0].description + '" fehlt die Menge.'; pe.style.display = 'block'; return; }
+      var noPrice = items.filter(function (i) { return !i.price; });
+      if (noPrice.length && !confirm('Bei „' + noPrice[0].description + '" steht kein Preis (0 €). Trotzdem weitermachen?')) return;
+      $('revCust').textContent = custLabel(selected);
+      $('revBody').innerHTML = items.map(function (i) {
+        return '<tr><td>' + esc(i.description) + '</td><td class="r">' + String(i.quantity).replace('.', ',') + ' ' + esc(i.unit) + '</td><td class="r">' + eur(i.price) + '</td><td class="r"><strong>' + eur(i.quantity * i.price) + '</strong></td></tr>';
+      }).join('');
+      $('totals3').innerHTML = totalsHtml(items);
+    }
+    [1, 2, 3].forEach(function (i) {
+      $('step' + i).style.display = i === n ? 'block' : 'none';
+      $('ind' + i).className = 'wz-step' + (i === n ? ' on' : (i < n ? ' done' : ''));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (n === 2) { var rs = $('posList').querySelectorAll('.wz-pos'); if (!rs.length) addRow(); setTimeout(function () { if ($('posList').querySelector('.p-desc') && !$('posList').querySelector('.p-desc').value) $('posList').querySelector('.p-desc').focus(); }, 150); }
+  };
+
+  window.saveDoc = async function () {
+    var items = rowsData().filter(function (i) { return i.description; });
+    var err = $('saveErr'); err.style.display = 'none';
+    var btn = $('saveBtn'); btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    try {
+      var r = await fetch('/documents/wizard/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ type: TYPE, customer_id: selected.id, items: items }) });
+      var d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Fehler');
+      try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+      window.location.href = d.url;
+    } catch (e) {
+      err.textContent = e.message || 'Speichern hat nicht geklappt.'; err.style.display = 'block';
+      btn.disabled = false; btn.textContent = '✔ <%= word %> erstellen';
+    }
+  };
+
+  /* ── Entwurf automatisch merken ─────────────────────────── */
+  function saveDraft() {
+    if (draftPending) return;
+    try {
+      var items = rowsData();
+      var has = selected || items.some(function (i) { return i.description || i.price; });
+      if (!has) { localStorage.removeItem(DRAFT_KEY); return; }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ cid: selected ? selected.id : null, items: items, t: Date.now() }));
+    } catch (e) {}
+  }
+  function readDraft() { try { var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d && (d.cid || (d.items || []).some(function (i) { return i.description; })) ? d : null; } catch (e) { return null; } }
+  window.restoreDraft = function () {
+    var d = readDraft(); if (!d) return;
+    if (d.cid) { var c = CUSTOMERS.filter(function (x) { return String(x.id) === String(d.cid); })[0]; if (c) selectCustomer(c); }
+    $('posList').innerHTML = '';
+    (d.items || []).forEach(function (i) { addRow(i.description, i.quantity, i.unit, i.price); });
+    draftPending = false;
+    $('draftBox').style.display = 'none';
+    saveDraft();
+    if (selected) goStep(2);
+  };
+  window.discardDraft = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} draftPending = false; $('draftBox').style.display = 'none'; };
+
+  // Start
+  var dr = readDraft();
+  if (dr && !PRE) { draftPending = true; $('draftBox').style.display = 'block'; }
+  window.renderCustomers();
+  if (PRE) { var pc = CUSTOMERS.filter(function (x) { return String(x.id) === PRE; })[0]; if (pc) selectCustomer(pc); }
+  addRow();
+  $('custSearch').focus();
+})();
+</script>
+</body>
+</html>
