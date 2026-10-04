@@ -487,20 +487,31 @@ router.get('/montageplan', async (req, res) => {
     const prev = new Date(start); prev.setDate(prev.getDate() - 7);
     const next = new Date(start); next.setDate(next.getDate() + 7);
 
-    // week overview matrix: users x days (for personalplanung table)
+    // week overview matrix: users x days
     const matrix = users.map(u => {
       const cells = days.map(day => {
         const p = day.personal.find(x => Number(x.user.id) === Number(u.id));
-        return p || { status: 'frei', label: '—' };
+        if (!p) return { status: 'frei', label: '—', projectId: '', note: '', vac: null };
+        const staff = p.staff || null;
+        return {
+          status: p.status,
+          label: p.label,
+          projectId: staff && staff.project_id ? String(staff.project_id) : '',
+          note: (staff && staff.note) || '',
+          vac: p.vac || null,
+        };
       });
       return { user: u, cells };
     });
+
+    const canEdit = req.user && ['CHEF', 'ADMIN'].includes(req.user.role);
 
     res.render('montageplan', {
       days,
       matrix,
       users,
       projects,
+      canEdit: !!canEdit,
       weekStart: startStr,
       weekLabel: start.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
         + ' – ' + end.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }),
