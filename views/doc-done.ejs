@@ -13,29 +13,29 @@
 %>
 
 <style>
-  .dn { max-width: 820px; margin: 0 auto; padding: 0 16px 100px; font-size: 1.1rem; }
-  .dn-ok { text-align: center; padding: 26px 20px; border-radius: 20px; background: #dcfce7; color: #14532d; }
-  .dn-ok .big { font-size: 3rem; line-height: 1; }
-  .dn-ok h1 { font-size: 1.8rem; font-weight: 800; margin-top: 6px; }
-  .dn-ok p { font-size: 1.15rem; margin-top: 4px; }
-  .dn-banner { margin-top: 14px; padding: 14px 16px; border-radius: 14px; font-weight: 700; }
+  .dn { max-width: 820px; margin: 0 auto; padding: 0 16px 100px; font-size:.875rem; }
+  .dn-ok { text-align: center; padding: 16px 16px; border-radius: 14px; background: #dcfce7; color: #14532d; }
+  .dn-ok .big { font-size:1.75rem; line-height: 1; }
+  .dn-ok h1 { font-size:1.5rem; font-weight: 700; margin-top: 6px; }
+  .dn-ok p { font-size:.875rem; margin-top: 4px; }
+  .dn-banner { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-weight: 600; }
   .dn-banner.ok { background: #dbeafe; color: #1e3a8a; }
   .dn-banner.err { background: #fee2e2; color: #991b1b; }
-  .dn-actions { display: grid; gap: 14px; margin-top: 22px; }
-  .dn-btn { display: flex; align-items: center; gap: 14px; padding: 20px 22px; border-radius: 18px; border: 0; width: 100%;
-    text-decoration: none; font-size: 1.35rem; font-weight: 800; cursor: pointer; color: #fff; text-align: left; }
-  .dn-btn small { display: block; font-size: 1rem; font-weight: 500; opacity: .92; }
-  .dn-btn .ico { font-size: 2rem; }
+  .dn-actions { display: grid; gap: 10px; margin-top: 16px; }
+  .dn-btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; border: 0; width: 100%;
+    text-decoration: none; font-size:.95rem; font-weight: 700; cursor: pointer; color: #fff; text-align: left; }
+  .dn-btn small { display: block; font-size:.875rem; font-weight: 500; opacity: .92; }
+  .dn-btn .ico { font-size:1.375rem; }
   .dn-btn:focus-visible { outline: 4px solid #fde047; outline-offset: 3px; }
   .dn-blue { background: #2563eb; }
   .dn-green { background: #059669; }
   .dn-slate { background: #475569; }
   .dn-light { background: #e2e8f0; color: #0f172a; }
-  .dn-card { margin-top: 22px; background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px; }
+  .dn-card { margin-top: 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
   .dark .dn-card { background: #1e293b; border-color: #334155; }
-  .dn-card label { display: block; font-weight: 700; font-size: .95rem; margin: 10px 0 4px; color: #475569; }
+  .dn-card label { display: block; font-weight: 700; font-size:.8rem; margin: 10px 0 4px; color: #475569; }
   .dark .dn-card label { color: #cbd5e1; }
-  .dn-card input, .dn-card textarea { width: 100%; border: 2px solid #cbd5e1; border-radius: 12px; padding: 12px 14px; font-size: 1.1rem; background: #fff; color: #0f172a; }
+  .dn-card input, .dn-card textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size:.875rem; background: #fff; color: #0f172a; }
   .dark .dn-card input, .dark .dn-card textarea { background: #0f172a; color: #f1f5f9; border-color: #475569; }
 </style>
 
@@ -74,12 +74,12 @@
 
 anbei erhalten Sie <%= isInv ? 'unsere Rechnung' : 'unser Angebot' %> <%= doc.doc_number %> als PDF.</textarea>
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-          <button type="submit" class="dn-btn dn-green" style="width:auto;padding:16px 28px;font-size:1.2rem" onclick="return confirm('E-Mail jetzt an den Kunden schicken?');">✉ Jetzt senden</button>
+          <button type="submit" class="dn-btn dn-green" style="width:auto;padding:10px 20px;font-size:.9rem" onclick="return confirm('E-Mail jetzt an den Kunden schicken?');">✉ Jetzt senden</button>
         </div>
       </form>
     </div>
 
-    <div class="dn-actions" style="margin-top:26px">
+    <div class="dn-actions" style="margin-top:18px">
       <% if (!isInv) { %>
         <form action="/documents/offers/convert-to-invoice" method="POST"
               onsubmit="return confirm('Aus diesem Angebot jetzt die Rechnung erstellen?');">
