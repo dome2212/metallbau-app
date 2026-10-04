@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
   const userRole = req.user.role;
   try {
     let vacationsRes;
-    if (userRole === 'ADMIN') {
+    if (userRole === 'ADMIN' || userRole === 'CHEF') {
       vacationsRes = await dbQuery(`
         SELECT vacations.*, users.username
         FROM vacations
@@ -96,8 +96,9 @@ router.get('/', async (req, res) => {
 // ==========================================
 router.post('/add', upload.single('document'), async (req, res) => {
   try {
-    const userId                      = req.user.id;
-    const { type, start_date, end_date, reason } = req.body;
+    const { type, start_date, end_date, reason, user_id } = req.body;
+    // Chef/Admin dürfen für einen anderen Mitarbeiter eintragen
+    const userId = (['ADMIN', 'CHEF'].includes(req.user.role) && user_id) ? Number(user_id) : req.user.id;
     const fileUrl                     = req.file ? req.file.path : null;
 
     await dbQuery(

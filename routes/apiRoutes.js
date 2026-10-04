@@ -474,7 +474,7 @@ router.get('/appointments', apiAuth, async (req, res) => {
 // GET /api/v2/vacations
 router.get('/vacations', apiAuth, async (req, res) => {
   const userId  = req.user.id;
-  const isAdmin = req.user.role === 'ADMIN';
+  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
   try {
     const sql = isAdmin
       ? `SELECT v.*, u.username FROM vacations v LEFT JOIN users u ON v.user_id=u.id ORDER BY v.start_date DESC`
@@ -512,6 +512,22 @@ router.post('/vacations', apiAuth, async (req, res) => {
       `INSERT INTO vacations (user_id,start_date,end_date,reason,type,status) VALUES (?,?,?,?,?,?)`,
       [req.user.id, start_date, end_date, reason||null, type||'Urlaub', 'Beantragt']
     );
+
+    // Chef/Admin benachrichtigen (WhatsApp + Push)
+    try {
+      const { sendWhatsApp } = require('../utils/notifier');
+      const { sendPush }     = require('../utils/webpush');
+      const t   = type || 'Urlaub';
+      const msg = `📅 Neuer ${t}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
+      const wa = await dbQuery(
+        `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+      );
+      for (const a of (wa.rows || [])) sendWhatsApp(a.whatsapp_phone, msg, a.whatsapp_api_key).catch(() => {});
+      const ids = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF')`);
+      for (const a of (ids.rows || [])) {
+        sendPush({ title: `📅 Neuer ${t}-Antrag`, body: msg, url: '/vacations' }, a.id).catch(() => {});
+      }
+    } catch (e) { console.error('Benachrichtigung Abwesenheitsantrag:', e.message); }
     res.status(201).json({ id: r.lastID, ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Fehler beim Beantragen' });
