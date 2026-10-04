@@ -3,20 +3,17 @@
           <span class="sec-label text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30">4 · Notizen</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
-      <div class="sec-body">
-      <div class="card-clean space-y-4">
-        <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📝 Baustellen-Notizbuch</h2>
+      <div class="sec-body space-y-3">
 
-        <!-- ── Text-Notiz ──────────────────────────────── -->
-        <form action="/projects/<%= project.id %>/notes/add" method="POST" class="space-y-3 bg-slate-50 dark:bg-slate-700/50 p-4 rounded border dark:border-slate-600" id="noteForm">
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Neue Notiz / Absprache / Baustellen-Info hinzufügen</label>
-          <textarea name="note_text" id="noteTextArea" rows="2" required
-            class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="z.B. Kunde wünscht nachträglich eine Änderung der RAL-Farbe..."></textarea>
+      <div class="card-clean space-y-3">
+        <form action="/projects/<%= project.id %>/notes/add" method="POST" id="noteForm" class="space-y-2">
+          <textarea name="note_text" id="noteTextArea" rows="3" required
+            class="w-full text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="Notiz, Absprache, Baustellen-Info…"></textarea>
           <div class="flex flex-wrap gap-2 items-center">
-            <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-4 py-2 rounded transition">Notiz speichern</button>
-            <button type="button" id="btnSpeechNote" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium px-4 py-2 rounded transition">🎤 Diktieren</button>
-            <span id="speechNoteStatus" class="text-xs text-slate-500"></span>
+            <button type="submit" class="text-xs px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold">Speichern</button>
+            <button type="button" id="btnSpeechNote" class="text-xs px-3 py-2 rounded-lg border border-violet-300 text-violet-700 dark:text-violet-300 font-semibold">🎤 Diktieren</button>
+            <span id="speechNoteStatus" class="text-xs text-slate-400"></span>
           </div>
         </form>
         <script>
@@ -48,35 +45,29 @@
           rec.onend = function(){ listening = false; btn.textContent = '🎤 Diktieren'; if (st.textContent === 'Hört zu…') st.textContent = 'Fertig'; };
         })();
         </script>
-
-        <!-- ── Notizliste ──────────────────────────────── -->
-        <div class="space-y-3 pt-2">
-          <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">Vorherige Notizen:</h3>
-          <% if (notes && notes.length > 0) { %>
-            <div class="space-y-2">
-              <% notes.forEach(note => { %>
-                <div class="flex justify-between items-start bg-slate-50 dark:bg-slate-700 p-3 rounded border dark:border-slate-600 text-sm">
-                  <div class="space-y-1.5 pr-4 flex-1 min-w-0">
-                    <p class="text-slate-800 dark:text-gray-200 whitespace-pre-wrap"><%= note.note_text %></p>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500 block">
-                      <%= new Date(note.created_at).toLocaleString('de-DE') %>
-                    </span>
-                  </div>
-                  <form action="/projects/notes/delete" method="POST" onsubmit="return confirm('Notiz wirklich löschen?');" class="shrink-0">
-                    <input type="hidden" name="note_id" value="<%= note.id %>">
-                    <input type="hidden" name="project_id" value="<%= project.id %>">
-                    <button type="submit" class="bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
-                  </form>
-                </div>
-              <% }) %>
-            </div>
-          <% } else { %>
-            <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch keine Notizen für dieses Projekt hinterlegt.</p>
-          <% } %>
-        </div>
       </div>
 
-            </div><!-- /sec-body -->
-</section>
+      <div class="card-clean">
+        <% if (notes && notes.length > 0) { %>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% notes.forEach(note => { %>
+            <li class="py-3 flex gap-3 items-start">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-800 dark:text-gray-200 whitespace-pre-wrap"><%= note.note_text %></p>
+                <p class="text-[10px] text-slate-400 mt-1"><%= new Date(note.created_at).toLocaleString('de-DE') %></p>
+              </div>
+              <form action="/projects/notes/delete" method="POST" onsubmit="return confirm('Notiz löschen?');" class="shrink-0">
+                <input type="hidden" name="note_id" value="<%= note.id %>">
+                <input type="hidden" name="project_id" value="<%= project.id %>">
+                <button type="submit" class="text-xs text-red-500 hover:text-red-700">Löschen</button>
+              </form>
+            </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p class="text-sm text-slate-400 text-center py-6">Noch keine Notizen.</p>
+        <% } %>
+      </div>
 
-      <!-- ========== 5 FOTOS ========== -->
+      </div><!-- /sec-body -->
+</section>

@@ -3,122 +3,65 @@
           <span class="sec-label text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30">8 · Material</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
-      <div class="sec-body">
-      <div class="card-clean space-y-4">
-    <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">🏗️ Materialentnahme</h2>
+      <div class="sec-body space-y-3">
 
-    <!-- Entnahme-Formular -->
-    <% if (lagerItems && lagerItems.length > 0) { %>
-      <form action="/projects/<%= project.id %>/material/add" method="POST"
-        class="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
-        <div class="sm:col-span-2">
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Material</label>
-          <select name="lager_item_id" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <% if (lagerItems && lagerItems.length > 0) { %>
+      <div class="card-clean">
+        <form action="/projects/<%= project.id %>/material/add" method="POST" class="space-y-2">
+          <select name="lager_item_id" required class="w-full text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 rounded-xl px-3 py-2.5">
             <option value="">— Material wählen —</option>
             <% lagerItems.forEach(item => { %>
               <option value="<%= item.id %>">
                 <%= item.bezeichnung %><%= item.profil ? ' · ' + item.profil : '' %>
-                (Bestand: <%= parseFloat(item.menge).toLocaleString('de-DE') %> <%= item.einheit %>)
+                (<%= parseFloat(item.menge).toLocaleString('de-DE') %> <%= item.einheit %>)
               </option>
             <% }) %>
           </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Menge</label>
-          <input type="number" name="menge" step="0.001" min="0.001" required placeholder="z.B. 2.5"
-            class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notiz (optional)</label>
-          <input type="text" name="notiz" placeholder="z.B. Pfosten Tor"
-            class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div class="sm:col-span-4 flex justify-end">
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">Material entnehmen</button>
-        </div>
-      </form>
-    <% } else { %>
-      <p class="text-sm text-slate-400 dark:text-slate-500 italic">Kein Lagerbestand vorhanden. Zuerst Artikel im <a href="/lager" class="text-blue-600 hover:underline">Lager</a> anlegen.</p>
-    <% } %>
-
-    <!-- Entnahme-Protokoll -->
-    <% if (entnahmen && entnahmen.length > 0) { %>
-      <%
-        let matGesamtkosten = 0;
-        entnahmen.forEach(e => { matGesamtkosten += Number(e.gesamtpreis || 0); });
-      %>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[400px]">
-          <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-500 dark:text-slate-400 uppercase">
-            <tr>
-              <th class="px-3 py-2 text-left">Material</th>
-              <th class="px-3 py-2 text-right">Menge</th>
-              <th class="px-3 py-2 text-right hidden sm:table-cell">Preis/Einh.</th>
-              <th class="px-3 py-2 text-right hidden sm:table-cell">Gesamt</th>
-              <th class="px-3 py-2 text-left hidden md:table-cell">Notiz</th>
-              <th class="px-3 py-2 text-right hidden md:table-cell">Datum</th>
-              <th class="px-3 py-2 text-right">Aktion</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-            <% entnahmen.forEach(e => { %>
-              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                <td class="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">
-                  <%= e.bezeichnung %><% if (e.profil) { %> <span class="text-slate-400 font-normal">· <%= e.profil %></span><% } %>
-                </td>
-                <td class="px-3 py-2 text-right text-slate-800 dark:text-gray-100 font-semibold">
-                  <%= parseFloat(e.menge).toLocaleString('de-DE') %> <%= e.einheit %>
-                </td>
-                <td class="px-3 py-2 text-right text-slate-500 dark:text-slate-400 hidden sm:table-cell text-xs">
-                  <% if (Number(e.einheitspreis) > 0) { %>
-                    <%= Number(e.einheitspreis).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
-                  <% } else { %>–<% } %>
-                </td>
-                <td class="px-3 py-2 text-right text-slate-700 dark:text-slate-200 hidden sm:table-cell font-semibold text-xs">
-                  <% if (Number(e.gesamtpreis) > 0) { %>
-                    <%= Number(e.gesamtpreis).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
-                  <% } else { %>–<% } %>
-                </td>
-                <td class="px-3 py-2 text-slate-500 dark:text-slate-400 hidden md:table-cell"><%= e.notiz || '–' %></td>
-                <td class="px-3 py-2 text-right text-slate-400 dark:text-slate-500 hidden md:table-cell text-xs">
-                  <%= new Date(e.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
-                </td>
-                <td class="px-3 py-2 text-right">
-                  <form action="/projects/material/delete" method="POST" class="inline"
-                    onsubmit="return confirm('Entnahme stornieren? Die Menge wird wieder ins Lager zurückgebucht.');">
-                    <input type="hidden" name="entnahme_id" value="<%= e.id %>">
-                    <input type="hidden" name="project_id" value="<%= project.id %>">
-                    <button type="submit" class="bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-          <% if (matGesamtkosten > 0) { %>
-          <tfoot class="border-t-2 border-slate-200 dark:border-slate-600 font-semibold text-slate-700 dark:text-slate-200">
-            <tr>
-              <td class="px-3 py-2.5" colspan="3">Materialkosten gesamt</td>
-              <td class="px-3 py-2.5 text-right text-emerald-700 dark:text-emerald-400 font-bold">
-                <%= matGesamtkosten.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) %> €
-              </td>
-              <td colspan="2" class="hidden md:table-cell"></td>
-            </tr>
-          </tfoot>
-          <% } %>
-        </table>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="number" name="menge" step="0.001" min="0.001" required placeholder="Menge"
+              class="text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 rounded-xl px-3 py-2.5">
+            <input type="text" name="notiz" placeholder="Notiz (optional)"
+              class="text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 rounded-xl px-3 py-2.5">
+          </div>
+          <button type="submit" class="w-full text-xs px-3 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold">Entnehmen</button>
+        </form>
       </div>
-    <% } else { %>
-      <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch kein Material für dieses Projekt entnommen.</p>
-    <% } %>
-  </div>
-</div>
+      <% } else { %>
+      <div class="card-clean">
+        <p class="text-sm text-slate-400 text-center py-4">Kein Lagerbestand vorhanden. <a href="/lager" class="text-orange-600 hover:underline">Zum Lager</a></p>
+      </div>
+      <% } %>
 
-            </div><!-- /sec-body -->
+      <div class="card-clean">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-gray-100 mb-2">Entnahmen</h2>
+        <% if (entnahmen && entnahmen.length > 0) { %>
+          <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+            <% entnahmen.forEach(e => { %>
+            <li class="py-2.5 flex items-start justify-between gap-2 text-sm">
+              <div class="min-w-0">
+                <p class="font-semibold text-slate-800 dark:text-slate-100 truncate"><%= e.bezeichnung || e.lager_bezeichnung || 'Material' %></p>
+                <p class="text-xs text-slate-500"><%= parseFloat(e.menge||0).toLocaleString('de-DE') %> <%= e.einheit || '' %><% if (e.notiz) { %> · <%= e.notiz %><% } %></p>
+                <p class="text-[10px] text-slate-400"><%= e.created_at ? new Date(e.created_at).toLocaleString('de-DE') : '' %></p>
+              </div>
+              <div class="text-right shrink-0">
+                <% if (e.gesamtpreis != null && Number(e.gesamtpreis) > 0) { %>
+                  <p class="text-xs font-bold tabular-nums"><%= Number(e.gesamtpreis).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €</p>
+                <% } %>
+                <% if (typeof e.id !== 'undefined') { %>
+                <form action="/projects/material/delete" method="POST" onsubmit="return confirm('Entnahme rückgängig?');" class="mt-1">
+                  <input type="hidden" name="entnahme_id" value="<%= e.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <button type="submit" class="text-[10px] text-red-500">Löschen</button>
+                </form>
+                <% } %>
+              </div>
+            </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p class="text-sm text-slate-400 text-center py-6">Noch keine Entnahmen.</p>
+        <% } %>
+      </div>
+
+      </div><!-- /sec-body -->
 </section>
-
-      <!-- ========== 9 STUNDEN ========== -->
-<%
-  const _matKosten = typeof entnahmen !== 'undefined'
-    ? entnahmen.reduce((s, e) => s + Number(e.gesamtpreis || 0), 0)
-    : 0;
-%>
