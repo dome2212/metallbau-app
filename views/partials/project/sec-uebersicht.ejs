@@ -3,297 +3,238 @@
           <span class="sec-label text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">1 · Übersicht</span>
           <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
-      <div class="sec-body">
-      <!-- Auftrags-Cockpit -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div class="sec-body space-y-4">
+
+      <!-- KPI -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
-          <p class="text-[10px] uppercase font-semibold text-slate-400">Stunden</p>
-          <p class="text-xl font-bold text-slate-800 dark:text-slate-100"><%= typeof projectTotalHours !== 'undefined' ? projectTotalHours : '0' %> h</p>
-          <% if (typeof nachkalk !== 'undefined' && nachkalk && nachkalk.plannedHours != null) { %>
-            <p class="text-[10px] text-slate-400">Plan: <%= nachkalk.plannedHours %> h</p>
-          <% } %>
+          <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wide">Stunden</p>
+          <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums"><%= typeof projectTotalHours !== 'undefined' ? projectTotalHours : '0' %> <span class="text-sm font-semibold text-slate-400">h</span></p>
         </div>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
-          <p class="text-[10px] uppercase font-semibold text-slate-400">Nächster Termin</p>
+          <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wide">Nächster Termin</p>
           <% if (typeof nextAppointment !== 'undefined' && nextAppointment) { %>
-            <p class="text-sm font-bold text-slate-800 dark:text-slate-100"><%= new Date(nextAppointment.start_date).toLocaleDateString('de-DE') %></p>
-            <p class="text-[10px] text-slate-400 truncate"><%= nextAppointment.title || nextAppointment.note || 'Termin' %></p>
+            <p class="text-base font-bold text-slate-800 dark:text-slate-100"><%= new Date(nextAppointment.start_date).toLocaleDateString('de-DE') %></p>
           <% } else { %>
-            <p class="text-sm font-semibold text-slate-400">—</p>
+            <p class="text-base font-semibold text-slate-400">—</p>
           <% } %>
         </div>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
-          <p class="text-[10px] uppercase font-semibold text-slate-400">Fotos</p>
-          <p class="text-xl font-bold text-slate-800 dark:text-slate-100"><%= (typeof photos !== 'undefined' && photos) ? photos.length : 0 %></p>
+          <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wide">Fotos</p>
+          <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums"><%= (typeof photos !== 'undefined' && photos) ? photos.length : 0 %></p>
         </div>
         <div class="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-3">
-          <p class="text-[10px] uppercase font-semibold text-slate-400">Offene Rechnungen</p>
+          <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wide">Offene RE</p>
           <% const oi = (typeof openInvoices !== 'undefined' && openInvoices) ? openInvoices : []; %>
-          <p class="text-xl font-bold <%= oi.length ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100' %>"><%= oi.length %></p>
-          <% if (typeof canSeeMoney !== 'undefined' && canSeeMoney && oi.length) {
-               const sum = oi.reduce((s,i)=>s+Math.max(0,parseFloat(i.total_amount||0)-parseFloat(i.paid_amount||0)),0);
-          %>
-            <p class="text-[10px] text-amber-600"><%= sum.toLocaleString('de-DE',{minimumFractionDigits:2}) %> € offen</p>
-          <% } %>
+          <p class="text-xl font-bold tabular-nums <%= oi.length ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100' %>"><%= oi.length %></p>
         </div>
       </div>
-      <% if (typeof openInvoices !== 'undefined' && openInvoices && openInvoices.length) { %>
-      <div class="mb-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-3">
-        <p class="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2">Offene Rechnungen</p>
+
+      <% if (oi.length) { %>
+      <div class="rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/40 dark:bg-amber-900/10 px-3 py-2">
         <ul class="space-y-1">
-          <% openInvoices.forEach(function(inv) { %>
-          <li class="flex justify-between text-sm">
-            <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 hover:underline font-medium"><%= inv.doc_number %></a>
-            <span class="text-slate-600 dark:text-slate-300"><%= inv.status %><% if (typeof canSeeMoney !== 'undefined' && canSeeMoney) { %> · <%= Number(inv.total_amount||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €<% } %></span>
+          <% oi.slice(0,5).forEach(function(inv) { %>
+          <li class="flex justify-between items-center text-sm gap-2">
+            <a href="/documents/invoices/<%= inv.id %>" class="text-blue-600 dark:text-blue-400 font-medium hover:underline truncate"><%= inv.doc_number %></a>
+            <span class="text-xs text-slate-500 shrink-0"><%= inv.status %></span>
           </li>
           <% }); %>
         </ul>
       </div>
       <% } %>
-      <div class="mt-4 flex flex-wrap gap-2">
+
+      <!-- Aktionen -->
+      <div class="flex flex-wrap gap-2">
         <% if (project.customer_id) { %>
-          <a href="/customers/<%= project.customer_id %>" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50">Kundenakte</a>
+          <a href="/customers/<%= project.customer_id %>" class="text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200">Kundenakte</a>
           <form action="/documents/delivery/create" method="POST" class="inline">
             <input type="hidden" name="customer_id" value="<%= project.customer_id %>">
             <input type="hidden" name="project_id" value="<%= project.id %>">
-            <button type="submit" class="text-xs px-3 py-1.5 rounded-lg bg-orange-600 text-white font-semibold">Lieferschein erstellen</button>
+            <button type="submit" class="text-xs px-3 py-2 rounded-lg bg-orange-600 text-white font-semibold">Lieferschein</button>
           </form>
         <% } %>
-        <a href="#sec-abnahme" class="text-xs px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 nav-chip-link" data-target="sec-abnahme">Zur Abnahme</a>
+        <button type="button" class="text-xs px-3 py-2 rounded-lg border border-emerald-300 text-emerald-700 dark:text-emerald-300 font-semibold nav-chip-link" data-target="sec-abnahme">Abnahme</button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Kundendaten & Details -->
-        <div class="card-clean space-y-4">
-          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📋 Projektdetails</h2>
-          <div>
-            <span class="text-xs text-slate-400 dark:text-slate-500 block">Kunde / Baustelle</span>
-            <strong class="text-slate-700 dark:text-gray-200"><%= project.company_name || project.contact_person %></strong>
-            <p class="text-sm text-slate-600 dark:text-slate-300"><%= project.street %>, <%= project.zip %> <%= project.city %></p>
+      <!-- Projektdetails -->
+      <div class="card-clean space-y-3">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-gray-100">Projektdetails</h2>
 
-            <!-- ── Navigations-Widget ── -->
-            <% if (project.street && project.city) {
-              const encAddr = encodeURIComponent((project.street + ', ' + (project.zip || '') + ' ' + project.city).trim());
-              const googleUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encAddr;
-              const appleUrl  = 'maps://?daddr=' + encAddr;
-              const wazeUrl   = 'https://waze.com/ul?q=' + encAddr + '&navigate=yes';
-            %>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <a href="<%= googleUrl %>" target="_blank"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition shadow-sm">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                Google Maps
-              </a>
-              <a href="<%= appleUrl %>" target="_blank"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold transition shadow-sm">
-                🍎 Apple Maps
-              </a>
-              <a href="<%= wazeUrl %>" target="_blank"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold transition shadow-sm">
-                🗺 Waze
-              </a>
-            </div>
-            <% } %>
-
-            <!-- ── Anfahrtshinweis (für alle sichtbar, wenn gesetzt) ── -->
-            <% if (project.site_note) { %>
-            <div class="mt-3 flex gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg px-3 py-2.5">
-              <span class="text-amber-500 text-base mt-0.5 shrink-0">⚠️</span>
-              <div>
-                <p class="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-0.5">Anfahrtshinweis</p>
-                <p class="text-xs text-amber-700 dark:text-amber-400 leading-snug"><%= project.site_note %></p>
-              </div>
-            </div>
-            <% } %>
+        <div>
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Kunde / Baustelle</p>
+          <p class="font-semibold text-slate-800 dark:text-slate-100"><%= project.company_name || project.contact_person || '—' %></p>
+          <% if (project.street || project.city) { %>
+            <p class="text-sm text-slate-500 dark:text-slate-400"><%= [project.street, [project.zip, project.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') %></p>
+          <% } %>
+          <% if (project.street && project.city) {
+            const encAddr = encodeURIComponent((project.street + ', ' + (project.zip || '') + ' ' + project.city).trim());
+            const googleUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + encAddr;
+            const appleUrl  = 'https://maps.apple.com/?daddr=' + encAddr;
+            const wazeUrl   = 'https://waze.com/ul?q=' + encAddr + '&navigate=yes';
+          %>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <a href="<%= googleUrl %>" target="_blank" rel="noopener" class="text-[11px] px-2.5 py-1 rounded-md bg-blue-600 text-white font-semibold">Google Maps</a>
+            <a href="<%= appleUrl %>" target="_blank" rel="noopener" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-600 text-white font-semibold">Apple Maps</a>
+            <a href="<%= wazeUrl %>" target="_blank" rel="noopener" class="text-[11px] px-2.5 py-1 rounded-md bg-sky-500 text-white font-semibold">Waze</a>
           </div>
-          
-          <!-- Auftragssumme nur für den Chef (ADMIN) sichtbar -->
-          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+          <% } %>
+        </div>
+
+        <% if (project.site_note) { %>
+        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          <span class="font-semibold">Anfahrt:</span> <%= project.site_note %>
+        </div>
+        <% } %>
+
+        <% if ((currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') && (typeof canSeeMoney === 'undefined' || canSeeMoney)) { %>
+        <div class="flex items-baseline justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-700">
+          <span class="text-[10px] uppercase font-semibold text-slate-400">Auftragssumme</span>
+          <span class="text-lg font-bold text-slate-800 dark:text-gray-100 tabular-nums"><%= (Number(project.total_price) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 }) %> €</span>
+        </div>
+        <% } %>
+
+        <% if (project.description) { %>
+        <div>
+          <p class="text-[10px] uppercase font-semibold text-slate-400">Beschreibung</p>
+          <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap"><%= project.description %></p>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Geo-Fencing (Admin) – eingeklappt -->
+      <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+      <details class="card-clean group">
+        <summary class="cursor-pointer list-none flex items-center justify-between gap-2">
+          <span class="text-sm font-bold text-slate-800 dark:text-gray-100">Geo-Fencing</span>
+          <% if (project.site_lat && project.site_lng) { %>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Aktiv · <%= project.site_radius || 200 %> m</span>
+          <% } else { %>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-700">Nicht gesetzt</span>
+          <% } %>
+        </summary>
+        <form action="/projects/<%= project.id %>/set-location" method="POST" class="mt-3 space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700" id="geo-form">
+          <div>
+            <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Adresse suchen</label>
+            <div class="flex gap-1">
+              <input type="text" id="geo-address-input" placeholder="Straße, PLZ Ort"
+                class="flex-1 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-2 py-2 bg-white">
+              <button type="button" onclick="geocodeAddress()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Suchen</button>
+            </div>
+            <% if (project.street && project.city) { %>
+              <button type="button"
+                onclick="useCustomerAddress('<%= (project.street + ', ' + (project.zip || '') + ' ' + project.city).trim().replace(/'/g, "\\'") %>')"
+                class="mt-1 text-[11px] text-indigo-600 hover:underline">Kundenadresse übernehmen</button>
+            <% } %>
+            <p id="geo-status" class="text-[10px] mt-1 hidden"></p>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
             <div>
-              <span class="text-xs text-slate-400 dark:text-slate-500 block">Auftragssumme</span>
-              <span class="text-xl font-bold text-slate-800 dark:text-gray-100"><%= (Number(project.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €</span>
+              <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Lat</label>
+              <input type="number" step="0.0000001" name="site_lat" id="geo-lat" value="<%= project.site_lat || '' %>"
+                class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-2 py-2 bg-white">
             </div>
-          <% } %>
-
+            <div>
+              <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Lng</label>
+              <input type="number" step="0.0000001" name="site_lng" id="geo-lng" value="<%= project.site_lng || '' %>"
+                class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-2 py-2 bg-white">
+            </div>
+          </div>
           <div>
-            <span class="text-xs text-slate-400 dark:text-slate-500 block">Beschreibung</span>
-            <p class="text-sm text-slate-600 dark:text-slate-300"><%= project.description || 'Keine Beschreibung hinterlegt.' %></p>
+            <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Radius (m)</label>
+            <input type="number" name="site_radius" value="<%= project.site_radius || 200 %>" min="50" max="2000"
+              class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-2 py-2 bg-white">
           </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 uppercase mb-0.5">Anfahrtshinweis</label>
+            <textarea name="site_note" rows="2" placeholder="z. B. Zufahrt über Hintereingang"
+              class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg px-2 py-2 bg-white"><%= project.site_note || '' %></textarea>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="text-xs px-3 py-2 rounded-lg bg-indigo-600 text-white font-semibold">Speichern</button>
+            <button type="button" onclick="if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){document.getElementById('geo-lat').value=p.coords.latitude;document.getElementById('geo-lng').value=p.coords.longitude;})}" class="text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 font-semibold">Mein Standort</button>
+          </div>
+        </form>
+      </details>
+      <% } %>
 
-          <!-- Baustellenkoordinaten (Geo-Fencing) — nur Admin -->
-          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
-            <div class="border-t dark:border-slate-700 pt-4 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">📍 Geo-Fencing Standort</span>
-                <% if (project.site_lat && project.site_lng) { %>
-                  <span class="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Aktiv</span>
-                <% } else { %>
-                  <span class="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-full">Nicht gesetzt</span>
-                <% } %>
-              </div>
-              <% if (project.site_lat && project.site_lng) { %>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                  Lat: <strong><%= project.site_lat %></strong> · Lng: <strong><%= project.site_lng %></strong> · Radius: <strong><%= project.site_radius || 200 %> m</strong>
-                </p>
-              <% } %>
-              <form action="/projects/<%= project.id %>/set-location" method="POST" class="space-y-2" id="geo-form">
-
-                <!-- Adresssuche via OpenStreetMap Nominatim -->
-                <div>
-                  <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Adresse suchen</label>
-                  <div class="flex gap-1">
-                    <input type="text" id="geo-address-input"
-                      placeholder="z.B. Musterstraße 5, 45678 Musterstadt"
-                      class="flex-1 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                    <button type="button" onclick="geocodeAddress()"
-                      class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-2.5 py-1.5 rounded transition whitespace-nowrap">
-                      🔍 Suchen
-                    </button>
-                  </div>
-                  <!-- Kundenadresse als Schnellauswahl -->
-                  <% if (project.street && project.city) { %>
-                    <button type="button"
-                      onclick="useCustomerAddress('<%= (project.street + ', ' + (project.zip || '') + ' ' + project.city).trim().replace(/'/g, "\\'") %>')"
-                      class="mt-1 w-full text-left text-[10px] text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded border border-indigo-200 transition truncate">
-                      🏢 Kundenadresse übernehmen: <%= project.street %>, <%= project.zip %> <%= project.city %>
-                    </button>
-                  <% } %>
-                  <!-- Suchergebnis-Feedback -->
-                  <p id="geo-status" class="text-[10px] mt-1 hidden"></p>
-                </div>
-
-                <!-- Koordinaten (werden automatisch gefüllt oder können manuell eingegeben werden) -->
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Breitengrad (Lat)</label>
-                      <input type="number" step="0.0000001" name="site_lat" id="geo-lat" value="<%= project.site_lat || '' %>" placeholder="z.B. 51.3069" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
-                    </div>
-                    <div>
-                      <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Längengrad (Lng)</label>
-                      <input type="number" step="0.0000001" name="site_lng" id="geo-lng" value="<%= project.site_lng || '' %>" placeholder="z.B. 6.9483" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
-                    </div>
-                  </div>
-                  <div>
-                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">Erkennungsradius (Meter)</label>
-                    <input type="number" name="site_radius" value="<%= project.site_radius || 200 %>" min="50" max="2000" class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white">
-                  </div>
-                  <!-- Anfahrtshinweis bearbeiten -->
-                  <div>
-                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-0.5">⚠️ Anfahrtshinweis für Monteure</label>
-                    <textarea name="site_note" rows="2"
-                      placeholder="z.B. Zufahrt nur über Hintereingang · Schrankenschlüssel im Büro abholen"
-                      class="w-full text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded px-2 py-1.5 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"><%= project.site_note || '' %></textarea>
-                  </div>
-                  <div class="flex gap-2">
-                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded transition">Speichern</button>
-                    <button type="button" onclick="useMyLocationForProject()" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-medium py-1.5 rounded transition">📍 Meinen Standort</button>
-                </div>
-              </form>
-            </div>
-          <% } %>
-        </div>
-
-        <!-- Technische Zeichnungen & Dateien -->
-        <div class="card-clean space-y-4">
-          <h2 class="text-lg font-semibold text-slate-800 dark:text-gray-100 border-b dark:border-slate-700 pb-2">📐 Technische Zeichnungen & Pläne</h2>
-          
-          <!-- Upload-Formular -->
-          <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="space-y-3 bg-slate-50 dark:bg-slate-700 p-4 rounded border dark:border-slate-600">
-            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Zeichnung / Skizze / Foto hochladen (PDF, Bild)</label>
-            <input type="file" name="file" required class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition">Datei hochladen</button>
+      <!-- Dateien -->
+      <details class="card-clean" <%= (files && files.length) ? 'open' : '' %>>
+        <summary class="cursor-pointer list-none flex items-center justify-between gap-2">
+          <span class="text-sm font-bold text-slate-800 dark:text-gray-100">Zeichnungen &amp; Dateien</span>
+          <span class="text-[10px] text-slate-400"><%= (files && files.length) ? files.length + ' Datei(en)' : 'Keine' %></span>
+        </summary>
+        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-3">
+          <form action="/projects/<%= project.id %>/upload" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <input type="file" name="file" required class="flex-1 text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700">
+            <button type="submit" class="text-xs px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold shrink-0">Hochladen</button>
           </form>
-
-          <!-- Liste der hochgeladenen Dateien -->
-          <div class="space-y-2">
-            <% if (files && files.length > 0) { %>
+          <% if (files && files.length > 0) { %>
+            <ul class="divide-y divide-slate-100 dark:divide-slate-700">
               <% files.forEach(file => { %>
-                <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-700 p-2.5 rounded border dark:border-slate-600 text-sm">
-                    <span class="truncate max-w-xs text-slate-700 dark:text-gray-300">📄 <%= file.original_name %></span>
-                  <div class="flex items-center gap-3 shrink-0">
-                    <a href="<%= file.file_url %>" target="_blank" class="text-blue-600 hover:underline text-xs font-medium">Ansehen / Download</a>
-                    
-                    <!-- Lösch-Button für Dateien -->
-                    <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei wirklich löschen?');" class="inline">
-                      <input type="hidden" name="file_id" value="<%= file.id %>">
-                      <input type="hidden" name="project_id" value="<%= project.id %>">
-                      <button type="submit" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition">Löschen</button>
-                    </form>
-                  </div>
-                </div>
+              <li class="flex items-center justify-between gap-2 py-2 text-sm">
+                <a href="<%= file.file_url %>" target="_blank" class="truncate text-blue-600 hover:underline"><%= file.original_name %></a>
+                <form action="/projects/files/delete" method="POST" onsubmit="return confirm('Datei löschen?');" class="shrink-0">
+                  <input type="hidden" name="file_id" value="<%= file.id %>">
+                  <input type="hidden" name="project_id" value="<%= project.id %>">
+                  <button type="submit" class="text-xs text-red-500 hover:text-red-700">Löschen</button>
+                </form>
+              </li>
               <% }) %>
-            <% } else { %>
-              <p class="text-xs text-slate-400 dark:text-slate-500 italic">Noch keine Zeichnungen oder Dokumente hochgeladen.</p>
-            <% } %>
-          </div>
-        </div>
-      </div>
-
-      <!-- Nachkalkulation nur in Übersicht -->
-      <div class="card-clean mt-2">
-    <!-- Nachkalkulation: Angebot vs. Ist -->
-    <% if (typeof nachkalk !== 'undefined' && nachkalk) {
-         const n = nachkalk;
-         const fmt = (v) => Number(v || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-         const profitOk = n.profitNet >= 0;
-    %>
-    <div class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-5">
-      <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-        <span>📊</span> Nachkalkulation
-      </h3>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
-        Vergleich Angebot (Netto) mit internen Kosten aus Stunden × Stundensatz + Material.
-        Stundensatz: <strong><%= fmt(n.hourlyRate) %> €</strong>
-        <% if (n.offerNumber) { %> · Angebot <strong><%= n.offerNumber %></strong><% } else { %> · <span class="text-amber-600">Kein Angebot verknüpft – Kosten werden trotzdem berechnet</span><% } %>
-      </p>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 bg-slate-50 dark:bg-slate-800/50">
-          <p class="text-[10px] uppercase text-slate-400 font-semibold">Stunden (Ist)</p>
-          <p class="text-lg font-bold text-slate-800 dark:text-gray-100"><%= projectTotalHours || '0.00' %> Std.</p>
-          <% if (n.plannedHours != null) { %>
-            <p class="text-[10px] text-slate-400">Geplant: <%= fmt(n.plannedHours) %> Std.</p>
+            </ul>
           <% } %>
         </div>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 bg-slate-50 dark:bg-slate-800/50">
-          <p class="text-[10px] uppercase text-slate-400 font-semibold">Lohnkosten</p>
-          <p class="text-lg font-bold text-slate-800 dark:text-gray-100"><%= fmt(n.laborCost) %> €</p>
-          <p class="text-[10px] text-slate-400"><%= projectTotalHours || 0 %> × <%= fmt(n.hourlyRate) %> €</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 bg-slate-50 dark:bg-slate-800/50">
-          <p class="text-[10px] uppercase text-slate-400 font-semibold">Material</p>
-          <p class="text-lg font-bold text-slate-800 dark:text-gray-100"><%= fmt(n.materialCost) %> €</p>
-          <p class="text-[10px] text-slate-400">Lager-Entnahmen</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3 bg-slate-50 dark:bg-slate-800/50">
-          <p class="text-[10px] uppercase text-slate-400 font-semibold">Ist-Kosten gesamt</p>
-          <p class="text-lg font-bold text-slate-800 dark:text-gray-100"><%= fmt(n.actualCost) %> €</p>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div class="rounded-xl border border-blue-200 dark:border-blue-800 p-3 bg-blue-50 dark:bg-blue-900/20">
-          <p class="text-[10px] uppercase text-blue-500 font-semibold">Angebot Netto</p>
-          <p class="text-xl font-bold text-blue-800 dark:text-blue-300"><%= fmt(n.offerNet) %> €</p>
-          <% if (n.offerGross) { %><p class="text-[10px] text-blue-400">Brutto <%= fmt(n.offerGross) %> €</p><% } %>
-        </div>
-        <div class="rounded-xl border <%= profitOk ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20' : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20' %> p-3">
-          <p class="text-[10px] uppercase <%= profitOk ? 'text-emerald-600' : 'text-red-600' %> font-semibold">Ergebnis (Netto − Ist)</p>
-          <p class="text-xl font-bold <%= profitOk ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400' %>">
-            <%= profitOk ? '+' : '' %><%= fmt(n.profitNet) %> €
-          </p>
-        </div>
-        <div class="rounded-xl border border-slate-200 dark:border-slate-600 p-3">
-          <p class="text-[10px] uppercase text-slate-400 font-semibold">Marge</p>
-          <p class="text-xl font-bold text-slate-800 dark:text-gray-100">
-            <% if (n.marginPct != null) { %><%= Number(n.marginPct).toFixed(1) %> %<% } else { %>–<% } %>
-          </p>
-        </div>
-      </div>
-    </div>
-    <% } %>
+      </details>
 
+      <!-- Nachkalkulation (nur Übersicht, nur mit Geld-Recht) -->
+      <% if (typeof nachkalk !== 'undefined' && nachkalk && (typeof canSeeMoney === 'undefined' || canSeeMoney)) {
+           const n = nachkalk;
+           const fmt = (v) => Number(v || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+           const profitOk = n.profitNet >= 0;
+      %>
+      <div class="card-clean space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-bold text-slate-800 dark:text-gray-100">Nachkalkulation</h2>
+          <% if (n.offerNumber) { %>
+            <span class="text-[10px] text-slate-400">Angebot <%= n.offerNumber %></span>
+          <% } else { %>
+            <span class="text-[10px] text-amber-600">Kein Angebot verknüpft</span>
+          <% } %>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Ist-Stunden</p>
+            <p class="text-base font-bold tabular-nums"><%= projectTotalHours || '0.00' %> h</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Lohn</p>
+            <p class="text-base font-bold tabular-nums"><%= fmt(n.laborCost) %> €</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Material</p>
+            <p class="text-base font-bold tabular-nums"><%= fmt(n.materialCost) %> €</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2.5">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Ist gesamt</p>
+            <p class="text-base font-bold tabular-nums"><%= fmt(n.actualCost) %> €</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20 p-2.5">
+            <p class="text-[10px] uppercase text-blue-500 font-semibold">Angebot</p>
+            <p class="text-sm font-bold text-blue-800 dark:text-blue-300 tabular-nums"><%= fmt(n.offerNet) %> €</p>
+          </div>
+          <div class="rounded-lg border <%= profitOk ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-900/20' : 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20' %> p-2.5">
+            <p class="text-[10px] uppercase <%= profitOk ? 'text-emerald-600' : 'text-red-600' %> font-semibold">Ergebnis</p>
+            <p class="text-sm font-bold tabular-nums <%= profitOk ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700' %>"><%= profitOk ? '+' : '' %><%= fmt(n.profitNet) %> €</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 dark:border-slate-600 p-2.5">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Marge</p>
+            <p class="text-sm font-bold tabular-nums"><% if (n.marginPct != null) { %><%= Number(n.marginPct).toFixed(1) %>%<% } else { %>—<% } %></p>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-400">Stundensatz <%= fmt(n.hourlyRate) %> € · Lohn + Material vs. Angebot netto</p>
       </div>
+      <% } %>
 
             </div><!-- /sec-body -->
 </section>
-
-      <!-- ========== 2 AUFMASS ========== -->
