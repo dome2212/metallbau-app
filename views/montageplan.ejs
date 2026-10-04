@@ -2,48 +2,43 @@
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
-  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-5">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-24">
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <svg class="w-6 h-6 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 20h20"/><path d="M5 20V10l7-6 7 6v10"/><path d="M9 20v-6h6v6"/>
-          </svg>
-          Montage- &amp; Personalplan
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5"><%= weekLabel %></p>
+        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Wochenplan</h1>
+        <p class="text-xs text-slate-500 mt-0.5"><%= weekLabel %><% if (canEdit) { %> · tippe auf eine Zelle zum Einteilen<% } %></p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
-        <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">‹ Vorherige</a>
-        <a href="/montageplan" class="px-3 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold">Diese Woche</a>
-        <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">Nächste ›</a>
-        <a href="/admin/staffplan?week=<%= weekStart %>" class="px-3 py-2 rounded-lg text-sm text-blue-600 hover:underline">Personalplanung bearbeiten</a>
-        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500 hover:underline">Kalender</a>
+        <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">‹</a>
+        <a href="/montageplan" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Heute</a>
+        <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">›</a>
+        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500">Kalender</a>
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-2 text-xs items-center">
-      <span class="font-semibold text-slate-500">Legende:</span>
-      <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800">Baustelle / Personalplan</span>
-      <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800">Termin (Kalender)</span>
-      <span class="px-2 py-1 rounded-full bg-amber-100 text-amber-800">Urlaub / Abwesend</span>
-      <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-600">Frei / Werkstatt</span>
+    <div class="flex flex-wrap gap-1.5 text-[11px] items-center">
+      <span class="font-semibold text-slate-400">Legende:</span>
+      <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Baustelle</span>
+      <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Termin</span>
+      <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Urlaub</span>
+      <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Frei</span>
+      <% if (canEdit) { %><span class="text-slate-400 ml-1">· Zellen klickbar</span><% } %>
     </div>
 
-    <div class="card p-0 overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Personalplanung (Woche)</h2>
-        <a href="/admin/staffplan?week=<%= weekStart %>" class="text-xs text-blue-600 hover:underline">Einträge ändern →</a>
+    <!-- Personal-Matrix -->
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Personal · Wer ist wo?</h2>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs min-w-[720px]">
           <thead>
-            <tr class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700">
-              <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-32">Mitarbeiter</th>
+            <tr class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700">
+              <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-28 sticky left-0 bg-slate-50 dark:bg-slate-800 z-10">Mitarbeiter</th>
               <% (days || []).forEach(function(day) { %>
-                <th class="px-2 py-2.5 text-center font-semibold <%= day.isToday ? 'text-orange-600 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-500' %>">
-                  <%= day.label.split(' ')[0] %><br>
+                <th class="px-2 py-2.5 text-center font-semibold <%= day.isToday ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-500' %>">
+                  <%= (day.label || '').split(' ')[0] %><br>
                   <span class="font-normal text-[10px]"><%= day.date.slice(8,10) %>.<%= day.date.slice(5,7) %>.</span>
                 </th>
               <% }); %>
@@ -51,31 +46,45 @@
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
             <% (matrix || []).forEach(function(row) { %>
-              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                <td class="px-3 py-2">
+              <tr>
+                <td class="px-3 py-2 sticky left-0 bg-white dark:bg-slate-800 z-10">
                   <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                       <%= (row.user.username || '?').charAt(0).toUpperCase() %>
                     </div>
-                    <span class="font-semibold text-slate-800 dark:text-slate-100 truncate"><%= row.user.username %></span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[6rem]"><%= row.user.username %></span>
                   </div>
                 </td>
-                <% (row.cells || []).forEach(function(cell) {
-                     let cls = 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
-                     if (cell.status === 'baustelle') cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
-                     if (cell.status === 'termin')    cls = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
-                     if (cell.status === 'urlaub')    cls = 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200';
-                     if (cell.status === 'notiz')     cls = 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200';
+                <% (row.cells || []).forEach(function(cell, ci) {
+                     const day = days[ci];
+                     let cls = 'bg-slate-50 text-slate-600 dark:bg-slate-800/50 dark:text-slate-300';
+                     if (cell.status === 'baustelle' || cell.status === 'notiz') cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
+                     if (cell.status === 'termin') cls = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
+                     if (cell.status === 'urlaub') cls = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+                     if (day && day.isToday) cls += ' ring-1 ring-inset ring-blue-200 dark:ring-blue-800';
                 %>
-                  <td class="px-1.5 py-1.5 align-top">
-                    <div class="rounded-md px-1.5 py-1 min-h-[36px] <%= cls %>" title="<%= cell.label %>">
-                      <span class="line-clamp-2 leading-snug"><%= cell.label %></span>
-                    </div>
+                  <td class="p-1 align-top">
+                    <% if (canEdit && cell.status !== 'urlaub') { %>
+                      <button type="button"
+                        class="w-full min-h-[3rem] rounded-lg px-1.5 py-1.5 text-left <%= cls %> hover:opacity-90 transition"
+                        data-uid="<%= row.user.id %>"
+                        data-uname="<%= encodeURIComponent(row.user.username || '') %>"
+                        data-date="<%= day.date %>"
+                        data-project="<%= cell.projectId || '' %>"
+                        data-note="<%= encodeURIComponent(cell.note || '') %>"
+                        onclick="openCellEl(this)">
+                        <span class="block text-[11px] font-medium leading-snug line-clamp-3"><%= cell.label || '—' %></span>
+                      </button>
+                    <% } else { %>
+                      <div class="w-full min-h-[3rem] rounded-lg px-1.5 py-1.5 <%= cls %>">
+                        <span class="block text-[11px] font-medium leading-snug line-clamp-3"><%= cell.label || '—' %></span>
+                      </div>
+                    <% } %>
                   </td>
                 <% }); %>
               </tr>
             <% }); %>
-            <% if (!matrix || !matrix.length) { %>
+            <% if (!(matrix || []).length) { %>
               <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Keine Mitarbeiter gefunden.</td></tr>
             <% } %>
           </tbody>
@@ -83,47 +92,139 @@
       </div>
     </div>
 
-    <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 pt-2">Termine &amp; Montagen</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-      <% (days || []).forEach(function(day) { %>
-        <div class="card p-0 overflow-hidden border <%= day.isToday ? 'border-orange-400 ring-1 ring-orange-300' : 'border-slate-200 dark:border-slate-700' %>">
-          <div class="px-3 py-2.5 border-b <%= day.isToday ? 'bg-orange-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100' %>">
-            <p class="text-sm font-bold"><%= day.label %><% if (day.isToday) { %> · Heute<% } %></p>
-            <p class="text-[10px] opacity-80"><%= day.apps.length %> Termin<%= day.apps.length === 1 ? '' : 'e' %></p>
-          </div>
-          <div class="p-2 space-y-2 min-h-[80px]">
-            <% if (!day.apps.length) { %>
-              <p class="text-xs text-slate-400 px-1 py-3 text-center">Keine Termine</p>
-            <% } else { %>
-              <% day.apps.forEach(function(a) {
-                   const time = a.start_date ? new Date(a.start_date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
-              %>
-                <div class="rounded-lg border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-2.5 text-sm">
-                  <p class="font-semibold text-slate-800 dark:text-slate-100"><%= a.title || 'Termin' %></p>
-                  <p class="text-xs text-slate-500 mt-0.5">
-                    <% if (time) { %><span class="font-medium text-slate-600 dark:text-slate-300"><%= time %></span> · <% } %>
-                    <%= a.company_name || a.contact_person || '—' %>
-                  </p>
-                  <% if (a.project_name || a.pid) { %>
-                    <p class="text-xs mt-1">
-                      <a href="/projects/<%= a.project_id || a.pid %>" class="text-blue-600 hover:underline">Auftrag: <%= a.project_name || ('#' + (a.project_id || a.pid)) %></a>
+    <!-- Termine der Woche -->
+    <div class="space-y-2">
+      <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 px-0.5">Kalender-Termine</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+        <% (days || []).forEach(function(day) { %>
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700 <%= day.isToday ? 'bg-blue-50 dark:bg-blue-900/20' : '' %>">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><%= day.label %><% if (day.isToday) { %> · Heute<% } %></p>
+            </div>
+            <div class="p-2 space-y-1.5 min-h-[3rem]">
+              <% if (!day.apps || !day.apps.length) { %>
+                <p class="text-[11px] text-slate-400 text-center py-2">Keine Termine</p>
+              <% } else { %>
+                <% day.apps.forEach(function(a) {
+                     const time = a.start_date ? new Date(a.start_date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                %>
+                  <div class="rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-2">
+                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-100"><%= a.title || 'Termin' %></p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">
+                      <% if (time) { %><%= time %> · <% } %><%= a.company_name || a.contact_person || '—' %>
                     </p>
-                  <% } %>
-                  <% if (a.assignees && a.assignees.length) { %>
-                    <div class="flex flex-wrap gap-1 mt-1.5">
-                      <% a.assignees.forEach(function(u) { %>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">👤 <%= u.username || u %></span>
-                      <% }); %>
-                    </div>
-                  <% } %>
-                </div>
-              <% }); %>
-            <% } %>
+                    <% if (a.assignees && a.assignees.length) { %>
+                      <p class="text-[10px] text-blue-600 mt-1"><%= a.assignees.map(function(u){ return u.username || u; }).join(', ') %></p>
+                    <% } %>
+                  </div>
+                <% }); %>
+              <% } %>
+            </div>
           </div>
-        </div>
-      <% }); %>
+        <% }); %>
+      </div>
     </div>
+
   </div>
 </main>
+
+<% if (canEdit) { %>
+<!-- Edit Modal -->
+<div id="cell-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+  <div class="bg-white dark:bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-4 space-y-3">
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <h3 id="modal-title" class="text-base font-bold text-slate-800 dark:text-slate-100">—</h3>
+        <p id="modal-sub" class="text-xs text-slate-500"></p>
+      </div>
+      <button type="button" onclick="closeCell()" class="text-slate-400 text-xl leading-none px-2">×</button>
+    </div>
+    <div>
+      <label class="text-[10px] uppercase font-semibold text-slate-400">Baustelle / Auftrag</label>
+      <select id="modal-project" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5">
+        <option value="">— Frei / Werkstatt —</option>
+        <% (projects || []).forEach(function(p) { %>
+          <option value="<%= p.id %>"><%= p.title || ('#' + p.id) %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div>
+      <label class="text-[10px] uppercase font-semibold text-slate-400">Notiz (optional)</label>
+      <input id="modal-note" type="text" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5" placeholder="z.B. Anfahrt, Hilfskraft…">
+    </div>
+    <div class="flex gap-2 pt-1">
+      <button type="button" onclick="clearCell()" class="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600">Leeren</button>
+      <button type="button" id="modal-save-btn" onclick="saveCell()" class="flex-1 px-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _uid = null, _date = null;
+
+function openCellEl(el) {
+  _uid = el.dataset.uid;
+  _date = el.dataset.date;
+  const uname = decodeURIComponent(el.dataset.uname || '');
+  const note = decodeURIComponent(el.dataset.note || '');
+  const dateObj = new Date(_date + 'T12:00:00');
+  document.getElementById('modal-title').textContent = uname;
+  document.getElementById('modal-sub').textContent = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('modal-project').value = el.dataset.project || '';
+  document.getElementById('modal-note').value = note;
+  document.getElementById('cell-modal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('modal-note').focus(); }, 50);
+}
+
+function closeCell() {
+  document.getElementById('cell-modal').classList.add('hidden');
+}
+
+async function saveCell() {
+  const btn = document.getElementById('modal-save-btn');
+  const projId = document.getElementById('modal-project').value;
+  const note = document.getElementById('modal-note').value.trim();
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch('/admin/staffplan/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: _uid, date: _date, project_id: projId, note: note })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (typeof showToast === 'function') showToast('Gespeichert', 'success', 1500);
+      closeCell();
+      setTimeout(function(){ location.reload(); }, 250);
+    } else {
+      if (typeof showToast === 'function') showToast('Fehler', 'error');
+      else alert('Fehler beim Speichern');
+    }
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+    else alert('Netzwerkfehler');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Speichern';
+  }
+}
+
+async function clearCell() {
+  if (!confirm('Eintrag für diesen Tag löschen?')) return;
+  document.getElementById('modal-project').value = '';
+  document.getElementById('modal-note').value = '';
+  await saveCell();
+}
+
+document.getElementById('modal-note')?.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); saveCell(); }
+});
+document.getElementById('cell-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeCell();
+});
+</script>
+<% } %>
+
 </body>
 </html>
