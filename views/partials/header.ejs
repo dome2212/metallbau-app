@@ -1055,8 +1055,9 @@
     }
   </script>
   <script>
-    // Gespeicherte Schriftgröße (Büro-Seite: A− / A+)
-    try { var _fp = parseInt(localStorage.getItem('fontPx') || '', 10); if (_fp >= 14 && _fp <= 22) document.documentElement.style.fontSize = _fp + 'px'; } catch (e) {}
+    // Alte Schriftgrößen-Einstellung (A−/A+) zurücksetzen
+    try { localStorage.removeItem('fontPx'); } catch (e) {}
+    document.documentElement.style.fontSize = '';
   </script>
 </head>
 
