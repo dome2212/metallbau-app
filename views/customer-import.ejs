@@ -100,7 +100,7 @@
     <div class="rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-4 space-y-4">
       <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Datei hochladen</h2>
       <form action="/customers/import" method="POST" enctype="multipart/form-data" class="space-y-3">
-        <input type="file" name="file" accept=".csv,.xlsx,.xls,.txt" required
+        <input type="file" name="file" accept=".csv,.txt,.xlsx,.xls" required
           class="block w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700">
         <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">
           Datei prüfen
@@ -124,7 +124,7 @@
         Trennzeichen bei CSV: Semikolon oder Komma.
       </p>
       <p class="text-xs text-amber-700 dark:text-amber-300">
-        Für .xlsx muss auf dem Server das Paket <code class="font-mono">xlsx</code> installiert sein (<code class="font-mono">npm install xlsx</code>). CSV funktioniert immer.
+        Empfohlen: Datei als <strong>CSV</strong> speichern (Excel → Speichern unter → CSV UTF-8). Das funktioniert auf Render ohne Extra-Paket.
       </p>
     </div>
     <% } %>
