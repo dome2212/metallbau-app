@@ -2,13 +2,13 @@
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
-  <div class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-4">
 
     <!-- Page Header -->
-    <div class="flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center justify-between flex-wrap gap-2">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Aufträge & Baustellen</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Alle laufenden und abgeschlossenen Aufträge</p>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Aufträge</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Laufend & abgeschlossen</p>
       </div>
       <button id="archive-toggle-btn" onclick="toggleArchive()"
         class="btn btn-ghost text-xs px-3 py-2">
@@ -18,12 +18,12 @@
 
     <!-- Neuen Auftrag anlegen -->
     <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
-      <div class="card card-lift p-5 md:p-6">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+      <details class="card card-lift p-4 md:p-5">
+        <summary class="cursor-pointer text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <span class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-sm">＋</span>
           Neuen Auftrag anlegen
-        </h2>
-        <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        </summary>
+        <form action="/projects/add" method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
           <div>
             <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Kunde</label>
             <select name="customer_id" required class="input">
@@ -65,7 +65,7 @@
             <button type="submit" class="btn btn-primary">Auftrag speichern</button>
           </div>
         </form>
-      </div>
+      </details>
     <% } %>
 
     <!-- Zuletzt geöffnet -->
