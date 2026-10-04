@@ -38,8 +38,6 @@
   .bu-adv-grid a { padding: 9px 12px; border-radius: 10px; background: #f1f5f9; color: #1e293b; text-decoration: none; font-weight: 600; font-size:.875rem; }
   .dark .bu-adv-grid a { background: #0f172a; color: #e2e8f0; }
   .bu-adv-grid a:hover { background: #e2e8f0; }
-  .bu-size { display: inline-flex; gap: 8px; align-items: center; margin-top: 14px; font-size:.875rem; color: #64748b; }
-  .bu-size button { padding: 5px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-weight: 700; font-size:.875rem; color: #0f172a; }
 </style>
 
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
@@ -112,22 +110,8 @@
       </div>
     </details>
 
-    <div class="bu-size">
-      Schriftgröße:
-      <button type="button" onclick="bigTextStep(-1)" aria-label="Schrift kleiner">A−</button>
-      <button type="button" onclick="bigTextStep(1)" aria-label="Schrift größer">A+</button>
-    </div>
   </div>
 </main>
 
-<script>
-function bigTextStep(d) {
-  var cur = 16;
-  try { cur = parseInt(localStorage.getItem('fontPx') || '16', 10) || 16; } catch (e) {}
-  var next = Math.max(14, Math.min(22, cur + d * 2));
-  try { localStorage.setItem('fontPx', String(next)); } catch (e) {}
-  document.documentElement.style.fontSize = next + 'px';
-}
-</script>
 </body>
 </html>
