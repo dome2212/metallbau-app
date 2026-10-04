@@ -6,6 +6,8 @@ const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { hasPerm }           = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
+const { parseBuffer, rowsToCustomers, buildTemplateCsv } = require('../utils/customerImport');
+const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -232,5 +234,185 @@ router.post('/files/delete', async (req, res) => {
   }
   res.redirect(`/customers/${customer_id}/projects`);
 });
+
+
+
+// ==========================================
+// KUNDEN-IMPORT (Excel / CSV)
+// ==========================================
+router.get('/import', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) {
+    return res.status(403).send('<h1>403</h1><a href="/customers">← Zurück</a>');
+  }
+  res.render('customer-import', {
+    user: req.user,
+    currentUser: req.user,
+    firma,
+    result: null,
+    preview: null,
+    error: null,
+  });
+});
+
+router.get('/import/template', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) return res.status(403).send('403');
+  const csv = buildTemplateCsv();
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="kunden-import-vorlage.csv"');
+  // BOM for Excel
+  res.send('\uFEFF' + csv);
+});
+
+router.post('/import', importUpload.single('file'), async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) {
+    return res.status(403).send('403');
+  }
+  try {
+    if (!req.file) {
+      return res.render('customer-import', { user: req.user, currentUser: req.user, firma, result: null, preview: null, error: 'Bitte eine Datei auswählen (CSV oder Excel).' });
+    }
+    const parsed = parseBuffer(req.file.buffer, req.file.originalname);
+    const { customers, mapping, headers } = rowsToCustomers(parsed.headers, parsed.rows);
+
+    // Bestehende Kunden für Duplikat-Check
+    const existing = await dbQuery('SELECT id, company_name, email, customer_number FROM customers');
+    const byNr = {};
+    const byEmail = {};
+    const byName = {};
+    for (const e of (existing.rows || [])) {
+      if (e.customer_number) byNr[String(e.customer_number).trim().toLowerCase()] = e;
+      if (e.email) byEmail[String(e.email).trim().toLowerCase()] = e;
+      if (e.company_name) byName[String(e.company_name).trim().toLowerCase()] = e;
+    }
+
+    const preview = customers.map(c => {
+      let match = null;
+      let matchReason = null;
+      if (c.customer_number && byNr[c.customer_number.toLowerCase()]) {
+        match = byNr[c.customer_number.toLowerCase()];
+        matchReason = 'Kundennummer';
+      } else if (c.email && byEmail[c.email.toLowerCase()]) {
+        match = byEmail[c.email.toLowerCase()];
+        matchReason = 'E-Mail';
+      } else if (c.company_name && byName[c.company_name.toLowerCase()]) {
+        match = byName[c.company_name.toLowerCase()];
+        matchReason = 'Firmenname';
+      }
+      return { ...c, _matchId: match ? match.id : null, _matchReason: matchReason };
+    });
+
+    // Encode payload for confirm form
+    const payload = Buffer.from(JSON.stringify(preview), 'utf8').toString('base64');
+
+    res.render('customer-import', {
+      user: req.user,
+      currentUser: req.user,
+      firma,
+      result: null,
+      preview,
+      payload,
+      headers,
+      mapping,
+      error: null,
+      filename: req.file.originalname,
+    });
+  } catch (err) {
+    console.error('Kunden-Import:', err.message);
+    res.render('customer-import', {
+      user: req.user,
+      currentUser: req.user,
+      firma,
+      result: null,
+      preview: null,
+      error: err.message || 'Import fehlgeschlagen',
+    });
+  }
+});
+
+router.post('/import/confirm', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'customers', firma, true, false)) {
+    return res.status(403).send('403');
+  }
+  try {
+    const mode = (req.body.mode || 'skip') === 'update' ? 'update' : 'skip';
+    const payload = req.body.payload || '';
+    let rows;
+    try {
+      rows = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
+    } catch (_) {
+      return res.status(400).send('Ungültige Import-Daten. Bitte erneut hochladen.');
+    }
+    if (!Array.isArray(rows) || !rows.length) {
+      return res.redirect('/customers/import');
+    }
+
+    let inserted = 0, updated = 0, skipped = 0;
+
+    for (const c of rows) {
+      const company_name = (c.company_name || '').trim() || null;
+      const contact_person = (c.contact_person || '').trim() || null;
+      const email = (c.email || '').trim() || null;
+      const phone = (c.phone || '').trim() || null;
+      const street = (c.street || '').trim() || null;
+      const zip = (c.zip || '').trim() || null;
+      const city = (c.city || '').trim() || null;
+      const customer_number = (c.customer_number || '').trim() || null;
+      const ust_id = (c.ust_id || '').trim() || null;
+      const leitweg_id = (c.leitweg_id || '').trim() || null;
+      const notes = (c.notes || '').trim() || null;
+
+      if (!company_name && !contact_person && !customer_number) { skipped++; continue; }
+
+      if (c._matchId) {
+        if (mode === 'update') {
+          await dbQuery(
+            `UPDATE customers SET
+              company_name = COALESCE(?, company_name),
+              contact_person = COALESCE(?, contact_person),
+              email = COALESCE(?, email),
+              phone = COALESCE(?, phone),
+              street = COALESCE(?, street),
+              zip = COALESCE(?, zip),
+              city = COALESCE(?, city),
+              customer_number = COALESCE(?, customer_number),
+              ust_id = COALESCE(?, ust_id),
+              leitweg_id = COALESCE(?, leitweg_id),
+              notes = COALESCE(?, notes)
+             WHERE id = ?`,
+            [company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id, leitweg_id, notes, c._matchId]
+          );
+          updated++;
+        } else {
+          skipped++;
+        }
+        continue;
+      }
+
+      await dbQuery(
+        `INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id, leitweg_id, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [company_name, contact_person, email, phone, street, zip, city, customer_number, ust_id, leitweg_id, notes]
+      );
+      inserted++;
+    }
+
+    res.render('customer-import', {
+      user: req.user,
+      currentUser: req.user,
+      firma,
+      preview: null,
+      result: { inserted, updated, skipped, total: rows.length },
+      error: null,
+    });
+  } catch (err) {
+    console.error('Kunden-Import confirm:', err.message);
+    res.status(500).send('Import-Fehler: ' + err.message);
+  }
+});
+
 
 module.exports = router;
