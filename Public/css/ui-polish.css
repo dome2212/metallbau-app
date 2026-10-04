@@ -1,0 +1,75 @@
+/* Einheitliche UI-Politur – mobile first */
+:root {
+  --page-pad: 1rem;
+  --card-radius: 1rem;
+}
+
+@media (min-width: 768px) {
+  :root { --page-pad: 1.5rem; }
+}
+
+/* Kompaktere Seitenköpfe auf dem Handy */
+main h1.text-2xl {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+@media (min-width: 768px) {
+  main h1.text-2xl {
+    font-size: 1.5rem;
+  }
+}
+
+main .page-bg > div.space-y-6,
+main .max-w-7xl.space-y-6 {
+  row-gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  main .page-bg > div.space-y-6,
+  main .max-w-7xl.space-y-6 {
+    row-gap: 1.5rem;
+  }
+}
+
+/* Cards etwas ruhiger */
+.card, .card-clean, .card-lift {
+  border-radius: var(--card-radius);
+}
+
+/* Tabellen mobil: weniger Padding */
+@media (max-width: 767px) {
+  table.table-modern th,
+  table.table-modern td,
+  .table-modern th,
+  .table-modern td {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Inputs einheitlich */
+.input {
+  border-radius: 0.75rem;
+}
+
+/* Bottom-Nav Abstand */
+body { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* Summary/Details in Overview */
+details.card-clean > summary {
+  list-style: none;
+}
+details.card-clean > summary::-webkit-details-marker {
+  display: none;
+}
+details.card-clean[open] > summary {
+  margin-bottom: 0.25rem;
+}
+
+/* Weniger laute Untertitel */
+main p.text-sm.text-slate-500 {
+  font-size: 0.75rem;
+}
