@@ -1775,4 +1775,238 @@ router.post('/recurring/:id/delete', requireAdmin, async (req, res) => {
 });
 
 
+// ══════════════════════════════════════════════════════════════
+// BÜRO – einfacher Einstieg + Schritt-für-Schritt-Assistent
+// ══════════════════════════════════════════════════════════════
+
+async function bueroGuard(req, res) {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'documents', firma, true, false)) {
+    res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+    return null;
+  }
+  return firma;
+}
+
+// GET: Büro-Startseite (drei große Buttons)
+router.get('/buero', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
+  try {
+    const openRes = await dbQuery(`
+      SELECT d.total_amount, d.due_date, COALESCE(d.paid_amount, 0) AS paid_amount
+      FROM documents d
+      WHERE d.doc_type = 'INVOICE' AND d.status NOT IN ('Bezahlt', 'Storniert', 'Gutschrift', 'ENTWURF')`)
+      .catch(() => ({ rows: [] }));
+    const today = new Date().toISOString().slice(0, 10);
+    let openCount = 0, openSum = 0, overdueCount = 0;
+    for (const r of (openRes.rows || [])) {
+      const open = (parseFloat(r.total_amount || 0) || 0) - (parseFloat(r.paid_amount || 0) || 0);
+      if (open <= 0.01) continue;
+      openCount++; openSum += open;
+      if (r.due_date && String(r.due_date).slice(0, 10) < today) overdueCount++;
+    }
+    const draftRes = await dbQuery(`SELECT COUNT(*) AS c FROM documents WHERE doc_type = 'INVOICE' AND status = 'ENTWURF'`).catch(() => ({ rows: [{ c: 0 }] }));
+    const waitRes  = await dbQuery(`SELECT COUNT(*) AS c FROM documents WHERE doc_type = 'OFFER' AND status = 'OFFEN'`).catch(() => ({ rows: [{ c: 0 }] }));
+    const recentRes = await dbQuery(`
+      SELECT d.id, d.doc_type, d.doc_number, d.status, d.total_amount, d.created_at, c.company_name, c.contact_person
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.doc_type IN ('OFFER', 'INVOICE')
+      ORDER BY d.created_at DESC, d.id DESC LIMIT 6`).catch(() => ({ rows: [] }));
+    res.render('buero', {
+      firma,
+      openCount, openSum, overdueCount,
+      draftCount: parseInt(draftRes.rows?.[0]?.c || 0, 10),
+      waitingOffers: parseInt(waitRes.rows?.[0]?.c || 0, 10),
+      recent: recentRes.rows || [],
+      canSeeMoney: canSeeMoney(req.user, firma)
+    });
+  } catch (err) {
+    console.error('Büro:', err.message);
+    res.status(500).send('Fehler beim Laden der Büro-Seite.');
+  }
+});
+
+// GET: Assistent „Neues Angebot" / „Neue Rechnung"
+router.get('/neu/:type', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
+  const type = req.params.type === 'rechnung' ? 'rechnung' : (req.params.type === 'angebot' ? 'angebot' : null);
+  if (!type) return res.redirect('/documents/buero');
+  try {
+    const [customersRes, articlesRes] = await Promise.all([
+      dbQuery(`SELECT id, company_name, contact_person, street, zip, city FROM customers ORDER BY company_name ASC`),
+      dbQuery(`SELECT id, title, unit, unit_price FROM articles ORDER BY title ASC`).catch(() => ({ rows: [] }))
+    ]);
+    let snippets = [];
+    try { snippets = JSON.parse(firma.text_snippets || '[]'); } catch (_) { snippets = []; }
+    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
+    const taxRate = type === 'rechnung' && isKlein ? 0 : parseFloat(firma.default_tax_rate || 19);
+    res.render('doc-wizard', {
+      type,
+      customers: customersRes.rows || [],
+      articles:  articlesRes.rows  || [],
+      snippets:  Array.isArray(snippets) ? snippets : [],
+      taxRate,
+      isKlein: type === 'rechnung' && isKlein,
+      preCustomer: req.query.customer_id ? String(req.query.customer_id) : '',
+      firma
+    });
+  } catch (err) {
+    console.error('Assistent:', err.message);
+    res.status(500).send('Fehler beim Laden des Assistenten.');
+  }
+});
+
+// POST (JSON): Neuer Kunde direkt im Assistenten
+router.post('/wizard/customer', requireAdmin, async (req, res) => {
+  const b = req.body || {};
+  const name = String(b.company_name || '').trim();
+  const person = String(b.contact_person || '').trim();
+  if (!name && !person) return res.status(400).json({ ok: false, error: 'Bitte einen Namen eintragen.' });
+  try {
+    const r = await dbQuery(
+      `INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name || person, person || null, String(b.email || '').trim() || null, String(b.phone || '').trim() || null,
+       String(b.street || '').trim() || null, String(b.zip || '').trim() || null, String(b.city || '').trim() || null]
+    );
+    let id = r.lastID || r.rows?.[0]?.id;
+    if (!id) {
+      const f = await dbQuery(`SELECT id FROM customers WHERE company_name = ? ORDER BY id DESC LIMIT 1`, [name || person]);
+      id = f.rows?.[0]?.id;
+    }
+    res.json({ ok: true, id, label: name || person });
+  } catch (err) {
+    console.error('Wizard-Kunde:', err.message);
+    res.status(500).json({ ok: false, error: 'Kunde konnte nicht gespeichert werden.' });
+  }
+});
+
+// POST (JSON): Angebot oder Rechnung aus dem Assistenten speichern
+router.post('/wizard/save', requireAdmin, async (req, res) => {
+  const { type, customer_id, items } = req.body || {};
+  const isInvoice = type === 'rechnung';
+  if (!customer_id) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Kunden auswählen.' });
+  const list = (Array.isArray(items) ? items : [])
+    .map(it => ({
+      description: String(it.description || '').trim(),
+      quantity: parseFloat(it.quantity) || 0,
+      unit: String(it.unit || 'Stk').trim() || 'Stk',
+      price: parseFloat(it.price) || 0
+    }))
+    .filter(it => it.description);
+  if (!list.length) return res.status(400).json({ ok: false, error: 'Bitte mindestens eine Position eintragen.' });
+  try {
+    const firma   = await getFirma();
+    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
+    const taxRate = isInvoice && isKlein ? 0 : parseFloat(firma.default_tax_rate || 19);
+    const prefix  = ((isInvoice ? firma.invoice_prefix : firma.offer_prefix) || (isInvoice ? 'RECH' : 'ANG')).toUpperCase();
+    const year    = new Date().getFullYear();
+    const docType = isInvoice ? 'INVOICE' : 'OFFER';
+    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = ?`, [docType]);
+    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
+    const docNumber = `${prefix}-${year}-${nextNum}`;
+
+    let subtotal = 0;
+    for (const it of list) subtotal += it.quantity * it.price;
+    subtotal = Math.round(subtotal * 100) / 100;
+    const taxAmount   = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+    const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
+
+    let insertRes;
+    if (isInvoice) {
+      const due = new Date();
+      due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
+      insertRes = await dbQuery(
+        `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
+         VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
+        [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, due.toISOString().split('T')[0]]
+      );
+    } else {
+      insertRes = await dbQuery(
+        `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
+         VALUES ('OFFER', ?, ?, 'OFFEN', ?, ?, ?, ?)`,
+        [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount]
+      );
+    }
+    let docId = insertRes.lastID || insertRes.rows?.[0]?.id;
+    if (!docId) {
+      const f = await dbQuery(`SELECT id FROM documents WHERE doc_number = ? AND doc_type = ? ORDER BY id DESC LIMIT 1`, [docNumber, docType]);
+      docId = f.rows?.[0]?.id;
+    }
+    for (const it of list) {
+      await dbQuery(
+        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
+        [docId, it.description, it.quantity, it.unit, it.price]
+      );
+    }
+    res.json({ ok: true, id: docId, url: '/documents/fertig/' + docId });
+  } catch (err) {
+    console.error('Wizard-Save:', err.message);
+    res.status(500).json({ ok: false, error: 'Speichern hat nicht geklappt. Bitte noch einmal versuchen.' });
+  }
+});
+
+// GET: „Fertig"-Seite nach dem Erstellen (PDF, E-Mail, nächster Schritt)
+router.get('/fertig/:id', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
+  try {
+    const dRes = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.email
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type IN ('OFFER','INVOICE')`, [req.params.id]);
+    const doc = dRes.rows?.[0];
+    if (!doc) return res.status(404).send('Beleg nicht gefunden.');
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [doc.id]);
+    res.render('doc-done', {
+      doc,
+      items: itemsRes.rows || [],
+      firma,
+      sent: req.query.sent === '1',
+      mailError: req.query.mailerr || ''
+    });
+  } catch (err) {
+    console.error('Fertig-Seite:', err.message);
+    res.status(500).send('Fehler beim Laden.');
+  }
+});
+
+// POST: Angebot per E-Mail senden (PDF im Anhang)
+router.post('/offers/:id/send-email', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const to      = (req.body.to || '').trim();
+  const subject = (req.body.subject || '').trim();
+  const message = (req.body.message || '').trim();
+  const back = (q) => `/documents/fertig/${id}?${q}`;
+  try {
+    const firma = await getFirma();
+    const r = await dbQuery(`
+      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
+             d.doc_number AS invoice_number
+      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+      WHERE d.id = ? AND d.doc_type = 'OFFER'`, [id]);
+    const offer = r.rows?.[0];
+    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
+    const emailTo = to || offer.email;
+    if (!emailTo) return res.redirect(back('mailerr=' + encodeURIComponent('Keine E-Mail-Adresse eingetragen.')));
+    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
+    const pdfBuf = await generateDocumentPDFBuffer(offer, itemsRes.rows || []);
+    const nr = offer.doc_number || id;
+    const html = `<p>${(message || `Anbei erhalten Sie unser Angebot ${nr} als PDF.`).replace(/\n/g, '<br>')}</p>
+      <p>Mit freundlichen Grüßen<br>${firma.name || ''}</p>`;
+    const result = await sendEmail(emailTo, subject || `Angebot ${nr}`, html,
+      [{ filename: `Angebot-${nr}.pdf`, content: pdfBuf, contentType: 'application/pdf' }]);
+    if (!result.ok) {
+      return res.redirect(back('mailerr=' + encodeURIComponent('E-Mail konnte nicht gesendet werden: ' + (result.error || 'unbekannt'))));
+    }
+    try { await dbQuery(`UPDATE documents SET sent_at = ? WHERE id = ?`, [new Date().toISOString(), id]); } catch (_) {}
+    res.redirect(back('sent=1'));
+  } catch (err) {
+    console.error('Angebot send-email:', err.message);
+    res.redirect(back('mailerr=' + encodeURIComponent('E-Mail-Versand fehlgeschlagen.')));
+  }
+});
+
+
 module.exports = router;
