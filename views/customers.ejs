@@ -10,12 +10,17 @@
         <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Kunden</h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Kontakte & Historie</p>
       </div>
-      <button onclick="toggleModal('addCustomerModal')" class="btn btn-primary">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        Neuen Kunden anlegen
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <a href="/customers/import" class="btn btn-ghost text-sm">
+          📥 Aus Excel / CSV
+        </a>
+        <button onclick="toggleModal('addCustomerModal')" class="btn btn-primary">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          Neuen Kunden anlegen
+        </button>
+      </div>
     </div>
 
     <!-- Kunden-Tabelle Desktop -->
