@@ -47,41 +47,6 @@
       </a>
     </div>
 
-    <!-- Monteur-Home: große Primäraktionen -->
-    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 md:p-5 space-y-4 shadow-sm">
-      <div class="flex items-center justify-between gap-2">
-        <div>
-          <p class="text-xs uppercase font-semibold text-slate-400">Heute</p>
-          <% if (typeof todaySite !== 'undefined' && todaySite && todaySite.project_title) { %>
-            <p class="text-lg font-bold text-slate-800 dark:text-slate-100"><%= todaySite.project_title %></p>
-            <% if (todaySite.street || todaySite.city) { %>
-              <p class="text-xs text-slate-500"><%= [todaySite.street, todaySite.zip, todaySite.city].filter(Boolean).join(', ') %></p>
-            <% } %>
-          <% } else { %>
-            <p class="text-lg font-bold text-slate-500">Keine Baustelle eingeteilt</p>
-          <% } %>
-        </div>
-        <% if (typeof todaySite !== 'undefined' && todaySite && todaySite.pid) { %>
-          <a href="/projects/<%= todaySite.pid %>" class="text-sm font-semibold text-blue-600">Öffnen →</a>
-        <% } %>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <a href="/timetracking" class="block text-center rounded-xl py-4 font-bold text-white text-base <%= (typeof stats !== 'undefined' && stats.isStampedIn) ? 'bg-red-600' : 'bg-emerald-600' %>">
-          <%= (typeof stats !== 'undefined' && stats.isStampedIn) ? 'Ausstempeln' : 'Einstempeln' %>
-        </a>
-        <% if (typeof todaySite !== 'undefined' && todaySite && todaySite.pid) { %>
-          <a href="/projects/<%= todaySite.pid %>#sec-fotos" class="block text-center rounded-xl py-4 font-bold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100">Foto</a>
-          <a href="/projects/<%= todaySite.pid %>#sec-notizen" class="block text-center rounded-xl py-4 font-bold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100">Notiz / Sprache</a>
-        <% } else { %>
-          <a href="/projects" class="block text-center rounded-xl py-4 font-bold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100">Aufträge</a>
-          <a href="/map" class="block text-center rounded-xl py-4 font-bold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100">Karte</a>
-        <% } %>
-      </div>
-    </div>
-
-
-
-    <!-- Schnell-Stempel Widget -->
     <div class="emp-dash-section card card-lift p-4 md:p-5" data-section="stempel-widget">
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
