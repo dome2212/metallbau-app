@@ -13,6 +13,11 @@
         <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">‹</a>
         <a href="/montageplan" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Heute</a>
         <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">›</a>
+        <form method="get" action="/montageplan" class="flex items-center">
+          <input type="date" name="week" value="<%= selectedDate %>" aria-label="Datum auswählen"
+            onchange="if(this.value) this.form.submit()"
+            class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm">
+        </form>
         <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500">Kalender</a>
       </div>
     </div>
@@ -22,6 +27,7 @@
       <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Baustelle</span>
       <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Termin</span>
       <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Urlaub</span>
+      <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800">Krank</span>
       <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Frei</span>
       <% if (canEdit) { %><span class="text-slate-400 ml-1">· Zellen klickbar</span><% } %>
     </div>
@@ -60,11 +66,12 @@
                      let cls = 'bg-slate-50 text-slate-600 dark:bg-slate-800/50 dark:text-slate-300';
                      if (cell.status === 'baustelle' || cell.status === 'notiz') cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
                      if (cell.status === 'termin') cls = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
+                     if (cell.status === 'krank') cls = 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
                      if (cell.status === 'urlaub') cls = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
                      if (day && day.isToday) cls += ' ring-1 ring-inset ring-blue-200 dark:ring-blue-800';
                 %>
                   <td class="p-1 align-top">
-                    <% if (canEdit && cell.status !== 'urlaub') { %>
+                    <% if (canEdit && cell.status !== 'urlaub' && cell.status !== 'krank') { %>
                       <button type="button"
                         class="w-full min-h-[3rem] rounded-lg px-1.5 py-1.5 text-left <%= cls %> hover:opacity-90 transition"
                         data-uid="<%= row.user.id %>"
