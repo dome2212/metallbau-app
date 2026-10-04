@@ -214,23 +214,11 @@
       <% } %>
 
       <% if (_show('documents') && _perm('documents', true, false)) { %>
-      <a href="/documents/buero" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition">
+      <a href="/documents/buero" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
         <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
         </span>
-        Büro (Angebot &amp; Rechnung)
-      </a>
-      <a href="/documents/offers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
-        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a1 1 0 011 1v16l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z"/><path d="M9 8h6M9 11h6"/></svg>
-        </span>
-        Angebote
-      </a>
-      <a href="/documents/invoices" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
-        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
-        </span>
-        Rechnungen
+        Angebote &amp; Rechnungen
       </a>
       <% } %>
 

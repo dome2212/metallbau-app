@@ -1151,7 +1151,7 @@
     // Sidebar
     document.querySelectorAll('#sidebar a[href]').forEach(a => {
       const href = a.getAttribute('href');
-      if (href === '/' ? path === '/' : (href !== '/' && path.startsWith(href))) {
+      if (href === '/documents/buero' ? path.startsWith('/documents') : (href === '/' ? path === '/' : (href !== '/' && path.startsWith(href)))) {
         a.classList.add('active');
       }
     });
