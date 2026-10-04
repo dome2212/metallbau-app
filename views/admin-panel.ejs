@@ -1,285 +1,347 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
 
+<%
+  const tabs = [
+    { id: 'design',        label: 'Design',        group: 'Darstellung' },
+    { id: 'sidebar',       label: 'Menü',          group: 'Darstellung' },
+    { id: 'dashboard',     label: 'Dashboard',     group: 'Darstellung' },
+    { id: 'pdf',           label: 'Belege & PDF',  group: 'Finanzen' },
+    { id: 'datev',         label: 'DATEV',         group: 'Finanzen' },
+    { id: 'textbausteine', label: 'Textbausteine', group: 'Finanzen' },
+    { id: 'worktime',      label: 'Arbeitszeit',   group: 'Personal' },
+    { id: 'stampclock',    label: 'Stempeluhr',    group: 'Personal' },
+    { id: 'projects',      label: 'Aufträge',      group: 'Betrieb' },
+    { id: 'lager',         label: 'Lager',         group: 'Betrieb' },
+    { id: 'access',        label: 'Rechte',        group: 'Sicherheit' },
+    { id: 'security',      label: 'Sicherheit',    group: 'Sicherheit' },
+    { id: 'info',          label: 'System',        group: 'System' },
+  ];
+  const tabGroups = ['Darstellung', 'Finanzen', 'Personal', 'Betrieb', 'Sicherheit', 'System'];
+  const activeTab = tabs.find(t => t.id === tab) || tabs[0];
+%>
+
+<style>
+  .ap { max-width: 72rem; margin: 0 auto; padding: 0 1rem 6rem; }
+  .ap-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; padding: 1rem 0 .75rem;
+  }
+  .ap-head h1 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0; }
+  .dark .ap-head h1 { color: #f1f5f9; }
+  .ap-head p { font-size: .75rem; color: #64748b; margin: .15rem 0 0; }
+  .ap-back { font-size: .75rem; font-weight: 600; color: #2563eb; text-decoration: none; }
+  .ap-layout { display: flex; gap: 1rem; align-items: flex-start; }
+  .ap-nav {
+    display: none; width: 14rem; flex-shrink: 0;
+    position: sticky; top: 4.5rem;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem;
+    padding: .6rem; max-height: calc(100vh - 6rem); overflow-y: auto;
+  }
+  .dark .ap-nav { background: #1e293b; border-color: #334155; }
+  @media (min-width: 768px) { .ap-nav { display: block; } }
+  .ap-nav-group { margin-bottom: .65rem; }
+  .ap-nav-group:last-child { margin-bottom: 0; }
+  .ap-nav-label {
+    font-size: .65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: #94a3b8; padding: .25rem .65rem .35rem;
+  }
+  .ap-nav a {
+    display: block; padding: .55rem .7rem; border-radius: .65rem;
+    font-size: .8125rem; font-weight: 500; color: #475569;
+    text-decoration: none; margin-bottom: 1px;
+  }
+  .dark .ap-nav a { color: #cbd5e1; }
+  .ap-nav a:hover { background: #f8fafc; }
+  .dark .ap-nav a:hover { background: #334155; }
+  .ap-nav a.active {
+    background: #eff6ff; color: #1d4ed8; font-weight: 600;
+  }
+  .dark .ap-nav a.active { background: #1e3a5f; color: #93c5fd; }
+  .ap-main { flex: 1; min-width: 0; }
+  .ap-mobile {
+    display: block; margin-bottom: .75rem;
+  }
+  @media (min-width: 768px) { .ap-mobile { display: none; } }
+  .ap-mobile select {
+    width: 100%; padding: .7rem .9rem; border-radius: .75rem;
+    border: 1px solid #e2e8f0; background: #fff; font-size: .875rem;
+    color: #0f172a;
+  }
+  .dark .ap-mobile select {
+    background: #1e293b; border-color: #334155; color: #f1f5f9;
+  }
+  .ap-search { position: relative; margin-bottom: .85rem; }
+  .ap-search input {
+    width: 100%; padding: .7rem .9rem .7rem 2.4rem; border-radius: .75rem;
+    border: 1px solid #e2e8f0; background: #fff; font-size: .875rem;
+  }
+  .dark .ap-search input {
+    background: #1e293b; border-color: #334155; color: #f1f5f9;
+  }
+  .ap-search svg {
+    position: absolute; left: .75rem; top: 50%; transform: translateY(-50%);
+    width: 1rem; height: 1rem; color: #94a3b8; pointer-events: none;
+  }
+  .ap-search-results {
+    display: none; position: absolute; z-index: 40; left: 0; right: 0;
+    margin-top: .35rem; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: .75rem; box-shadow: 0 10px 25px rgba(0,0,0,.08);
+    max-height: 16rem; overflow-y: auto;
+  }
+  .dark .ap-search-results {
+    background: #1e293b; border-color: #334155;
+  }
+  .ap-search-results.open { display: block; }
+  .ap-search-results a {
+    display: block; padding: .6rem .9rem; font-size: .8125rem;
+    color: #334155; text-decoration: none; border-bottom: 1px solid #f1f5f9;
+  }
+  .dark .ap-search-results a { color: #e2e8f0; border-color: #334155; }
+  .ap-search-results a:hover { background: #f8fafc; }
+  .dark .ap-search-results a:hover { background: #334155; }
+  .ap-search-results .empty {
+    padding: .75rem .9rem; font-size: .8125rem; color: #94a3b8;
+  }
+  .ap-title {
+    display: flex; align-items: center; gap: .5rem;
+    margin-bottom: .85rem; padding-bottom: .5rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .dark .ap-title { border-color: #334155; }
+  .ap-title h2 {
+    font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0;
+  }
+  .dark .ap-title h2 { color: #f1f5f9; }
+  .ap-title span {
+    font-size: .65rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .04em; color: #94a3b8;
+    background: #f1f5f9; padding: .2rem .5rem; border-radius: 999px;
+  }
+  .dark .ap-title span { background: #334155; color: #94a3b8; }
+  .ap-banner {
+    display: flex; align-items: center; gap: .5rem;
+    background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;
+    border-radius: .75rem; padding: .7rem 1rem; font-size: .875rem;
+    font-weight: 500; margin-bottom: .75rem;
+  }
+  .dark .ap-banner {
+    background: rgba(6,78,59,.25); border-color: #065f46; color: #6ee7b7;
+  }
+</style>
+
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+  <div class="ap">
 
-    <header class="px-4 md:px-6 pt-4 pb-2 flex items-center justify-between gap-2">
+    <div class="ap-head">
       <div>
-        <h1 class="text-xl font-bold text-slate-800 dark:text-gray-100">Einstellungen</h1>
-        <p class="text-xs text-slate-500">Firma, Design, Rechte & System</p>
+        <h1>Einstellungen</h1>
+        <p><%= activeTab.group %> · <%= activeTab.label %></p>
       </div>
-      <a href="/" class="text-xs font-semibold text-blue-600">← Dashboard</a>
-    </header>
+      <a href="/" class="ap-back">← Dashboard</a>
+    </div>
 
-    <div class="px-4 md:px-6 max-w-7xl mx-auto w-full pb-24">
+    <% if (success) { %>
+      <div class="ap-banner" id="successBanner">Einstellungen gespeichert</div>
+      <script>setTimeout(function(){ var b=document.getElementById('successBanner'); if(b) b.style.display='none'; }, 3500);</script>
+    <% } %>
 
-      <!-- Erfolgsmeldung -->
-      <% if (success) { %>
-        <div id="successBanner" class="bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-800 dark:text-green-300 rounded-xl px-5 py-3 text-sm font-medium flex items-center gap-2 mb-3">
-          ✅ Einstellungen erfolgreich gespeichert!
-        </div>
-        <script>setTimeout(() => { const b = document.getElementById('successBanner'); if(b) b.style.display='none'; }, 4000);</script>
-      <% } %>
+    <div class="ap-layout">
 
-      <% const svgIcon = (path, cls) => `<svg class="${cls || 'w-4 h-4'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`; %>
-        <% const tabs = [
-            { id: 'design',        label: 'Design',        group: 'Darstellung', path: '<path d="M12 3a9 9 0 100 18c1 0 1.5-.5 1.5-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.4 1.4-1.4H16a4 4 0 004-4c0-5-4-9.3-8-9.3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="17" cy="12" r="1"/>', bg:'#e0e7ff', fg:'#4f46e5' },
-            { id: 'sidebar',       label: 'Menü',          group: 'Darstellung', path: '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="12" y="3" width="9" height="18" rx="1"/>', bg:'#e2e8f0', fg:'#475569' },
-            { id: 'dashboard',     label: 'Dashboard',     group: 'Darstellung', path: '<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 5-6"/>', bg:'#ede9fe', fg:'#7c3aed' },
-            { id: 'pdf',           label: 'Belege & PDF',  group: 'Finanzen', path: '<path d="M14 3v5a1 1 0 001 1h5"/><path d="M6 21h12a1 1 0 001-1V7l-5-5H7a1 1 0 00-1 1v3"/><path d="M9 15h6M9 12h6"/>', bg:'#dbeafe', fg:'#2563eb' },
-            { id: 'datev',         label: 'DATEV',         group: 'Finanzen', path: '<path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6M9 15h4"/>', bg:'#d1fae5', fg:'#059669' },
-            { id: 'textbausteine', label: 'Textbausteine', group: 'Finanzen', path: '<path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>', bg:'#fae8ff', fg:'#a21caf' },
-            { id: 'worktime',      label: 'Arbeitszeit',   group: 'Personal', path: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', bg:'#fef3c7', fg:'#d97706' },
-            { id: 'stampclock',    label: 'Stempeluhr',    group: 'Personal', path: '<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 1.5M9 3h6M11 1.5v1.5M13 1.5v1.5"/>', bg:'#cffafe', fg:'#0891b2' },
-            { id: 'projects',      label: 'Aufträge',      group: 'Betrieb', path: '<rect x="4" y="3" width="10" height="18" rx="1"/><path d="M14 21v-6h4v6M8 7h.01M11 7h.01M8 11h.01M11 11h.01"/>', bg:'#ffedd5', fg:'#ea580c' },
-            { id: 'lager',         label: 'Lager',         group: 'Betrieb', path: '<path d="M3 9.5L12 4l9 5.5V19a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/>', bg:'#ccfbf1', fg:'#0d9488' },
-            { id: 'access',        label: 'Rechte',        group: 'Sicherheit', path: '<rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/>', bg:'#e0f2fe', fg:'#0284c7' },
-            { id: 'security',      label: 'Sicherheit',    group: 'Sicherheit', path: '<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z"/>', bg:'#fee2e2', fg:'#dc2626' },
-            { id: 'info',          label: 'System',        group: 'System', path: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v5h1"/>', bg:'#f1f5f9', fg:'#475569' },
-          ];
-          const tabGroups = ['Darstellung', 'Finanzen', 'Personal', 'Betrieb', 'Sicherheit', 'System'];
+      <nav class="ap-nav" aria-label="Einstellungsbereiche">
+        <% tabGroups.forEach(function(g) {
+             var items = tabs.filter(function(t){ return t.group === g; });
         %>
+          <div class="ap-nav-group">
+            <div class="ap-nav-label"><%= g %></div>
+            <% items.forEach(function(t) { %>
+              <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
+                 class="<%= tab === t.id ? 'active' : '' %>"><%= t.label %></a>
+            <% }); %>
+          </div>
+        <% }); %>
+      </nav>
 
-      <div class="md:flex md:gap-4 items-start">
+      <div class="ap-main">
 
-        <!-- Mobil: Bereich wählen -->
-        <div class="md:hidden mb-3">
-          <label class="text-[10px] uppercase font-semibold text-slate-400">Bereich</label>
-          <select class="w-full mt-1 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm px-3 py-2.5"
-            onchange="if(this.value) location.href='/admin/panel?tab='+this.value">
-            <% for (const g of tabGroups) { %>
+        <div class="ap-mobile">
+          <select id="ap-mobile-select" aria-label="Bereich wählen">
+            <% tabGroups.forEach(function(g) { %>
               <optgroup label="<%= g %>">
-                <% tabs.filter(t => t.group === g).forEach(t => { %>
+                <% tabs.filter(function(t){ return t.group === g; }).forEach(function(t) { %>
                   <option value="<%= t.id %>" <%= tab === t.id ? 'selected' : '' %>><%= t.label %></option>
-                <% }) %>
+                <% }); %>
               </optgroup>
-            <% } %>
+            <% }); %>
           </select>
         </div>
 
-        <!-- Desktop: gruppierte Seitenleiste -->
-        <nav class="hidden md:block w-56 shrink-0 sticky top-20 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-2 space-y-3">
-          <% for (const g of tabGroups) {
-               const groupTabs = tabs.filter(t => t.group === g);
-          %>
-            <div>
-              <p class="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400"><%= g %></p>
-              <div class="space-y-0.5">
-                <% groupTabs.forEach(t => { %>
-                  <a href="/admin/panel?tab=<%= t.id %>" data-tab-id="<%= t.id %>"
-                    class="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition
-                      <%= tab === t.id
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50' %>">
-                    <span class="w-2 h-2 rounded-full shrink-0" style="background:<%= t.fg %>"></span>
-                    <span class="truncate"><%= t.label %></span>
-                  </a>
-                <% }) %>
-              </div>
-            </div>
-          <% } %>
-        </nav>
+        <div class="ap-search" id="admin-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" id="admin-search-input" placeholder="Einstellung suchen…" autocomplete="off">
+          <div class="ap-search-results" id="admin-search-results"></div>
+        </div>
 
-        <!-- Inhalt -->
-        <div class="flex-1 min-w-0 space-y-3">
+        <div class="ap-title">
+          <h2><%= activeTab.label %></h2>
+          <span><%= activeTab.group %></span>
+        </div>
 
-      <!-- Suche -->
-      <div class="relative" id="admin-search-wrap">
-        <input type="text" id="admin-search-input" autocomplete="off"
-          placeholder="Einstellung suchen…"
-          class="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
-        <div id="admin-search-results"
-          class="hidden absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg shadow-lg max-h-72 overflow-y-auto"></div>
+        <%- include('partials/admin/tab-design') %>
+        <%- include('partials/admin/tab-sidebar') %>
+        <%- include('partials/admin/tab-pdf') %>
+        <%- include('partials/admin/tab-datev') %>
+        <%- include('partials/admin/tab-worktime') %>
+        <%- include('partials/admin/tab-stampclock') %>
+        <%- include('partials/admin/tab-projects') %>
+        <%- include('partials/admin/tab-security') %>
+        <%- include('partials/admin/tab-dashboard') %>
+        <%- include('partials/admin/tab-access') %>
+        <%- include('partials/admin/tab-info') %>
+        <%- include('partials/admin/tab-lager') %>
+        <%- include('partials/admin/tab-textbausteine') %>
+
       </div>
-      <script>
-        // Statische Liste aller Einstellungs-Abschnitte je Tab, damit man nicht
-        // erst wissen muss, unter welchem Tab eine Einstellung versteckt ist.
-        const ADMIN_SEARCH_INDEX = [
-          { tab: 'design',        label: '🎨 Farbpalette der App' },
-          { tab: 'design',        label: '⚡ Schnell-Vorlagen' },
-          { tab: 'sidebar',       label: '📌 Sidebar anpassen' },
-          { tab: 'pdf',           label: '🔢 Nummern-Schema' },
-          { tab: 'pdf',           label: '💰 Standard-Werte' },
-          { tab: 'pdf',           label: '🎨 PDF-Erscheinungsbild' },
-          { tab: 'pdf',           label: '✉️ Einleitungstexte' },
-          { tab: 'pdf',           label: '📃 Fußzeile & AGB' },
-          { tab: 'pdf',           label: '💶 Nachkalkulation / Stundensatz' },
-          { tab: 'datev',         label: '🔑 Berater & Mandant' },
-          { tab: 'datev',         label: '📚 Kontenrahmen' },
-          { tab: 'datev',         label: '💶 Erlös- & Debitorenkonten' },
-          { tab: 'worktime',      label: '⏱️ Soll-Stunden & Urlaub' },
-          { tab: 'worktime',      label: '☕ Automatischer Pausenabzug' },
-          { tab: 'worktime',      label: '🗓️ Feiertags-Region' },
-          { tab: 'stampclock',    label: '🕐 Stempeluhr-Verhalten (GPS-Pflicht, Projekt, Notiz, Wechsel)' },
-          { tab: 'stampclock',    label: '⏰ Erinnerung bei vergessenem Ausstempeln' },
-          { tab: 'stampclock',    label: '📍 Firmen-Standort (Geo-Fencing)' },
-          { tab: 'projects',      label: '🏗️ Auftrags-Einstellungen' },
-          { tab: 'security',      label: '🔒 Sicherheits-Einstellungen' },
-          { tab: 'security',      label: '🗑️ Datenaufbewahrung Zeiterfassung (Löschfrist)' },
-          { tab: 'security',      label: '✉️ Automatisches Mahnwesen bei überfälligen Rechnungen' },
-          { tab: 'dashboard',     label: '📊 Dashboard KPI-Schwellenwerte' },
-          { tab: 'dashboard',     label: '👁️ Live-Vorschau' },
-          { tab: 'access',        label: '🔐 Schnell-Links' },
-          { tab: 'access',        label: '📋 Berechtigungs-Matrix' },
-          { tab: 'info',          label: 'ℹ️ System-Information' },
-          { tab: 'info',          label: '🗄️ Datenbank-Backup' },
-          { tab: 'info',          label: '🔗 Schnell-Links' },
-          { tab: 'lager',         label: '🏭 Eigene Lagerkategorien' },
-          { tab: 'lager',         label: '📦 Proaktive Lagerbestand-Warnung (WhatsApp)' },
-          { tab: 'textbausteine', label: '📎 Textbausteine für Angebot & Auftrag' },
-        ];
-        const TAB_LABELS = <%- JSON.stringify(tabs.reduce((acc, t) => { acc[t.id] = t.label; return acc; }, {})) %>;
-
-        (function () {
-          const input = document.getElementById('admin-search-input');
-          const results = document.getElementById('admin-search-results');
-
-          function render(query) {
-            const q = query.trim().toLowerCase();
-            if (!q) { results.classList.add('hidden'); results.innerHTML = ''; return; }
-            const matches = ADMIN_SEARCH_INDEX.filter(item =>
-              item.label.toLowerCase().includes(q) || (TAB_LABELS[item.tab] || '').toLowerCase().includes(q)
-            );
-            if (matches.length === 0) {
-              results.innerHTML = '<div class="px-4 py-3 text-sm text-slate-400">Keine Treffer.</div>';
-            } else {
-              results.innerHTML = matches.map(item => `
-                <a href="/admin/panel?tab=${item.tab}" class="block px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-slate-700 border-b dark:border-slate-700 last:border-0">
-                  <span class="text-slate-800 dark:text-gray-100">${item.label}</span>
-                  <span class="block text-xs text-slate-400">in ${TAB_LABELS[item.tab] || item.tab}</span>
-                </a>
-              `).join('');
-            }
-            results.classList.remove('hidden');
-          }
-
-          input.addEventListener('input', () => render(input.value));
-          input.addEventListener('focus', () => { if (input.value.trim()) render(input.value); });
-          document.addEventListener('click', (e) => {
-            if (!document.getElementById('admin-search-wrap').contains(e.target)) results.classList.add('hidden');
-          });
-        })();
-      </script>
-
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <!-- TAB: FARBEN & DESIGN                                               -->
-      <!-- ══════════════════════════════════════════════════════════════════ -->
-      <%- include('partials/admin/tab-design') %>
-      <%- include('partials/admin/tab-sidebar') %>
-      <%- include('partials/admin/tab-pdf') %>
-      <%- include('partials/admin/tab-datev') %>
-      <%- include('partials/admin/tab-worktime') %>
-      <%- include('partials/admin/tab-stampclock') %>
-      <%- include('partials/admin/tab-projects') %>
-      <%- include('partials/admin/tab-security') %>
-      <%- include('partials/admin/tab-dashboard') %>
-      <%- include('partials/admin/tab-access') %>
-      <%- include('partials/admin/tab-info') %>
-      <%- include('partials/admin/tab-lager') %>
-      <%- include('partials/admin/tab-textbausteine') %>
-
-        </div><!-- /Inhalt -->
-      </div><!-- /md:flex -->
-    </div><!-- /max-w-7xl -->
+    </div>
+  </div>
 </main>
 
 <script>
-  // Farb-Vorschau Live-Update
-  function updatePreview(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.style.background = value;
-  }
-
-  // Schnell-Vorlage anwenden
-  function applyPreset(primary, sidebarBg, sidebarText, sidebarHover, pageBg, topbarBg) {
-    setColorInput('color_primary',      primary);
-    setColorInput('color_sidebar_bg',   sidebarBg);
-    setColorInput('color_sidebar_text', sidebarText);
-    setColorInput('color_sidebar_hover',sidebarHover);
-    setColorInput('color_page_bg',      pageBg);
-    setColorInput('color_topbar_bg',    topbarBg);
-  }
-  function setColorInput(name, value) {
-    const inp = document.querySelector(`input[name="${name}"]`);
-    if (!inp) return;
-    inp.value = value;
-    inp.dispatchEvent(new Event('input'));
-  }
-
-  // Sidebar-Modus: Logo-Höhe ein-/ausblenden
-  document.querySelectorAll('input[name="sidebar_modus"]').forEach(r => {
-    r.addEventListener('change', function() {
-      const wrap = document.getElementById('heightWrap');
-      if (wrap) wrap.classList.toggle('hidden', this.value !== 'logo');
+(function () {
+  // Mobile select
+  var sel = document.getElementById('ap-mobile-select');
+  if (sel) {
+    sel.addEventListener('change', function () {
+      if (this.value) location.href = '/admin/panel?tab=' + this.value;
     });
-  });
+  }
 
-  // KPI-Vorschau: Farblogik Live-Demo
-  function updateKpiPreview() {
-    const ov   = parseInt(document.getElementById('previewOverdueVal')?.value || 0);
-    const ta   = parseInt(document.getElementById('previewTasksVal')?.value   || 0);
-    const owW  = parseInt(document.querySelector('input[name="kpi_overdue_warn"]')?.value   || 3);
-    const owD  = parseInt(document.querySelector('input[name="kpi_overdue_danger"]')?.value || 6);
-    const twW  = parseInt(document.querySelector('input[name="kpi_tasks_warn"]')?.value     || 5);
-    const twD  = parseInt(document.querySelector('input[name="kpi_tasks_danger"]')?.value   || 10);
+  // Search index
+  var INDEX = [
+    { tab: 'design', label: 'Farbpalette der App' },
+    { tab: 'design', label: 'Schnell-Vorlagen' },
+    { tab: 'sidebar', label: 'Sidebar / Menü anpassen' },
+    { tab: 'pdf', label: 'Nummern-Schema' },
+    { tab: 'pdf', label: 'Standard-Werte' },
+    { tab: 'pdf', label: 'PDF-Erscheinungsbild' },
+    { tab: 'pdf', label: 'Einleitungstexte' },
+    { tab: 'pdf', label: 'Fußzeile & AGB' },
+    { tab: 'pdf', label: 'Nachkalkulation / Stundensatz' },
+    { tab: 'datev', label: 'Berater & Mandant' },
+    { tab: 'datev', label: 'Kontenrahmen' },
+    { tab: 'datev', label: 'Erlös- & Debitorenkonten' },
+    { tab: 'worktime', label: 'Soll-Stunden & Urlaub' },
+    { tab: 'worktime', label: 'Automatischer Pausenabzug' },
+    { tab: 'worktime', label: 'Feiertags-Region' },
+    { tab: 'stampclock', label: 'Stempeluhr GPS / Projekt / Notiz' },
+    { tab: 'stampclock', label: 'Erinnerung Ausstempeln' },
+    { tab: 'stampclock', label: 'Firmen-Standort Geo-Fencing' },
+    { tab: 'projects', label: 'Auftrags-Einstellungen' },
+    { tab: 'security', label: 'Sicherheits-Einstellungen' },
+    { tab: 'security', label: 'Datenaufbewahrung Zeiterfassung' },
+    { tab: 'security', label: 'Automatisches Mahnwesen' },
+    { tab: 'dashboard', label: 'Dashboard KPI-Schwellenwerte' },
+    { tab: 'access', label: 'Berechtigungs-Matrix' },
+    { tab: 'info', label: 'System-Information' },
+    { tab: 'info', label: 'Datenbank-Backup' },
+    { tab: 'lager', label: 'Lagerkategorien' },
+    { tab: 'textbausteine', label: 'Textbausteine' }
+  ];
 
-    const colorClass = (val, warn, danger) =>
-      val >= danger ? 'border-red-500 bg-red-50'
-      : val >= warn ? 'border-yellow-400 bg-yellow-50'
-      : 'border-gray-300 bg-gray-50';
+  var input = document.getElementById('admin-search-input');
+  var results = document.getElementById('admin-search-results');
+  if (input && results) {
+    function render(q) {
+      q = (q || '').trim().toLowerCase();
+      if (!q) { results.classList.remove('open'); results.innerHTML = ''; return; }
+      var hits = INDEX.filter(function (i) { return i.label.toLowerCase().indexOf(q) !== -1; }).slice(0, 12);
+      if (!hits.length) {
+        results.innerHTML = '<div class="empty">Keine Treffer</div>';
+      } else {
+        results.innerHTML = hits.map(function (h) {
+          return '<a href="/admin/panel?tab=' + h.tab + '">' + h.label + ' <span style="color:#94a3b8;font-size:.7rem">→ ' + h.tab + '</span></a>';
+        }).join('');
+      }
+      results.classList.add('open');
+    }
+    input.addEventListener('input', function () { render(this.value); });
+    input.addEventListener('focus', function () { if (this.value.trim()) render(this.value); });
+    document.addEventListener('click', function (e) {
+      var wrap = document.getElementById('admin-search-wrap');
+      if (wrap && !wrap.contains(e.target)) results.classList.remove('open');
+    });
+  }
 
-    const ovEl = document.getElementById('prevOverdue');
-    const taEl = document.getElementById('prevTasks');
+  // KPI preview (if elements exist on dashboard tab)
+  window.updateKpiPreview = function () {
+    var ov = parseFloat((document.getElementById('kpi_overdue') || {}).value || 0);
+    var owW = parseFloat((document.getElementById('kpi_overdue_warn') || {}).value || 0);
+    var owD = parseFloat((document.getElementById('kpi_overdue_danger') || {}).value || 0);
+    var ta = parseFloat((document.getElementById('kpi_tasks') || {}).value || 0);
+    var twW = parseFloat((document.getElementById('kpi_tasks_warn') || {}).value || 0);
+    var twD = parseFloat((document.getElementById('kpi_tasks_danger') || {}).value || 0);
+    function colorClass(val, warn, dang) {
+      return val >= dang ? 'border-red-500 bg-red-50'
+        : val >= warn ? 'border-yellow-400 bg-yellow-50'
+        : 'border-gray-300 bg-gray-50';
+    }
+    var ovEl = document.getElementById('prevOverdue');
+    var taEl = document.getElementById('prevTasks');
     if (ovEl) ovEl.className = 'p-4 rounded-xl border-l-4 transition ' + colorClass(ov, owW, owD);
     if (taEl) taEl.className = 'p-4 rounded-xl border-l-4 transition ' + colorClass(ta, twW, twD);
-  }
+  };
 
-  // Session-Timeout clientseitig (aus Admin-Panel Einstellung)
-  (function() {
-    const mins = parseInt('<%= typeof firma !== "undefined" && firma.session_timeout_minutes ? firma.session_timeout_minutes : 0 %>');
+  // Session timeout
+  (function () {
+    var mins = parseInt('<%= typeof firma !== "undefined" && firma.session_timeout_minutes ? firma.session_timeout_minutes : 0 %>', 10);
     if (!mins || mins <= 0) return;
-    let timer = setTimeout(() => {
-      alert('Deine Sitzung ist abgelaufen. Du wirst jetzt abgemeldet.');
+    var timer = setTimeout(function () {
+      alert('Sitzung abgelaufen – du wirst abgemeldet.');
       window.location.href = '/logout';
     }, mins * 60 * 1000);
-    ['click','keydown','scroll','mousemove'].forEach(ev =>
-      document.addEventListener(ev, () => {
+    ['click', 'keydown', 'scroll', 'mousemove'].forEach(function (ev) {
+      document.addEventListener(ev, function () {
         clearTimeout(timer);
-        timer = setTimeout(() => {
-          alert('Deine Sitzung ist abgelaufen. Du wirst jetzt abgemeldet.');
+        timer = setTimeout(function () {
+          alert('Sitzung abgelaufen – du wirst abgemeldet.');
           window.location.href = '/logout';
         }, mins * 60 * 1000);
-      }, { passive: true })
-    );
+      }, { passive: true });
+    });
   })();
 
-  // ── Warnung bei ungespeicherten Änderungen ──────────────────────────────
-  // Da jeder Tab ein eigenes <form> ist, gehen Änderungen sonst kommentarlos
-  // verloren, wenn man auf einen anderen Tab klickt oder die Seite verlässt,
-  // bevor man auf "Speichern" gedrückt hat.
+  // Unsaved changes warning
   (function () {
-    let dirty = false;
-    const forms = document.querySelectorAll('main form');
-    forms.forEach(form => {
-      form.addEventListener('input', () => { dirty = true; });
-      form.addEventListener('change', () => { dirty = true; });
-      // Beim eigentlichen Absenden (Speichern) zählt es nicht mehr als "offen"
-      form.addEventListener('submit', () => { dirty = false; });
+    var dirty = false;
+    document.querySelectorAll('main form').forEach(function (form) {
+      form.addEventListener('input', function () { dirty = true; });
+      form.addEventListener('change', function () { dirty = true; });
+      form.addEventListener('submit', function () { dirty = false; });
     });
-
     window.addEventListener('beforeunload', function (e) {
       if (!dirty) return;
       e.preventDefault();
       e.returnValue = '';
     });
-
-    // Klick auf einen anderen Tab oder "← Dashboard": vorher warnen
-    document.querySelectorAll('a[data-tab-id], header a[href="/"]').forEach(link => {
+    document.querySelectorAll('a[data-tab-id], .ap-back').forEach(function (link) {
       link.addEventListener('click', function (e) {
         if (!dirty) return;
-        const ok = confirm('Du hast ungespeicherte Änderungen. Diese gehen verloren, wenn du jetzt weiter klickst. Trotzdem fortfahren?');
-        if (!ok) e.preventDefault();
+        if (!confirm('Ungespeicherte Änderungen gehen verloren. Trotzdem weiter?')) e.preventDefault();
       });
     });
+    if (sel) {
+      sel.addEventListener('change', function (e) {
+        if (!dirty) return;
+        if (!confirm('Ungespeicherte Änderungen gehen verloren. Trotzdem weiter?')) {
+          e.preventDefault();
+          // reset select
+          var cur = '<%= tab %>';
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === cur) sel.selectedIndex = i;
+          }
+        }
+      }, true);
+    }
   })();
+})();
 </script>
