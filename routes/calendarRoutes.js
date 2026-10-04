@@ -361,7 +361,10 @@ router.post('/api/appointments/delete/:id', requireAdmin, async (req, res) => {
 
 router.get('/montageplan', async (req, res) => {
   try {
-    let start = req.query.week ? new Date(req.query.week + 'T12:00:00') : new Date();
+    // Lokales Datum als YYYY-MM-DD (toISOString würde je nach Zeitzone einen Tag verschieben)
+    const fmt = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const weekParam = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.week || '')) ? req.query.week : null;
+    let start = weekParam ? new Date(weekParam + 'T12:00:00') : new Date();
     const day = start.getDay();
     const diff = day === 0 ? -6 : 1 - day;
     start.setDate(start.getDate() + diff);
@@ -370,8 +373,8 @@ router.get('/montageplan', async (req, res) => {
     end.setDate(end.getDate() + 6);
     end.setHours(23, 59, 59, 999);
 
-    const startStr = start.toISOString().slice(0, 10);
-    const endStr = end.toISOString().slice(0, 10);
+    const startStr = fmt(start);
+    const endStr = fmt(end);
 
     const [appsRes, usersRes, vacRes, staffRes, projRes] = await Promise.all([
       dbQuery(`
@@ -389,7 +392,7 @@ router.get('/montageplan', async (req, res) => {
         SELECT v.*, u.username
         FROM vacations v
         LEFT JOIN users u ON v.user_id = u.id
-        WHERE v.status = 'Genehmigt'
+        WHERE (v.status = 'Genehmigt' OR (v.type = 'Krank' AND v.status <> 'Abgelehnt'))
           AND v.start_date <= ?
           AND v.end_date >= ?
       `, [endStr, startStr]).catch(() => ({ rows: [] })),
@@ -446,7 +449,7 @@ router.get('/montageplan', async (req, res) => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
-      const ds = d.toISOString().slice(0, 10);
+      const ds = fmt(d);
       const dayApps = apps.filter(a => String(a.start_date).slice(0, 10) === ds).map(a => ({
         ...a,
         assignees: assignMap[a.id] || []
@@ -460,7 +463,7 @@ router.get('/montageplan', async (req, res) => {
         let status = 'frei';
         let label = 'Frei / Werkstatt';
         if (vac) {
-          status = 'urlaub';
+          status = vac.type === 'Krank' ? 'krank' : 'urlaub';
           label = vac.type || 'Abwesend';
         } else if (onApps.length) {
           status = 'termin';
@@ -478,7 +481,7 @@ router.get('/montageplan', async (req, res) => {
       days.push({
         date: ds,
         label: d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' }),
-        isToday: ds === new Date().toISOString().slice(0, 10),
+        isToday: ds === fmt(new Date()),
         apps: dayApps,
         personal
       });
@@ -515,8 +518,9 @@ router.get('/montageplan', async (req, res) => {
       weekStart: startStr,
       weekLabel: start.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })
         + ' – ' + end.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }),
-      prevWeek: prev.toISOString().slice(0, 10),
-      nextWeek: next.toISOString().slice(0, 10),
+      prevWeek: fmt(prev),
+      nextWeek: fmt(next),
+      selectedDate: weekParam || fmt(new Date()),
       user: req.user,
       currentUser: req.user
     });
