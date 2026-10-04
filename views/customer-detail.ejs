@@ -19,6 +19,10 @@
         <a href="/documents/offers?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Angebot</a>
         <a href="/projects" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Auftrag</a>
         <a href="/documents/invoices?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold">Rechnung</a>
+        <form action="/customers/delete" method="POST" onsubmit="return confirm('Kunde wirklich löschen?');" class="inline">
+          <input type="hidden" name="id" value="<%= customer.id %>">
+          <button type="submit" class="px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 font-semibold">Löschen</button>
+        </form>
       </div>
     </div>
 

@@ -113,6 +113,10 @@
                 <a href="https://www.google.com/maps/dir/?api=1&destination=<%= encodeURIComponent([c.street, c.zip, c.city].filter(Boolean).join(' ')) %>" target="_blank" rel="noopener" class="btn btn-ghost text-xs">Navi</a>
               <% } %>
               <button type="button" onclick='openEditModal(this)' data-customer="<%= JSON.stringify(c) %>" class="btn btn-ghost text-xs">Bearbeiten</button>
+              <form action="/customers/delete" method="POST" onsubmit="return confirm('Kunde wirklich löschen?');" class="inline">
+                <input type="hidden" name="id" value="<%= c.id %>">
+                <button type="submit" class="btn btn-ghost text-xs text-red-500">Löschen</button>
+              </form>
             </div>
           </div>
         <% }) %>
