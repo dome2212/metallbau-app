@@ -297,122 +297,133 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 45, bufferPages: true });
+  const M = 45;
+  const doc = new PDFDocument({ size: 'A4', margin: M, bufferPages: true });
   doc.pipe(res);
 
-  const W      = doc.page.width - 90;
+  const W      = doc.page.width - 2 * M;
+  const BOTTOM = doc.page.height - 60;
   const GRAU   = '#6b7280';
   const BLAU   = '#1e40af';
   const HELLBL = '#eff6ff';
   const SCHW   = '#111827';
+  const LINIE  = '#d1d5db';
+  const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+  const fmt    = n => Number(n).toLocaleString('de-DE');
+
+  let y = M;
+  // Platz für "h" Punkte sicherstellen, sonst neue Seite
+  const platz = h => { if (y + h > BOTTOM) { doc.addPage(); y = M; return true; } return false; };
 
   // ── Kopf ──────────────────────────────────────────────────
-  doc.fontSize(18).fillColor(BLAU).text('Schnittliste', 45, 45, { width: W });
-  doc.fontSize(9).fillColor(GRAU)
-    .text(`${firmaName || 'Metallbau'}  ·  Stangenlänge: ${stangenlaenge.toLocaleString('de-DE')} mm  ·  Erstellt: ${new Date().toLocaleDateString('de-DE')}`,
-      45, 68, { width: W });
-  doc.moveTo(45, 82).lineTo(45 + W, 82).lineWidth(1).strokeColor(BLAU).stroke();
-  doc.moveDown(1.8);
+  doc.font('Helvetica-Bold').fontSize(20).fillColor(BLAU).text('Schnittliste', M, y, { width: W, lineBreak: false });
+  y += 26;
+  doc.font('Helvetica').fontSize(9).fillColor(GRAU)
+    .text(`${firmaName || 'Metallbau'}  ·  Stangenlänge: ${fmt(stangenlaenge)} mm  ·  Erstellt: ${new Date().toLocaleDateString('de-DE')}`,
+      M, y, { width: W, lineBreak: false });
+  y += 16;
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(1.2).strokeColor(BLAU).stroke();
+  y += 16;
 
   // ── Positionstabelle ─────────────────────────────────────
-  doc.fontSize(11).fillColor(SCHW).text('Positionen (Eingabe)', { underline: true });
-  doc.moveDown(0.4);
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW).text('Positionen', M, y, { lineBreak: false });
+  y += 20;
 
-  const colPos  = 45,  wPos   = 35;
-  const colMng  = 80,  wMng   = 40;
-  const colPro  = 120, wPro   = 130;
-  const colL    = 250, wL     = 65;
-  const colBem  = 315, wBem   = W - (315 - 45);
+  const cols = [
+    { x: M,          w: 30,          t: 'Pos',       a: 'left'  },
+    { x: M + 32,     w: 40,          t: 'Menge',     a: 'right' },
+    { x: M + 84,     w: 170,         t: 'Profil',    a: 'left'  },
+    { x: M + 260,    w: 70,          t: 'Länge (mm)',a: 'right' },
+    { x: M + 342,    w: W - 342,     t: 'Bemerkung', a: 'left'  },
+  ];
+  const kopfZeile = () => {
+    doc.rect(M, y, W, 18).fill('#f3f4f6');
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(GRAU);
+    for (const c of cols) doc.text(c.t, c.x + 3, y + 5, { width: c.w - 6, align: c.a, lineBreak: false });
+    y += 18;
+  };
+  kopfZeile();
 
-  // Tabellenkopf
-  doc.fontSize(8).fillColor(GRAU);
-  doc.text('Pos',     colPos, doc.y, { width: wPos });
-  const y0 = doc.y;
-  doc.text('Menge',   colMng, y0,    { width: wMng });
-  doc.text('Profil',  colPro, y0,    { width: wPro });
-  doc.text('Länge mm',colL,   y0,    { width: wL });
-  doc.text('Bemerkung',colBem,y0,    { width: wBem });
-  doc.moveDown(0.15);
-  doc.moveTo(45, doc.y).lineTo(45 + W, doc.y).lineWidth(0.5).strokeColor('#d1d5db').stroke();
-  doc.moveDown(0.3);
+  positionen.forEach((p, i) => {
+    doc.font('Helvetica').fontSize(9);
+    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.bemerk || '–'];
+    const h = Math.max(...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
+    if (platz(h)) kopfZeile();
+    doc.font('Helvetica').fontSize(9);
+    if (i % 2 === 1) doc.rect(M, y, W, h).fill('#fafafa');
+    doc.fillColor(SCHW);
+    werte.forEach((v, k) => doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }));
+    y += h;
+    doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.4).strokeColor(LINIE).stroke();
+  });
 
-  doc.fontSize(8.5).fillColor(SCHW);
-  for (const p of positionen) {
-    const y = doc.y;
-    doc.text(String(p.pos),   colPos, y, { width: wPos });
-    doc.text(String(p.menge), colMng, y, { width: wMng });
-    doc.text(p.profil,        colPro, y, { width: wPro });
-    doc.text(p.laenge.toLocaleString('de-DE') + ' mm', colL, y, { width: wL });
-    doc.text(p.bemerk || '–', colBem, y, { width: wBem });
-    doc.moveDown(0.25);
-    if (doc.y > doc.page.height - 100) { doc.addPage(); }
-  }
-
-  doc.moveDown(1);
+  y += 24;
 
   // ── Optimierungsergebnis pro Profil ───────────────────────
-  doc.fontSize(11).fillColor(SCHW).text('Optimierte Schnittaufteilung', { underline: true });
+  platz(60);
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW).text('Optimierte Schnittaufteilung', M, y, { lineBreak: false });
+  y += 22;
 
   for (const g of gruppen) {
-    doc.moveDown(0.7);
-    if (doc.y > doc.page.height - 120) doc.addPage();
-
+    platz(70);
     // Profil-Header
-    doc.roundedRect(45, doc.y, W, 18, 3).fill(HELLBL);
-    doc.fontSize(9.5).fillColor(BLAU)
-      .text(`${g.profil}   —   ${g.stangenzahl} Stange(n)   |   Ausnutzung: ${g.ausnutzung} %   |   Verschnitt: ${g.verschnittGes.toLocaleString('de-DE')} mm`,
-        50, doc.y - 15, { width: W - 10 });
-    doc.moveDown(0.6);
+    doc.roundedRect(M, y, W, 22, 3).fill(HELLBL);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(BLAU)
+      .text(g.profil, M + 8, y + 6, { width: W * 0.45, lineBreak: false, ellipsis: true });
+    doc.font('Helvetica').fontSize(8.5).fillColor(BLAU)
+      .text(`${g.stangenzahl} Stange(n)  ·  Ausnutzung ${g.ausnutzung} %  ·  Verschnitt ${fmt(g.verschnittGes)} mm`,
+        M + W * 0.45, y + 7, { width: W * 0.55 - 8, align: 'right', lineBreak: false });
+    y += 30;
 
     let stIdx = 0;
     for (const stange of g.stangen) {
       stIdx++;
-      if (doc.y > doc.page.height - 80) doc.addPage();
-      const label = stange.uebermas ? `Übermaß-Stück` : `Stange ${stIdx}`;
-      doc.fontSize(8).fillColor(GRAU).text(label, 50, doc.y, { continued: false });
-      doc.moveDown(0.15);
+      const teileText = stange.teile.map(t => `${fmt(t.laenge)} (Pos ${t.pos})`).join('  ·  ')
+        + (stange.uebermas ? '' : `   —   Rest: ${fmt(stange.rest)} mm`);
+      doc.font('Helvetica').fontSize(8);
+      const textH = doc.heightOfString(teileText, { width: W - 10 });
+      platz(12 + 14 + textH + 14);
 
-      // Balkengrafik
-      const barX = 50, barY = doc.y, barH = 12;
-      const barW = W - 10;
-      doc.rect(barX, barY, barW, barH).lineWidth(0.5).strokeColor('#9ca3af').stroke();
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAU)
+        .text(stange.uebermas ? 'Übermaß-Stück' : `Stange ${stIdx}`, M + 5, y, { lineBreak: false });
+      y += 12;
 
+      const barX = M + 5, barW = W - 10, barH = 14;
+      doc.rect(barX, y, barW, barH).fill('#e5e7eb');
       let xCur = barX;
-      const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
-      let ci = 0;
-      for (const t of stange.teile) {
-        const tw = stange.uebermas
-          ? barW
-          : Math.round((t.laenge / stangenlaenge) * barW);
-        doc.rect(xCur, barY, tw, barH).fill(colors[ci % colors.length]);
+      stange.teile.forEach((t, ci) => {
+        const tw = stange.uebermas ? barW : Math.max(1, (t.laenge / stangenlaenge) * barW);
+        doc.rect(xCur, y, Math.min(tw, barX + barW - xCur), barH).fill(COLORS[ci % COLORS.length]);
+        doc.moveTo(xCur, y).lineTo(xCur, y + barH).lineWidth(0.6).strokeColor('#ffffff').stroke();
         xCur += tw;
-        ci++;
-      }
-      // Restbalken
-      if (!stange.uebermas && stange.rest > 0) {
-        const rw = barX + barW - xCur;
-        if (rw > 0) doc.rect(xCur, barY, rw, barH).fill('#e5e7eb');
-      }
-      doc.rect(barX, barY, barW, barH).lineWidth(0.5).strokeColor('#9ca3af').stroke();
+      });
+      doc.rect(barX, y, barW, barH).lineWidth(0.5).strokeColor('#9ca3af').stroke();
+      y += barH + 5;
 
-      doc.y = barY + barH + 4;
-      doc.fontSize(7.5).fillColor(SCHW);
-      const stTeileText = stange.teile.map(t => `${t.laenge} mm (Pos ${t.pos})`).join('   ');
-      const restText = stange.uebermas ? '' : `   Rest: ${stange.rest.toLocaleString('de-DE')} mm`;
-      doc.text(stTeileText + restText, 50, doc.y, { width: W - 10 });
-      doc.moveDown(0.5);
+      doc.font('Helvetica').fontSize(8).fillColor(SCHW)
+        .text(teileText, barX, y, { width: barW });
+      y += textH + 12;
     }
+    y += 6;
   }
 
   // ── Zusammenfassung ───────────────────────────────────────
-  doc.moveDown(0.8);
-  if (doc.y > doc.page.height - 80) doc.addPage();
-  doc.moveTo(45, doc.y).lineTo(45 + W, doc.y).lineWidth(0.5).strokeColor('#d1d5db').stroke();
-  doc.moveDown(0.4);
-  doc.fontSize(9).fillColor(SCHW)
-    .text(`Gesamt: ${gruppen.reduce((s, g) => s + g.stangenzahl, 0)} Stange(n)  |  ` +
-      `Ø Ausnutzung: ${Math.round(gruppen.reduce((s,g)=>s+g.ausnutzung,0)/Math.max(gruppen.length,1))} %  |  ` +
-      `Gesamtlänge Teile: ${gruppen.reduce((s,g)=>s+g.gesamtLaenge,0).toLocaleString('de-DE')} mm`);
+  platz(40);
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.6).strokeColor(LINIE).stroke();
+  y += 10;
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor(SCHW)
+    .text(`Gesamt: ${gruppen.reduce((s, g) => s + g.stangenzahl, 0)} Stange(n)   |   ` +
+      `Ø Ausnutzung: ${Math.round(gruppen.reduce((s,g)=>s+g.ausnutzung,0)/Math.max(gruppen.length,1))} %   |   ` +
+      `Gesamtlänge Teile: ${fmt(gruppen.reduce((s,g)=>s+g.gesamtLaenge,0))} mm`, M, y, { width: W });
+
+  // Seitenzahlen
+  const range = doc.bufferedPageRange();
+  for (let i = 0; i < range.count; i++) {
+    doc.switchToPage(range.start + i);
+    doc.page.margins.bottom = 0;
+    doc.font('Helvetica').fontSize(8).fillColor(GRAU)
+      .text(`Seite ${i + 1} / ${range.count}`, M, doc.page.height - 40, { width: W, align: 'right', lineBreak: false });
+  }
 
   doc.end();
 }
