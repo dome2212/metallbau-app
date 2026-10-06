@@ -81,6 +81,7 @@ function parseCsv(buffer) {
   const iProfil = idx(['profil', 'profil', 'material', 'typ', 'bezeichnung', 'name']);
   const iLaenge = idx(['laenge', 'länge', 'length', 'mm', 'l(mm)', 'lmm']);
   const iBemerk = idx(['bemerk', 'hinweis', 'note', 'komment', 'info']);
+  const iWinkel = idx(['winkel', 'gehrung', 'angle', 'schnitt']);
 
   if (iMenge === -1 || iProfil === -1 || iLaenge === -1) {
     throw new Error(
@@ -105,6 +106,7 @@ function parseCsv(buffer) {
       profil:  (cols[iProfil] || '–').trim(),
       laenge,
       bemerk:  iBemerk !== -1 ? (cols[iBemerk] || '') : '',
+      winkel:  iWinkel !== -1 ? (cols[iWinkel] || '').trim() : '',
     });
   }
   return rows;
@@ -191,6 +193,7 @@ function parseXlsx(buffer) {
   const iProfil = idx(['profil', 'material', 'typ', 'bezeichnung', 'name']);
   const iLaenge = idx(['laenge', 'länge', 'length', 'mm', 'l(mm)']);
   const iBemerk = idx(['bemerk', 'hinweis', 'note', 'komment', 'info']);
+  const iWinkel = idx(['winkel', 'gehrung', 'angle', 'schnitt']);
 
   if (iMenge === -1 || iProfil === -1 || iLaenge === -1) {
     throw new Error(
@@ -210,6 +213,7 @@ function parseXlsx(buffer) {
       profil: (r[iProfil] || '–').toString().trim(),
       laenge,
       bemerk: iBemerk !== -1 ? (r[iBemerk] || '') : '',
+      winkel: iWinkel !== -1 ? String(r[iWinkel] || '').trim() : '',
     });
   }
   return rows;
@@ -239,7 +243,7 @@ function optimiere(positionen, stangenlaenge) {
   const stuecke = [];
   for (const p of positionen) {
     for (let i = 0; i < p.menge; i++) {
-      stuecke.push({ pos: p.pos, profil: p.profil, laenge: p.laenge, bemerk: p.bemerk });
+      stuecke.push({ pos: p.pos, profil: p.profil, laenge: p.laenge, bemerk: p.bemerk, winkel: p.winkel || '' });
     }
   }
 
@@ -332,9 +336,10 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   const cols = [
     { x: M,          w: 30,          t: 'Pos',       a: 'left'  },
     { x: M + 32,     w: 40,          t: 'Menge',     a: 'right' },
-    { x: M + 84,     w: 170,         t: 'Profil',    a: 'left'  },
-    { x: M + 260,    w: 70,          t: 'Länge (mm)',a: 'right' },
-    { x: M + 342,    w: W - 342,     t: 'Bemerkung', a: 'left'  },
+    { x: M + 84,     w: 150,         t: 'Profil',    a: 'left'  },
+    { x: M + 238,    w: 62,          t: 'Länge (mm)',a: 'right' },
+    { x: M + 306,    w: 66,          t: 'Winkel',    a: 'left'  },
+    { x: M + 376,    w: W - 376,     t: 'Bemerkung', a: 'left'  },
   ];
   const kopfZeile = () => {
     doc.rect(M, y, W, 18).fill('#f3f4f6');
@@ -346,7 +351,7 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
 
   positionen.forEach((p, i) => {
     doc.font('Helvetica').fontSize(9);
-    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.bemerk || '–'];
+    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.winkel || '–', p.bemerk || '–'];
     const h = Math.max(...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
     if (platz(h)) kopfZeile();
     doc.font('Helvetica').fontSize(9);
@@ -378,7 +383,7 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
     let stIdx = 0;
     for (const stange of g.stangen) {
       stIdx++;
-      const teileText = stange.teile.map(t => `${fmt(t.laenge)} (Pos ${t.pos})`).join('  ·  ')
+      const teileText = stange.teile.map(t => `${fmt(t.laenge)} (Pos ${t.pos}${t.winkel ? ', ' + t.winkel : ''})`).join('  ·  ')
         + (stange.uebermas ? '' : `   —   Rest: ${fmt(stange.rest)} mm`);
       doc.font('Helvetica').fontSize(8);
       const textH = doc.heightOfString(teileText, { width: W - 10 });
@@ -510,16 +515,18 @@ WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
 - Bei fehlender Länge: laenge:0 setzen — der Benutzer trägt sie später ein
 - Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
 - Wenn eine Stückliste im Bild steht, übernimm sie exakt.
+- WINKEL: Erfasse alle Schnitt- und Gehrungswinkel je Position im Feld "winkel" (z.B. "35° / 17,5°" = Winkel am Anfang / am Ende des Teils, oder "45°" bei einem Winkel). Quellen: Spalte "Schnitt"/"Winkel" der Stückliste, Winkelangaben (°) an Gehrungen, Detailansichten und Neigungen der Bauteile. Gerade Schnitte (90°) nur eintragen, wenn sie ausdrücklich angegeben sind; sonst leer lassen ("").
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Array, z.B.:
 [
-  {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":0,"bemerk":"Handlauf, Länge nach Maß"},
-  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"bemerk":"Vertikal-Füllstab"}
+  {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":0,"winkel":"35° / 17,5°","bemerk":"Handlauf, Länge nach Maß"},
+  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"winkel":"","bemerk":"Vertikal-Füllstab"}
 ]
 Regeln:
 - "laenge" als Ganzzahl in mm; 0 wenn keine konkrete Länge erkennbar
 - "menge" als Ganzzahl; 1 wenn unklar; bei sichtbaren Wiederholungen die Anzahl schätzen
 - "profil" so präzise wie erkennbar (Durchmesser, Wandstärke, Profiltyp)
+- "winkel" = Schnitt-/Gehrungswinkel als Text, leer wenn keiner erkennbar
 - "bemerk" = Bauteilname aus dem Bild + wichtige Hinweise
 - "pos" = fortlaufend nummerieren
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
@@ -635,7 +642,8 @@ router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) =
         menge:  Math.max(1, parseInt(p.menge, 10) || 1),
         profil: String(p.profil).trim(),
         laenge: Math.max(0, Math.round(parseFloat(p.laenge) || 0)),
-        bemerk: String(p.bemerk || '').trim()
+        bemerk: String(p.bemerk || '').trim(),
+        winkel: String(p.winkel || '').trim()
       }));
 
     if (positionen.length === 0) {
