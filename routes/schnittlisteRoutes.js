@@ -481,6 +481,7 @@ router.post('/pdf', requireAdmin, upload.single('datei'), (req, res) => {
 //  VISION-KI-HILFSFUNKTION  (gleiche Infrastruktur wie server.js)
 // ══════════════════════════════════════════════════════════════
 
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 const VISION_MODELS = [
   'google/gemma-4-26b-a4b-it:free',
   'google/gemma-4-31b-it:free',
@@ -488,44 +489,63 @@ const VISION_MODELS = [
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
 ];
 
-async function callVisionKI(b64, mimeType) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
-
-  const systemPrompt = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
+const VISION_PROMPT = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
 Du erhältst ein Bild — das kann eine technische Zeichnung, eine Prinzipskizze, ein Katalogblatt oder ein Foto eines Geländers / einer Stahlkonstruktion sein.
 Deine Aufgabe: Erkenne ALLE Bauteile, Profile und Materialien und erstelle daraus eine Schnittliste.
 
 WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
-- Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
 - Wenn nur ein Durchmesser oder Profiltyp erkennbar ist (z.B. "Ø33,7mm", "Ø12mm Vollmaterial"): trotzdem als Position aufnehmen
 - Jedes erkennbare Bauteil / Material einzeln aufnehmen, auch wenn die genaue Länge fehlt
 - Bei fehlender Länge: laenge:0 setzen — der Benutzer trägt sie später ein
+- Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
+- Wenn eine Stückliste im Bild steht, übernimm sie exakt.
 
-Erkennungsquellen (alle auswerten):
-- Bauteilbezeichnungen mit Pfeilen / Hinweislinien (z.B. "Wandflansch Ø80mm", "Ø33,7 Füllstab", "Handlauf Ø42,4mm")
-- Durchmesser- und Profilangaben (Ø, □, mm-Angaben)
-- Mengenangaben aus dem Bild oder aus sichtbaren Wiederholungen
-- Materialangaben (z.B. "V2A geschliffen K240", "Edelstahl", "8mm")
-- Stücklisten- oder Positionstabellen falls vorhanden
-- Bemaßungslinien mit konkreten Zahlenwerten
-
-Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Array ohne jeglichen Erklärungstext.
-Format:
+Antworte AUSSCHLIESSLICH mit einem JSON-Array, z.B.:
 [
   {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":0,"bemerk":"Handlauf, Länge nach Maß"},
-  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"bemerk":"Vertikal-Füllstab"},
-  {"pos":"3","menge":1,"profil":"Wandflansch Ø80mm","laenge":0,"bemerk":"mit Wandanschluss, geschweißt"}
+  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"bemerk":"Vertikal-Füllstab"}
 ]
 Regeln:
 - "laenge" als Ganzzahl in mm; 0 wenn keine konkrete Länge erkennbar
-- "menge" als Ganzzahl; 1 wenn unklar; bei sichtbaren Wiederholungen (z.B. 7 Füllstäbe) die Anzahl schätzen
+- "menge" als Ganzzahl; 1 wenn unklar; bei sichtbaren Wiederholungen die Anzahl schätzen
 - "profil" so präzise wie erkennbar (Durchmesser, Wandstärke, Profiltyp)
-- "bemerk" = Bauteilname aus dem Bild + wichtige Hinweise (Material, Oberfläche, Verbindungsart)
+- "bemerk" = Bauteilname aus dem Bild + wichtige Hinweise
 - "pos" = fortlaufend nummerieren
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
-  let lastError;
+async function callGeminiVision(b64, mimeType, errors) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { text: VISION_PROMPT },
+              { inline_data: { mime_type: mimeType, data: b64 } }
+            ]}],
+            generationConfig: { temperature: 0.1 }
+          })
+        }
+      );
+      const data = await r.json();
+      const text = data?.candidates?.[0]?.content?.parts?.map(x => x.text || '').join('');
+      if (r.ok && text) return text;
+      errors.push(`Gemini ${model}: ${data?.error?.message || 'leere Antwort'}`);
+    } catch (e) {
+      errors.push(`Gemini ${model}: ${e.message}`);
+    }
+  }
+  return null;
+}
+
+async function callOpenRouterVision(b64, mimeType, errors) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
   for (const model of VISION_MODELS) {
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -541,7 +561,7 @@ Regeln:
           messages: [{
             role: 'user',
             content: [
-              { type: 'text', text: systemPrompt },
+              { type: 'text', text: VISION_PROMPT },
               { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
             ]
           }],
@@ -549,25 +569,32 @@ Regeln:
         })
       });
       const data = await response.json();
-      if (!response.ok) {
-        const code = data?.error?.code;
-        if (code === 429 || code === 404 || code === 400) { lastError = data; continue; }
-        throw new Error(JSON.stringify(data));
-      }
-      return data.choices[0].message.content;
-    } catch (err) {
-      lastError = err;
-      if (!err.message?.includes('fetch')) throw err;
+      const text = data?.choices?.[0]?.message?.content;
+      if (response.ok && text) return text;
+      errors.push(`OpenRouter ${model}: ${data?.error?.message || 'leere Antwort'}`);
+    } catch (e) {
+      errors.push(`OpenRouter ${model}: ${e.message}`);
     }
   }
-  throw new Error('Alle Vision-Modelle nicht verfügbar: ' + JSON.stringify(lastError));
+  return null;
+}
+
+async function callVisionKI(b64, mimeType) {
+  if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    throw new Error('Weder GEMINI_API_KEY noch OPENROUTER_API_KEY konfiguriert.');
+  }
+  const errors = [];
+  const text = (await callGeminiVision(b64, mimeType, errors))
+            || (await callOpenRouterVision(b64, mimeType, errors));
+  if (text) return text;
+  throw new Error('Alle Vision-Modelle nicht verfügbar: ' + errors.join(' | ').slice(0, 600));
 }
 
 // POST /schnittliste/bild  – Bild analysieren → Positionen zurückgeben
 router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) => {
   if (!req.file) return res.status(400).json({ fehler: 'Kein Bild hochgeladen.' });
-  if (!process.env.OPENROUTER_API_KEY) {
-    return res.status(500).json({ fehler: 'KI-Analyse nicht konfiguriert (OPENROUTER_API_KEY fehlt).' });
+  if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    return res.status(500).json({ fehler: 'KI-Analyse nicht konfiguriert (GEMINI_API_KEY oder OPENROUTER_API_KEY fehlt).' });
   }
 
   try {
