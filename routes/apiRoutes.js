@@ -633,7 +633,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
   const firma = await getFirma();
 
   const systemPrompt = `Du bist ein KI-Assistent für den Metallbaubetrieb "${firma.name}". Analysiere das Bild und erkenne alle sichtbaren Metallbau-Leistungen, Materialien, Maße oder Bauteile. Antworte auf Deutsch.`;
-  const GROQ_VISION = ['llama-4-scout-17b-16e-instruct'];
+  const GROQ_VISION = ['qwen/qwen3.6-27b'];
 
   let lastError;
   // 1) Groq versuchen
@@ -664,7 +664,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
   }
   // 2) Gemini als Fallback (mehrere Modelle)
   if (process.env.GEMINI_API_KEY) {
-    for (const gModel of ['gemini-2.0-flash-lite', 'gemini-2.0-flash']) {
+    for (const gModel of ['gemini-2.5-flash-lite', 'gemini-2.5-flash']) {
       try {
         const gr = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,

@@ -32,13 +32,13 @@ const upload = multer({
 
 // Groq Vision-Modelle (Lieferschein-Scan)
 const GROQ_VISION_MODELS = [
-  'llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3.6-27b',
 ];
 
 // Gemini-Fallback für Vision (probiert mehrere Modelle durch)
 const GEMINI_VISION_MODELS = [
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
 ];
 async function callGeminiVision(systemPrompt, b64, mimeType) {
   const geminiKey = process.env.GEMINI_API_KEY;

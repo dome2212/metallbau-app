@@ -35,9 +35,9 @@ const imageUpload = multer({
 });
 
 const GROQ_TEXT_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama3-8b-8192',
-  'gemma2-9b-it',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.6-27b',
+  'llama-3.1-8b-instant',
 ];
 
 async function callAI(prompt, maxTokens = 512) {
@@ -85,13 +85,13 @@ function stripThinking(text) {
 
 // Groq Vision-KI (Bilder + Text)
 const GROQ_VISION_MODELS = [
-  'llama-4-scout-17b-16e-instruct',
+  'qwen/qwen3.6-27b',
 ];
 
 // Gemini-Fallback für Vision (mehrere Bilder, probiert mehrere Modelle durch)
 const GEMINI_VISION_MODELS = [
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
 ];
 async function callGeminiVisionMulti(prompt, imageBuffers) {
   const geminiKey = process.env.GEMINI_API_KEY;
