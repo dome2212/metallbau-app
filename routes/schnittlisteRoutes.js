@@ -557,7 +557,7 @@ const VISION_MODELS = [
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'
 ];
 
-const VISION_PROMPT = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
+const VISION_PROMPT_BASIS = `Du bist ein erfahrener Metallbau-Konstrukteur und Experte für technische Zeichnungen.
 Du erhältst ein Bild — das kann eine technische Zeichnung, eine Prinzipskizze, ein Katalogblatt oder ein Foto eines Geländers / einer Stahlkonstruktion sein.
 Deine Aufgabe: Erkenne ALLE Bauteile, Profile und Materialien und erstelle daraus eine Schnittliste.
 
@@ -585,7 +585,17 @@ Regeln:
 - "pos" = fortlaufend nummerieren
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
-async function callGeminiVision(b64, mimeType, errors) {
+function visionPrompt(anzahl) {
+  if (anzahl <= 1) return VISION_PROMPT_BASIS;
+  return VISION_PROMPT_BASIS + `
+
+MEHRERE BILDER: Du erhältst ${anzahl} Bilder derselben Konstruktion (z.B. Gesamtansicht, Detailzeichnung, Stückliste, Foto). Werte ALLE Bilder gemeinsam aus und erstelle EINE zusammengeführte Schnittliste:
+- Jedes Bauteil nur EINMAL aufnehmen, auch wenn es auf mehreren Bildern vorkommt.
+- Maße, Winkel und Profile aus verschiedenen Bildern kombinieren (z.B. Länge aus der Gesamtansicht, Winkel aus dem Detail, Profil aus der Stückliste).
+- Widersprechen sich Bilder, bevorzuge die Stückliste und schreibe den Widerspruch in "bemerk".`;
+}
+
+async function callGeminiVision(bilder, errors) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   for (const model of GEMINI_MODELS) {
@@ -597,8 +607,8 @@ async function callGeminiVision(b64, mimeType, errors) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [
-              { text: VISION_PROMPT },
-              { inline_data: { mime_type: mimeType, data: b64 } }
+              { text: visionPrompt(bilder.length) },
+              ...bilder.map(b => ({ inline_data: { mime_type: b.mimeType, data: b.b64 } }))
             ]}],
             generationConfig: { temperature: 0.1 }
           })
@@ -615,7 +625,7 @@ async function callGeminiVision(b64, mimeType, errors) {
   return null;
 }
 
-async function callOpenRouterVision(b64, mimeType, errors) {
+async function callOpenRouterVision(bilder, errors) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
   for (const model of VISION_MODELS) {
@@ -633,8 +643,8 @@ async function callOpenRouterVision(b64, mimeType, errors) {
           messages: [{
             role: 'user',
             content: [
-              { type: 'text', text: VISION_PROMPT },
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+              { type: 'text', text: visionPrompt(bilder.length) },
+              ...bilder.map(b => ({ type: 'image_url', image_url: { url: `data:${b.mimeType};base64,${b.b64}` } }))
             ]
           }],
           temperature: 0.1
@@ -651,28 +661,27 @@ async function callOpenRouterVision(b64, mimeType, errors) {
   return null;
 }
 
-async function callVisionKI(b64, mimeType) {
+async function callVisionKI(bilder) {
   if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
     throw new Error('Weder GEMINI_API_KEY noch OPENROUTER_API_KEY konfiguriert.');
   }
   const errors = [];
-  const text = (await callGeminiVision(b64, mimeType, errors))
-            || (await callOpenRouterVision(b64, mimeType, errors));
+  const text = (await callGeminiVision(bilder, errors))
+            || (await callOpenRouterVision(bilder, errors));
   if (text) return text;
   throw new Error('Alle Vision-Modelle nicht verfügbar: ' + errors.join(' | ').slice(0, 600));
 }
 
 // POST /schnittliste/bild  – Bild analysieren → Positionen zurückgeben
-router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ fehler: 'Kein Bild hochgeladen.' });
+router.post('/bild', requireAdmin, bildUpload.array('bild', 4), async (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ fehler: 'Kein Bild hochgeladen.' });
   if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
     return res.status(500).json({ fehler: 'KI-Analyse nicht konfiguriert (GEMINI_API_KEY oder OPENROUTER_API_KEY fehlt).' });
   }
 
   try {
-    const b64      = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype;
-    const rawText  = await callVisionKI(b64, mimeType);
+    const bilder  = req.files.map(f => ({ b64: f.buffer.toString('base64'), mimeType: f.mimetype }));
+    const rawText = await callVisionKI(bilder);
 
     // JSON aus KI-Antwort extrahieren (auch wenn leichter Zusatztext dabei ist)
     const jsonMatch = rawText.match(/\[[\s\S]*\]/);
