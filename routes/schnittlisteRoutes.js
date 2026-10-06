@@ -238,7 +238,12 @@ function decodeXmlEntities(s) {
  * optimale Aufteilung auf Stangenlängen (First-Fit Decreasing).
  * Gibt pro Gruppe die Stangen + Verschnitt zurück.
  */
-function optimiere(positionen, stangenlaenge) {
+function parseSaege(body) {
+  const v = parseFloat(String((body && body.saege) ?? '3').replace(',', '.'));
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 20) : 3;
+}
+
+function optimiere(positionen, stangenlaenge, saege = 0) {
   // Alle Einzelstücke auffalten (Menge × Länge)
   const stuecke = [];
   for (const p of positionen) {
@@ -269,8 +274,10 @@ function optimiere(positionen, stangenlaenge) {
       // Erste Stange finden, die noch Platz hat
       let gefunden = false;
       for (const stange of stangen) {
-        if (!stange.uebermas && stange.rest >= teil.laenge) {
-          stange.rest  -= teil.laenge;
+        // Jeder weitere Schnitt auf derselben Stange kostet zusätzlich die Sägeblattbreite
+        const bedarf = teil.laenge + (stange.teile.length > 0 ? saege : 0);
+        if (!stange.uebermas && stange.rest >= bedarf) {
+          stange.rest  -= bedarf;
           stange.teile.push(teil);
           gefunden = true;
           break;
@@ -297,7 +304,40 @@ function optimiere(positionen, stangenlaenge) {
 //  PDF-GENERATOR
 // ══════════════════════════════════════════════════════════════
 
-function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName) {
+/**
+ * Winkeltext ("35° / 17,5°", "45°", "35° / 90° parallel") → Schnittgeometrie.
+ * dev = Abweichung vom geraden 90°-Schnitt (Gehrungswinkel); Werte >= 90 oder fehlend = gerade.
+ * parallel = beide Enden parallel geschnitten (Parallelogramm), sonst Trapez (Gehrung).
+ */
+function schnittInfo(winkel) {
+  const txt = String(winkel || '');
+  const zahlen = (txt.match(/\d+(?:[.,]\d+)?/g) || []).map(z => parseFloat(z.replace(',', '.')));
+  if (zahlen.length === 0) return null;
+  const dev = a => (a > 0 && a < 90 ? a : 0);
+  const d1 = dev(zahlen[0]);
+  const d2 = zahlen.length > 1 ? dev(zahlen[1]) : d1;
+  if (d1 === 0 && d2 === 0) return { d1: 0, d2: 0, parallel: false };
+  return { d1, d2, parallel: /parallel|par\b/i.test(txt) };
+}
+
+/** Zeichnet das Teil als Skizze mit den Schnittrichtungen der beiden Enden. */
+function zeichneSchnitt(doc, x, y, w, h, info) {
+  if (!info) {
+    doc.font('Helvetica').fontSize(9).fillColor('#9ca3af').text('–', x, y + 2, { width: w, lineBreak: false });
+    return;
+  }
+  const off = d => Math.min(w * 0.28, h * Math.tan(d * Math.PI / 180));
+  const o1 = off(info.d1), o2 = off(info.d2);
+  // Trapez (Gehrung): beide Schrägen laufen nach innen; Parallelogramm: gleiche Neigung an beiden Enden
+  const pts = info.parallel
+    ? [[x + o1, y], [x + w, y], [x + w - o2, y + h], [x, y + h]]
+    : [[x + o1, y], [x + w - o2, y], [x + w, y + h], [x, y + h]];
+  doc.save();
+  doc.polygon(...pts).lineWidth(0.9).fillAndStroke('#e5e7eb', '#374151');
+  doc.restore();
+}
+
+function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege = 0) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
 
@@ -323,7 +363,7 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   doc.font('Helvetica-Bold').fontSize(20).fillColor(BLAU).text('Schnittliste', M, y, { width: W, lineBreak: false });
   y += 26;
   doc.font('Helvetica').fontSize(9).fillColor(GRAU)
-    .text(`${firmaName || 'Metallbau'}  ·  Stangenlänge: ${fmt(stangenlaenge)} mm  ·  Erstellt: ${new Date().toLocaleDateString('de-DE')}`,
+    .text(`${firmaName || 'Metallbau'}  ·  Stangenlänge: ${fmt(stangenlaenge)} mm  ·  Sägeblatt: ${saege} mm  ·  Erstellt: ${new Date().toLocaleDateString('de-DE')}`,
       M, y, { width: W, lineBreak: false });
   y += 16;
   doc.moveTo(M, y).lineTo(M + W, y).lineWidth(1.2).strokeColor(BLAU).stroke();
@@ -334,12 +374,13 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   y += 20;
 
   const cols = [
-    { x: M,          w: 30,          t: 'Pos',       a: 'left'  },
-    { x: M + 32,     w: 40,          t: 'Menge',     a: 'right' },
-    { x: M + 84,     w: 150,         t: 'Profil',    a: 'left'  },
-    { x: M + 238,    w: 62,          t: 'Länge (mm)',a: 'right' },
-    { x: M + 306,    w: 66,          t: 'Winkel',    a: 'left'  },
-    { x: M + 376,    w: W - 376,     t: 'Bemerkung', a: 'left'  },
+    { x: M,          w: 28,          t: 'Pos',       a: 'left'  },
+    { x: M + 30,     w: 36,          t: 'Menge',     a: 'right' },
+    { x: M + 70,     w: 124,         t: 'Profil',    a: 'left'  },
+    { x: M + 196,    w: 54,          t: 'Länge (mm)',a: 'right' },
+    { x: M + 254,    w: 62,          t: 'Winkel',    a: 'left'  },
+    { x: M + 320,    w: 58,          t: 'Schnitt',   a: 'left'  },
+    { x: M + 382,    w: W - 382,     t: 'Bemerkung', a: 'left'  },
   ];
   const kopfZeile = () => {
     doc.rect(M, y, W, 18).fill('#f3f4f6');
@@ -351,17 +392,22 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
 
   positionen.forEach((p, i) => {
     doc.font('Helvetica').fontSize(9);
-    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.winkel || '–', p.bemerk || '–'];
-    const h = Math.max(...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
+    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.winkel || '–', '', p.bemerk || '–'];
+    const h = Math.max(24, ...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
     if (platz(h)) kopfZeile();
     doc.font('Helvetica').fontSize(9);
     if (i % 2 === 1) doc.rect(M, y, W, h).fill('#fafafa');
     doc.fillColor(SCHW);
-    werte.forEach((v, k) => doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }));
+    werte.forEach((v, k) => { if (k !== 5) doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }); });
+    zeichneSchnitt(doc, cols[5].x + 4, y + (h - 14) / 2, 48, 14, schnittInfo(p.winkel));
     y += h;
     doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.4).strokeColor(LINIE).stroke();
   });
 
+  y += 8;
+  doc.font('Helvetica').fontSize(7.5).fillColor(GRAU)
+    .text('Winkel = Abweichung vom geraden 90°-Schnitt.  Skizze: Draufsicht auf das Teil, links = Anfang, rechts = Ende (schematisch).',
+      M, y, { width: W });
   y += 24;
 
   // ── Optimierungsergebnis pro Profil ───────────────────────
@@ -399,8 +445,12 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
       stange.teile.forEach((t, ci) => {
         const tw = stange.uebermas ? barW : Math.max(1, (t.laenge / stangenlaenge) * barW);
         doc.rect(xCur, y, Math.min(tw, barX + barW - xCur), barH).fill(COLORS[ci % COLORS.length]);
-        doc.moveTo(xCur, y).lineTo(xCur, y + barH).lineWidth(0.6).strokeColor('#ffffff').stroke();
         xCur += tw;
+        if (!stange.uebermas && ci < stange.teile.length - 1) {
+          // Schnittfuge (Sägeblatt) als sichtbare Lücke zwischen den Teilen
+          doc.moveTo(xCur, y).lineTo(xCur, y + barH).lineWidth(0.6).strokeColor('#ffffff').stroke();
+          xCur += (saege / stangenlaenge) * barW;
+        }
       });
       doc.rect(barX, y, barW, barH).lineWidth(0.5).strokeColor('#9ca3af').stroke();
       y += barH + 5;
@@ -463,8 +513,9 @@ router.post('/upload', requireAdmin, upload.single('datei'), (req, res) => {
       return res.status(400).json({ fehler: 'Die Datei enthält keine auswertbaren Zeilen.' });
     }
 
-    const gruppen = optimiere(positionen, stangenlaenge);
-    res.json({ ok: true, positionen, gruppen, stangenlaenge });
+    const saege   = parseSaege(req.body);
+    const gruppen = optimiere(positionen, stangenlaenge, saege);
+    res.json({ ok: true, positionen, gruppen, stangenlaenge, saege });
   } catch (err) {
     res.status(400).json({ fehler: err.message });
   }
@@ -485,9 +536,10 @@ router.post('/pdf', requireAdmin, upload.single('datei'), (req, res) => {
       positionen = parseCsv(req.file.buffer);
     }
 
-    const gruppen  = optimiere(positionen, stangenlaenge);
+    const saege    = parseSaege(req.body);
+    const gruppen  = optimiere(positionen, stangenlaenge, saege);
     const dateiname = `Schnittliste_${new Date().toISOString().slice(0,10)}.pdf`;
-    erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName);
+    erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege);
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message);
   }
@@ -516,6 +568,7 @@ WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
 - Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
 - Wenn eine Stückliste im Bild steht, übernimm sie exakt.
 - WINKEL: Erfasse alle Schnitt- und Gehrungswinkel je Position im Feld "winkel" (z.B. "35° / 17,5°" = Winkel am Anfang / am Ende des Teils, oder "45°" bei einem Winkel). Quellen: Spalte "Schnitt"/"Winkel" der Stückliste, Winkelangaben (°) an Gehrungen, Detailansichten und Neigungen der Bauteile. Gerade Schnitte (90°) nur eintragen, wenn sie ausdrücklich angegeben sind; sonst leer lassen ("").
+- Sind beide Enden eines Teils parallel geschnitten (Parallelogramm, z.B. schräge Wange zwischen senkrechten Pfosten), hänge " parallel" an den Winkeltext an (z.B. "35° / 35° parallel").
 - Das Feld "winkel" MUSS in JEDEM Objekt vorhanden sein. Steht in der Stückliste eine Spalte "Schnitt" oder "Winkel", übernimm deren Wert für jede Position wörtlich (auch "90°/90°").
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Array, z.B.:
@@ -655,9 +708,10 @@ router.post('/bild', requireAdmin, bildUpload.single('bild'), async (req, res) =
     }
 
     const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10) || 6000;
-    const gruppen       = optimiere(positionen, stangenlaenge);
+    const saege         = parseSaege(req.body);
+    const gruppen       = optimiere(positionen, stangenlaenge, saege);
 
-    res.json({ ok: true, positionen, gruppen, stangenlaenge });
+    res.json({ ok: true, positionen, gruppen, stangenlaenge, saege });
   } catch (err) {
     console.error('Schnittliste Bild-KI Fehler:', err.message);
     res.status(500).json({ fehler: 'KI-Analyse fehlgeschlagen: ' + err.message });
