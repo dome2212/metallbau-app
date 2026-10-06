@@ -516,6 +516,7 @@ WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
 - Wenn "LÄNGE" oder "HÖHE" als Platzhalter steht: trage laenge:0 ein und schreibe den Platzhalter in "bemerk"
 - Wenn eine Stückliste im Bild steht, übernimm sie exakt.
 - WINKEL: Erfasse alle Schnitt- und Gehrungswinkel je Position im Feld "winkel" (z.B. "35° / 17,5°" = Winkel am Anfang / am Ende des Teils, oder "45°" bei einem Winkel). Quellen: Spalte "Schnitt"/"Winkel" der Stückliste, Winkelangaben (°) an Gehrungen, Detailansichten und Neigungen der Bauteile. Gerade Schnitte (90°) nur eintragen, wenn sie ausdrücklich angegeben sind; sonst leer lassen ("").
+- Das Feld "winkel" MUSS in JEDEM Objekt vorhanden sein. Steht in der Stückliste eine Spalte "Schnitt" oder "Winkel", übernimm deren Wert für jede Position wörtlich (auch "90°/90°").
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Array, z.B.:
 [
