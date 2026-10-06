@@ -91,7 +91,7 @@
           <p class="font-semibold">🤖 KI-Erkennung aus technischer Zeichnung</p>
           <p>Lade ein Foto oder einen Scan einer <strong>technischen Zeichnung</strong> hoch (Werkstattzeichnung, Stahlbauplan, Positionsplan). Die KI liest automatisch alle Bauteilpositionen, Profile, Längen und Mengen heraus.</p>
           <p class="text-xs text-amber-700 mt-1">Die KI wertet aus: Stücklisten-Tabellen · Bemaßungslinien · Profilbezeichnungen · Positionsnummern · Mengenangaben · Maßstäbe</p>
-          <p class="text-xs text-amber-600 mt-0.5">Unterstützt: JPG, PNG, WebP · max. 15 MB · benötigt OPENROUTER_API_KEY</p>
+          <p class="text-xs text-amber-600 mt-0.5">Unterstützt: JPG, PNG, WebP · max. 15 MB · bis zu 4 Bilder gleichzeitig (z.B. Gesamtansicht + Detail + Stückliste)</p>
         </div>
 
         <!-- Drag & Drop Zone -->
@@ -101,12 +101,13 @@
           onclick="document.getElementById('bild-input').click()">
           <div id="drop-inhalt">
             <p class="text-3xl mb-2">📷</p>
-            <p class="text-sm font-semibold text-slate-600">Bild hier ablegen oder klicken zum Auswählen</p>
-            <p class="text-xs text-slate-400 mt-1">JPG · PNG · WebP</p>
+            <p class="text-sm font-semibold text-slate-600">Bilder hier ablegen oder klicken zum Auswählen</p>
+            <p class="text-xs text-slate-400 mt-1">JPG · PNG · WebP · bis zu 4 Bilder</p>
           </div>
-          <img id="bild-vorschau" class="hidden mx-auto max-h-48 rounded-lg mt-2 shadow">
+          <div id="bild-vorschau-liste" class="hidden flex flex-wrap justify-center gap-3 mt-1"></div>
+          <p id="bild-mehr" class="hidden text-xs text-blue-600 font-semibold mt-3">＋ Weiteres Bild hinzufügen (klicken oder ablegen)</p>
         </div>
-        <input type="file" id="bild-input" accept="image/*" class="hidden" onchange="onBildGewaehlt(this)">
+        <input type="file" id="bild-input" accept="image/*" multiple class="hidden" onchange="onBildGewaehlt(this)">
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -205,7 +206,8 @@
 
 // ── Zustand ──────────────────────────────────────────────────
 let aktDatei        = null;  // CSV/XLSX
-let aktBild         = null;  // Bilddatei
+let aktBilder       = [];    // Bilddateien (max. 4)
+const MAX_BILDER    = 4;
 let aktPositionen   = [];
 let aktGruppen      = [];
 let aktStange       = 6000;
@@ -265,11 +267,8 @@ async function berechnen() {
 
 // ── Bild-Tab ─────────────────────────────────────────────────
 function onBildGewaehlt(inp) {
-  aktBild = inp.files[0] || null;
-  if (aktBild) zeigeVorschau(aktBild);
-  document.getElementById('btn-bild-analyse').disabled = !aktBild;
-  document.getElementById('btn-pdf-bild').disabled = true;
-  verstecke('ergebnis'); verstecke('fehler-box');
+  bilderHinzufuegen(Array.from(inp.files || []));
+  inp.value = '';
 }
 
 function onDragOver(e)  { e.preventDefault(); document.getElementById('drop-zone').classList.add('border-blue-400','bg-blue-50'); }
@@ -277,35 +276,85 @@ function onDragLeave(e) { document.getElementById('drop-zone').classList.remove(
 function onDrop(e) {
   e.preventDefault();
   onDragLeave(e);
-  const file = e.dataTransfer.files[0];
-  if (!file || !file.type.startsWith('image/')) { zeigeFehler('Nur Bilddateien (JPG, PNG, WebP) erlaubt.'); return; }
-  aktBild = file;
-  zeigeVorschau(file);
-  document.getElementById('btn-bild-analyse').disabled = false;
-  document.getElementById('btn-pdf-bild').disabled = true;
-  verstecke('ergebnis'); verstecke('fehler-box');
+  bilderHinzufuegen(Array.from(e.dataTransfer.files || []));
 }
 
-function zeigeVorschau(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('bild-vorschau');
-    img.src = e.target.result;
-    img.classList.remove('hidden');
-    document.getElementById('drop-inhalt').classList.add('hidden');
-  };
-  reader.readAsDataURL(file);
+function bilderHinzufuegen(files) {
+  const bilder = files.filter(f => f.type.startsWith('image/'));
+  if (bilder.length < files.length) zeigeFehler('Nur Bilddateien (JPG, PNG, WebP) erlaubt.'); else verstecke('fehler-box');
+  for (const f of bilder) {
+    if (aktBilder.length >= MAX_BILDER) { zeigeFehler(`Maximal ${MAX_BILDER} Bilder gleichzeitig.`); break; }
+    aktBilder.push(f);
+  }
+  rendereVorschau();
+  document.getElementById('btn-pdf-bild').disabled = true;
+  verstecke('ergebnis');
+}
+
+function bildEntfernen(i, ev) {
+  ev.stopPropagation();
+  aktBilder.splice(i, 1);
+  rendereVorschau();
+}
+
+function rendereVorschau() {
+  const liste = document.getElementById('bild-vorschau-liste');
+  document.getElementById('btn-bild-analyse').disabled = aktBilder.length === 0;
+  document.getElementById('drop-inhalt').classList.toggle('hidden', aktBilder.length > 0);
+  liste.classList.toggle('hidden', aktBilder.length === 0);
+  document.getElementById('bild-mehr').classList.toggle('hidden', aktBilder.length === 0 || aktBilder.length >= MAX_BILDER);
+  liste.innerHTML = '';
+  aktBilder.forEach((file, i) => {
+    const box = document.createElement('div');
+    box.className = 'relative';
+    const img = document.createElement('img');
+    img.className = 'max-h-40 max-w-[45vw] rounded-lg shadow border border-slate-200';
+    img.src = URL.createObjectURL(file);
+    img.onload = () => URL.revokeObjectURL(img.src);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.title = 'Bild entfernen';
+    x.className = 'absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs shadow';
+    x.onclick = ev => bildEntfernen(i, ev);
+    const nr = document.createElement('span');
+    nr.textContent = String(i + 1);
+    nr.className = 'absolute bottom-1 left-1 bg-slate-800/80 text-white text-xs rounded px-1.5';
+    box.append(img, x, nr);
+    liste.appendChild(box);
+  });
+}
+
+// Bild verkleinern (max. 2200 px lange Seite, JPEG) – hält die Anfrage klein und schnell
+function bildVerkleinern(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = 2200, f = Math.min(1, max / Math.max(img.width, img.height));
+      if (f >= 1 && file.size < 3 * 1024 * 1024) return resolve(file);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * f); c.height = Math.round(img.height * f);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => resolve(b ? new File([b], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file), 'image/jpeg', 0.88);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
 }
 
 async function bildAnalysieren() {
   verstecke('fehler-box'); verstecke('ergebnis');
   document.getElementById('btn-pdf-bild').disabled = true;
-  if (!aktBild) { zeigeFehler('Kein Bild ausgewählt.'); return; }
+  if (aktBilder.length === 0) { zeigeFehler('Kein Bild ausgewählt.'); return; }
   const sl = parseInt(document.getElementById('stangenlaenge-bild').value, 10) || 6000;
 
-  zeigeLoading('KI analysiert das Bild — das kann einige Sekunden dauern…');
+  zeigeLoading(aktBilder.length > 1 ? `KI analysiert ${aktBilder.length} Bilder — das kann einige Sekunden dauern…` : 'KI analysiert das Bild — das kann einige Sekunden dauern…');
   const fd = new FormData();
-  fd.append('bild', aktBild);
+  for (const f of aktBilder) fd.append('bild', await bildVerkleinern(f));
   fd.append('stangenlaenge', sl);
   fd.append('saege', leseSaege());
   try {
