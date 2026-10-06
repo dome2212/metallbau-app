@@ -49,7 +49,7 @@ router.post('/:id/generate-quote', async (req, res) => {
     const prompt = `Du bist ein professioneller Angebots-Generator für einen deutschen Metallbaubetrieb. Erstelle ein formelles Angebot (Deutsch) für das Projekt:\n\nFirma: ${project.company_name || '–'}\nProjekt: ${project.title}\n\nAufmaße:\n${measurementsList}\n\nNotizen:\n${notesList}\n\nGebe das Angebot als gut strukturierten Fließtext zurück.`;
 
     const aiResponse = await genaiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: [{ type: 'text', text: prompt }],
       temperature: 0.2,
       maxOutputTokens: 800

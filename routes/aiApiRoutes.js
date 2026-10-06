@@ -102,8 +102,8 @@ const GROQ_VISION_MODELS = [
 ];
 
 const GEMINI_VISION_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
 ];
 async function callGeminiVisionAI(systemPrompt, b64, mimeType) {
   const geminiKey = process.env.GEMINI_API_KEY;

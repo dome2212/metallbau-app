@@ -664,7 +664,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
   }
   // 2) Gemini als Fallback (mehrere Modelle)
   if (process.env.GEMINI_API_KEY) {
-    for (const gModel of ['gemini-2.5-flash-lite', 'gemini-2.5-flash']) {
+    for (const gModel of ['gemini-3.5-flash-lite', 'gemini-3.8-flash']) {
       try {
         const gr = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,

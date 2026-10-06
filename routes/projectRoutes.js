@@ -90,8 +90,8 @@ const GROQ_VISION_MODELS = [
 
 // Gemini-Fallback für Vision (mehrere Bilder, probiert mehrere Modelle durch)
 const GEMINI_VISION_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
 ];
 async function callGeminiVisionMulti(prompt, imageBuffers) {
   const geminiKey = process.env.GEMINI_API_KEY;

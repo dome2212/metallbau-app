@@ -492,7 +492,7 @@ router.post('/pdf', requireAdmin, upload.single('datei'), (req, res) => {
 //  VISION-KI-HILFSFUNKTION  (gleiche Infrastruktur wie server.js)
 // ══════════════════════════════════════════════════════════════
 
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
 const VISION_MODELS = [
   'google/gemma-4-26b-a4b-it:free',
   'google/gemma-4-31b-it:free',
