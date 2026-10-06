@@ -1,5 +1,19 @@
 const express = require('express');
 const router  = express.Router();
+const { hasPerm: _hasPerm } = require('../middleware/auth');
+const { getFirma: _getFirma } = require('../utils/companySettings');
+
+// Zugriff über Berechtigungs-Matrix (Bereich: chat)
+router.use(async (req, res, next) => {
+  try {
+    const firma = await _getFirma();
+    if (!_hasPerm(req.user, 'chat', firma, true, true)) {
+      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf den Team-Chat.</p><a href="/">← Zurück</a>');
+    }
+    next();
+  } catch (e) { next(e); }
+});
+
 const { dbQuery } = require('../utils/db');
 const { ensureChatTable } = require('../utils/chatSocket');
 

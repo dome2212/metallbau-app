@@ -2,7 +2,19 @@ const express  = require('express');
 const router   = express.Router();
 const multer   = require('multer');
 const PDFDocument = require('pdfkit');
-const { requireAdmin } = require('../middleware/auth');
+const { hasPerm } = require('../middleware/auth');
+const { getFirma } = require('../utils/companySettings');
+
+// Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
+async function requireSchnittliste(req, res, next) {
+  try {
+    const firma = await getFirma();
+    if (!hasPerm(req.user, 'schnittliste', firma, true, false)) {
+      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf die Schnittliste.</p><a href="/">← Zurück</a>');
+    }
+    next();
+  } catch (e) { next(e); }
+}
 
 // Datei nur im Arbeitsspeicher halten – kein Disk-Speicher nötig
 const upload = multer({
@@ -488,12 +500,12 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
 // ══════════════════════════════════════════════════════════════
 
 // GET  /schnittliste  – Formular-Seite
-router.get('/', requireAdmin, (req, res) => {
+router.get('/', requireSchnittliste, (req, res) => {
   res.render('schnittliste', { currentUser: req.user, fehler: null, ergebnis: null });
 });
 
 // POST /schnittliste  – Datei hochladen + Vorschau (JSON)
-router.post('/upload', requireAdmin, upload.single('datei'), (req, res) => {
+router.post('/upload', requireSchnittliste, upload.single('datei'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ fehler: 'Keine Datei hochgeladen.' });
 
@@ -522,7 +534,7 @@ router.post('/upload', requireAdmin, upload.single('datei'), (req, res) => {
 });
 
 // POST /schnittliste/pdf  – PDF herunterladen
-router.post('/pdf', requireAdmin, upload.single('datei'), (req, res) => {
+router.post('/pdf', requireSchnittliste, upload.single('datei'), (req, res) => {
   try {
     if (!req.file) return res.status(400).send('Keine Datei hochgeladen.');
 
@@ -673,7 +685,7 @@ async function callVisionKI(bilder) {
 }
 
 // POST /schnittliste/bild  – Bild analysieren → Positionen zurückgeben
-router.post('/bild', requireAdmin, bildUpload.array('bild', 4), async (req, res) => {
+router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (req, res) => {
   if (!req.files || req.files.length === 0) return res.status(400).json({ fehler: 'Kein Bild hochgeladen.' });
   if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
     return res.status(500).json({ fehler: 'KI-Analyse nicht konfiguriert (GEMINI_API_KEY oder OPENROUTER_API_KEY fehlt).' });

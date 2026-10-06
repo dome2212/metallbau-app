@@ -1,5 +1,19 @@
 const express = require('express');
 const router  = express.Router();
+const { hasPerm: _hasPerm } = require('../middleware/auth');
+const { getFirma: _getFirma } = require('../utils/companySettings');
+
+// Zugriff über Berechtigungs-Matrix (Bereich: tasks)
+router.use(async (req, res, next) => {
+  try {
+    const firma = await _getFirma();
+    if (!_hasPerm(req.user, 'tasks', firma, true, true)) {
+      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf Aufgaben.</p><a href="/">← Zurück</a>');
+    }
+    next();
+  } catch (e) { next(e); }
+});
+
 const { dbQuery }      = require('../utils/db');
 const { requireAdmin } = require('../middleware/auth');
 const { sendPush }     = require('../utils/webpush');
