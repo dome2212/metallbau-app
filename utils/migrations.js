@@ -783,6 +783,16 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 025 ── Uhrzeiten im Wochenplan (staff_assignments) ──────────────────────
+  {
+    id: 25,
+    description: 'staff_assignments.start_time / end_time für Baustellen-Uhrzeiten',
+    async up() {
+      try { await safeRaw(`ALTER TABLE staff_assignments ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} start_time TEXT`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE staff_assignments ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} end_time TEXT`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
