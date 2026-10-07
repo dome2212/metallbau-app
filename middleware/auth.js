@@ -63,6 +63,29 @@ function hasPerm(user, area, firma = {}, adminDef = true, employeeDef = false) {
   return firma[key] !== undefined ? firma[key] !== 'false' : employeeDef;
 }
 
+/**
+ * Einheitlicher Zugriffs-Guard über die Berechtigungs-Matrix (Admin-Panel → Zugriff).
+ * CHEF darf immer. ADMIN/EMPLOYEE: gespeicherter Matrix-Wert, sonst Standardwert.
+ *   router.use(requirePerm('lager', true, false));
+ *   router.get('/', requirePerm('reports'), handler);   // Standard: ADMIN ja, EMPLOYEE nein
+ */
+function requirePerm(area, adminDef = true, employeeDef = false, label = null) {
+  return async function (req, res, next) {
+    try {
+      const { getFirma } = require('../utils/companySettings'); // lazy: vermeidet Zirkelbezug
+      const firma = await getFirma();
+      if (hasPerm(req.user, area, firma, adminDef, employeeDef)) return next();
+      return res.status(403).send(
+        '<h1>403 – Zugriff verweigert</h1>' +
+        (label ? `<p>Kein Zugriff auf ${label}.</p>` : '') +
+        '<a href="/">← Zurück zum Dashboard</a>'
+      );
+    } catch (e) {
+      next(e);
+    }
+  };
+}
+
 function canSeeMoney(user, firma = {}) {
   if (!user) return false;
   if (user.role === 'CHEF') return true;
@@ -78,6 +101,7 @@ module.exports = {
   requireChef,
   canSeeMoney,
   hasPerm,
+  requirePerm,
   ROLES,
   ROLE_LABELS,
   JWT_SECRET,
