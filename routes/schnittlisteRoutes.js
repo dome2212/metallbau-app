@@ -379,37 +379,64 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
 
   // ── Positionstabelle ─────────────────────────────────────
   doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW).text('Positionen', M, y, { lineBreak: false });
-  y += 20;
+  y += 18;
 
+  // Feste Spaltenbreiten – Summe muss <= W sein (A4 bei M=45: ~505 pt)
+  // Pos | Menge | Profil | Länge | kg | Winkel | Schnitt | Bemerkung
+  const cW = [22, 38, 118, 50, 32, 68, 48];
+  let cx = M;
   const cols = [
-    { x: M,          w: 26,          t: 'Pos',       a: 'left'  },
-    { x: M + 28,     w: 32,          t: 'Menge',     a: 'right' },
-    { x: M + 62,     w: 110,         t: 'Profil',    a: 'left'  },
-    { x: M + 174,    w: 48,          t: 'Länge',     a: 'right' },
-    { x: M + 224,    w: 36,          t: '≈ kg',      a: 'right' },
-    { x: M + 262,    w: 56,          t: 'Winkel',    a: 'left'  },
-    { x: M + 320,    w: 52,          t: 'Schnitt',   a: 'left'  },
-    { x: M + 374,    w: W - 374,     t: 'Bemerkung', a: 'left'  },
+    { x: cx, w: cW[0], t: 'Pos',       a: 'left'  },
+    { x: (cx += cW[0]), w: cW[1], t: 'Menge',  a: 'right' },
+    { x: (cx += cW[1]), w: cW[2], t: 'Profil', a: 'left'  },
+    { x: (cx += cW[2]), w: cW[3], t: 'L (mm)', a: 'right' },
+    { x: (cx += cW[3]), w: cW[4], t: 'kg',     a: 'right' },
+    { x: (cx += cW[4]), w: cW[5], t: 'Winkel', a: 'left'  },
+    { x: (cx += cW[5]), w: cW[6], t: 'Schnitt',a: 'center'},
+    { x: (cx += cW[6]), w: M + W - cx, t: 'Bemerkung', a: 'left' },
   ];
   const kopfZeile = () => {
-    doc.rect(M, y, W, 18).fill('#f3f4f6');
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(GRAU);
-    for (const c of cols) doc.text(c.t, c.x + 3, y + 5, { width: c.w - 6, align: c.a, lineBreak: false });
-    y += 18;
+    doc.rect(M, y, W, 16).fill('#f3f4f6');
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(GRAU);
+    for (const c of cols) {
+      doc.text(c.t, c.x + 2, y + 4, { width: c.w - 4, align: c.a, lineBreak: false });
+    }
+    y += 16;
   };
   kopfZeile();
 
   positionen.forEach((p, i) => {
-    doc.font('Helvetica').fontSize(9);
-    const kgVal = (p.kg && p.kg > 0) ? String(p.kg).replace('.', ',') : '–';
-    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', kgVal, p.winkel || '–', '', p.bemerk || '–'];
-    const h = Math.max(24, ...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
+    doc.font('Helvetica').fontSize(8);
+    const kgVal = (p.kg && p.kg > 0) ? String(p.kg).replace('.', ',') : '-';
+    const werte = [
+      String(p.pos),
+      String(p.menge),
+      p.profil || '-',
+      p.laenge ? fmt(p.laenge) : '-',
+      kgVal,
+      p.winkel || '-',
+      '',
+      p.bemerk || '-'
+    ];
+    // Hoehe: Profil/Bemerkung duerfen umbrechen, Rest einzeilig
+    const hProfil = doc.heightOfString(werte[2], { width: cols[2].w - 4 });
+    const hBemerk = doc.heightOfString(werte[7], { width: cols[7].w - 4 });
+    const h = Math.max(20, hProfil, hBemerk, 14) + 6;
     if (platz(h)) kopfZeile();
-    doc.font('Helvetica').fontSize(9);
+    doc.font('Helvetica').fontSize(8);
     if (i % 2 === 1) doc.rect(M, y, W, h).fill('#fafafa');
     doc.fillColor(SCHW);
-    werte.forEach((v, k) => { if (k !== 6) doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }); });
-    zeichneSchnitt(doc, cols[6].x + 2, y + (h - 14) / 2, 44, 14, schnittInfo(p.winkel));
+    // Pos, Menge, Laenge, kg – einzeilig
+    [0, 1, 3, 4].forEach(k => {
+      doc.text(werte[k], cols[k].x + 2, y + 4, { width: cols[k].w - 4, align: cols[k].a, lineBreak: false });
+    });
+    // Profil + Bemerkung – duerfen umbrechen
+    doc.text(werte[2], cols[2].x + 2, y + 4, { width: cols[2].w - 4, align: 'left' });
+    doc.text(werte[7], cols[7].x + 2, y + 4, { width: cols[7].w - 4, align: 'left' });
+    // Winkel einzeilig
+    doc.text(werte[5], cols[5].x + 2, y + 4, { width: cols[5].w - 4, align: 'left', lineBreak: false });
+    // Schnitt-Skizze
+    zeichneSchnitt(doc, cols[6].x + 3, y + (h - 12) / 2, 40, 12, schnittInfo(p.winkel));
     y += h;
     doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.4).strokeColor(LINIE).stroke();
   });
@@ -418,13 +445,13 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   const gesamtKg = positionen.reduce((s, p) => s + (Number(p.kg) || 0) * (Number(p.menge) || 1), 0);
   if (gesamtKg > 0) {
     doc.font('Helvetica-Bold').fontSize(9).fillColor(SCHW)
-      .text(`Gesamtgewicht (ca.): ${fmt(Math.round(gesamtKg * 10) / 10)} kg`, M, y, { width: W });
+      .text('Gesamtgewicht (ca.): ' + fmt(Math.round(gesamtKg * 10) / 10) + ' kg', M, y, { width: W });
     y += 14;
   }
-  doc.font('Helvetica').fontSize(7.5).fillColor(GRAU)
-    .text('Winkel = Abweichung vom geraden 90°-Schnitt.  Skizze: Draufsicht auf das Teil, links = Anfang, rechts = Ende (schematisch).  ≈ kg = Schätzwert der KI (1 Stück).',
+  doc.font('Helvetica').fontSize(7).fillColor(GRAU)
+    .text('Winkel = Abweichung vom geraden 90-Grad-Schnitt.  Skizze: Draufsicht.  kg = Schaetzwert der KI pro Stueck.',
       M, y, { width: W });
-  y += 24;
+  y += 22;
 
   // ── Optimierungsergebnis pro Profil ───────────────────────
   platz(60);
