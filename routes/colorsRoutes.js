@@ -6,19 +6,10 @@
  */
 const express = require('express');
 const router  = express.Router();
-const { hasPerm: _hasPerm } = require('../middleware/auth');
-const { getFirma: _getFirma } = require('../utils/companySettings');
+const { requirePerm } = require('../middleware/auth');
 
 // Zugriff über Berechtigungs-Matrix (Bereich: farben)
-router.use(async (req, res, next) => {
-  try {
-    const firma = await _getFirma();
-    if (!_hasPerm(req.user, 'farben', firma, true, true)) {
-      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf die Farben-Bibliothek.</p><a href="/">← Zurück</a>');
-    }
-    next();
-  } catch (e) { next(e); }
-});
+router.use(requirePerm('farben', true, true, 'die Farben-Bibliothek'));
 
 const multer  = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');

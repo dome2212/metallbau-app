@@ -1,22 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
-const { hasPerm } = require('../middleware/auth');
-const { getFirma } = require('../utils/companySettings');
+const { requirePerm } = require('../middleware/auth');
 
 // Karte mit offenen Projekten
-router.get('/map', async (req, res) => {
+router.get('/map', requirePerm('map', true, false, 'die Baustellen-Karte'), async (req, res) => {
   try {
-    // Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
-    const firma = await getFirma();
-    if (!hasPerm(req.user, 'map', firma, true, false)) {
-      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf die Baustellen-Karte.</p><a href="/">← Zurück</a>');
-    }
     const projRes = await dbQuery(`
       SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
       FROM projects
       LEFT JOIN customers ON projects.customer_id = customers.id
-      WHERE projects.status != 'Abgeschlossen'
+      WHERE projects.status != 'Abgeschlossen' AND projects.deleted_at IS NULL
       ORDER BY projects.title ASC
     `);
     res.render('map', { projects: projRes.rows || [] });

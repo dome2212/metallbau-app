@@ -313,7 +313,7 @@ router.get('/:id', async (req, res) => {
       dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER' ORDER BY created_at DESC`, [id]),
       dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type IN ('INVOICE','CREDIT') ORDER BY created_at DESC`, [id]),
       dbQuery(`SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'DELIVERY' ORDER BY created_at DESC`, [id]).catch(() => ({ rows: [] })),
-      dbQuery(`SELECT * FROM projects WHERE customer_id = ? ORDER BY created_at DESC`, [id]),
+      dbQuery(`SELECT * FROM projects WHERE customer_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`, [id]),
       dbQuery(`SELECT * FROM customer_files WHERE customer_id = ? ORDER BY created_at DESC`, [id]).catch(() => ({ rows: [] })),
     ]);
 

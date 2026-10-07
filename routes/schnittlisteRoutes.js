@@ -2,19 +2,10 @@ const express  = require('express');
 const router   = express.Router();
 const multer   = require('multer');
 const PDFDocument = require('pdfkit');
-const { hasPerm } = require('../middleware/auth');
-const { getFirma } = require('../utils/companySettings');
+const { requirePerm } = require('../middleware/auth');
 
 // Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
-async function requireSchnittliste(req, res, next) {
-  try {
-    const firma = await getFirma();
-    if (!hasPerm(req.user, 'schnittliste', firma, true, false)) {
-      return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Kein Zugriff auf die Schnittliste.</p><a href="/">← Zurück</a>');
-    }
-    next();
-  } catch (e) { next(e); }
-}
+const requireSchnittliste = requirePerm('schnittliste', true, false, 'die Schnittliste');
 
 // Datei nur im Arbeitsspeicher halten – kein Disk-Speicher nötig
 const upload = multer({

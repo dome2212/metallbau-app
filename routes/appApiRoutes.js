@@ -16,8 +16,9 @@ router.get('/search', async (req, res) => {
       dbQuery(`
         SELECT p.id, p.title, p.status, p.description, c.company_name, c.contact_person
         FROM projects p LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE p.title ${likeOp} ? OR p.description ${likeOp} ?
-           OR c.company_name ${likeOp} ? OR c.contact_person ${likeOp} ?
+        WHERE p.deleted_at IS NULL
+          AND (p.title ${likeOp} ? OR p.description ${likeOp} ?
+           OR c.company_name ${likeOp} ? OR c.contact_person ${likeOp} ?)
         ORDER BY p.created_at DESC LIMIT 6`, [like, like, like, like]),
       dbQuery(`
         SELECT a.id, a.title, a.start_date, a.description, c.company_name, c.contact_person

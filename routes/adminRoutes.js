@@ -482,7 +482,7 @@ router.post('/add', requireAdmin, async (req, res) => {
     );
     const msg = `📌 Schwarzes Brett (${req.user.username}): ${message.trim()}`;
     for (const u of (usersRes.rows || [])) {
-      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
   } catch (err) {
     console.error('Fehler beim Speichern des Tickers:', err.message);
@@ -565,7 +565,7 @@ router.get('/backup/download', requireAdmin, async (req, res) => {
   try {
     const { path: filePath, name } = await createBackupFile();
     res.download(filePath, name, (err) => {
-      try { fs.unlinkSync(filePath); } catch (_) {}
+      try { fs.unlinkSync(filePath); } catch (e) { console.error('⚠️ GET /backup/download:', e.message); }
       if (err && !res.headersSent) {
         res.status(500).send('Download fehlgeschlagen: ' + (err.message || 'Unbekannt'));
       }
@@ -580,10 +580,10 @@ router.post('/backup/restore', requireAdmin, uploadBackup.single('backup'), asyn
   try {
     if (!req.file) return res.status(400).send('Keine Datei hochgeladen.');
     const result = await restoreBackupFile(req.file.path, req.file.originalname);
-    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    try { fs.unlinkSync(req.file.path); } catch (e) { console.error('⚠️ POST /backup/restore:', e.message); }
     res.redirect('/admin/panel?tab=info&msg=restore_ok');
   } catch (err) {
-    try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
+    try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) { console.error('⚠️ POST /backup/restore:', e.message); }
     res.status(500).send('Restore fehlgeschlagen: ' + err.message);
   }
 });

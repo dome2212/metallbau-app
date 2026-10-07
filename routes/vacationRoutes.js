@@ -112,14 +112,14 @@ router.post('/add', upload.single('document'), async (req, res) => {
     );
     const msg = `📅 Neuer ${type || 'Urlaub'}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
     for (const admin of (adminsRes.rows || [])) {
-      sendWhatsApp(admin.whatsapp_phone, msg, admin.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(admin.whatsapp_phone, msg, admin.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
 
     // Push-Benachrichtigung an alle Admins UND Chefs
     const adminIdsRes = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF')`);
     const pushMsg = `${req.user.username}: ${type || 'Urlaub'}, ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
     for (const admin of (adminIdsRes.rows || [])) {
-      sendPush({ title: `📅 Neuer ${type || 'Urlaub'}-Antrag`, body: pushMsg, url: '/vacations' }, admin.id).catch(() => {});
+      sendPush({ title: `📅 Neuer ${type || 'Urlaub'}-Antrag`, body: pushMsg, url: '/vacations' }, admin.id).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
 
     res.redirect('/vacations');
@@ -146,7 +146,7 @@ router.post('/status', requireAdmin, async (req, res) => {
     if (vac && vac.whatsapp_notify && vac.whatsapp_phone && vac.whatsapp_api_key) {
       const emoji = status === 'Genehmigt' ? '✅' : '❌';
       const msg   = `${emoji} Dein ${vac.type}-Antrag (${vac.start_date} bis ${vac.end_date}) wurde ${status}.`;
-      sendWhatsApp(vac.whatsapp_phone, msg, vac.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(vac.whatsapp_phone, msg, vac.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
     if (vac) {
       const emoji = status === 'Genehmigt' ? '✅' : '❌';

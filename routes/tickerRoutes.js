@@ -40,9 +40,9 @@ router.post('/add', async (req, res) => {
     );
     const text = `📌 Neue Pinnwand-Meldung von ${author}:\n\n${message}`;
     for (const u of users.rows) {
-      sendWhatsApp(u.whatsapp_phone, text, u.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(u.whatsapp_phone, text, u.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
-  } catch (_) {}
+  } catch (e) { console.error('⚠️ POST /add:', e.message); }
 
   // Push-Benachrichtigung an alle Mitarbeiter
   sendPush({

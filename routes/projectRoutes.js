@@ -3,13 +3,31 @@ const router    = express.Router();
 const multer    = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
-const { dbQuery }           = require('../utils/db');
+const { dbQuery, withTransaction } = require('../utils/db');
+const { logAudit, redirectWith }   = require('../utils/audit');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
 
 const isPg = !!process.env.DATABASE_URL;
+
+// Aufträge im Papierkorb sind nur noch über /projects/trash erreichbar
+router.param('id', async (req, res, next, id) => {
+  if (!/^\d+$/.test(String(id))) return next();
+  try {
+    const r = await dbQuery('SELECT deleted_at FROM projects WHERE id = ?', [id]);
+    if (r.rows[0] && r.rows[0].deleted_at) {
+      const isAdm = req.user && (req.user.role === 'ADMIN' || req.user.role === 'CHEF');
+      if (req.method === 'GET') {
+        return isAdm ? res.redirect('/projects/trash')
+                     : redirectWith(res, '/projects', 'error', 'Dieser Auftrag wurde gelöscht.');
+      }
+      return res.status(404).send('Dieser Auftrag liegt im Papierkorb.');
+    }
+    next();
+  } catch (e) { next(e); }
+});
 
 let PDFKit;
 try { PDFKit = require('pdfkit'); } catch (_) {}
@@ -258,11 +276,20 @@ router.get('/', async (req, res) => {
     const projRes = await dbQuery(`
       SELECT projects.*, customers.company_name, customers.contact_person, customers.street, customers.city
       FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.deleted_at IS NULL
       ORDER BY projects.created_at DESC
     `);
     const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
-    res.render('projects', { projects: projRes.rows || [], customers: custRes.rows || [] });
+    let trashCount = 0;
+    if (req.user.role === 'ADMIN' || req.user.role === 'CHEF') {
+      try {
+        const t = await dbQuery('SELECT COUNT(*) AS c FROM projects WHERE deleted_at IS NOT NULL');
+        trashCount = Number(t.rows[0] && t.rows[0].c) || 0;
+      } catch (e) { console.error('Papierkorb-Zähler:', e.message); }
+    }
+    res.render('projects', { projects: projRes.rows || [], customers: custRes.rows || [], trashCount });
   } catch (err) {
+    console.error('GET /projects Fehler:', err.message);
     res.status(500).send('Datenbankfehler');
   }
 });
@@ -286,7 +313,7 @@ router.post('/add', async (req, res) => {
     );
     const msg = `🏗️ Neuer Auftrag: "${title}"${description ? ' – ' + description : ''}`;
     for (const u of (usersRes.rows || [])) {
-      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
 
     // Push-Benachrichtigung an alle Mitarbeiter
@@ -348,6 +375,91 @@ router.post('/:id/edit', async (req, res) => {
     res.redirect(`/projects/${id}`);
   } catch (err) {
     res.status(500).send('Fehler beim Speichern der Änderungen');
+  }
+});
+
+// ==========================================
+// PROJEKT LÖSCHEN → PAPIERKORB (wiederherstellbar)
+// ==========================================
+function _isAdm(req) { return req.user && (req.user.role === 'ADMIN' || req.user.role === 'CHEF'); }
+
+router.post('/delete', async (req, res) => {
+  if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
+  const { id } = req.body;
+  try {
+    const cur = await dbQuery('SELECT id, title, status, deleted_at FROM projects WHERE id = ?', [id]);
+    const p = cur.rows[0];
+    if (!p) return redirectWith(res, '/projects', 'error', 'Auftrag nicht gefunden.');
+    if (!p.deleted_at) {
+      await dbQuery('UPDATE projects SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ? WHERE id = ?', [req.user.username, id]);
+      await logAudit(req, 'in Papierkorb verschoben', 'project', p.id, p.title, { status: p.status });
+    }
+    return redirectWith(res, '/projects', 'success', 'Auftrag in den Papierkorb verschoben.');
+  } catch (err) {
+    console.error('Fehler beim Löschen (Papierkorb):', err.message);
+    return redirectWith(res, '/projects', 'error', 'Auftrag konnte nicht gelöscht werden.');
+  }
+});
+
+router.get('/trash', async (req, res) => {
+  if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
+  try {
+    const trash = await dbQuery(`
+      SELECT projects.id, projects.title, projects.status, projects.deleted_at, projects.deleted_by,
+             customers.company_name, customers.contact_person
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.deleted_at IS NOT NULL
+      ORDER BY projects.deleted_at DESC
+    `);
+    const log = await dbQuery(`SELECT * FROM audit_log ORDER BY created_at DESC, id DESC LIMIT 100`);
+    res.render('projects-trash', { trash: trash.rows || [], log: log.rows || [] });
+  } catch (err) {
+    console.error('GET /projects/trash Fehler:', err.message);
+    res.status(500).send('Papierkorb konnte nicht geladen werden.');
+  }
+});
+
+router.post('/restore', async (req, res) => {
+  if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
+  const { id } = req.body;
+  try {
+    const cur = await dbQuery('SELECT id, title FROM projects WHERE id = ? AND deleted_at IS NOT NULL', [id]);
+    const p = cur.rows[0];
+    if (!p) return redirectWith(res, '/projects/trash', 'error', 'Auftrag nicht im Papierkorb gefunden.');
+    await dbQuery('UPDATE projects SET deleted_at = NULL, deleted_by = NULL WHERE id = ?', [id]);
+    await logAudit(req, 'wiederhergestellt', 'project', p.id, p.title);
+    return redirectWith(res, '/projects/trash', 'success', 'Auftrag wiederhergestellt.');
+  } catch (err) {
+    console.error('Fehler beim Wiederherstellen:', err.message);
+    return redirectWith(res, '/projects/trash', 'error', 'Wiederherstellen fehlgeschlagen.');
+  }
+});
+
+// Endgültig löschen – nur aus dem Papierkorb, alles in EINER Transaktion (ganz oder gar nicht)
+router.post('/delete-permanent', async (req, res) => {
+  if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
+  const { id } = req.body;
+  try {
+    const cur = await dbQuery('SELECT id, title FROM projects WHERE id = ? AND deleted_at IS NOT NULL', [id]);
+    const p = cur.rows[0];
+    if (!p) return redirectWith(res, '/projects/trash', 'error', 'Nur Aufträge im Papierkorb können endgültig gelöscht werden.');
+    await withTransaction(async (tx) => {
+      for (const t of ['project_tasks', 'project_notes', 'project_photos', 'project_measurements',
+                       'project_sketches', 'project_files', 'project_status_log', 'lager_entnahmen',
+                       'staff_assignments']) {
+        await tx.query(`DELETE FROM ${t} WHERE project_id = ?`, [id]);
+      }
+      // Stunden, Termine und Belege bleiben erhalten – nur die Verknüpfung wird gelöst
+      for (const t of ['time_logs', 'appointments', 'documents']) {
+        await tx.query(`UPDATE ${t} SET project_id = NULL WHERE project_id = ?`, [id]);
+      }
+      await tx.query('DELETE FROM projects WHERE id = ?', [id]);
+    });
+    await logAudit(req, 'endgültig gelöscht', 'project', p.id, p.title);
+    return redirectWith(res, '/projects/trash', 'success', 'Auftrag endgültig gelöscht.');
+  } catch (err) {
+    console.error('Fehler beim endgültigen Löschen (zurückgerollt):', err.message);
+    return redirectWith(res, '/projects/trash', 'error', 'Endgültiges Löschen fehlgeschlagen – es wurde nichts verändert.');
   }
 });
 
@@ -447,7 +559,7 @@ router.get('/:id', async (req, res) => {
         );
         linkedOffer = oRes.rows?.[0] || null;
       }
-    } catch (_) {}
+    } catch (e) { console.error('Verknüpftes Angebot nicht geladen:', e.message); }
     const offerNet = linkedOffer ? parseFloat(linkedOffer.subtotal || linkedOffer.total_amount || 0) : 0;
     const offerGross = linkedOffer ? parseFloat(linkedOffer.total_amount || 0) : 0;
     const plannedHours = project.planned_hours != null ? parseFloat(project.planned_hours) : null;
@@ -539,33 +651,6 @@ router.get('/:id', async (req, res) => {
 });
 
 // ==========================================
-// PROJEKT LÖSCHEN
-// ==========================================
-router.post('/delete', async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
-  const { id } = req.body;
-  try {
-    // Alle abhängigen Daten zuerst löschen
-    await dbQuery('DELETE FROM project_tasks        WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_notes        WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_photos       WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_measurements WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_sketches     WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_files        WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM project_status_log   WHERE project_id = ?', [id]);
-    await dbQuery('DELETE FROM lager_entnahmen      WHERE project_id = ?', [id]);
-    // Stunden, Termine und Belege bleiben erhalten – nur die Verknüpfung wird gelöst
-    for (const t of ['time_logs', 'appointments', 'documents']) {
-      try { await dbQuery(`UPDATE ${t} SET project_id = NULL WHERE project_id = ?`, [id]); } catch (_) {}
-    }
-    await dbQuery('DELETE FROM projects             WHERE id = ?',         [id]);
-    res.redirect('/projects');
-  } catch (err) {
-    res.status(500).send('Fehler beim Löschen');
-  }
-});
-
-// ==========================================
 // FOTOS HOCHLADEN / LÖSCHEN
 // ==========================================
 router.post('/:id/photos/upload', upload.single('photo'), async (req, res) => {
@@ -585,13 +670,19 @@ router.post('/photos/caption', async (req, res) => {
   const { photo_id, project_id, caption } = req.body;
   try {
     await dbQuery('UPDATE project_photos SET caption = ? WHERE id = ?', [(caption || '').trim() || null, photo_id]);
-  } catch (_) {}
+  } catch (err) {
+    console.error('Fehler (Fotobeschreibung):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Beschreibung konnte nicht gespeichert werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
 router.post('/photos/delete', async (req, res) => {
   const { photo_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_photos WHERE id = ?', [photo_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_photos WHERE id = ?', [photo_id]); } catch (err) {
+    console.error('Fehler (Foto löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Foto konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -613,7 +704,10 @@ router.post('/:id/measurements/add', async (req, res) => {
 
 router.post('/measurements/delete', async (req, res) => {
   const { measurement_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_measurements WHERE id = ?', [measurement_id]); } catch (err) {
+    console.error('Fehler (Aufmaß löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Aufmaß konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -644,7 +738,10 @@ router.post('/:id/sketches/add', async (req, res) => {
 
 router.post('/sketches/delete', async (req, res) => {
   const { sketch_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_sketches WHERE id = ?', [sketch_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_sketches WHERE id = ?', [sketch_id]); } catch (err) {
+    console.error('Fehler (Skizze löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Skizze konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -668,7 +765,12 @@ router.post('/:id/material/add', async (req, res) => {
       [lager_item_id, projectId, req.user.id, mengeNum, item.rows[0].einheit, (notiz || '').trim() || null, ep, gp]
     );
     await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [Math.max(0, neuerBestand), lager_item_id]);
-  } catch (err) { console.error('Fehler bei Materialentnahme:', err.message); }
+    await logAudit(req, 'Material entnommen', 'project', Number(projectId), null,
+      { lager_item_id, menge: mengeNum, einheit: item.rows[0].einheit });
+  } catch (err) {
+    console.error('Fehler bei Materialentnahme:', err.message);
+    return redirectWith(res, `/projects/${projectId}`, 'error', 'Materialentnahme konnte nicht gebucht werden.');
+  }
   res.redirect(`/projects/${projectId}`);
 });
 
@@ -687,8 +789,11 @@ router.post('/material/delete', async (req, res) => {
       await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [neu, e.lager_item_id]);
     }
     await dbQuery('DELETE FROM lager_entnahmen WHERE id = ?', [entnahme_id]);
+    await logAudit(req, 'Materialentnahme storniert', 'project', Number(project_id), null,
+      { lager_item_id: e.lager_item_id, menge: e.menge });
   } catch (err) {
     console.error('Fehler beim Stornieren der Materialentnahme:', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Materialentnahme konnte nicht storniert werden.');
   }
   res.redirect(`/projects/${project_id}`);
 });
@@ -731,7 +836,10 @@ router.post('/:id/notes/audio', audioUpload.single('audio'), async (req, res) =>
 
 router.post('/notes/delete', async (req, res) => {
   const { note_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_notes WHERE id = ?', [note_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_notes WHERE id = ?', [note_id]); } catch (err) {
+    console.error('Fehler (Notiz löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Notiz konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -753,13 +861,19 @@ router.post('/:id/tasks/add', upload.single('photo'), async (req, res) => {
 
 router.post('/tasks/status', async (req, res) => {
   const { task_id, project_id, status } = req.body;
-  try { await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status, task_id]); } catch (_) {}
+  try { await dbQuery('UPDATE project_tasks SET status = ? WHERE id = ?', [status, task_id]); } catch (err) {
+    console.error('Fehler (Aufgabenstatus):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Aufgabenstatus konnte nicht geändert werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
 router.post('/tasks/delete', async (req, res) => {
   const { task_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_tasks WHERE id = ?', [task_id]); } catch (err) {
+    console.error('Fehler (Aufgabe löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Aufgabe konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -780,7 +894,10 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
 
 router.post('/files/delete', async (req, res) => {
   const { file_id, project_id } = req.body;
-  try { await dbQuery('DELETE FROM project_files WHERE id = ?', [file_id]); } catch (_) {}
+  try { await dbQuery('DELETE FROM project_files WHERE id = ?', [file_id]); } catch (err) {
+    console.error('Fehler (Datei löschen):', err.message);
+    return redirectWith(res, `/projects/${project_id}`, 'error', 'Datei konnte nicht gelöscht werden.');
+  }
   res.redirect(`/projects/${project_id}`);
 });
 
@@ -1093,7 +1210,8 @@ router.post('/:id/create-invoice', requireAdmin, async (req, res) => {
       await dbQuery('INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
         [docId, item.description, item.quantity, item.unit, item.price]);
     }
-    await dbQuery("UPDATE projects SET status = 'Abgeschlossen' WHERE id = ?", [id]).catch(() => {});
+    await dbQuery("UPDATE projects SET status = 'Abgeschlossen' WHERE id = ?", [id])
+      .catch(e => console.error('Auftragsstatus nach Rechnungserstellung nicht gesetzt:', e.message));
     res.redirect('/documents/invoices/' + docId);
   } catch (err) {
     console.error('Fehler beim Erstellen der Rechnung aus Auftrag:', err.message);
@@ -1248,7 +1366,10 @@ router.post('/:id/acceptance/clear', async (req, res) => {
       `UPDATE projects SET acceptance_name = NULL, acceptance_signature = NULL, acceptance_at = NULL WHERE id = ?`,
       [projectId]
     );
-  } catch (_) {}
+  } catch (err) {
+    console.error('Fehler (Abnahme zurücksetzen):', err.message);
+    return redirectWith(res, `/projects/${projectId}`, 'error', 'Abnahme konnte nicht zurückgesetzt werden.');
+  }
   res.redirect(`/projects/${projectId}#sec-abnahme`);
 });
 

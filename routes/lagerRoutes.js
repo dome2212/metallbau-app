@@ -2,23 +2,13 @@ const express  = require('express');
 const { notifyIfLowStock } = require('../utils/lagerAlert');
 const router   = express.Router();
 
-// Zugriff: konfigurierbar (konfigurierbar über Zugriffsmatrix)
-router.use(async (req, res, next) => {
-  try {
-    const firma = await getFirma();
-    if (!hasPerm(req.user, 'lager', firma, true, false)) {
-      return res.status(403).send('<h1>403</h1><p>Kein Zugriff auf das Lager.</p><a href="/">Zurück</a>');
-    }
-    next();
-  } catch (e) {
-    next(e);
-  }
-});
+// Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
+router.use(requirePerm('lager', true, false, 'das Lager'));
 
 const multer   = require('multer');
 const { dbQuery } = require('../utils/db');
 const { getFirma } = require('../utils/companySettings');
-const { hasPerm } = require('../middleware/auth');
+const { requirePerm } = require('../middleware/auth');
 
 // Bild im Speicher halten (für KI-Vision-Analyse)
 const upload = multer({
@@ -218,7 +208,7 @@ router.get('/', async (req, res) => {
 
     // Projekte für Entnahme-Dropdown immer laden
     const pRes = await dbQuery(
-      `SELECT id, title FROM projects WHERE status != 'Abgeschlossen' ORDER BY title ASC`
+      `SELECT id, title FROM projects WHERE status != 'Abgeschlossen' AND deleted_at IS NULL ORDER BY title ASC`
     );
     projects = pRes.rows || [];
 
@@ -361,7 +351,7 @@ router.post('/entnahme', async (req, res) => {
     await dbQuery('UPDATE lager_items SET menge = ? WHERE id = ?', [neuerBestand, lager_item_id]);
 
     // Sofort-Warnung bei Unterschreitung Mindestbestand (Push/E-Mail/WhatsApp)
-    try { await notifyIfLowStock(item, neuerBestand); } catch (_) {}
+    try { await notifyIfLowStock(item, neuerBestand); } catch (e) { console.error('⚠️ POST /entnahme:', e.message); }
 
     res.redirect('/lager?tab=entnahmen');
   } catch (err) {

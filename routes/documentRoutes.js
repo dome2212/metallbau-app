@@ -455,8 +455,8 @@ router.post('/invoices/delete', requireAdmin, async (req, res) => {
   const { invoice_id } = req.body;
   try {
     const id = invoice_id;
-    try { await dbQuery(`DELETE FROM invoice_payments WHERE document_id = ?`, [id]); } catch (_) {}
-    try { await dbQuery(`DELETE FROM dunning_history WHERE document_id = ?`, [id]); } catch (_) {}
+    try { await dbQuery(`DELETE FROM invoice_payments WHERE document_id = ?`, [id]); } catch (e) { console.error('⚠️ POST /invoices/delete:', e.message); }
+    try { await dbQuery(`DELETE FROM dunning_history WHERE document_id = ?`, [id]); } catch (e) { console.error('⚠️ POST /invoices/delete:', e.message); }
     await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
     await dbQuery(`DELETE FROM documents WHERE id = ?`, [id]);
     res.redirect('/documents/invoices');
@@ -738,7 +738,7 @@ router.post('/invoices/:id/send-email', requireAdmin, async (req, res) => {
     try {
       await dbQuery(`UPDATE documents SET sent_at = ?, status = CASE WHEN status IN ('ENTWURF','Offen') THEN 'Gesendet' ELSE status END WHERE id = ?`,
         [new Date().toISOString(), id]);
-    } catch (_) {}
+    } catch (e) { console.error('⚠️ POST /invoices/:id/send-email:', e.message); }
     res.redirect(`/documents/invoices/${id}?sent=1`);
   } catch (err) {
     console.error('send-email:', err.message);
@@ -1505,11 +1505,11 @@ router.post('/admin/reset-documents', requireAdmin, async (req, res) => {
     if (confirm !== 'RESET') {
       return res.status(400).send('Zur Bestätigung muss confirm=RESET gesendet werden.');
     }
-    try { await dbQuery(`DELETE FROM invoice_payments`); } catch (_) {}
-    try { await dbQuery(`DELETE FROM dunning_history`); } catch (_) {}
-    try { await dbQuery(`DELETE FROM document_items`); } catch (_) {}
-    try { await dbQuery(`DELETE FROM offer_nachtrag_items`); } catch (_) {}
-    try { await dbQuery(`DELETE FROM offer_nachtraege`); } catch (_) {}
+    try { await dbQuery(`DELETE FROM invoice_payments`); } catch (e) { console.error('⚠️ POST /admin/reset-documents:', e.message); }
+    try { await dbQuery(`DELETE FROM dunning_history`); } catch (e) { console.error('⚠️ POST /admin/reset-documents:', e.message); }
+    try { await dbQuery(`DELETE FROM document_items`); } catch (e) { console.error('⚠️ POST /admin/reset-documents:', e.message); }
+    try { await dbQuery(`DELETE FROM offer_nachtrag_items`); } catch (e) { console.error('⚠️ POST /admin/reset-documents:', e.message); }
+    try { await dbQuery(`DELETE FROM offer_nachtraege`); } catch (e) { console.error('⚠️ POST /admin/reset-documents:', e.message); }
     await dbQuery(`DELETE FROM documents`);
     console.log('[Admin] Alle Belege gelöscht von', req.user && req.user.username);
     res.redirect('/documents/invoices?reset=ok');
@@ -2000,7 +2000,7 @@ router.post('/offers/:id/send-email', requireAdmin, async (req, res) => {
     if (!result.ok) {
       return res.redirect(back('mailerr=' + encodeURIComponent('E-Mail konnte nicht gesendet werden: ' + (result.error || 'unbekannt'))));
     }
-    try { await dbQuery(`UPDATE documents SET sent_at = ? WHERE id = ?`, [new Date().toISOString(), id]); } catch (_) {}
+    try { await dbQuery(`UPDATE documents SET sent_at = ? WHERE id = ?`, [new Date().toISOString(), id]); } catch (e) { console.error('⚠️ POST /offers/:id/send-email:', e.message); }
     res.redirect(back('sent=1'));
   } catch (err) {
     console.error('Angebot send-email:', err.message);

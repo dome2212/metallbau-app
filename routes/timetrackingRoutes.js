@@ -81,7 +81,7 @@ router.get('/', async (req, res) => {
              customers.id as customer_id, customers.company_name, customers.contact_person
       FROM projects
       LEFT JOIN customers ON projects.customer_id = customers.id
-      WHERE projects.status != 'Abgeschlossen'
+      WHERE projects.status != 'Abgeschlossen' AND projects.deleted_at IS NULL
       ORDER BY projects.title ASC
     `);
     const firma = await getFirma().catch(() => ({}));
@@ -146,7 +146,7 @@ router.post('/stamp', async (req, res) => {
         `INSERT INTO time_logs (user_id, type, note, latitude, longitude, timestamp) VALUES (?, 'OUT', ?, ?, ?, ${tsExpr})`,
         [userId, 'Baustelle gewechselt', latitude || null, longitude || null]
       );
-    } catch (_) {}
+    } catch (e) { console.error('⚠️ POST /stamp:', e.message); }
     type = 'IN';
   }
 
@@ -178,7 +178,7 @@ router.post('/stamp', async (req, res) => {
       if (!atFirm) {
         const siteRes = await dbQuery(`
           SELECT id, site_lat, site_lng, site_radius FROM projects
-          WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen'
+          WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen' AND deleted_at IS NULL
         `);
         for (const proj of (siteRes.rows || [])) {
           const d = getDistanceFromLatLonInMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
@@ -198,7 +198,7 @@ router.post('/stamp', async (req, res) => {
     try {
       const pRes = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [assignedProjectId]);
       assignedCustomerId = pRes.rows[0]?.customer_id || null;
-    } catch (_) {}
+    } catch (e) { console.error('⚠️ POST /stamp:', e.message); }
   }
 
   try {

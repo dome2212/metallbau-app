@@ -156,7 +156,7 @@ router.get('/dashboard', apiAuth, async (req, res) => {
       dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='OFFER' AND status!='ANGENOMMEN' AND status!='ABGELEHNT'`),
       dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount),0) as total FROM documents WHERE doc_type='INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
       dbQuery(`SELECT COUNT(*) as count FROM customers`),
-      dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen')`),
+      dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen') AND deleted_at IS NULL`),
       dbQuery(sqlOverdue),
       dbQuery(`SELECT COUNT(*) as count FROM project_tasks WHERE status='Offen'`),
       dbQuery(`SELECT d.id,d.doc_number,d.doc_type,d.total_amount,d.status,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id ORDER BY d.id DESC LIMIT 5`),
@@ -195,6 +195,7 @@ router.get('/projects', apiAuth, async (req, res) => {
     const result = await dbQuery(`
       SELECT projects.*, customers.company_name, customers.contact_person, customers.city
       FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.deleted_at IS NULL
       ORDER BY projects.created_at DESC
     `);
     res.json(result.rows || []);
@@ -210,7 +211,7 @@ router.get('/projects/:id', apiAuth, async (req, res) => {
       SELECT projects.*, customers.company_name, customers.contact_person,
              customers.phone, customers.email, customers.street, customers.zip, customers.city
       FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
-      WHERE projects.id = ?`, [req.params.id]);
+      WHERE projects.id = ? AND projects.deleted_at IS NULL`, [req.params.id]);
     const project  = projRes.rows[0];
     if (!project) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
 
@@ -353,7 +354,7 @@ router.get('/timetracking', apiAuth, async (req, res) => {
       if (end > start) totalMs += (end - start);
     }
 
-    const projRes = await dbQuery(`SELECT id,title,status,site_lat,site_lng,site_radius FROM projects WHERE status!='Abgeschlossen' ORDER BY title ASC`);
+    const projRes = await dbQuery(`SELECT id,title,status,site_lat,site_lng,site_radius FROM projects WHERE status!='Abgeschlossen' AND deleted_at IS NULL ORDER BY title ASC`);
 
     res.json({
       isStampedIn,
@@ -406,7 +407,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
       const distFirm    = dist(lat, lng, FIRM_LAT, FIRM_LNG);
       let   atSite      = distFirm <= FIRM_RADIUS;
       if (!atSite) {
-        const sites = (await dbQuery(`SELECT site_lat,site_lng,site_radius FROM projects WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status!='Abgeschlossen'`)).rows || [];
+        const sites = (await dbQuery(`SELECT site_lat,site_lng,site_radius FROM projects WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status!='Abgeschlossen' AND deleted_at IS NULL`)).rows || [];
         for (const s of sites) {
           if (dist(lat, lng, parseFloat(s.site_lat), parseFloat(s.site_lng)) <= (s.site_radius || 200)) {
             atSite = true; break;
@@ -522,10 +523,10 @@ router.post('/vacations', apiAuth, async (req, res) => {
       const wa = await dbQuery(
         `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
       );
-      for (const a of (wa.rows || [])) sendWhatsApp(a.whatsapp_phone, msg, a.whatsapp_api_key).catch(() => {});
+      for (const a of (wa.rows || [])) sendWhatsApp(a.whatsapp_phone, msg, a.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       const ids = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF')`);
       for (const a of (ids.rows || [])) {
-        sendPush({ title: `📅 Neuer ${t}-Antrag`, body: msg, url: '/vacations' }, a.id).catch(() => {});
+        sendPush({ title: `📅 Neuer ${t}-Antrag`, body: msg, url: '/vacations' }, a.id).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       }
     } catch (e) { console.error('Benachrichtigung Abwesenheitsantrag:', e.message); }
     res.status(201).json({ id: r.lastID, ok: true });

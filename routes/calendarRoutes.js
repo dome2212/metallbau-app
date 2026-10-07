@@ -134,7 +134,7 @@ router.get('/calendar', async (req, res) => {
       dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC'),
       dbQuery('SELECT id, username FROM users ORDER BY username ASC'),
       dbQuery('SELECT id, user_id, type, status, start_date, end_date FROM vacations ORDER BY start_date ASC'),
-      dbQuery(`SELECT id, title, customer_id FROM projects WHERE status NOT IN ('Abgeschlossen') ORDER BY title ASC`)
+      dbQuery(`SELECT id, title, customer_id FROM projects WHERE status NOT IN ('Abgeschlossen') AND deleted_at IS NULL ORDER BY title ASC`)
     ]);
     const calMonth = req.query.cal_month || new Date().toISOString().slice(0, 7);
     const cal = buildCalendar(calMonth, allVacRes.rows || [], usersRes.rows || []);
@@ -322,13 +322,13 @@ router.post('/api/appointments/add', requireAdmin, async (req, res) => {
       const dateStr = start_date ? new Date(start_date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : start_date;
       const msg = `📅 Neuer Termin: "${title}" am ${dateStr}${description ? ' – ' + description : ''}`;
       for (const u of (assignedRes.rows || [])) {
-        sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(() => {});
+        sendWhatsApp(u.whatsapp_phone, msg, u.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       }
 
       // Push-Benachrichtigung an die zugewiesenen Mitarbeiter
       const pushBody = `${title} am ${dateStr}${description ? ' – ' + description : ''}`;
       for (const uid of userIds) {
-        sendPush({ title: '📅 Neuer Termin', body: pushBody, url: '/calendar' }, parseInt(uid, 10)).catch(() => {});
+        sendPush({ title: '📅 Neuer Termin', body: pushBody, url: '/calendar' }, parseInt(uid, 10)).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       }
     }
 
@@ -402,8 +402,9 @@ router.get('/montageplan', async (req, res) => {
         LEFT JOIN users u ON sa.user_id = u.id
         LEFT JOIN projects p ON sa.project_id = p.id
         WHERE sa.assignment_date >= ? AND sa.assignment_date <= ?
+          AND p.deleted_at IS NULL
       `, [startStr, endStr]).catch(() => ({ rows: [] })),
-      dbQuery(`SELECT id, title, status FROM projects WHERE status IS NULL OR status NOT IN ('Abgeschlossen','Archiviert') ORDER BY title ASC`).catch(() => ({ rows: [] }))
+      dbQuery(`SELECT id, title, status FROM projects WHERE deleted_at IS NULL AND (status IS NULL OR status NOT IN ('Abgeschlossen','Archiviert')) ORDER BY title ASC`).catch(() => ({ rows: [] }))
     ]);
 
     const apps = appsRes.rows || [];

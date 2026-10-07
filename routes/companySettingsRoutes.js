@@ -102,7 +102,7 @@ router.post('/company-settings/sidebar-logo', requireAdmin, upload.single('sideb
       const parts = firma.sidebar_logo_url.split('/');
       const fname = parts[parts.length - 1].split('.')[0];
       const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(() => {});
+      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
     }
     // Neues hochladen
     const url = await new Promise((resolve, reject) => {
@@ -128,7 +128,7 @@ router.post('/company-settings/sidebar-logo-delete', requireAdmin, async (req, r
       const parts = firma.sidebar_logo_url.split('/');
       const fname = parts[parts.length - 1].split('.')[0];
       const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(() => {});
+      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
     }
     await setFirmaValue('sidebar_logo_url', '');
     res.redirect('/admin/company-settings?saved=1');
@@ -146,7 +146,7 @@ router.post('/company-settings/logo-delete', requireAdmin, async (req, res) => {
       const parts  = firma.logo_url.split('/');
       const fname  = parts[parts.length - 1].split('.')[0];
       const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(() => {});
+      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
     }
     await setFirmaValue('logo_url', '');
     res.redirect('/admin/company-settings?saved=1');
@@ -325,7 +325,7 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
 router.post('/panel/access', requireAdmin, async (req, res) => {
   try {
     const areas = ['projects','calendar','timetracking','vacations','tasks','chat','farben',
-                   'customers','documents','articles','map','lager','schnittliste',
+                   'customers','documents','articles','map','lager','schnittliste','reports',
                    'money','stamp_edit'];
     for (const key of areas) {
       for (const role of ['admin','employee']) {

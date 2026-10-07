@@ -152,11 +152,11 @@ router.get('/', async (req, res) => {
           `SELECT sa.*, p.title as project_title, p.id as pid, p.street, p.zip, p.city
            FROM staff_assignments sa
            LEFT JOIN projects p ON sa.project_id = p.id
-           WHERE sa.user_id = ? AND sa.assignment_date = ?`,
+           WHERE sa.user_id = ? AND sa.assignment_date = ? AND p.deleted_at IS NULL`,
           [userId, todayStr]
         );
         todaySite = sa.rows?.[0] || null;
-      } catch (_) {}
+      } catch (e) { console.error('⚠️ GET /:', e.message); }
 
       res.render('dashboard-employee', {
         stats,
@@ -190,7 +190,7 @@ router.get('/', async (req, res) => {
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'OFFER' AND status != 'ANGENOMMEN' AND status != 'ABGELEHNT'`),
         dbQuery(`SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total FROM documents WHERE doc_type = 'INVOICE' AND status NOT IN ('Bezahlt', 'ENTWURF')`),
         dbQuery(`SELECT COUNT(*) as count FROM customers`),
-        dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen')`),
+        dbQuery(`SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('Abgeschlossen') AND deleted_at IS NULL`),
         dbQuery(sqlOverdueInvoices),
         dbQuery(`SELECT COUNT(*) as count FROM project_tasks WHERE status = 'Offen'`),
         dbQuery(`SELECT documents.id, documents.doc_number, documents.doc_type, documents.total_amount, documents.status, customers.company_name, customers.contact_person
@@ -304,7 +304,7 @@ router.get('/heute', async (req, res) => {
       FROM staff_assignments sa
       LEFT JOIN projects  p ON sa.project_id  = p.id
       LEFT JOIN customers c ON p.customer_id  = c.id
-      WHERE sa.assignment_date = ? AND sa.user_id = ?
+      WHERE sa.assignment_date = ? AND sa.user_id = ? AND p.deleted_at IS NULL
       ORDER BY p.title ASC`;
     const assignRes = await dbQuery(assignSql, [todayStr, userId]);
     let sites = assignRes.rows || [];
@@ -318,7 +318,7 @@ router.get('/heute', async (req, res) => {
         LEFT JOIN projects  p ON sa.project_id  = p.id
         LEFT JOIN customers c ON p.customer_id  = c.id
         LEFT JOIN users     u ON sa.user_id     = u.id
-        WHERE sa.assignment_date = ?
+        WHERE sa.assignment_date = ? AND p.deleted_at IS NULL
         ORDER BY p.title ASC`;
       const allRes = await dbQuery(allSql, [todayStr]);
       sites = allRes.rows || [];
@@ -333,7 +333,7 @@ router.get('/heute', async (req, res) => {
       FROM appointments a
       JOIN projects  p ON a.project_id  = p.id
       LEFT JOIN customers c ON p.customer_id = c.id
-      WHERE a.project_id IS NOT NULL
+      WHERE a.project_id IS NOT NULL AND p.deleted_at IS NULL
         AND substr(a.start_date, 1, 10) = ?`;
     const apptRes = await dbQuery(apptSql, [todayStr]);
     let apptSites = apptRes.rows || [];
