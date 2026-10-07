@@ -773,6 +773,16 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 024 ── Schnittlisten einem Auftrag zuweisen ────────────────────────────
+  {
+    id: 24,
+    description: 'schnittlisten.project_id – Zuordnung zu Auftrag/Projekt',
+    async up() {
+      try { await safeRaw(`ALTER TABLE schnittlisten ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} project_id INT`); } catch (_) {}
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_schnittlisten_project ON schnittlisten (project_id)`); } catch (_) {}
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
