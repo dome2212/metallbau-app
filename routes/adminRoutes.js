@@ -510,19 +510,37 @@ router.get('/staffplan', requireAdmin, async (req, res) => {
 
 router.post('/staffplan/save', requireAdmin, async (req, res) => {
   try {
-    const { user_id, date, project_id, note } = req.body;
-    if (!user_id || !date) return res.status(400).send('Fehlende Daten');
-    const pid = project_id && project_id !== '' ? parseInt(project_id, 10) : null;
+    const { user_id, date, project_id, project_ids, note } = req.body;
+    if (!user_id || !date) return res.status(400).json({ ok: false, error: 'Fehlende Daten' });
 
-    // Upsert: löschen + neu anlegen
+    // Mehrere Baustellen: project_ids[] bevorzugt, sonst einzelnes project_id
+    let ids = [];
+    if (Array.isArray(project_ids)) {
+      ids = project_ids.map(x => parseInt(x, 10)).filter(n => Number.isFinite(n) && n > 0);
+    } else if (project_id && project_id !== '') {
+      const n = parseInt(project_id, 10);
+      if (Number.isFinite(n) && n > 0) ids = [n];
+    }
+    // Duplikate entfernen
+    ids = [...new Set(ids)];
+    const noteTxt = (note || '').trim() || null;
+
     await dbQuery(`DELETE FROM staff_assignments WHERE user_id = ? AND assignment_date = ?`, [user_id, date]);
-    if (pid !== null || (note && note.trim())) {
+
+    if (ids.length === 0 && noteTxt) {
       await dbQuery(
         `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
-        [user_id, pid, date, (note || '').trim() || null]
+        [user_id, null, date, noteTxt]
       );
+    } else {
+      for (let i = 0; i < ids.length; i++) {
+        await dbQuery(
+          `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
+          [user_id, ids[i], date, i === 0 ? noteTxt : null]
+        );
+      }
     }
-    res.json({ ok: true });
+    res.json({ ok: true, count: ids.length });
   } catch (err) {
     console.error('Fehler beim Speichern der Zuweisung:', err.message);
     res.status(500).json({ ok: false, error: err.message });

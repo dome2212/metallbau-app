@@ -402,7 +402,7 @@ router.get('/montageplan', async (req, res) => {
         LEFT JOIN users u ON sa.user_id = u.id
         LEFT JOIN projects p ON sa.project_id = p.id
         WHERE sa.assignment_date >= ? AND sa.assignment_date <= ?
-          AND p.deleted_at IS NULL
+          AND (p.id IS NULL OR p.deleted_at IS NULL)
       `, [startStr, endStr]).catch(() => ({ rows: [] })),
       dbQuery(`SELECT id, title, status FROM projects WHERE deleted_at IS NULL AND (status IS NULL OR status NOT IN ('Abgeschlossen','Archiviert')) ORDER BY title ASC`).catch(() => ({ rows: [] }))
     ]);
@@ -430,11 +430,12 @@ router.get('/montageplan', async (req, res) => {
       }
     }
 
-    // staff_assignments by user+date
-    const staffMap = {}; // userId -> { date -> assignment }
+    // staff_assignments by user+date → Array (mehrere Baustellen pro Tag möglich)
+    const staffMap = {}; // userId -> { date -> [assignment, ...] }
     for (const sa of staffRows) {
       if (!staffMap[sa.user_id]) staffMap[sa.user_id] = {};
-      staffMap[sa.user_id][sa.assignment_date] = sa;
+      if (!staffMap[sa.user_id][sa.assignment_date]) staffMap[sa.user_id][sa.assignment_date] = [];
+      staffMap[sa.user_id][sa.assignment_date].push(sa);
     }
 
     // vacation check helper
@@ -459,32 +460,66 @@ router.get('/montageplan', async (req, res) => {
       // personal summary for this day
       const personal = users.map(u => {
         const vac = isOnVacation(u.id, ds);
-        const staff = (staffMap[u.id] && staffMap[u.id][ds]) || null;
+        const staffList = (staffMap[u.id] && staffMap[u.id][ds]) || [];
         const onApps = dayApps.filter(a => (a.assignees || []).some(x => Number(x.id) === Number(u.id)));
+        const projectsAssigned = staffList
+          .filter(s => s.project_id)
+          .map(s => ({ id: s.project_id, title: s.project_title || ('#' + s.project_id) }));
+        // unique by id
+        const seen = new Set();
+        const uniqueProjects = projectsAssigned.filter(p => {
+          if (seen.has(Number(p.id))) return false;
+          seen.add(Number(p.id));
+          return true;
+        });
+        const note = (staffList.find(s => s.note) || {}).note || '';
         let status = 'frei';
         let label = 'Frei / Werkstatt';
         if (vac) {
           status = vac.type === 'Krank' ? 'krank' : 'urlaub';
           label = vac.type || 'Abwesend';
+        } else if (uniqueProjects.length) {
+          status = 'baustelle';
+          label = uniqueProjects.map(p => p.title).join(' · ');
         } else if (onApps.length) {
           status = 'termin';
           label = onApps.map(a => a.title || a.project_name || 'Termin').join(', ');
-        } else if (staff && staff.project_id) {
-          status = 'baustelle';
-          label = staff.project_title || staff.note || 'Baustelle';
-        } else if (staff && staff.note) {
+        } else if (note) {
           status = 'notiz';
-          label = staff.note;
+          label = note;
         }
-        return { user: u, status, label, vac, staff, onApps };
+        return {
+          user: u,
+          status,
+          label,
+          vac,
+          staffList,
+          projects: uniqueProjects,
+          note,
+          onApps
+        };
       });
+
+      // Baustellen-Übersicht des Tages: Projekt → Mitarbeiter
+      const siteMap = {};
+      for (const p of personal) {
+        if (p.status !== 'baustelle') continue;
+        for (const proj of (p.projects || [])) {
+          const key = String(proj.id);
+          if (!siteMap[key]) siteMap[key] = { id: proj.id, title: proj.title, people: [] };
+          siteMap[key].people.push(p.user.username);
+        }
+      }
+      const sites = Object.values(siteMap);
 
       days.push({
         date: ds,
         label: d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' }),
+        shortLabel: d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }),
         isToday: ds === fmt(new Date()),
         apps: dayApps,
-        personal
+        personal,
+        sites
       });
     }
 
@@ -495,13 +530,13 @@ router.get('/montageplan', async (req, res) => {
     const matrix = users.map(u => {
       const cells = days.map(day => {
         const p = day.personal.find(x => Number(x.user.id) === Number(u.id));
-        if (!p) return { status: 'frei', label: '—', projectId: '', note: '', vac: null };
-        const staff = p.staff || null;
+        if (!p) return { status: 'frei', label: '—', labels: [], projectIds: [], note: '', vac: null };
         return {
           status: p.status,
           label: p.label,
-          projectId: staff && staff.project_id ? String(staff.project_id) : '',
-          note: (staff && staff.note) || '',
+          labels: (p.projects || []).map(x => x.title),
+          projectIds: (p.projects || []).map(x => String(x.id)),
+          note: p.note || '',
           vac: p.vac || null,
         };
       });
