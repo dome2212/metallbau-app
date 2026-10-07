@@ -554,6 +554,10 @@ router.post('/delete', async (req, res) => {
     await dbQuery('DELETE FROM project_files        WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM project_status_log   WHERE project_id = ?', [id]);
     await dbQuery('DELETE FROM lager_entnahmen      WHERE project_id = ?', [id]);
+    // Stunden, Termine und Belege bleiben erhalten – nur die Verknüpfung wird gelöst
+    for (const t of ['time_logs', 'appointments', 'documents']) {
+      try { await dbQuery(`UPDATE ${t} SET project_id = NULL WHERE project_id = ?`, [id]); } catch (_) {}
+    }
     await dbQuery('DELETE FROM projects             WHERE id = ?',         [id]);
     res.redirect('/projects');
   } catch (err) {
