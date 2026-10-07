@@ -781,14 +781,30 @@ router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (re
 // GET /schnittliste/api/projects  – offene Aufträge für Dropdown
 router.get('/api/projects', requireSchnittliste, async (req, res) => {
   try {
-    const r = await dbQuery(
-      `SELECT id, title, status FROM projects
-       WHERE (deleted_at IS NULL OR deleted_at = '')
-         AND (status IS NULL OR status != 'Abgeschlossen')
-       ORDER BY title ASC
-       LIMIT 500`
-    );
-    res.json({ ok: true, projects: r.rows || [] });
+    let rows = [];
+    // Gleicher Filter wie Lager/Projektliste (deleted_at IS NULL)
+    try {
+      const r = await dbQuery(
+        `SELECT id, title, status FROM projects
+         WHERE deleted_at IS NULL
+           AND (status IS NULL OR TRIM(COALESCE(status, '')) = '' OR status != 'Abgeschlossen')
+         ORDER BY title ASC
+         LIMIT 500`
+      );
+      rows = r.rows || [];
+    } catch (e1) {
+      console.warn('Schnittliste projects Filter:', e1.message);
+      try {
+        const r2 = await dbQuery(
+          `SELECT id, title, status FROM projects ORDER BY title ASC LIMIT 500`
+        );
+        rows = r2.rows || [];
+      } catch (e2) {
+        console.error('Schnittliste projects Fallback:', e2.message);
+        return res.status(500).json({ fehler: 'Aufträge konnten nicht geladen werden: ' + e2.message });
+      }
+    }
+    res.json({ ok: true, projects: rows });
   } catch (err) {
     console.error('Schnittliste projects:', err.message);
     res.status(500).json({ fehler: 'Aufträge konnten nicht geladen werden: ' + err.message });
@@ -799,20 +815,31 @@ router.get('/api/projects', requireSchnittliste, async (req, res) => {
 router.get('/api/list', requireSchnittliste, async (req, res) => {
   try {
     const filterPid = parseInt(req.query.project_id, 10) || 0;
-    let sql = `
-      SELECT s.id, s.name, s.stangenlaenge, s.saege, s.quelle, s.project_id,
-             s.created_by_name, s.created_at, s.updated_at, s.positionen_json,
-             p.title AS project_title
-      FROM schnittlisten s
-      LEFT JOIN projects p ON p.id = s.project_id
-    `;
-    const params = [];
-    if (filterPid > 0) {
-      sql += ' WHERE s.project_id = ?';
-      params.push(filterPid);
+    let r;
+    try {
+      let sql = `
+        SELECT s.id, s.name, s.stangenlaenge, s.saege, s.quelle, s.project_id,
+               s.created_by_name, s.created_at, s.updated_at, s.positionen_json,
+               p.title AS project_title
+        FROM schnittlisten s
+        LEFT JOIN projects p ON p.id = s.project_id
+      `;
+      const params = [];
+      if (filterPid > 0) {
+        sql += ' WHERE s.project_id = ?';
+        params.push(filterPid);
+      }
+      sql += ' ORDER BY s.updated_at DESC, s.id DESC LIMIT 100';
+      r = await dbQuery(sql, params);
+    } catch (joinErr) {
+      // Fallback ohne project_id / JOIN (falls Migration noch nicht gelaufen)
+      console.warn('Schnittliste list JOIN:', joinErr.message);
+      r = await dbQuery(
+        `SELECT id, name, stangenlaenge, saege, quelle, created_by_name, created_at, updated_at, positionen_json
+         FROM schnittlisten ORDER BY updated_at DESC, id DESC LIMIT 100`
+      );
+      (r.rows || []).forEach(row => { row.project_id = null; row.project_title = null; });
     }
-    sql += ' ORDER BY s.updated_at DESC, s.id DESC LIMIT 100';
-    const r = await dbQuery(sql, params);
     const listen = (r.rows || []).map(row => {
       let anzahl = 0;
       try {
