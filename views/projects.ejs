@@ -182,7 +182,7 @@
                     <a href="/projects/<%= p.id %>" class="btn btn-ghost py-1.5 px-3 text-xs">Öffnen</a>
                     <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <form action="/projects/delete" method="POST" class="inline"
-                        onsubmit="return confirm('Auftrag wirklich löschen?');">
+                        onsubmit="return confirm('Auftrag wirklich löschen? Das kann nicht rückgängig gemacht werden.');">
                         <input type="hidden" name="id" value="<%= p.id %>">
                         <button type="submit" class="btn py-1.5 px-3 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
                       </form>
@@ -237,6 +237,11 @@
             <a href="/projects/<%= p.id %>" class="btn btn-primary text-xs">Öffnen</a>
             <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
               <a href="/projects/<%= p.id %>" class="btn btn-ghost text-xs">Status</a>
+              <form action="/projects/delete" method="POST" class="inline"
+                onsubmit="return confirm('Auftrag wirklich löschen? Das kann nicht rückgängig gemacht werden.');">
+                <input type="hidden" name="id" value="<%= p.id %>">
+                <button type="submit" class="btn text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
+              </form>
             <% } %>
           </div>
         </div>
@@ -337,7 +342,7 @@
       const isArchived  = row.dataset.status === 'Abgeschlossen';
       const matchText   = !q      || row.dataset.title.includes(q) || row.dataset.customer.includes(q);
       const matchStatus = !status || row.dataset.status === status;
-      const matchArchive = showArchived ? true : !isArchived;
+      const matchArchive = (showArchived || status === 'Abgeschlossen') ? true : !isArchived;
       const show        = matchText && matchStatus && matchArchive;
       row.classList.toggle('hidden', !show);
       if (show) visible++;
@@ -348,7 +353,7 @@
       const isArchived  = card.dataset.status === 'Abgeschlossen';
       const matchText   = !q      || card.dataset.title.includes(q) || card.dataset.customer.includes(q);
       const matchStatus = !status || card.dataset.status === status;
-      const matchArchive = showArchived ? true : !isArchived;
+      const matchArchive = (showArchived || status === 'Abgeschlossen') ? true : !isArchived;
       const show        = matchText && matchStatus && matchArchive;
       card.classList.toggle('hidden', !show);
       if (show) visibleM++;
