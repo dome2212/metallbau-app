@@ -85,6 +85,7 @@ function parseCsv(buffer) {
   const iLaenge = idx(['laenge', 'länge', 'length', 'mm', 'l(mm)', 'lmm']);
   const iBemerk = idx(['bemerk', 'hinweis', 'note', 'komment', 'info']);
   const iWinkel = idx(['winkel', 'gehrung', 'angle', 'schnitt']);
+  const iKg     = idx(['kg', 'gewicht', 'weight']);
 
   if (iMenge === -1 || iProfil === -1 || iLaenge === -1) {
     throw new Error(
@@ -101,15 +102,19 @@ function parseCsv(buffer) {
 
     const laenge = parseFloat((cols[iLaenge] || '').replace(',', '.')) || 0;
     const menge  = parseInt(cols[iMenge] || '1', 10) || 1;
-    if (laenge <= 0) continue; // leere/ungültige Zeile überspringen
+    const profil = (cols[iProfil] || '').trim();
+    // Zeilen ohne Profil überspringen; Länge 0 ist erlaubt (KI / manuell nachtragen)
+    if (!profil) continue;
 
+    const kgRaw = iKg !== -1 ? parseFloat((cols[iKg] || '').replace(',', '.')) : 0;
     rows.push({
       pos:     iPos !== -1 ? (cols[iPos] || String(i)) : String(i),
       menge,
-      profil:  (cols[iProfil] || '–').trim(),
+      profil,
       laenge,
       bemerk:  iBemerk !== -1 ? (cols[iBemerk] || '') : '',
       winkel:  iWinkel !== -1 ? (cols[iWinkel] || '').trim() : '',
+      kg:      Math.max(0, Math.round((kgRaw || 0) * 10) / 10),
     });
   }
   return rows;
