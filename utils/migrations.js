@@ -752,6 +752,27 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 023 ── Gespeicherte Schnittlisten ──────────────────────────────────────
+  {
+    id: 23,
+    description: 'schnittlisten – gespeicherte Schnittlisten (Positionen + Einstellungen)',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS schnittlisten (
+        id              ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        name            TEXT NOT NULL,
+        stangenlaenge   INT NOT NULL DEFAULT 6000,
+        saege           INT NOT NULL DEFAULT 3,
+        positionen_json TEXT NOT NULL,
+        quelle          TEXT DEFAULT 'datei',
+        created_by      INT,
+        created_by_name TEXT,
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_schnittlisten_created ON schnittlisten (created_at)`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
