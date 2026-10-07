@@ -22,7 +22,8 @@
 const { WebSocketServer } = require('ws');
 const jwt = require('jsonwebtoken');
 const { dbQuery } = require('./db');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, hasPerm } = require('../middleware/auth');
+const { getFirma } = require('./companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -66,6 +67,23 @@ function parseCookies(header) {
     out[key] = val;
   });
   return out;
+}
+
+/**
+ * Rechte-Prüfung gegen die Berechtigungs-Matrix (bei jeder Aktion, nicht nur beim Verbinden –
+ * so wirken Änderungen im Admin-Panel sofort, auch bei offenen Verbindungen):
+ *   Kanal 'team'        → Bereich 'chat'
+ *   Kanal 'project:<id>' → Bereich 'projects' (der Chat ist Teil der Auftragsseite)
+ */
+async function canUseChannel(user, channel) {
+  try {
+    const firma = await getFirma();
+    const area = channel === 'team' ? 'chat' : 'projects';
+    return hasPerm(user, area, firma, true, true);
+  } catch (e) {
+    console.error('💬 Rechteprüfung fehlgeschlagen:', e.message);
+    return false;
+  }
 }
 
 function isValidChannel(ch) {
@@ -144,6 +162,11 @@ function initChatServer(server) {
           return;
         }
 
+        if (!(await canUseChannel(user, data.channel))) {
+          ws.send(JSON.stringify({ type: 'error', error: 'Kein Zugriff auf diesen Chat' }));
+          return;
+        }
+
         // Bei Auftrags-Chats sicherstellen, dass der Auftrag wirklich existiert
         // (verhindert Beitritt zu erfundenen/gelöschten project:<id>-Kanälen).
         // Auftrags-Details sind in dieser App für alle eingeloggten Nutzer
@@ -151,7 +174,7 @@ function initChatServer(server) {
         if (data.channel.startsWith('project:')) {
           const projectId = data.channel.split(':')[1];
           try {
-            const projRes = await dbQuery('SELECT id FROM projects WHERE id = ?', [projectId]);
+            const projRes = await dbQuery('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL', [projectId]);
             if (!projRes.rows || projRes.rows.length === 0) {
               ws.send(JSON.stringify({ type: 'error', error: 'Auftrag nicht gefunden' }));
               return;
@@ -182,6 +205,15 @@ function initChatServer(server) {
 
       if (data.type === 'send') {
         if (!isValidChannel(data.channel)) return;
+        // Nur in dem Kanal schreiben, dem man beigetreten ist
+        if (entry.channel !== data.channel) {
+          ws.send(JSON.stringify({ type: 'error', error: 'Bitte zuerst dem Chat beitreten' }));
+          return;
+        }
+        if (!(await canUseChannel(user, data.channel))) {
+          ws.send(JSON.stringify({ type: 'error', error: 'Kein Zugriff auf diesen Chat' }));
+          return;
+        }
         const text = String(data.text || '').trim().slice(0, 2000);
         if (!text) return;
 
@@ -211,6 +243,10 @@ function initChatServer(server) {
         if (!isValidChannel(data.channel)) return;
         const messageId = Number(data.messageId);
         if (!messageId) return;
+        if (entry.channel !== data.channel || !(await canUseChannel(user, data.channel))) {
+          ws.send(JSON.stringify({ type: 'error', error: 'Kein Zugriff auf diesen Chat' }));
+          return;
+        }
 
         try {
           await ensureChatTable();
