@@ -10,10 +10,17 @@
         <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Aufträge</h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Laufend & abgeschlossen</p>
       </div>
-      <button id="archive-toggle-btn" onclick="toggleArchive()"
-        class="btn btn-ghost text-xs px-3 py-2">
-        📁 Archivierte anzeigen
-      </button>
+      <div class="flex items-center gap-2">
+        <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+          <a href="/projects/trash" class="btn btn-ghost text-xs px-3 py-2">
+            🗑️ Papierkorb<% if (typeof trashCount !== 'undefined' && trashCount > 0) { %> (<%= trashCount %>)<% } %>
+          </a>
+        <% } %>
+        <button id="archive-toggle-btn" onclick="toggleArchive()"
+          class="btn btn-ghost text-xs px-3 py-2">
+          📁 Archivierte anzeigen
+        </button>
+      </div>
     </div>
 
     <!-- Neuen Auftrag anlegen -->
@@ -182,7 +189,7 @@
                     <a href="/projects/<%= p.id %>" class="btn btn-ghost py-1.5 px-3 text-xs">Öffnen</a>
                     <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
                       <form action="/projects/delete" method="POST" class="inline"
-                        onsubmit="return confirm('Auftrag wirklich löschen? Das kann nicht rückgängig gemacht werden.');">
+                        onsubmit="return confirm('Auftrag in den Papierkorb verschieben? Du kannst ihn dort wiederherstellen.');">
                         <input type="hidden" name="id" value="<%= p.id %>">
                         <button type="submit" class="btn py-1.5 px-3 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
                       </form>
@@ -221,6 +228,13 @@
         <div class="mb-swipe-wrap">
           <div class="mb-swipe-actions">
             <a href="/projects/<%= p.id %>" class="sw-edit">→<span>Öffnen</span></a>
+            <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+              <form action="/projects/delete" method="POST" style="display:contents"
+                onsubmit="return confirm('Auftrag in den Papierkorb verschieben? Du kannst ihn dort wiederherstellen.');">
+                <input type="hidden" name="id" value="<%= p.id %>">
+                <button type="submit" class="sw-del">🗑<span>Löschen</span></button>
+              </form>
+            <% } %>
           </div>
           <div class="mb-swipe-panel m-card proj-card"
              data-title="<%= (p.title || '').toLowerCase() %>"
@@ -236,9 +250,14 @@
           <div class="m-card-actions">
             <a href="/projects/<%= p.id %>" class="btn btn-primary text-xs">Öffnen</a>
             <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
-              <a href="/projects/<%= p.id %>" class="btn btn-ghost text-xs">Status</a>
+              <select data-project-id="<%= p.id %>" onchange="quickStatus(this)" aria-label="Status ändern"
+                class="input text-xs py-1.5 px-2 w-auto max-w-[9.5rem]">
+                <% ['In Planung','Avor / Vorbereitung','In Produktion','Oberfläche','Montagebereit','Montage läuft','Abgeschlossen'].forEach(st => { %>
+                  <option value="<%= st %>" <%= p.status === st ? 'selected' : '' %>><%= st %></option>
+                <% }) %>
+              </select>
               <form action="/projects/delete" method="POST" class="inline"
-                onsubmit="return confirm('Auftrag wirklich löschen? Das kann nicht rückgängig gemacht werden.');">
+                onsubmit="return confirm('Auftrag in den Papierkorb verschieben? Du kannst ihn dort wiederherstellen.');">
                 <input type="hidden" name="id" value="<%= p.id %>">
                 <button type="submit" class="btn text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Löschen</button>
               </form>
@@ -276,14 +295,20 @@
   async function quickStatus(select) {
     const id     = select.dataset.projectId;
     const status = select.value;
-    const row    = select.closest('tr');
+    const row    = select.closest('tr, .proj-card');
 
     // Optimistisch: Farbe sofort wechseln
     ALL_STATUS_CLASSES.forEach(c => select.classList.remove(c));
     (STATUS_COLORS[status] || 'bg-gray-100 text-gray-700').split(' ').forEach(c => select.classList.add(c));
 
-    // data-status für Filter aktuell halten
+    // data-status für Filter aktuell halten (Tabellenzeile oder Mobile-Karte)
     row.dataset.status = status;
+    const cardBadge = row.querySelector('.badge');
+    if (cardBadge && row.classList.contains('proj-card')) {
+      cardBadge.textContent = status;
+      ALL_STATUS_CLASSES.forEach(c => cardBadge.classList.remove(c));
+      (STATUS_COLORS[status] || 'bg-gray-100 text-gray-700').split(' ').forEach(c => cardBadge.classList.add(c));
+    }
 
     select.disabled = true;
     try {
@@ -293,7 +318,9 @@
         body: JSON.stringify({ id, status })
       });
       if (!res.ok) throw new Error('Fehler');
-    } catch (_) {
+    } catch (err) {
+      console.error('Status ändern fehlgeschlagen:', err);
+      if (typeof showToast === 'function') showToast('Status konnte nicht geändert werden.', 'error');
       // Bei Fehler: kurz rot aufblitzen
       select.classList.add('ring-2', 'ring-red-400');
       setTimeout(() => select.classList.remove('ring-2', 'ring-red-400'), 2000);

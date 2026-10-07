@@ -1,0 +1,110 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+<%
+  const fmt = (v) => {
+    if (!v) return '–';
+    let s = (v instanceof Date) ? v.toISOString() : String(v);
+    if (!/[TZ]/.test(s)) s = s.replace(' ', 'T') + 'Z';
+    const d = new Date(s);
+    return isNaN(d) ? String(v) : d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+  };
+%>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-5xl mx-auto px-4 md:px-6 py-4 space-y-6">
+
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <a href="/projects" class="text-xs text-blue-600 hover:underline">← Zurück zu den Aufträgen</a>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">🗑️ Papierkorb</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          Gelöschte Aufträge lassen sich hier wiederherstellen. Beim endgültigen Löschen werden Notizen, Fotos, Aufmaß,
+          Dateien, Aufgaben, Materialentnahmen und Einsatzplanung des Auftrags entfernt – Stunden, Termine und Belege bleiben erhalten.
+        </p>
+      </div>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+      <% if (!trash.length) { %>
+        <div class="p-8 text-center text-slate-400 text-sm">Der Papierkorb ist leer.</div>
+      <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b dark:border-slate-700">
+                <th class="px-4 py-3">Auftrag</th>
+                <th class="px-4 py-3">Kunde</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Gelöscht</th>
+                <th class="px-4 py-3 text-right">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-slate-700">
+              <% trash.forEach(p => { %>
+                <tr>
+                  <td class="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100"><%= p.title %></td>
+                  <td class="px-4 py-3 text-slate-500 dark:text-slate-400"><%= p.company_name || p.contact_person || '–' %></td>
+                  <td class="px-4 py-3"><span class="badge bg-slate-100 text-slate-700"><%= p.status %></span></td>
+                  <td class="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <%= fmt(p.deleted_at) %><% if (p.deleted_by) { %> · <%= p.deleted_by %><% } %>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-2 flex-wrap">
+                      <form action="/projects/restore" method="POST" class="inline">
+                        <input type="hidden" name="id" value="<%= p.id %>">
+                        <button type="submit" class="btn btn-primary py-1.5 px-3 text-xs">↩ Wiederherstellen</button>
+                      </form>
+                      <form action="/projects/delete-permanent" method="POST" class="inline"
+                        onsubmit="return confirm('Auftrag ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.');">
+                        <input type="hidden" name="id" value="<%= p.id %>">
+                        <button type="submit" class="btn py-1.5 px-3 text-xs text-red-500 border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">Endgültig löschen</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+      <div class="px-4 py-3 border-b dark:border-slate-700">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">📜 Änderungsprotokoll (letzte 100 Einträge)</h2>
+      </div>
+      <% if (!log.length) { %>
+        <div class="p-6 text-center text-slate-400 text-sm">Noch keine Einträge.</div>
+      <% } else { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left uppercase tracking-wide text-slate-500 dark:text-slate-400 border-b dark:border-slate-700">
+                <th class="px-4 py-2">Zeitpunkt</th>
+                <th class="px-4 py-2">Wer</th>
+                <th class="px-4 py-2">Aktion</th>
+                <th class="px-4 py-2">Auftrag</th>
+                <th class="px-4 py-2">Details</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-slate-700">
+              <% log.forEach(l => { %>
+                <tr>
+                  <td class="px-4 py-2 whitespace-nowrap text-slate-500 dark:text-slate-400"><%= fmt(l.created_at) %></td>
+                  <td class="px-4 py-2"><%= l.username || '–' %></td>
+                  <td class="px-4 py-2 font-medium"><%= l.action %></td>
+                  <td class="px-4 py-2"><%= l.entity_label || (l.entity_id ? ('#' + l.entity_id) : '–') %></td>
+                  <td class="px-4 py-2 text-slate-500 dark:text-slate-400 break-all"><%= l.details || '' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>
