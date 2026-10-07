@@ -186,6 +186,22 @@
       Team-Chat
     </a>
     <% } %>
+    <% if (_show('customers') && _perm('customers', true, false)) { %>
+    <a href="/customers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg>
+      </span>
+      Kunden
+    </a>
+    <% } %>
+    <% if (_show('articles') && _perm('articles', true, false)) { %>
+    <a href="/articles" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
+      <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
+      </span>
+      Artikelstamm
+    </a>
+    <% } %>
 
     <!-- Chef / Admin Bereich -->
     <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN')) { %>
@@ -214,14 +230,6 @@
       <% } %>
 
 
-      <% if (_show('customers') && _perm('customers', true, false)) { %>
-      <a href="/customers" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
-        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg>
-        </span>
-        Kunden
-      </a>
-      <% } %>
 
       <% if (_show('documents') && _perm('documents', true, false)) { %>
       <a href="/documents/buero" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
@@ -232,14 +240,6 @@
       </a>
       <% } %>
 
-      <% if (_show('articles') && _perm('articles', true, false)) { %>
-      <a href="/articles" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
-        <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
-        </span>
-        Artikelstamm
-      </a>
-      <% } %>
 
 
       <% if (_show('company_settings')) { %>
