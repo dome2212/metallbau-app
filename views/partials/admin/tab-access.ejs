@@ -78,6 +78,7 @@
                   const adminOn = permVal(area.key, 'admin', true);
                   const empOn   = permVal(area.key, 'employee', area.empDef);
                   const isMoney = area.key === 'money';
+                  const empLocked = ['money', 'reports', 'documents'].includes(area.key); // Mitarbeiter nie freischaltbar
                 %>
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 <%= isMoney ? 'bg-yellow-50/50 dark:bg-yellow-900/10' : '' %>">
                   <td class="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium"><%= area.label %></td>
@@ -103,8 +104,8 @@
                   </td>
                   <!-- EMPLOYEE Toggle -->
                   <td class="py-3 px-4 text-center">
-                    <% if (isMoney) { %>
-                      <!-- Geldbeträge für EMPLOYEE nie freischaltbar -->
+                    <% if (empLocked) { %>
+                      <!-- Geldbeträge, Berichte und Belege für EMPLOYEE nie freischaltbar -->
                       <span class="text-lg text-slate-300 dark:text-slate-600" title="Nicht konfigurierbar">🔒</span>
                       <input type="hidden" name="perm_employee_<%= area.key %>" value="false">
                     <% } else { %>
