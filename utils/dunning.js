@@ -86,7 +86,7 @@ async function checkOverdueInvoices() {
       );
       const msg = `🧾 ${overdueForAdmin.length} überfällige Rechnung(en):\n` + overdueForAdmin.join('\n');
       for (const admin of (adminRes.rows || [])) {
-        sendWhatsApp(admin.whatsapp_phone, msg, admin.whatsapp_api_key).catch(() => {});
+        sendWhatsApp(admin.whatsapp_phone, msg, admin.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       }
     }
 

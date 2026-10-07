@@ -730,6 +730,28 @@ const MIGRATIONS = [
     }
   },
 
+  // ── 022 ── Papierkorb für Aufträge + Änderungsprotokoll ────────────────────
+  {
+    id: 22,
+    description: 'projects.deleted_at/deleted_by (Papierkorb), audit_log (Änderungsprotokoll)',
+    async up() {
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} deleted_at TIMESTAMP`); } catch (_) {}
+      try { await safeRaw(`ALTER TABLE projects ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} deleted_by TEXT`); } catch (_) {}
+      await safeRaw(`CREATE TABLE IF NOT EXISTS audit_log (
+        id           ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id      INT,
+        username     TEXT,
+        action       TEXT NOT NULL,
+        entity       TEXT NOT NULL,
+        entity_id    INT,
+        entity_label TEXT,
+        details      TEXT
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log (created_at)`);
+    }
+  },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

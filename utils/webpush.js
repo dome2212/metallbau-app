@@ -74,7 +74,7 @@ async function sendPush(payload, userId = null) {
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) {
         // Subscription expired – clean up
-        try { await dbQuery('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]); } catch (_) {}
+        try { await dbQuery('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]); } catch (e) { console.error('⚠️ sendPush:', e.message); }
       } else {
         console.error('sendPush error for', sub.endpoint, ':', err.message);
       }

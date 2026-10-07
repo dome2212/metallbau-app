@@ -266,7 +266,7 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
       const gueltig = new Date(invoice.created_at);
       gueltig.setDate(gueltig.getDate() + parseInt(firma.angebotsgueltig || 30));
       metaRows.push(['Gültig bis', fmtDate(gueltig)]);
-    } catch (_) {}
+    } catch (e) { console.error('⚠️ generateDocumentPDF:', e.message); }
   }
   if (isDunning) {
     const stufe = invoice.dunning_level === 1 ? '1. Erinnerung'

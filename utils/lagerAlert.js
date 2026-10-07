@@ -28,15 +28,15 @@ async function notifyAdmins({ title, body, url, whatsappText }) {
   // Push an alle Subscriptions der Admins
   for (const a of admins) {
     if (a.id) {
-      sendPush({ title, body, url: url || '/lager' }, a.id).catch(() => {});
+      sendPush({ title, body, url: url || '/lager' }, a.id).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
   }
   // Fallback: alle Subscriptions (falls user_id null)
-  sendPush({ title, body, url: url || '/lager' }, null).catch(() => {});
+  sendPush({ title, body, url: url || '/lager' }, null).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
 
   for (const a of admins) {
     if (a.whatsapp_notify && a.whatsapp_phone && a.whatsapp_api_key && whatsappText) {
-      sendWhatsApp(a.whatsapp_phone, whatsappText, a.whatsapp_api_key).catch(() => {});
+      sendWhatsApp(a.whatsapp_phone, whatsappText, a.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
     }
     if (a.email && body) {
       sendEmail(

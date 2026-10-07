@@ -137,7 +137,7 @@ async function runBackup() {
         subject: `❌ Backup FEHLGESCHLAGEN ${dateStr} – ${firmaInfo.nameKurz || firmaInfo.name}`,
         text:    `Das automatische Backup ist fehlgeschlagen:\n\n${err.message}`,
       });
-    } catch (_) {}
+    } catch (e) { console.error('⚠️ runBackup:', e.message); }
   }
 }
 
