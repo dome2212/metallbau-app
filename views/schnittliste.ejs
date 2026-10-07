@@ -103,20 +103,36 @@
           <p class="text-xs text-amber-600 mt-0.5">Unterstützt: JPG, PNG, WebP · max. 15 MB · bis zu 4 Bilder gleichzeitig (z.B. Gesamtansicht + Detail + Stückliste)</p>
         </div>
 
-        <!-- Drag & Drop Zone -->
+        <!-- Drag & Drop Zone + Kamera / Galerie -->
         <div id="drop-zone"
-          class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer transition hover:border-blue-400 hover:bg-blue-50"
-          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
-          onclick="document.getElementById('bild-input').click()">
+          class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center transition hover:border-blue-400 hover:bg-blue-50"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
           <div id="drop-inhalt">
             <p class="text-3xl mb-2">📷</p>
-            <p class="text-sm font-semibold text-slate-600">Bilder hier ablegen oder klicken zum Auswählen</p>
-            <p class="text-xs text-slate-400 mt-1">JPG · PNG · WebP · bis zu 4 Bilder</p>
+            <p class="text-sm font-semibold text-slate-600">Foto aufnehmen oder aus Galerie wählen</p>
+            <p class="text-xs text-slate-400 mt-1">JPG · PNG · WebP · bis zu 4 Bilder · auch per Drag &amp; Drop</p>
+            <div class="flex flex-wrap justify-center gap-2 mt-4">
+              <button type="button" onclick="document.getElementById('bild-kamera').click()"
+                class="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow">
+                📸 Kamera
+              </button>
+              <button type="button" onclick="document.getElementById('bild-input').click()"
+                class="inline-flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow">
+                🖼️ Galerie
+              </button>
+            </div>
           </div>
           <div id="bild-vorschau-liste" class="hidden flex flex-wrap justify-center gap-3 mt-1"></div>
-          <p id="bild-mehr" class="hidden text-xs text-blue-600 font-semibold mt-3">＋ Weiteres Bild hinzufügen (klicken oder ablegen)</p>
+          <div id="bild-mehr" class="hidden mt-3 flex flex-wrap justify-center gap-2">
+            <button type="button" onclick="document.getElementById('bild-kamera').click()"
+              class="text-xs text-amber-700 font-semibold hover:underline">＋ Foto aufnehmen</button>
+            <span class="text-slate-300">·</span>
+            <button type="button" onclick="document.getElementById('bild-input').click()"
+              class="text-xs text-blue-600 font-semibold hover:underline">＋ aus Galerie</button>
+          </div>
         </div>
         <input type="file" id="bild-input" accept="image/*" multiple class="hidden" onchange="onBildGewaehlt(this)">
+        <input type="file" id="bild-kamera" accept="image/*" capture="environment" class="hidden" onchange="onBildGewaehlt(this)">
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -641,14 +657,23 @@ function fmtDatum(d) {
   } catch (_) { return ''; }
 }
 
-async function ladeProjekte() {
-  if (aktProjekteCache) return aktProjekteCache;
+async function ladeProjekte(force) {
+  if (!force && aktProjekteCache && aktProjekteCache.length > 0) return aktProjekteCache;
   try {
     const res = await fetch('/schnittliste/api/projects');
     const data = await res.json();
-    aktProjekteCache = (data.ok && data.projects) ? data.projects : [];
-  } catch (_) { aktProjekteCache = []; }
-  return aktProjekteCache;
+    if (!data.ok) {
+      console.warn('Projekte API:', data.fehler);
+      aktProjekteCache = [];
+      return [];
+    }
+    aktProjekteCache = data.projects || [];
+    return aktProjekteCache;
+  } catch (e) {
+    console.warn('Projekte laden:', e.message);
+    aktProjekteCache = null; // nicht cachen – nächster Versuch erneut
+    return [];
+  }
 }
 
 async function ladeGespeicherte() {
@@ -703,8 +728,11 @@ async function schnittlisteSpeichern() {
   leseTabelle();
   if (!aktPositionen.length) { alert('Keine Positionen zum Speichern.'); return; }
 
-  const projekte = await ladeProjekte();
+  const projekte = await ladeProjekte(true);
   const vorschlag = aktGespeichertName || ('Schnittliste ' + new Date().toLocaleDateString('de-DE'));
+  const projektOpts = projekte.length
+    ? projekte.map(p => `<option value="${p.id}" ${Number(aktProjectId) === Number(p.id) ? 'selected' : ''}>${esc(p.title || ('Auftrag #' + p.id))}${p.status ? ' (' + esc(p.status) + ')' : ''}</option>`).join('')
+    : '';
 
   // Einfacher Dialog: Name + Auftrag
   const overlay = document.createElement('div');
@@ -722,8 +750,9 @@ async function schnittlisteSpeichern() {
         <label class="block text-xs font-semibold text-slate-600 mb-1">Auftrag zuweisen (optional)</label>
         <select id="sl-save-project" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
           <option value="">– kein Auftrag –</option>
-          ${projekte.map(p => `<option value="${p.id}" ${Number(aktProjectId) === Number(p.id) ? 'selected' : ''}>${esc(p.title)}${p.status ? ' (' + esc(p.status) + ')' : ''}</option>`).join('')}
+          ${projektOpts}
         </select>
+        ${projekte.length === 0 ? '<p class="text-xs text-amber-600 mt-1">Keine offenen Aufträge gefunden. Prüfe unter Aufträge, ob welche angelegt sind.</p>' : ''}
       </div>
       <div class="flex justify-end gap-2 pt-1">
         <button type="button" id="sl-save-cancel" class="text-sm px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Abbrechen</button>
