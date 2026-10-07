@@ -417,8 +417,8 @@ function neuBerechnen() {
     method: 'POST',
     body: (() => {
       // CSV aus aktPositionen bauen und als Datei hochladen
-      const csv = 'Pos;Menge;Profil;Länge;Bemerkung;Winkel\n' +
-        aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk};${p.winkel || ''}`).join('\n');
+      const csv = 'Pos;Menge;Profil;Länge;Bemerkung;Winkel;kg\n' +
+        aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk};${p.winkel || ''};${p.kg || 0}`).join('\n');
       const fd = new FormData();
       fd.append('datei', new File([csv], 'edit.csv', { type: 'text/csv' }));
       fd.append('stangenlaenge', sl);
@@ -443,9 +443,9 @@ function pdfHerunterladen() {
       : document.getElementById('stangenlaenge')
     ).value, 10) || aktStange;
 
-  // CSV aus aktuellen Positionen aufbauen und als Datei übergeben
-  const csv = 'Pos;Menge;Profil;Länge;Bemerkung;Winkel\n' +
-    aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk};${p.winkel || ''}`).join('\n');
+  // CSV aus aktuellen Positionen aufbauen und als Datei übergeben (inkl. kg)
+  const csv = 'Pos;Menge;Profil;Länge;Bemerkung;Winkel;kg\n' +
+    aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk};${p.winkel || ''};${p.kg || 0}`).join('\n');
   const csvFile = new File([csv], 'schnittliste.csv', { type: 'text/csv' });
 
   document.getElementById('pdf-stangenlaenge').value = sl;
