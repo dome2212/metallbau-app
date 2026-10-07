@@ -90,7 +90,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 space-y-1">
           <p class="font-semibold">🤖 KI-Erkennung aus technischer Zeichnung</p>
           <p>Lade ein Foto oder einen Scan einer <strong>technischen Zeichnung</strong> hoch (Werkstattzeichnung, Stahlbauplan, Positionsplan). Die KI liest automatisch alle Bauteilpositionen, Profile, Längen und Mengen heraus.</p>
-          <p class="text-xs text-amber-700 mt-1">Die KI wertet aus: Stücklisten-Tabellen · Bemaßungslinien · Profilbezeichnungen · Positionsnummern · Mengenangaben · Maßstäbe</p>
+          <p class="text-xs text-amber-700 mt-1">Die KI wertet aus: Stücklisten-Tabellen · Bemaßungslinien · Profilbezeichnungen · Positionsnummern · Mengenangaben · Maßstäbe · ungefähres Gewicht (kg)</p>
           <p class="text-xs text-amber-600 mt-0.5">Unterstützt: JPG, PNG, WebP · max. 15 MB · bis zu 4 Bilder gleichzeitig (z.B. Gesamtansicht + Detail + Stückliste)</p>
         </div>
 
@@ -159,13 +159,14 @@
             <button onclick="posHinzufuegen()" class="text-xs text-blue-600 hover:underline">+ Zeile</button>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left min-w-[760px]">
+            <table class="w-full text-sm text-left min-w-[840px]">
               <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b">
                 <tr>
                   <th class="px-3 py-2">Pos</th>
                   <th class="px-3 py-2">Menge</th>
                   <th class="px-3 py-2">Profil</th>
                   <th class="px-3 py-2">Länge (mm)</th>
+                  <th class="px-3 py-2" title="Ungefähres Gewicht 1 Stück (KI-Schätzung)">≈ kg</th>
                   <th class="px-3 py-2">Winkel</th>
                   <th class="px-3 py-2">Schnitt</th>
                   <th class="px-3 py-2">Bemerkung</th>
@@ -376,7 +377,7 @@ async function bildAnalysieren() {
 
 // ── Editierbare Tabelle ──────────────────────────────────────
 function posHinzufuegen() {
-  aktPositionen.push({ pos: String(aktPositionen.length + 1), menge: 1, profil: '', laenge: 0, bemerk: '', winkel: '' });
+  aktPositionen.push({ pos: String(aktPositionen.length + 1), menge: 1, profil: '', laenge: 0, kg: 0, bemerk: '', winkel: '' });
   rendereTabelle();
 }
 
@@ -387,6 +388,7 @@ function posLoeschen(idx) {
 
 function leseTabelle() {
   // Aktuelle Werte aus den Input-Feldern lesen
+  // Reihenfolge: pos, menge, profil, laenge, kg, winkel, bemerk
   const rows = document.querySelectorAll('#pos-tabelle tr[data-idx]');
   aktPositionen = [];
   rows.forEach(row => {
@@ -396,8 +398,9 @@ function leseTabelle() {
       menge:  Math.max(1, parseInt(inps[1].value, 10) || 1),
       profil: inps[2].value.trim(),
       laenge: Math.round(parseFloat(inps[3].value) || 0),
-      winkel: inps[4].value.trim(),
-      bemerk: inps[5].value.trim()
+      kg:     Math.max(0, Math.round((parseFloat(inps[4].value) || 0) * 10) / 10),
+      winkel: inps[5].value.trim(),
+      bemerk: inps[6].value.trim()
     });
   });
 }
@@ -466,14 +469,17 @@ function rendereErgebnis() {
   const avgAusnutzung    = aktGruppen.length
     ? Math.round(aktGruppen.reduce((s,g)=>s+g.ausnutzung,0) / aktGruppen.length) : 0;
   const gesamtVerschnitt = aktGruppen.reduce((s,g)=>s+g.verschnittGes,0);
+  const gesamtKg = aktPositionen.reduce((s, p) => s + (Number(p.kg) || 0) * (Number(p.menge) || 1), 0);
+  const kgText = gesamtKg > 0 ? (Math.round(gesamtKg * 10) / 10).toLocaleString('de-DE') : '–';
 
   document.getElementById('zusammenfassung').innerHTML = `
     <h2 class="text-sm font-semibold text-slate-700 mb-3">📊 Zusammenfassung</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
       ${kachel('Positionen',      aktPositionen.length,       '')}
       ${kachel('Stangen gesamt',  gesamtStangen,              'Stk')}
       ${kachel('Ø Ausnutzung',    avgAusnutzung,              '%')}
       ${kachel('Gesamtverschnitt',mm(gesamtVerschnitt),       'mm')}
+      ${kachel('≈ Gesamtgewicht', kgText,                     'kg')}
     </div>`;
 
   rendereTabelle();
@@ -549,6 +555,7 @@ function rendereTabelle() {
   const tbody = document.getElementById('pos-tabelle');
   tbody.innerHTML = aktPositionen.map((p, i) => {
     const lFehlt = !p.laenge || p.laenge === 0;
+    const kgVal = (p.kg != null && p.kg > 0) ? p.kg : '';
     return `
     <tr data-idx="${i}" class="${lFehlt ? 'bg-amber-50' : 'hover:bg-slate-50'}">
       <td class="px-3 py-1.5"><input class="pos-input text-xs font-mono text-slate-400" value="${esc(p.pos)}"></td>
@@ -557,6 +564,10 @@ function rendereTabelle() {
       <td class="px-3 py-1.5">
         <input class="pos-input w-24 text-right ${lFehlt ? 'text-amber-600 font-semibold' : ''}"
           type="number" min="0" value="${p.laenge || ''}" placeholder="${lFehlt ? '✏ eintragen' : ''}">
+      </td>
+      <td class="px-3 py-1.5">
+        <input class="pos-input w-16 text-right text-emerald-700" type="number" min="0" step="0.1"
+          value="${kgVal}" placeholder="–" title="Ungefähres Gewicht 1 Stück (kg)">
       </td>
       <td class="px-3 py-1.5"><input class="pos-input w-28 text-xs font-semibold text-indigo-600" value="${esc(p.winkel || '')}" placeholder="z.B. 35°"
         oninput="this.closest('tr').querySelector('.skizze').innerHTML = schnittSvg(this.value)"></td>
