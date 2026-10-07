@@ -4,11 +4,10 @@
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-5 pb-24">
 
-    <!-- Kopf -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Wochenplan</h1>
-        <p class="text-xs text-slate-500 mt-0.5"><%= weekLabel %><% if (canEdit) { %> · Zelle tippen zum Einteilen (mehrere Baustellen möglich)<% } %></p>
+        <p class="text-xs text-slate-500 mt-0.5"><%= weekLabel %><% if (canEdit) { %> · Zelle tippen · mehrere Baustellen + Uhrzeiten möglich<% } %></p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">‹</a>
@@ -23,7 +22,6 @@
       </div>
     </div>
 
-    <!-- Legende -->
     <div class="flex flex-wrap gap-1.5 text-[11px] items-center">
       <span class="font-semibold text-slate-400">Legende:</span>
       <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">Baustelle</span>
@@ -33,7 +31,6 @@
       <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Frei</span>
     </div>
 
-    <!-- Personal-Matrix -->
     <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
       <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Mitarbeiter · Woche</h2>
@@ -75,7 +72,7 @@
                      if (cell.status === 'urlaub') boxCls = 'bg-amber-50 dark:bg-amber-900/25 border-amber-100 dark:border-amber-800';
                      if (day && day.isToday) boxCls += ' ring-1 ring-blue-300 dark:ring-blue-700';
                      const labels = (cell.labels && cell.labels.length) ? cell.labels : (cell.label && cell.label !== '—' && cell.label !== 'Frei / Werkstatt' ? [cell.label] : []);
-                     const projectIdsJson = JSON.stringify(cell.projectIds || []).replace(/"/g, '&quot;');
+                     const projectsJson = JSON.stringify(cell.projects || []).replace(/"/g, '&quot;');
                 %>
                   <td class="p-1 align-top">
                     <% if (canEdit && cell.status !== 'urlaub' && cell.status !== 'krank') { %>
@@ -84,7 +81,7 @@
                         data-uid="<%= row.user.id %>"
                         data-date="<%= day.date %>"
                         data-uname="<%= encodeURIComponent(row.user.username || '') %>"
-                        data-projects="<%= projectIdsJson %>"
+                        data-projects="<%= projectsJson %>"
                         data-note="<%= encodeURIComponent(cell.note || '') %>"
                         onclick="openCellEl(this)">
                         <% if (labels.length) { %>
@@ -121,7 +118,6 @@
       </div>
     </div>
 
-    <!-- Tagesübersicht: Baustellen pro Tag -->
     <div class="space-y-3">
       <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Baustellen pro Tag</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -138,7 +134,9 @@
 
               <% (day.sites || []).forEach(function(site) { %>
                 <div class="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-2.5 py-2">
-                  <p class="text-xs font-bold text-emerald-900 dark:text-emerald-100 leading-snug"><%= site.title %></p>
+                  <p class="text-xs font-bold text-emerald-900 dark:text-emerald-100 leading-snug">
+                    <%= site.title %><% if (site.time) { %> <span class="font-semibold text-emerald-700 dark:text-emerald-300"><%= site.time %></span><% } %>
+                  </p>
                   <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">
                     <%= (site.people || []).join(', ') || '—' %>
                   </p>
@@ -179,7 +177,6 @@
 </main>
 
 <% if (canEdit) { %>
-<!-- Modal: mehrere Baustellen -->
 <div id="cell-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
   <div class="bg-white dark:bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
     <div class="flex items-start justify-between gap-2">
@@ -191,13 +188,20 @@
     </div>
 
     <div>
-      <label class="text-[10px] uppercase font-semibold text-slate-400">Baustellen / Aufträge <span class="font-normal normal-case text-slate-400">(mehrere möglich)</span></label>
-      <div id="modal-projects" class="mt-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-100 dark:divide-slate-700">
+      <label class="text-[10px] uppercase font-semibold text-slate-400">Baustellen / Aufträge <span class="font-normal normal-case">(mehrere + Uhrzeit)</span></label>
+      <div id="modal-projects" class="mt-1.5 max-h-64 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-100 dark:divide-slate-700">
         <% (projects || []).forEach(function(p) { %>
-          <label class="flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
-            <input type="checkbox" class="modal-proj-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500" value="<%= p.id %>">
-            <span class="text-sm text-slate-800 dark:text-slate-100"><%= p.title || ('#' + p.id) %></span>
-          </label>
+          <div class="px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40" data-proj-row="<%= p.id %>">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" class="modal-proj-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500" value="<%= p.id %>" onchange="toggleTimeRow(this)">
+              <span class="text-sm text-slate-800 dark:text-slate-100 flex-1"><%= p.title || ('#' + p.id) %></span>
+            </label>
+            <div class="modal-time-row hidden mt-2 ml-7 flex items-center gap-2">
+              <input type="time" class="modal-start text-xs rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-900 px-2 py-1.5 w-[5.5rem]" title="Von">
+              <span class="text-slate-400 text-xs">–</span>
+              <input type="time" class="modal-end text-xs rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-900 px-2 py-1.5 w-[5.5rem]" title="Bis">
+            </div>
+          </div>
         <% }); %>
         <% if (!(projects || []).length) { %>
           <p class="px-3 py-3 text-xs text-slate-400">Keine offenen Aufträge vorhanden.</p>
@@ -207,7 +211,7 @@
 
     <div>
       <label class="text-[10px] uppercase font-semibold text-slate-400">Notiz (optional)</label>
-      <input id="modal-note" type="text" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5" placeholder="z.B. Vormittag Baustelle A, Nachmittag B…">
+      <input id="modal-note" type="text" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5" placeholder="z.B. Anfahrt, Material…">
     </div>
 
     <div class="flex gap-2 pt-1">
@@ -220,6 +224,20 @@
 <script>
 let _uid = null, _date = null;
 
+function toggleTimeRow(cb) {
+  const row = cb.closest('[data-proj-row]');
+  const timeRow = row && row.querySelector('.modal-time-row');
+  if (!timeRow) return;
+  if (cb.checked) timeRow.classList.remove('hidden');
+  else {
+    timeRow.classList.add('hidden');
+    const s = timeRow.querySelector('.modal-start');
+    const e = timeRow.querySelector('.modal-end');
+    if (s) s.value = '';
+    if (e) e.value = '';
+  }
+}
+
 function openCellEl(el) {
   _uid = el.dataset.uid;
   _date = el.dataset.date;
@@ -227,15 +245,37 @@ function openCellEl(el) {
   const note = decodeURIComponent(el.dataset.note || '');
   let selected = [];
   try { selected = JSON.parse((el.dataset.projects || '[]').replace(/&quot;/g, '"')); } catch (_) { selected = []; }
-  selected = (selected || []).map(String);
+  if (!Array.isArray(selected)) selected = [];
 
   const dateObj = new Date(_date + 'T12:00:00');
   document.getElementById('modal-title').textContent = uname;
   document.getElementById('modal-sub').textContent = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
   document.getElementById('modal-note').value = note;
 
-  document.querySelectorAll('.modal-proj-cb').forEach(function(cb) {
-    cb.checked = selected.indexOf(String(cb.value)) !== -1;
+  const byId = {};
+  selected.forEach(function(p) {
+    if (p && p.id != null) byId[String(p.id)] = p;
+  });
+
+  document.querySelectorAll('[data-proj-row]').forEach(function(row) {
+    const pid = String(row.getAttribute('data-proj-row'));
+    const cb = row.querySelector('.modal-proj-cb');
+    const timeRow = row.querySelector('.modal-time-row');
+    const start = row.querySelector('.modal-start');
+    const end = row.querySelector('.modal-end');
+    const hit = byId[pid];
+    if (cb) cb.checked = !!hit;
+    if (timeRow) {
+      if (hit) {
+        timeRow.classList.remove('hidden');
+        if (start) start.value = hit.start_time ? String(hit.start_time).slice(0, 5) : '';
+        if (end) end.value = hit.end_time ? String(hit.end_time).slice(0, 5) : '';
+      } else {
+        timeRow.classList.add('hidden');
+        if (start) start.value = '';
+        if (end) end.value = '';
+      }
+    }
   });
 
   document.getElementById('cell-modal').classList.remove('hidden');
@@ -245,13 +285,25 @@ function closeCell() {
   document.getElementById('cell-modal').classList.add('hidden');
 }
 
-function selectedProjectIds() {
-  return Array.from(document.querySelectorAll('.modal-proj-cb:checked')).map(function(cb) { return cb.value; });
+function collectAssignments() {
+  const out = [];
+  document.querySelectorAll('[data-proj-row]').forEach(function(row) {
+    const cb = row.querySelector('.modal-proj-cb');
+    if (!cb || !cb.checked) return;
+    const start = row.querySelector('.modal-start');
+    const end = row.querySelector('.modal-end');
+    out.push({
+      project_id: cb.value,
+      start_time: start ? start.value : '',
+      end_time: end ? end.value : ''
+    });
+  });
+  return out;
 }
 
 async function saveCell() {
   const btn = document.getElementById('modal-save-btn');
-  const project_ids = selectedProjectIds();
+  const assignments = collectAssignments();
   const note = document.getElementById('modal-note').value.trim();
   btn.disabled = true;
   btn.textContent = '…';
@@ -259,7 +311,7 @@ async function saveCell() {
     const res = await fetch('/admin/staffplan/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: _uid, date: _date, project_ids: project_ids, note: note })
+      body: JSON.stringify({ user_id: _uid, date: _date, assignments: assignments, note: note })
     });
     const data = await res.json();
     if (data.ok) {
@@ -281,7 +333,10 @@ async function saveCell() {
 
 async function clearCell() {
   if (!confirm('Alle Baustellen für diesen Tag löschen?')) return;
-  document.querySelectorAll('.modal-proj-cb').forEach(function(cb) { cb.checked = false; });
+  document.querySelectorAll('.modal-proj-cb').forEach(function(cb) {
+    cb.checked = false;
+    toggleTimeRow(cb);
+  });
   document.getElementById('modal-note').value = '';
   await saveCell();
 }
