@@ -3,7 +3,8 @@ const router    = express.Router();
 const multer    = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
-const { dbQuery, withTransaction } = require('../utils/db');
+const { dbQuery }           = require('../utils/db');
+const { hardDeleteProject, RETENTION_DAYS } = require('../utils/projectTrash');
 const { logAudit, redirectWith }   = require('../utils/audit');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
@@ -412,7 +413,7 @@ router.get('/trash', async (req, res) => {
       ORDER BY projects.deleted_at DESC
     `);
     const log = await dbQuery(`SELECT * FROM audit_log ORDER BY created_at DESC, id DESC LIMIT 100`);
-    res.render('projects-trash', { trash: trash.rows || [], log: log.rows || [] });
+    res.render('projects-trash', { trash: trash.rows || [], log: log.rows || [], retentionDays: RETENTION_DAYS });
   } catch (err) {
     console.error('GET /projects/trash Fehler:', err.message);
     res.status(500).send('Papierkorb konnte nicht geladen werden.');
@@ -443,18 +444,7 @@ router.post('/delete-permanent', async (req, res) => {
     const cur = await dbQuery('SELECT id, title FROM projects WHERE id = ? AND deleted_at IS NOT NULL', [id]);
     const p = cur.rows[0];
     if (!p) return redirectWith(res, '/projects/trash', 'error', 'Nur Aufträge im Papierkorb können endgültig gelöscht werden.');
-    await withTransaction(async (tx) => {
-      for (const t of ['project_tasks', 'project_notes', 'project_photos', 'project_measurements',
-                       'project_sketches', 'project_files', 'project_status_log', 'lager_entnahmen',
-                       'staff_assignments']) {
-        await tx.query(`DELETE FROM ${t} WHERE project_id = ?`, [id]);
-      }
-      // Stunden, Termine und Belege bleiben erhalten – nur die Verknüpfung wird gelöst
-      for (const t of ['time_logs', 'appointments', 'documents']) {
-        await tx.query(`UPDATE ${t} SET project_id = NULL WHERE project_id = ?`, [id]);
-      }
-      await tx.query('DELETE FROM projects WHERE id = ?', [id]);
-    });
+    await hardDeleteProject(id);
     await logAudit(req, 'endgültig gelöscht', 'project', p.id, p.title);
     return redirectWith(res, '/projects/trash', 'success', 'Auftrag endgültig gelöscht.');
   } catch (err) {

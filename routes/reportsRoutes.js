@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
-const { verifyToken, requirePerm } = require('../middleware/auth');
+const { verifyToken, requireAdmin, requirePerm } = require('../middleware/auth');
 const isPg = !!process.env.DATABASE_URL;
 
-router.get('/', verifyToken, requirePerm('reports', true, false, 'die Berichte'), async (req, res) => {
+router.get('/', verifyToken, requireAdmin, requirePerm('reports', true, false, 'die Berichte'), async (req, res) => {
   try {
     // Project status counts
     const statusRes = await dbQuery(`SELECT status, COUNT(*) as count FROM projects WHERE deleted_at IS NULL GROUP BY status ORDER BY count DESC`);

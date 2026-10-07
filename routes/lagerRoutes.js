@@ -1,14 +1,14 @@
 const express  = require('express');
 const { notifyIfLowStock } = require('../utils/lagerAlert');
-const { requirePerm } = require('../middleware/auth');
 const router   = express.Router();
-
-// Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
-router.use(requirePerm('lager', true, false, 'das Lager'));
 
 const multer   = require('multer');
 const { dbQuery } = require('../utils/db');
 const { getFirma } = require('../utils/companySettings');
+const { requirePerm } = require('../middleware/auth');
+
+// Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
+router.use(requirePerm('lager', true, false, 'das Lager'));
 
 // Bild im Speicher halten (für KI-Vision-Analyse)
 const upload = multer({
