@@ -462,10 +462,25 @@ router.get('/montageplan', async (req, res) => {
         const vac = isOnVacation(u.id, ds);
         const staffList = (staffMap[u.id] && staffMap[u.id][ds]) || [];
         const onApps = dayApps.filter(a => (a.assignees || []).some(x => Number(x.id) === Number(u.id)));
+        const fmtTime = (t) => (t ? String(t).slice(0, 5) : '');
+        const timeLabel = (s) => {
+          const a = fmtTime(s.start_time);
+          const b = fmtTime(s.end_time);
+          if (a && b) return a + '–' + b;
+          if (a) return 'ab ' + a;
+          if (b) return 'bis ' + b;
+          return '';
+        };
         const projectsAssigned = staffList
           .filter(s => s.project_id)
-          .map(s => ({ id: s.project_id, title: s.project_title || ('#' + s.project_id) }));
-        // unique by id
+          .map(s => ({
+            id: s.project_id,
+            title: s.project_title || ('#' + s.project_id),
+            start_time: s.start_time || null,
+            end_time: s.end_time || null,
+            time: timeLabel(s)
+          }));
+        // unique by id (erste Zeile behalten)
         const seen = new Set();
         const uniqueProjects = projectsAssigned.filter(p => {
           if (seen.has(Number(p.id))) return false;
@@ -480,7 +495,7 @@ router.get('/montageplan', async (req, res) => {
           label = vac.type || 'Abwesend';
         } else if (uniqueProjects.length) {
           status = 'baustelle';
-          label = uniqueProjects.map(p => p.title).join(' · ');
+          label = uniqueProjects.map(p => p.time ? (p.title + ' ' + p.time) : p.title).join(' · ');
         } else if (onApps.length) {
           status = 'termin';
           label = onApps.map(a => a.title || a.project_name || 'Termin').join(', ');
@@ -500,14 +515,15 @@ router.get('/montageplan', async (req, res) => {
         };
       });
 
-      // Baustellen-Übersicht des Tages: Projekt → Mitarbeiter
+      // Baustellen-Übersicht des Tages: Projekt → Mitarbeiter (+ Uhrzeit)
       const siteMap = {};
       for (const p of personal) {
         if (p.status !== 'baustelle') continue;
         for (const proj of (p.projects || [])) {
-          const key = String(proj.id);
-          if (!siteMap[key]) siteMap[key] = { id: proj.id, title: proj.title, people: [] };
-          siteMap[key].people.push(p.user.username);
+          const key = String(proj.id) + '|' + (proj.time || '');
+          if (!siteMap[key]) siteMap[key] = { id: proj.id, title: proj.title, time: proj.time || '', people: [] };
+          const personLabel = proj.time ? (p.user.username + ' (' + proj.time + ')') : p.user.username;
+          siteMap[key].people.push(personLabel);
         }
       }
       const sites = Object.values(siteMap);
@@ -530,11 +546,12 @@ router.get('/montageplan', async (req, res) => {
     const matrix = users.map(u => {
       const cells = days.map(day => {
         const p = day.personal.find(x => Number(x.user.id) === Number(u.id));
-        if (!p) return { status: 'frei', label: '—', labels: [], projectIds: [], note: '', vac: null };
+        if (!p) return { status: 'frei', label: '—', labels: [], projects: [], projectIds: [], note: '', vac: null };
         return {
           status: p.status,
           label: p.label,
-          labels: (p.projects || []).map(x => x.title),
+          labels: (p.projects || []).map(x => x.time ? (x.title + ' · ' + x.time) : x.title),
+          projects: p.projects || [],
           projectIds: (p.projects || []).map(x => String(x.id)),
           note: p.note || '',
           vac: p.vac || null,

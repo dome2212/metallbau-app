@@ -510,37 +510,65 @@ router.get('/staffplan', requireAdmin, async (req, res) => {
 
 router.post('/staffplan/save', requireAdmin, async (req, res) => {
   try {
-    const { user_id, date, project_id, project_ids, note } = req.body;
+    const { user_id, date, project_id, project_ids, note, assignments } = req.body;
     if (!user_id || !date) return res.status(400).json({ ok: false, error: 'Fehlende Daten' });
 
-    // Mehrere Baustellen: project_ids[] bevorzugt, sonst einzelnes project_id
-    let ids = [];
-    if (Array.isArray(project_ids)) {
-      ids = project_ids.map(x => parseInt(x, 10)).filter(n => Number.isFinite(n) && n > 0);
-    } else if (project_id && project_id !== '') {
-      const n = parseInt(project_id, 10);
-      if (Number.isFinite(n) && n > 0) ids = [n];
+    const normTime = (t) => {
+      const s = String(t || '').trim();
+      if (!s) return null;
+      // HH:MM oder HH:MM:SS
+      const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (!m) return null;
+      const h = Math.min(23, parseInt(m[1], 10));
+      const min = Math.min(59, parseInt(m[2], 10));
+      return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+    };
+
+    // assignments: [{ project_id, start_time, end_time }] bevorzugt
+    let rows = [];
+    if (Array.isArray(assignments) && assignments.length) {
+      const seen = new Set();
+      for (const a of assignments) {
+        const pid = parseInt(a.project_id ?? a.id, 10);
+        if (!Number.isFinite(pid) || pid <= 0 || seen.has(pid)) continue;
+        seen.add(pid);
+        rows.push({
+          project_id: pid,
+          start_time: normTime(a.start_time),
+          end_time: normTime(a.end_time)
+        });
+      }
+    } else {
+      let ids = [];
+      if (Array.isArray(project_ids)) {
+        ids = project_ids.map(x => parseInt(x, 10)).filter(n => Number.isFinite(n) && n > 0);
+      } else if (project_id && project_id !== '') {
+        const n = parseInt(project_id, 10);
+        if (Number.isFinite(n) && n > 0) ids = [n];
+      }
+      ids = [...new Set(ids)];
+      rows = ids.map(pid => ({ project_id: pid, start_time: null, end_time: null }));
     }
-    // Duplikate entfernen
-    ids = [...new Set(ids)];
+
     const noteTxt = (note || '').trim() || null;
 
     await dbQuery(`DELETE FROM staff_assignments WHERE user_id = ? AND assignment_date = ?`, [user_id, date]);
 
-    if (ids.length === 0 && noteTxt) {
+    if (rows.length === 0 && noteTxt) {
       await dbQuery(
-        `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
-        [user_id, null, date, noteTxt]
+        `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)`,
+        [user_id, null, date, noteTxt, null, null]
       );
     } else {
-      for (let i = 0; i < ids.length; i++) {
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
         await dbQuery(
-          `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note) VALUES (?, ?, ?, ?)`,
-          [user_id, ids[i], date, i === 0 ? noteTxt : null]
+          `INSERT INTO staff_assignments (user_id, project_id, assignment_date, note, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)`,
+          [user_id, r.project_id, date, i === 0 ? noteTxt : null, r.start_time, r.end_time]
         );
       }
     }
-    res.json({ ok: true, count: ids.length });
+    res.json({ ok: true, count: rows.length });
   } catch (err) {
     console.error('Fehler beim Speichern der Zuweisung:', err.message);
     res.status(500).json({ ok: false, error: err.message });
