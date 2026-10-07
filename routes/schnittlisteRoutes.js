@@ -3,6 +3,7 @@ const router   = express.Router();
 const multer   = require('multer');
 const PDFDocument = require('pdfkit');
 const { requirePerm } = require('../middleware/auth');
+const { dbQuery } = require('../utils/db');
 
 // Zugriff über Berechtigungs-Matrix (ADMIN: Standard an, EMPLOYEE: Standard aus)
 const requireSchnittliste = requirePerm('schnittliste', true, false, 'die Schnittliste');
@@ -770,6 +771,143 @@ router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (re
   } catch (err) {
     console.error('Schnittliste Bild-KI Fehler:', err.message);
     res.status(500).json({ fehler: 'KI-Analyse fehlgeschlagen: ' + err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  GESPEICHERTE SCHNITTLISTEN (CRUD)
+// ══════════════════════════════════════════════════════════════
+
+// GET /schnittliste/api/list  – alle gespeicherten Listen
+router.get('/api/list', requireSchnittliste, async (req, res) => {
+  try {
+    const r = await dbQuery(
+      `SELECT id, name, stangenlaenge, saege, quelle, created_by_name, created_at, updated_at, positionen_json
+       FROM schnittlisten
+       ORDER BY updated_at DESC, id DESC
+       LIMIT 100`
+    );
+    const listen = (r.rows || []).map(row => {
+      let anzahl = 0;
+      try {
+        const arr = JSON.parse(row.positionen_json || '[]');
+        anzahl = Array.isArray(arr) ? arr.length : 0;
+      } catch (_) {}
+      return {
+        id: row.id,
+        name: row.name,
+        stangenlaenge: row.stangenlaenge,
+        saege: row.saege,
+        quelle: row.quelle,
+        created_by_name: row.created_by_name,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        anzahl
+      };
+    });
+    res.json({ ok: true, listen });
+  } catch (err) {
+    console.error('Schnittliste list:', err.message);
+    res.status(500).json({ fehler: 'Listen konnten nicht geladen werden: ' + err.message });
+  }
+});
+
+// GET /schnittliste/api/:id  – eine Liste laden
+router.get('/api/:id', requireSchnittliste, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ fehler: 'Ungültige ID.' });
+    const r = await dbQuery('SELECT * FROM schnittlisten WHERE id = ?', [id]);
+    if (!r.rows || r.rows.length === 0) return res.status(404).json({ fehler: 'Schnittliste nicht gefunden.' });
+    const row = r.rows[0];
+    let positionen = [];
+    try { positionen = JSON.parse(row.positionen_json || '[]'); } catch (_) {}
+    const stangenlaenge = Number(row.stangenlaenge) || 6000;
+    const saege = Number(row.saege) || 3;
+    const gruppen = optimiere(positionen, stangenlaenge, saege);
+    res.json({
+      ok: true,
+      id: row.id,
+      name: row.name,
+      positionen,
+      gruppen,
+      stangenlaenge,
+      saege,
+      quelle: row.quelle || 'datei'
+    });
+  } catch (err) {
+    console.error('Schnittliste load:', err.message);
+    res.status(500).json({ fehler: 'Laden fehlgeschlagen: ' + err.message });
+  }
+});
+
+// POST /schnittliste/api/save  – neu speichern oder überschreiben
+router.post('/api/save', requireSchnittliste, async (req, res) => {
+  try {
+    const { name, positionen, stangenlaenge, saege, quelle, id } = req.body || {};
+    const cleanName = String(name || '').trim();
+    if (!cleanName) return res.status(400).json({ fehler: 'Bitte einen Namen angeben.' });
+    if (!Array.isArray(positionen) || positionen.length === 0) {
+      return res.status(400).json({ fehler: 'Keine Positionen zum Speichern.' });
+    }
+    // Positionen normalisieren
+    const norm = positionen
+      .filter(p => p && String(p.profil || '').trim())
+      .map((p, i) => ({
+        pos: String(p.pos || i + 1),
+        menge: Math.max(1, parseInt(p.menge, 10) || 1),
+        profil: String(p.profil).trim(),
+        laenge: Math.max(0, Math.round(parseFloat(p.laenge) || 0)),
+        winkel: String(p.winkel || '').trim(),
+        bemerk: String(p.bemerk || '').trim(),
+        kg: Math.max(0, Math.round((parseFloat(p.kg) || 0) * 10) / 10)
+      }));
+    if (norm.length === 0) return res.status(400).json({ fehler: 'Keine gültigen Positionen.' });
+
+    const sl = parseInt(stangenlaenge, 10) || 6000;
+    const sg = parseInt(saege, 10) || 3;
+    const qu = (quelle === 'bild') ? 'bild' : 'datei';
+    const json = JSON.stringify(norm);
+    const userId = req.user && req.user.id ? req.user.id : null;
+    const userName = req.user && req.user.username ? req.user.username : '';
+
+    const existingId = parseInt(id, 10) || 0;
+    if (existingId > 0) {
+      // Überschreiben
+      const check = await dbQuery('SELECT id FROM schnittlisten WHERE id = ?', [existingId]);
+      if (!check.rows || check.rows.length === 0) {
+        return res.status(404).json({ fehler: 'Eintrag zum Überschreiben nicht gefunden.' });
+      }
+      await dbQuery(
+        `UPDATE schnittlisten SET name = ?, stangenlaenge = ?, saege = ?, positionen_json = ?,
+         quelle = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [cleanName, sl, sg, json, qu, existingId]
+      );
+      return res.json({ ok: true, id: existingId, name: cleanName, anzahl: norm.length });
+    }
+
+    const ins = await dbQuery(
+      `INSERT INTO schnittlisten (name, stangenlaenge, saege, positionen_json, quelle, created_by, created_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [cleanName, sl, sg, json, qu, userId, userName]
+    );
+    res.json({ ok: true, id: ins.lastID, name: cleanName, anzahl: norm.length });
+  } catch (err) {
+    console.error('Schnittliste save:', err.message);
+    res.status(500).json({ fehler: 'Speichern fehlgeschlagen: ' + err.message });
+  }
+});
+
+// DELETE /schnittliste/api/:id
+router.delete('/api/:id', requireSchnittliste, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ fehler: 'Ungültige ID.' });
+    await dbQuery('DELETE FROM schnittlisten WHERE id = ?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Schnittliste delete:', err.message);
+    res.status(500).json({ fehler: 'Löschen fehlgeschlagen: ' + err.message });
   }
 });
 
