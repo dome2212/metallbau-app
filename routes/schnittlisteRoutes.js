@@ -778,15 +778,41 @@ router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (re
 //  GESPEICHERTE SCHNITTLISTEN (CRUD)
 // ══════════════════════════════════════════════════════════════
 
-// GET /schnittliste/api/list  – alle gespeicherten Listen
-router.get('/api/list', requireSchnittliste, async (req, res) => {
+// GET /schnittliste/api/projects  – offene Aufträge für Dropdown
+router.get('/api/projects', requireSchnittliste, async (req, res) => {
   try {
     const r = await dbQuery(
-      `SELECT id, name, stangenlaenge, saege, quelle, created_by_name, created_at, updated_at, positionen_json
-       FROM schnittlisten
-       ORDER BY updated_at DESC, id DESC
-       LIMIT 100`
+      `SELECT id, title, status FROM projects
+       WHERE (deleted_at IS NULL OR deleted_at = '')
+         AND (status IS NULL OR status != 'Abgeschlossen')
+       ORDER BY title ASC
+       LIMIT 500`
     );
+    res.json({ ok: true, projects: r.rows || [] });
+  } catch (err) {
+    console.error('Schnittliste projects:', err.message);
+    res.status(500).json({ fehler: 'Aufträge konnten nicht geladen werden: ' + err.message });
+  }
+});
+
+// GET /schnittliste/api/list  – alle gespeicherten Listen (optional ?project_id=)
+router.get('/api/list', requireSchnittliste, async (req, res) => {
+  try {
+    const filterPid = parseInt(req.query.project_id, 10) || 0;
+    let sql = `
+      SELECT s.id, s.name, s.stangenlaenge, s.saege, s.quelle, s.project_id,
+             s.created_by_name, s.created_at, s.updated_at, s.positionen_json,
+             p.title AS project_title
+      FROM schnittlisten s
+      LEFT JOIN projects p ON p.id = s.project_id
+    `;
+    const params = [];
+    if (filterPid > 0) {
+      sql += ' WHERE s.project_id = ?';
+      params.push(filterPid);
+    }
+    sql += ' ORDER BY s.updated_at DESC, s.id DESC LIMIT 100';
+    const r = await dbQuery(sql, params);
     const listen = (r.rows || []).map(row => {
       let anzahl = 0;
       try {
@@ -799,6 +825,8 @@ router.get('/api/list', requireSchnittliste, async (req, res) => {
         stangenlaenge: row.stangenlaenge,
         saege: row.saege,
         quelle: row.quelle,
+        project_id: row.project_id || null,
+        project_title: row.project_title || null,
         created_by_name: row.created_by_name,
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -817,7 +845,13 @@ router.get('/api/:id', requireSchnittliste, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(400).json({ fehler: 'Ungültige ID.' });
-    const r = await dbQuery('SELECT * FROM schnittlisten WHERE id = ?', [id]);
+    const r = await dbQuery(
+      `SELECT s.*, p.title AS project_title
+       FROM schnittlisten s
+       LEFT JOIN projects p ON p.id = s.project_id
+       WHERE s.id = ?`,
+      [id]
+    );
     if (!r.rows || r.rows.length === 0) return res.status(404).json({ fehler: 'Schnittliste nicht gefunden.' });
     const row = r.rows[0];
     let positionen = [];
@@ -833,7 +867,9 @@ router.get('/api/:id', requireSchnittliste, async (req, res) => {
       gruppen,
       stangenlaenge,
       saege,
-      quelle: row.quelle || 'datei'
+      quelle: row.quelle || 'datei',
+      project_id: row.project_id || null,
+      project_title: row.project_title || null
     });
   } catch (err) {
     console.error('Schnittliste load:', err.message);
@@ -844,7 +880,7 @@ router.get('/api/:id', requireSchnittliste, async (req, res) => {
 // POST /schnittliste/api/save  – neu speichern oder überschreiben
 router.post('/api/save', requireSchnittliste, async (req, res) => {
   try {
-    const { name, positionen, stangenlaenge, saege, quelle, id } = req.body || {};
+    const { name, positionen, stangenlaenge, saege, quelle, id, project_id } = req.body || {};
     const cleanName = String(name || '').trim();
     if (!cleanName) return res.status(400).json({ fehler: 'Bitte einen Namen angeben.' });
     if (!Array.isArray(positionen) || positionen.length === 0) {
@@ -870,28 +906,28 @@ router.post('/api/save', requireSchnittliste, async (req, res) => {
     const json = JSON.stringify(norm);
     const userId = req.user && req.user.id ? req.user.id : null;
     const userName = req.user && req.user.username ? req.user.username : '';
+    const pid = parseInt(project_id, 10) || null;
 
     const existingId = parseInt(id, 10) || 0;
     if (existingId > 0) {
-      // Überschreiben
       const check = await dbQuery('SELECT id FROM schnittlisten WHERE id = ?', [existingId]);
       if (!check.rows || check.rows.length === 0) {
         return res.status(404).json({ fehler: 'Eintrag zum Überschreiben nicht gefunden.' });
       }
       await dbQuery(
         `UPDATE schnittlisten SET name = ?, stangenlaenge = ?, saege = ?, positionen_json = ?,
-         quelle = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [cleanName, sl, sg, json, qu, existingId]
+         quelle = ?, project_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [cleanName, sl, sg, json, qu, pid, existingId]
       );
-      return res.json({ ok: true, id: existingId, name: cleanName, anzahl: norm.length });
+      return res.json({ ok: true, id: existingId, name: cleanName, anzahl: norm.length, project_id: pid });
     }
 
     const ins = await dbQuery(
-      `INSERT INTO schnittlisten (name, stangenlaenge, saege, positionen_json, quelle, created_by, created_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [cleanName, sl, sg, json, qu, userId, userName]
+      `INSERT INTO schnittlisten (name, stangenlaenge, saege, positionen_json, quelle, created_by, created_by_name, project_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [cleanName, sl, sg, json, qu, userId, userName, pid]
     );
-    res.json({ ok: true, id: ins.lastID, name: cleanName, anzahl: norm.length });
+    res.json({ ok: true, id: ins.lastID, name: cleanName, anzahl: norm.length, project_id: pid });
   } catch (err) {
     console.error('Schnittliste save:', err.message);
     res.status(500).json({ fehler: 'Speichern fehlgeschlagen: ' + err.message });
