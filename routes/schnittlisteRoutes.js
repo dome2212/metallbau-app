@@ -377,13 +377,14 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   y += 20;
 
   const cols = [
-    { x: M,          w: 28,          t: 'Pos',       a: 'left'  },
-    { x: M + 30,     w: 36,          t: 'Menge',     a: 'right' },
-    { x: M + 70,     w: 124,         t: 'Profil',    a: 'left'  },
-    { x: M + 196,    w: 54,          t: 'Länge (mm)',a: 'right' },
-    { x: M + 254,    w: 62,          t: 'Winkel',    a: 'left'  },
-    { x: M + 320,    w: 58,          t: 'Schnitt',   a: 'left'  },
-    { x: M + 382,    w: W - 382,     t: 'Bemerkung', a: 'left'  },
+    { x: M,          w: 26,          t: 'Pos',       a: 'left'  },
+    { x: M + 28,     w: 32,          t: 'Menge',     a: 'right' },
+    { x: M + 62,     w: 110,         t: 'Profil',    a: 'left'  },
+    { x: M + 174,    w: 48,          t: 'Länge',     a: 'right' },
+    { x: M + 224,    w: 36,          t: '≈ kg',      a: 'right' },
+    { x: M + 262,    w: 56,          t: 'Winkel',    a: 'left'  },
+    { x: M + 320,    w: 52,          t: 'Schnitt',   a: 'left'  },
+    { x: M + 374,    w: W - 374,     t: 'Bemerkung', a: 'left'  },
   ];
   const kopfZeile = () => {
     doc.rect(M, y, W, 18).fill('#f3f4f6');
@@ -395,21 +396,28 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
 
   positionen.forEach((p, i) => {
     doc.font('Helvetica').fontSize(9);
-    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', p.winkel || '–', '', p.bemerk || '–'];
+    const kgVal = (p.kg && p.kg > 0) ? String(p.kg).replace('.', ',') : '–';
+    const werte = [String(p.pos), String(p.menge), p.profil, p.laenge ? fmt(p.laenge) : '–', kgVal, p.winkel || '–', '', p.bemerk || '–'];
     const h = Math.max(24, ...werte.map((v, k) => doc.heightOfString(v, { width: cols[k].w - 6 }))) + 8;
     if (platz(h)) kopfZeile();
     doc.font('Helvetica').fontSize(9);
     if (i % 2 === 1) doc.rect(M, y, W, h).fill('#fafafa');
     doc.fillColor(SCHW);
-    werte.forEach((v, k) => { if (k !== 5) doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }); });
-    zeichneSchnitt(doc, cols[5].x + 4, y + (h - 14) / 2, 48, 14, schnittInfo(p.winkel));
+    werte.forEach((v, k) => { if (k !== 6) doc.text(v, cols[k].x + 3, y + 4, { width: cols[k].w - 6, align: cols[k].a }); });
+    zeichneSchnitt(doc, cols[6].x + 2, y + (h - 14) / 2, 44, 14, schnittInfo(p.winkel));
     y += h;
     doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.4).strokeColor(LINIE).stroke();
   });
 
   y += 8;
+  const gesamtKg = positionen.reduce((s, p) => s + (Number(p.kg) || 0) * (Number(p.menge) || 1), 0);
+  if (gesamtKg > 0) {
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(SCHW)
+      .text(`Gesamtgewicht (ca.): ${fmt(Math.round(gesamtKg * 10) / 10)} kg`, M, y, { width: W });
+    y += 14;
+  }
   doc.font('Helvetica').fontSize(7.5).fillColor(GRAU)
-    .text('Winkel = Abweichung vom geraden 90°-Schnitt.  Skizze: Draufsicht auf das Teil, links = Anfang, rechts = Ende (schematisch).',
+    .text('Winkel = Abweichung vom geraden 90°-Schnitt.  Skizze: Draufsicht auf das Teil, links = Anfang, rechts = Ende (schematisch).  ≈ kg = Schätzwert der KI (1 Stück).',
       M, y, { width: W });
   y += 24;
 
@@ -573,11 +581,12 @@ WICHTIG — auch bei Prinzipskizzen ohne exakte Maße:
 - WINKEL: Erfasse alle Schnitt- und Gehrungswinkel je Position im Feld "winkel" (z.B. "35° / 17,5°" = Winkel am Anfang / am Ende des Teils, oder "45°" bei einem Winkel). Quellen: Spalte "Schnitt"/"Winkel" der Stückliste, Winkelangaben (°) an Gehrungen, Detailansichten und Neigungen der Bauteile. Gerade Schnitte (90°) nur eintragen, wenn sie ausdrücklich angegeben sind; sonst leer lassen ("").
 - Sind beide Enden eines Teils parallel geschnitten (Parallelogramm, z.B. schräge Wange zwischen senkrechten Pfosten), hänge " parallel" an den Winkeltext an (z.B. "35° / 35° parallel").
 - Das Feld "winkel" MUSS in JEDEM Objekt vorhanden sein. Steht in der Stückliste eine Spalte "Schnitt" oder "Winkel", übernimm deren Wert für jede Position wörtlich (auch "90°/90°").
+- GEWICHT (kg): Schätze das ungefähre Gewicht EINER Einheit (1 Stück × Länge) in kg. Grundlage: Stahl-Dichte ≈ 7,85 kg/dm³. Nutze bekannte Metergewichte von Standardprofilen (z.B. Rohr Ø42,4×2,5 ≈ 2,4 kg/m, Rohr Ø33,7×2 ≈ 1,6 kg/m, IPE 200 ≈ 22,4 kg/m, HEB 160 ≈ 42,6 kg/m, ROR 60×60×3 ≈ 5,2 kg/m, Flachstahl 40×5 ≈ 1,57 kg/m, Vierkant 20×20 ≈ 3,14 kg/m). Formel grob: kg ≈ (kg/m) × (laenge_mm / 1000). Bei unklarem Profil oder laenge:0 → kg:0. Runde auf 1 Nachkommastelle.
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Array, z.B.:
 [
-  {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":0,"winkel":"35° / 17,5°","bemerk":"Handlauf, Länge nach Maß"},
-  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"winkel":"","bemerk":"Vertikal-Füllstab"}
+  {"pos":"1","menge":1,"profil":"Rohr Ø42,4x2,5mm","laenge":2450,"winkel":"35° / 17,5°","bemerk":"Handlauf","kg":5.9},
+  {"pos":"2","menge":4,"profil":"Rohr Ø33,7mm","laenge":0,"winkel":"","bemerk":"Vertikal-Füllstab","kg":0}
 ]
 Regeln:
 - "laenge" als Ganzzahl in mm; 0 wenn keine konkrete Länge erkennbar
@@ -585,6 +594,7 @@ Regeln:
 - "profil" so präzise wie erkennbar (Durchmesser, Wandstärke, Profiltyp)
 - "winkel" = Schnitt-/Gehrungswinkel als Text, leer wenn keiner erkennbar
 - "bemerk" = Bauteilname aus dem Bild + wichtige Hinweise
+- "kg" = ungefähres Gewicht EINER Einheit in kg (Zahl, 1 Nachkommastelle); 0 wenn nicht schätzbar
 - "pos" = fortlaufend nummerieren
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
@@ -709,7 +719,8 @@ router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (re
         profil: String(p.profil).trim(),
         laenge: Math.max(0, Math.round(parseFloat(p.laenge) || 0)),
         bemerk: String(p.bemerk || '').trim(),
-        winkel: String(p.winkel || '').trim()
+        winkel: String(p.winkel || '').trim(),
+        kg:     Math.max(0, Math.round((parseFloat(p.kg) || 0) * 10) / 10)
       }));
 
     if (positionen.length === 0) {
