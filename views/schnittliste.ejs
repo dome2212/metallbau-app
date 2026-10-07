@@ -27,6 +27,15 @@
         </button>
       </div>
 
+      <!-- ── Gespeicherte Schnittlisten ───────────────────── -->
+      <div class="bg-white rounded-xl shadow p-4 md:p-5">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <h2 class="text-sm font-semibold text-slate-800">💾 Gespeicherte Schnittlisten</h2>
+          <button type="button" onclick="ladeGespeicherte()" class="text-xs text-blue-600 hover:underline">↻ Aktualisieren</button>
+        </div>
+        <div id="gespeichert-liste" class="text-sm text-slate-500">Lade…</div>
+      </div>
+
       <!-- ════════════════════════════════════════════════════
            TAB 1 — DATEI-UPLOAD
            ════════════════════════════════════════════════════ -->
@@ -154,9 +163,15 @@
 
         <!-- Editierbare Positionstabelle -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
-          <div class="px-4 md:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+          <div class="px-4 md:px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-sm font-semibold text-slate-800">📋 Erkannte Positionen <span class="text-xs text-slate-400 font-normal ml-1">(Werte können direkt bearbeitet werden)</span></h2>
-            <button onclick="posHinzufuegen()" class="text-xs text-blue-600 hover:underline">+ Zeile</button>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="schnittlisteSpeichern()"
+                class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-semibold transition">
+                💾 Speichern
+              </button>
+              <button onclick="posHinzufuegen()" class="text-xs text-blue-600 hover:underline">+ Zeile</button>
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left min-w-[840px]">
@@ -213,6 +228,8 @@ let aktPositionen   = [];
 let aktGruppen      = [];
 let aktStange       = 6000;
 let aktQuelle       = 'datei'; // 'datei' | 'bild'
+let aktGespeichertId = null;   // ID wenn aus DB geladen / zuletzt gespeichert
+let aktGespeichertName = '';
 
 function leseSaege() {
   const el = document.getElementById(aktQuelle === 'bild' ? 'saege-bild' : 'saege');
@@ -611,6 +628,166 @@ function downloadBeispielCsv() {
   a.href = url; a.download = 'schnittliste-beispiel.csv'; a.click();
   URL.revokeObjectURL(url);
 }
+
+// ── Speichern / Laden ────────────────────────────────────────
+function fmtDatum(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return String(d).slice(0, 16);
+    return dt.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return ''; }
+}
+
+async function ladeGespeicherte() {
+  const box = document.getElementById('gespeichert-liste');
+  box.innerHTML = '<span class="text-slate-400">Lade…</span>';
+  try {
+    const res = await fetch('/schnittliste/api/list');
+    const data = await res.json();
+    if (!data.ok) { box.innerHTML = '<span class="text-red-500">' + esc(data.fehler || 'Fehler') + '</span>'; return; }
+    if (!data.listen || data.listen.length === 0) {
+      box.innerHTML = '<span class="text-slate-400">Noch keine Schnittlisten gespeichert.</span>';
+      return;
+    }
+    box.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="text-xs text-slate-500 uppercase border-b">
+            <tr>
+              <th class="py-2 pr-3">Name</th>
+              <th class="py-2 pr-3">Pos.</th>
+              <th class="py-2 pr-3 hidden sm:table-cell">Stange</th>
+              <th class="py-2 pr-3 hidden md:table-cell">Datum</th>
+              <th class="py-2 text-right">Aktion</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${data.listen.map(l => `
+              <tr class="hover:bg-slate-50">
+                <td class="py-2 pr-3 font-medium text-slate-800">${esc(l.name)}
+                  <span class="text-xs text-slate-400 ml-1">${l.quelle === 'bild' ? '📷' : '📂'}</span>
+                </td>
+                <td class="py-2 pr-3 text-slate-600">${l.anzahl}</td>
+                <td class="py-2 pr-3 text-slate-600 hidden sm:table-cell">${mm(l.stangenlaenge)} mm</td>
+                <td class="py-2 pr-3 text-slate-500 text-xs hidden md:table-cell">${fmtDatum(l.updated_at || l.created_at)}</td>
+                <td class="py-2 text-right whitespace-nowrap">
+                  <button type="button" onclick="schnittlisteLaden(${l.id})"
+                    class="text-xs text-blue-600 hover:underline mr-2">Laden</button>
+                  <button type="button" onclick="schnittlisteLoeschen(${l.id}, '${esc(l.name).replace(/'/g, "\\'")}')"
+                    class="text-xs text-red-500 hover:underline">Löschen</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = '<span class="text-red-500">Netzwerkfehler: ' + esc(e.message) + '</span>';
+  }
+}
+
+async function schnittlisteSpeichern() {
+  leseTabelle();
+  if (!aktPositionen.length) { alert('Keine Positionen zum Speichern.'); return; }
+  const vorschlag = aktGespeichertName || ('Schnittliste ' + new Date().toLocaleDateString('de-DE'));
+  const name = prompt('Name der Schnittliste:', vorschlag);
+  if (name === null) return; // abgebrochen
+  if (!String(name).trim()) { alert('Bitte einen Namen eingeben.'); return; }
+
+  const payload = {
+    name: String(name).trim(),
+    positionen: aktPositionen,
+    stangenlaenge: parseInt(
+      (aktQuelle === 'bild'
+        ? document.getElementById('stangenlaenge-bild')
+        : document.getElementById('stangenlaenge')
+      ).value, 10) || aktStange,
+    saege: leseSaege(),
+    quelle: aktQuelle
+  };
+  // Wenn bereits geladen/gespeichert: optional überschreiben
+  if (aktGespeichertId && aktGespeichertName === payload.name) {
+    payload.id = aktGespeichertId;
+  } else if (aktGespeichertId) {
+    const ueberschreiben = confirm(
+      'Aktuelle Liste ist mit „' + aktGespeichertName + '“ verknüpft.\n\nOK = unter neuem Namen speichern\nAbbrechen = bestehende überschreiben'
+    );
+    if (!ueberschreiben) payload.id = aktGespeichertId;
+  }
+
+  try {
+    const res = await fetch('/schnittliste/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.fehler || 'Speichern fehlgeschlagen.'); return; }
+    aktGespeichertId = data.id;
+    aktGespeichertName = data.name;
+    alert('Gespeichert: „' + data.name + '“ (' + data.anzahl + ' Positionen)');
+    ladeGespeicherte();
+  } catch (e) {
+    alert('Netzwerkfehler: ' + e.message);
+  }
+}
+
+async function schnittlisteLaden(id) {
+  try {
+    zeigeLoading('Schnittliste wird geladen…');
+    const res = await fetch('/schnittliste/api/' + id);
+    const data = await res.json();
+    versteckeLoading();
+    if (!data.ok) { zeigeFehler(data.fehler || 'Laden fehlgeschlagen.'); return; }
+    aktPositionen = data.positionen || [];
+    aktGruppen = data.gruppen || [];
+    aktStange = data.stangenlaenge || 6000;
+    aktQuelle = data.quelle === 'bild' ? 'bild' : 'datei';
+    aktGespeichertId = data.id;
+    aktGespeichertName = data.name || '';
+    // Stangenlänge in beide Felder schreiben
+    const el1 = document.getElementById('stangenlaenge');
+    const el2 = document.getElementById('stangenlaenge-bild');
+    if (el1) el1.value = aktStange;
+    if (el2) el2.value = aktStange;
+    if (typeof data.saege === 'number') {
+      const s1 = document.getElementById('saege');
+      const s2 = document.getElementById('saege-bild');
+      if (s1) s1.value = data.saege;
+      if (s2) s2.value = data.saege;
+    }
+    wechsleTab(aktQuelle);
+    rendereErgebnis();
+    document.getElementById('btn-pdf').disabled = false;
+    document.getElementById('btn-pdf-bild').disabled = false;
+    const hinweis = document.getElementById('ki-hinweis');
+    if (hinweis) {
+      document.getElementById('ki-anzahl').textContent = aktPositionen.length;
+      hinweis.classList.remove('hidden');
+      hinweis.querySelector('span') && (document.getElementById('ki-anzahl').textContent = aktPositionen.length);
+    }
+  } catch (e) {
+    versteckeLoading();
+    zeigeFehler('Netzwerkfehler: ' + e.message);
+  }
+}
+
+async function schnittlisteLoeschen(id, name) {
+  if (!confirm('Schnittliste „' + (name || id) + '“ wirklich löschen?')) return;
+  try {
+    const res = await fetch('/schnittliste/api/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) { alert(data.fehler || 'Löschen fehlgeschlagen.'); return; }
+    if (aktGespeichertId === id) { aktGespeichertId = null; aktGespeichertName = ''; }
+    ladeGespeicherte();
+  } catch (e) {
+    alert('Netzwerkfehler: ' + e.message);
+  }
+}
+
+// Beim Seitenaufruf gespeicherte Listen laden
+document.addEventListener('DOMContentLoaded', () => { ladeGespeicherte(); });
 </script>
 
 </body>
