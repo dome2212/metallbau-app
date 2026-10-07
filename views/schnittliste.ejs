@@ -230,6 +230,8 @@ let aktStange       = 6000;
 let aktQuelle       = 'datei'; // 'datei' | 'bild'
 let aktGespeichertId = null;   // ID wenn aus DB geladen / zuletzt gespeichert
 let aktGespeichertName = '';
+let aktProjectId = null;       // zugeordneter Auftrag
+let aktProjekteCache = null;
 
 function leseSaege() {
   const el = document.getElementById(aktQuelle === 'bild' ? 'saege-bild' : 'saege');
@@ -639,6 +641,16 @@ function fmtDatum(d) {
   } catch (_) { return ''; }
 }
 
+async function ladeProjekte() {
+  if (aktProjekteCache) return aktProjekteCache;
+  try {
+    const res = await fetch('/schnittliste/api/projects');
+    const data = await res.json();
+    aktProjekteCache = (data.ok && data.projects) ? data.projects : [];
+  } catch (_) { aktProjekteCache = []; }
+  return aktProjekteCache;
+}
+
 async function ladeGespeicherte() {
   const box = document.getElementById('gespeichert-liste');
   box.innerHTML = '<span class="text-slate-400">Lade…</span>';
@@ -656,8 +668,8 @@ async function ladeGespeicherte() {
           <thead class="text-xs text-slate-500 uppercase border-b">
             <tr>
               <th class="py-2 pr-3">Name</th>
+              <th class="py-2 pr-3 hidden sm:table-cell">Auftrag</th>
               <th class="py-2 pr-3">Pos.</th>
-              <th class="py-2 pr-3 hidden sm:table-cell">Stange</th>
               <th class="py-2 pr-3 hidden md:table-cell">Datum</th>
               <th class="py-2 text-right">Aktion</th>
             </tr>
@@ -668,8 +680,8 @@ async function ladeGespeicherte() {
                 <td class="py-2 pr-3 font-medium text-slate-800">${esc(l.name)}
                   <span class="text-xs text-slate-400 ml-1">${l.quelle === 'bild' ? '📷' : '📂'}</span>
                 </td>
+                <td class="py-2 pr-3 text-slate-600 text-xs hidden sm:table-cell">${l.project_title ? esc(l.project_title) : '<span class="text-slate-300">–</span>'}</td>
                 <td class="py-2 pr-3 text-slate-600">${l.anzahl}</td>
-                <td class="py-2 pr-3 text-slate-600 hidden sm:table-cell">${mm(l.stangenlaenge)} mm</td>
                 <td class="py-2 pr-3 text-slate-500 text-xs hidden md:table-cell">${fmtDatum(l.updated_at || l.created_at)}</td>
                 <td class="py-2 text-right whitespace-nowrap">
                   <button type="button" onclick="schnittlisteLaden(${l.id})"
@@ -690,47 +702,90 @@ async function ladeGespeicherte() {
 async function schnittlisteSpeichern() {
   leseTabelle();
   if (!aktPositionen.length) { alert('Keine Positionen zum Speichern.'); return; }
+
+  const projekte = await ladeProjekte();
   const vorschlag = aktGespeichertName || ('Schnittliste ' + new Date().toLocaleDateString('de-DE'));
-  const name = prompt('Name der Schnittliste:', vorschlag);
-  if (name === null) return; // abgebrochen
-  if (!String(name).trim()) { alert('Bitte einen Namen eingeben.'); return; }
 
-  const payload = {
-    name: String(name).trim(),
-    positionen: aktPositionen,
-    stangenlaenge: parseInt(
-      (aktQuelle === 'bild'
-        ? document.getElementById('stangenlaenge-bild')
-        : document.getElementById('stangenlaenge')
-      ).value, 10) || aktStange,
-    saege: leseSaege(),
-    quelle: aktQuelle
+  // Einfacher Dialog: Name + Auftrag
+  const overlay = document.createElement('div');
+  overlay.id = 'sl-save-modal';
+  overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+  overlay.innerHTML = `
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-4">
+      <h3 class="text-base font-bold text-slate-800">Schnittliste speichern</h3>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Name</label>
+        <input id="sl-save-name" type="text" value="${esc(vorschlag)}"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Auftrag zuweisen (optional)</label>
+        <select id="sl-save-project" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+          <option value="">– kein Auftrag –</option>
+          ${projekte.map(p => `<option value="${p.id}" ${Number(aktProjectId) === Number(p.id) ? 'selected' : ''}>${esc(p.title)}${p.status ? ' (' + esc(p.status) + ')' : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" id="sl-save-cancel" class="text-sm px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Abbrechen</button>
+        <button type="button" id="sl-save-ok" class="text-sm px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Speichern</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('sl-save-name').focus();
+  document.getElementById('sl-save-name').select();
+
+  const close = () => { overlay.remove(); };
+  document.getElementById('sl-save-cancel').onclick = close;
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  document.getElementById('sl-save-ok').onclick = async () => {
+    const name = document.getElementById('sl-save-name').value.trim();
+    const projectId = parseInt(document.getElementById('sl-save-project').value, 10) || null;
+    if (!name) { alert('Bitte einen Namen eingeben.'); return; }
+
+    const payload = {
+      name,
+      positionen: aktPositionen,
+      stangenlaenge: parseInt(
+        (aktQuelle === 'bild'
+          ? document.getElementById('stangenlaenge-bild')
+          : document.getElementById('stangenlaenge')
+        ).value, 10) || aktStange,
+      saege: leseSaege(),
+      quelle: aktQuelle,
+      project_id: projectId
+    };
+    if (aktGespeichertId && aktGespeichertName === name) {
+      payload.id = aktGespeichertId;
+    } else if (aktGespeichertId) {
+      const ueberschreiben = confirm(
+        'Aktuelle Liste ist mit „' + aktGespeichertName + '“ verknüpft.\n\nOK = unter neuem Namen speichern\nAbbrechen = bestehende überschreiben'
+      );
+      if (!ueberschreiben) payload.id = aktGespeichertId;
+    }
+
+    try {
+      const res = await fetch('/schnittliste/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok) { alert(data.fehler || 'Speichern fehlgeschlagen.'); return; }
+      aktGespeichertId = data.id;
+      aktGespeichertName = data.name;
+      aktProjectId = data.project_id || projectId;
+      close();
+      const auftragTxt = projectId
+        ? (projekte.find(p => Number(p.id) === Number(projectId)) || {}).title || 'Auftrag'
+        : null;
+      alert('Gespeichert: „' + data.name + '“ (' + data.anzahl + ' Positionen)' +
+        (auftragTxt ? '\nAuftrag: ' + auftragTxt : ''));
+      ladeGespeicherte();
+    } catch (e) {
+      alert('Netzwerkfehler: ' + e.message);
+    }
   };
-  // Wenn bereits geladen/gespeichert: optional überschreiben
-  if (aktGespeichertId && aktGespeichertName === payload.name) {
-    payload.id = aktGespeichertId;
-  } else if (aktGespeichertId) {
-    const ueberschreiben = confirm(
-      'Aktuelle Liste ist mit „' + aktGespeichertName + '“ verknüpft.\n\nOK = unter neuem Namen speichern\nAbbrechen = bestehende überschreiben'
-    );
-    if (!ueberschreiben) payload.id = aktGespeichertId;
-  }
-
-  try {
-    const res = await fetch('/schnittliste/api/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (!data.ok) { alert(data.fehler || 'Speichern fehlgeschlagen.'); return; }
-    aktGespeichertId = data.id;
-    aktGespeichertName = data.name;
-    alert('Gespeichert: „' + data.name + '“ (' + data.anzahl + ' Positionen)');
-    ladeGespeicherte();
-  } catch (e) {
-    alert('Netzwerkfehler: ' + e.message);
-  }
 }
 
 async function schnittlisteLaden(id) {
@@ -746,7 +801,7 @@ async function schnittlisteLaden(id) {
     aktQuelle = data.quelle === 'bild' ? 'bild' : 'datei';
     aktGespeichertId = data.id;
     aktGespeichertName = data.name || '';
-    // Stangenlänge in beide Felder schreiben
+    aktProjectId = data.project_id || null;
     const el1 = document.getElementById('stangenlaenge');
     const el2 = document.getElementById('stangenlaenge-bild');
     if (el1) el1.value = aktStange;
@@ -765,7 +820,6 @@ async function schnittlisteLaden(id) {
     if (hinweis) {
       document.getElementById('ki-anzahl').textContent = aktPositionen.length;
       hinweis.classList.remove('hidden');
-      hinweis.querySelector('span') && (document.getElementById('ki-anzahl').textContent = aktPositionen.length);
     }
   } catch (e) {
     versteckeLoading();
@@ -779,14 +833,17 @@ async function schnittlisteLoeschen(id, name) {
     const res = await fetch('/schnittliste/api/' + id, { method: 'DELETE' });
     const data = await res.json();
     if (!data.ok) { alert(data.fehler || 'Löschen fehlgeschlagen.'); return; }
-    if (aktGespeichertId === id) { aktGespeichertId = null; aktGespeichertName = ''; }
+    if (aktGespeichertId === id) {
+      aktGespeichertId = null;
+      aktGespeichertName = '';
+      aktProjectId = null;
+    }
     ladeGespeicherte();
   } catch (e) {
     alert('Netzwerkfehler: ' + e.message);
   }
 }
 
-// Beim Seitenaufruf gespeicherte Listen laden
 document.addEventListener('DOMContentLoaded', () => { ladeGespeicherte(); });
 </script>
 
