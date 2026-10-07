@@ -2,49 +2,51 @@
 <%- include('partials/sidebar') %>
 
 <main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
-  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-24">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-5 pb-24">
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <!-- Kopf -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Wochenplan</h1>
-        <p class="text-xs text-slate-500 mt-0.5"><%= weekLabel %><% if (canEdit) { %> · tippe auf eine Zelle zum Einteilen<% } %></p>
+        <p class="text-xs text-slate-500 mt-0.5"><%= weekLabel %><% if (canEdit) { %> · Zelle tippen zum Einteilen (mehrere Baustellen möglich)<% } %></p>
       </div>
       <div class="flex flex-wrap gap-2 items-center">
-        <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">‹</a>
+        <a href="/montageplan?week=<%= prevWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">‹</a>
         <a href="/montageplan" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Heute</a>
-        <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm">›</a>
+        <a href="/montageplan?week=<%= nextWeek %>" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">›</a>
         <form method="get" action="/montageplan" class="flex items-center">
-          <input type="date" name="week" value="<%= selectedDate %>" aria-label="Datum auswählen"
+          <input type="date" name="week" value="<%= selectedDate %>" aria-label="Datum"
             onchange="if(this.value) this.form.submit()"
             class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 text-sm">
         </form>
-        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500">Kalender</a>
+        <a href="/calendar" class="px-3 py-2 rounded-lg text-sm text-slate-500 hover:underline">Kalender</a>
       </div>
     </div>
 
+    <!-- Legende -->
     <div class="flex flex-wrap gap-1.5 text-[11px] items-center">
       <span class="font-semibold text-slate-400">Legende:</span>
-      <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Baustelle</span>
-      <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Termin</span>
-      <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Urlaub</span>
-      <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800">Krank</span>
-      <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Frei</span>
-      <% if (canEdit) { %><span class="text-slate-400 ml-1">· Zellen klickbar</span><% } %>
+      <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">Baustelle</span>
+      <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">Termin</span>
+      <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Urlaub</span>
+      <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200">Krank</span>
+      <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Frei</span>
     </div>
 
     <!-- Personal-Matrix -->
-    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Personal · Wer ist wo?</h2>
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Mitarbeiter · Woche</h2>
+        <span class="text-[11px] text-slate-400"><%= (matrix || []).length %> Personen</span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-xs min-w-[720px]">
+        <table class="w-full text-xs min-w-[780px]">
           <thead>
             <tr class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700">
-              <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-28 sticky left-0 bg-slate-50 dark:bg-slate-800 z-10">Mitarbeiter</th>
+              <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-32 sticky left-0 bg-slate-50 dark:bg-slate-800 z-10">Mitarbeiter</th>
               <% (days || []).forEach(function(day) { %>
-                <th class="px-2 py-2.5 text-center font-semibold <%= day.isToday ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-500' %>">
-                  <%= (day.label || '').split(' ')[0] %><br>
+                <th class="px-1.5 py-2.5 text-center font-semibold min-w-[6.5rem] <%= day.isToday ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-500' %>">
+                  <%= (day.shortLabel || day.label || '').split(',')[0] || (day.label || '').split(' ')[0] %><br>
                   <span class="font-normal text-[10px]"><%= day.date.slice(8,10) %>.<%= day.date.slice(5,7) %>.</span>
                 </th>
               <% }); %>
@@ -52,79 +54,120 @@
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
             <% (matrix || []).forEach(function(row) { %>
-              <tr>
+              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                 <td class="px-3 py-2 sticky left-0 bg-white dark:bg-slate-800 z-10">
                   <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                    <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
                       <%= (row.user.username || '?').charAt(0).toUpperCase() %>
                     </div>
-                    <span class="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[6rem]"><%= row.user.username %></span>
+                    <div class="min-w-0">
+                      <p class="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[7rem]"><%= row.user.username %></p>
+                      <p class="text-[10px] text-slate-400"><%= row.user.role === 'CHEF' ? 'Chef' : row.user.role === 'ADMIN' ? 'Admin' : 'MA' %></p>
+                    </div>
                   </div>
                 </td>
                 <% (row.cells || []).forEach(function(cell, ci) {
                      const day = days[ci];
-                     let cls = 'bg-slate-50 text-slate-600 dark:bg-slate-800/50 dark:text-slate-300';
-                     if (cell.status === 'baustelle' || cell.status === 'notiz') cls = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
-                     if (cell.status === 'termin') cls = 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
-                     if (cell.status === 'krank') cls = 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
-                     if (cell.status === 'urlaub') cls = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
-                     if (day && day.isToday) cls += ' ring-1 ring-inset ring-blue-200 dark:ring-blue-800';
+                     let boxCls = 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700';
+                     if (cell.status === 'baustelle' || cell.status === 'notiz') boxCls = 'bg-emerald-50 dark:bg-emerald-900/25 border-emerald-100 dark:border-emerald-800';
+                     if (cell.status === 'termin') boxCls = 'bg-blue-50 dark:bg-blue-900/25 border-blue-100 dark:border-blue-800';
+                     if (cell.status === 'krank') boxCls = 'bg-red-50 dark:bg-red-900/25 border-red-100 dark:border-red-800';
+                     if (cell.status === 'urlaub') boxCls = 'bg-amber-50 dark:bg-amber-900/25 border-amber-100 dark:border-amber-800';
+                     if (day && day.isToday) boxCls += ' ring-1 ring-blue-300 dark:ring-blue-700';
+                     const labels = (cell.labels && cell.labels.length) ? cell.labels : (cell.label && cell.label !== '—' && cell.label !== 'Frei / Werkstatt' ? [cell.label] : []);
+                     const projectIdsJson = JSON.stringify(cell.projectIds || []).replace(/"/g, '&quot;');
                 %>
                   <td class="p-1 align-top">
                     <% if (canEdit && cell.status !== 'urlaub' && cell.status !== 'krank') { %>
                       <button type="button"
-                        class="w-full min-h-[3rem] rounded-lg px-1.5 py-1.5 text-left <%= cls %> hover:opacity-90 transition"
+                        class="w-full min-h-[3.25rem] rounded-lg border px-1.5 py-1 text-left transition hover:shadow-sm <%= boxCls %>"
                         data-uid="<%= row.user.id %>"
-                        data-uname="<%= encodeURIComponent(row.user.username || '') %>"
                         data-date="<%= day.date %>"
-                        data-project="<%= cell.projectId || '' %>"
+                        data-uname="<%= encodeURIComponent(row.user.username || '') %>"
+                        data-projects="<%= projectIdsJson %>"
                         data-note="<%= encodeURIComponent(cell.note || '') %>"
                         onclick="openCellEl(this)">
-                        <span class="block text-[11px] font-medium leading-snug line-clamp-3"><%= cell.label || '—' %></span>
+                        <% if (labels.length) { %>
+                          <div class="space-y-0.5">
+                            <% labels.forEach(function(lb) { %>
+                              <span class="block truncate text-[10px] font-semibold text-emerald-800 dark:text-emerald-200 leading-tight"><%= lb %></span>
+                            <% }); %>
+                            <% if (cell.note) { %><span class="block truncate text-[9px] text-slate-500 italic"><%= cell.note %></span><% } %>
+                          </div>
+                        <% } else { %>
+                          <span class="text-[10px] text-slate-400">—</span>
+                        <% } %>
                       </button>
                     <% } else { %>
-                      <div class="w-full min-h-[3rem] rounded-lg px-1.5 py-1.5 <%= cls %>">
-                        <span class="block text-[11px] font-medium leading-snug line-clamp-3"><%= cell.label || '—' %></span>
+                      <div class="w-full min-h-[3.25rem] rounded-lg border px-1.5 py-1 <%= boxCls %>">
+                        <% if (labels.length) { %>
+                          <div class="space-y-0.5">
+                            <% labels.forEach(function(lb) { %>
+                              <span class="block truncate text-[10px] font-semibold leading-tight
+                                <%= cell.status === 'krank' ? 'text-red-800 dark:text-red-200' : cell.status === 'urlaub' ? 'text-amber-800 dark:text-amber-200' : cell.status === 'termin' ? 'text-blue-800 dark:text-blue-200' : 'text-emerald-800 dark:text-emerald-200' %>"><%= lb %></span>
+                            <% }); %>
+                          </div>
+                        <% } else { %>
+                          <span class="text-[10px] text-slate-400">—</span>
+                        <% } %>
                       </div>
                     <% } %>
                   </td>
                 <% }); %>
               </tr>
             <% }); %>
-            <% if (!(matrix || []).length) { %>
-              <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Keine Mitarbeiter gefunden.</td></tr>
-            <% } %>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Termine der Woche -->
-    <div class="space-y-2">
-      <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 px-0.5">Kalender-Termine</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+    <!-- Tagesübersicht: Baustellen pro Tag -->
+    <div class="space-y-3">
+      <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Baustellen pro Tag</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <% (days || []).forEach(function(day) { %>
-          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700 <%= day.isToday ? 'bg-blue-50 dark:bg-blue-900/20' : '' %>">
-              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><%= day.label %><% if (day.isToday) { %> · Heute<% } %></p>
+          <div class="rounded-xl border <%= day.isToday ? 'border-blue-300 dark:border-blue-600 ring-1 ring-blue-100 dark:ring-blue-900' : 'border-slate-200 dark:border-slate-700' %> bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between <%= day.isToday ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-slate-50 dark:bg-slate-800/80' %>">
+              <span class="text-xs font-bold <%= day.isToday ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200' %>"><%= day.label %></span>
+              <% if (day.isToday) { %><span class="text-[10px] font-semibold text-blue-600 bg-blue-100 dark:bg-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded">Heute</span><% } %>
             </div>
-            <div class="p-2 space-y-1.5 min-h-[3rem]">
-              <% if (!day.apps || !day.apps.length) { %>
-                <p class="text-[11px] text-slate-400 text-center py-2">Keine Termine</p>
-              <% } else { %>
-                <% day.apps.forEach(function(a) {
-                     const time = a.start_date ? new Date(a.start_date).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
-                %>
-                  <div class="rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-2">
-                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-100"><%= a.title || 'Termin' %></p>
-                    <p class="text-[10px] text-slate-500 mt-0.5">
-                      <% if (time) { %><%= time %> · <% } %><%= a.company_name || a.contact_person || '—' %>
-                    </p>
-                    <% if (a.assignees && a.assignees.length) { %>
-                      <p class="text-[10px] text-blue-600 mt-1"><%= a.assignees.map(function(u){ return u.username || u; }).join(', ') %></p>
-                    <% } %>
+            <div class="p-3 space-y-2 min-h-[4rem]">
+              <% if ((day.sites || []).length === 0 && (day.apps || []).length === 0) { %>
+                <p class="text-xs text-slate-400 italic">Keine Baustelle / Termin</p>
+              <% } %>
+
+              <% (day.sites || []).forEach(function(site) { %>
+                <div class="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-2.5 py-2">
+                  <p class="text-xs font-bold text-emerald-900 dark:text-emerald-100 leading-snug"><%= site.title %></p>
+                  <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">
+                    <%= (site.people || []).join(', ') || '—' %>
+                  </p>
+                </div>
+              <% }); %>
+
+              <% (day.apps || []).forEach(function(app) { %>
+                <div class="rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 px-2.5 py-2">
+                  <p class="text-xs font-bold text-blue-900 dark:text-blue-100 leading-snug"><%= app.title || app.project_name || 'Termin' %></p>
+                  <% if ((app.assignees || []).length) { %>
+                    <p class="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5"><%= app.assignees.map(function(a){ return a.username; }).join(', ') %></p>
+                  <% } %>
+                </div>
+              <% }); %>
+
+              <%
+                const abwesend = (day.personal || []).filter(function(p){ return p.status === 'urlaub' || p.status === 'krank'; });
+              %>
+              <% if (abwesend.length) { %>
+                <div class="pt-1 border-t border-slate-100 dark:border-slate-700">
+                  <p class="text-[10px] uppercase font-semibold text-slate-400 mb-1">Abwesend</p>
+                  <div class="flex flex-wrap gap-1">
+                    <% abwesend.forEach(function(p) { %>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded <%= p.status === 'krank' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200' %>">
+                        <%= p.user.username %> · <%= p.label %>
+                      </span>
+                    <% }); %>
                   </div>
-                <% }); %>
+                </div>
               <% } %>
             </div>
           </div>
@@ -136,31 +179,39 @@
 </main>
 
 <% if (canEdit) { %>
-<!-- Edit Modal -->
+<!-- Modal: mehrere Baustellen -->
 <div id="cell-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-  <div class="bg-white dark:bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-4 space-y-3">
+  <div class="bg-white dark:bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
     <div class="flex items-start justify-between gap-2">
       <div>
-        <h3 id="modal-title" class="text-base font-bold text-slate-800 dark:text-slate-100">—</h3>
-        <p id="modal-sub" class="text-xs text-slate-500"></p>
+        <h3 id="modal-title" class="text-base font-bold text-slate-800 dark:text-slate-100">Mitarbeiter</h3>
+        <p id="modal-sub" class="text-xs text-slate-500 mt-0.5"></p>
       </div>
       <button type="button" onclick="closeCell()" class="text-slate-400 text-xl leading-none px-2">×</button>
     </div>
+
     <div>
-      <label class="text-[10px] uppercase font-semibold text-slate-400">Baustelle / Auftrag</label>
-      <select id="modal-project" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5">
-        <option value="">— Frei / Werkstatt —</option>
+      <label class="text-[10px] uppercase font-semibold text-slate-400">Baustellen / Aufträge <span class="font-normal normal-case text-slate-400">(mehrere möglich)</span></label>
+      <div id="modal-projects" class="mt-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600 divide-y divide-slate-100 dark:divide-slate-700">
         <% (projects || []).forEach(function(p) { %>
-          <option value="<%= p.id %>"><%= p.title || ('#' + p.id) %></option>
+          <label class="flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
+            <input type="checkbox" class="modal-proj-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500" value="<%= p.id %>">
+            <span class="text-sm text-slate-800 dark:text-slate-100"><%= p.title || ('#' + p.id) %></span>
+          </label>
         <% }); %>
-      </select>
+        <% if (!(projects || []).length) { %>
+          <p class="px-3 py-3 text-xs text-slate-400">Keine offenen Aufträge vorhanden.</p>
+        <% } %>
+      </div>
     </div>
+
     <div>
       <label class="text-[10px] uppercase font-semibold text-slate-400">Notiz (optional)</label>
-      <input id="modal-note" type="text" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5" placeholder="z.B. Anfahrt, Hilfskraft…">
+      <input id="modal-note" type="text" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-900 text-sm px-3 py-2.5" placeholder="z.B. Vormittag Baustelle A, Nachmittag B…">
     </div>
+
     <div class="flex gap-2 pt-1">
-      <button type="button" onclick="clearCell()" class="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600">Leeren</button>
+      <button type="button" onclick="clearCell()" class="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-600 dark:text-slate-300">Leeren</button>
       <button type="button" id="modal-save-btn" onclick="saveCell()" class="flex-1 px-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold">Speichern</button>
     </div>
   </div>
@@ -174,22 +225,33 @@ function openCellEl(el) {
   _date = el.dataset.date;
   const uname = decodeURIComponent(el.dataset.uname || '');
   const note = decodeURIComponent(el.dataset.note || '');
+  let selected = [];
+  try { selected = JSON.parse((el.dataset.projects || '[]').replace(/&quot;/g, '"')); } catch (_) { selected = []; }
+  selected = (selected || []).map(String);
+
   const dateObj = new Date(_date + 'T12:00:00');
   document.getElementById('modal-title').textContent = uname;
   document.getElementById('modal-sub').textContent = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
-  document.getElementById('modal-project').value = el.dataset.project || '';
   document.getElementById('modal-note').value = note;
+
+  document.querySelectorAll('.modal-proj-cb').forEach(function(cb) {
+    cb.checked = selected.indexOf(String(cb.value)) !== -1;
+  });
+
   document.getElementById('cell-modal').classList.remove('hidden');
-  setTimeout(function(){ document.getElementById('modal-note').focus(); }, 50);
 }
 
 function closeCell() {
   document.getElementById('cell-modal').classList.add('hidden');
 }
 
+function selectedProjectIds() {
+  return Array.from(document.querySelectorAll('.modal-proj-cb:checked')).map(function(cb) { return cb.value; });
+}
+
 async function saveCell() {
   const btn = document.getElementById('modal-save-btn');
-  const projId = document.getElementById('modal-project').value;
+  const project_ids = selectedProjectIds();
   const note = document.getElementById('modal-note').value.trim();
   btn.disabled = true;
   btn.textContent = '…';
@@ -197,7 +259,7 @@ async function saveCell() {
     const res = await fetch('/admin/staffplan/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: _uid, date: _date, project_id: projId, note: note })
+      body: JSON.stringify({ user_id: _uid, date: _date, project_ids: project_ids, note: note })
     });
     const data = await res.json();
     if (data.ok) {
@@ -205,8 +267,8 @@ async function saveCell() {
       closeCell();
       setTimeout(function(){ location.reload(); }, 250);
     } else {
-      if (typeof showToast === 'function') showToast('Fehler', 'error');
-      else alert('Fehler beim Speichern');
+      if (typeof showToast === 'function') showToast(data.error || 'Fehler', 'error');
+      else alert(data.error || 'Fehler beim Speichern');
     }
   } catch (e) {
     if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
@@ -218,15 +280,12 @@ async function saveCell() {
 }
 
 async function clearCell() {
-  if (!confirm('Eintrag für diesen Tag löschen?')) return;
-  document.getElementById('modal-project').value = '';
+  if (!confirm('Alle Baustellen für diesen Tag löschen?')) return;
+  document.querySelectorAll('.modal-proj-cb').forEach(function(cb) { cb.checked = false; });
   document.getElementById('modal-note').value = '';
   await saveCell();
 }
 
-document.getElementById('modal-note')?.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); saveCell(); }
-});
 document.getElementById('cell-modal')?.addEventListener('click', function(e) {
   if (e.target === this) closeCell();
 });
