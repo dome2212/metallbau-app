@@ -1318,7 +1318,14 @@
     const c = document.getElementById('toast-container');
     const t = document.createElement('div');
     t.className = `toast toast-${type}`;
-    t.innerHTML = `<span style="font-size:1rem;line-height:1">${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+    // textContent statt innerHTML: Meldungen können aus URL-Parametern (?error=…) stammen
+    const ic = document.createElement('span');
+    ic.style.cssText = 'font-size:1rem;line-height:1';
+    ic.textContent = icons[type] || 'ℹ';
+    const tx = document.createElement('span');
+    tx.textContent = msg;
+    t.appendChild(ic);
+    t.appendChild(tx);
     c.appendChild(t);
     setTimeout(() => {
       t.classList.add('out');
