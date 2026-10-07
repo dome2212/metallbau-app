@@ -341,6 +341,7 @@ app.use((err, req, res, next) => {
 // den "upgrade"-Handshake von WebSocket-Verbindungen).
 const server = http.createServer(app);
 initChatServer(server);
+require('./utils/projectTrash').startTrashPurgeSchedule();
 ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
 
 server.listen(PORT, () => {
