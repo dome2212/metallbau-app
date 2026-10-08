@@ -1,30 +1,74 @@
 <%- include('partials/header') %>
 
+
 <style>
-  /* Schnittliste Dark Mode – Tabs + Inputs */
-  .tab-aktiv { background:#2563eb; color:#fff; }
-  .tab-inaktiv { background:transparent; color:#64748b; }
-  html.dark .tab-inaktiv, .dark .tab-inaktiv { color:#94a3b8; }
-  html.dark .tab-inaktiv:hover, .dark .tab-inaktiv:hover { background:#334155; color:#e2e8f0; }
-  html.dark #panel-datei input, html.dark #panel-datei select,
-  html.dark #panel-bild input, html.dark #panel-bild select,
-  .dark #panel-datei input, .dark #panel-datei select,
-  .dark #panel-bild input, .dark #panel-bild select,
-  html.dark #extra-tools input, .dark #extra-tools input,
-  html.dark #auftrag-select, .dark #auftrag-select {
-    background-color:#1e293b !important;
-    border-color:#475569 !important;
-    color:#e2e8f0 !important;
+  /* Schnittliste – Dark Mode (robust, unabhängig von Tailwind-Purge) */
+  html.dark #panel-bild,
+  html.dark #panel-datei,
+  .dark #panel-bild,
+  .dark #panel-datei,
+  body.dark #panel-bild,
+  body.dark #panel-datei,
+  [data-theme="dark"] #panel-bild,
+  [data-theme="dark"] #panel-datei {
+    background-color: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #e2e8f0 !important;
   }
+  html.dark #panel-bild .bg-amber-50,
+  .dark #panel-bild .bg-amber-50,
+  html.dark #panel-datei .bg-blue-50,
+  .dark #panel-datei .bg-blue-50,
+  [data-theme="dark"] #panel-bild .bg-amber-50 {
+    background-color: rgba(69, 26, 3, 0.55) !important;
+    border-color: #b45309 !important;
+  }
+  html.dark #panel-bild .bg-amber-50,
+  html.dark #panel-bild .bg-amber-50 *,
+  .dark #panel-bild .bg-amber-50,
+  .dark #panel-bild .bg-amber-50 * {
+    color: #fde68a !important;
+  }
+  html.dark #panel-bild label,
+  html.dark #panel-datei label,
+  .dark #panel-bild label,
+  .dark #panel-datei label {
+    color: #cbd5e1 !important;
+  }
+  html.dark #panel-bild p.text-xs,
+  html.dark #panel-datei p.text-xs,
+  .dark #panel-bild p.text-xs {
+    color: #94a3b8 !important;
+  }
+  html.dark #drop-zone,
+  .dark #drop-zone {
+    border-color: #475569 !important;
+    background-color: #0f172a !important;
+  }
+  html.dark #drop-zone:hover,
+  .dark #drop-zone:hover {
+    border-color: #3b82f6 !important;
+    background-color: #1e3a5f !important;
+  }
+  html.dark #panel-datei input,
+  html.dark #panel-datei select,
+  html.dark #panel-bild input,
+  html.dark #panel-bild select,
+  .dark #panel-datei input,
+  .dark #panel-datei select,
+  .dark #panel-bild input,
+  .dark #panel-bild select,
+  html.dark #extra-tools input,
+  .dark #extra-tools input,
+  html.dark #auftrag-select,
+  .dark #auftrag-select,
   html.dark #pos-tabelle input,
   .dark #pos-tabelle input,
   html.dark .pos-input,
   .dark .pos-input {
-    background-color:#1e293b !important;
-    border: 1px solid #475569 !important;
-    color:#e2e8f0 !important;
-    border-radius: 0.25rem;
-    padding: 0.2rem 0.35rem;
+    background-color: #0f172a !important;
+    border-color: #475569 !important;
+    color: #e2e8f0 !important;
   }
   .pos-input {
     border: 1px solid #cbd5e1;
@@ -32,13 +76,27 @@
     padding: 0.2rem 0.35rem;
     background: #fff;
   }
-  html.dark #drop-zone, .dark #drop-zone {
-    border-color:#475569;
-    background-color:#1e293b;
+  .tab-aktiv { background:#2563eb; color:#fff; }
+  .tab-inaktiv { background:transparent; color:#64748b; }
+  html.dark .tab-inaktiv, .dark .tab-inaktiv { color:#94a3b8; }
+  html.dark .tab-inaktiv:hover, .dark .tab-inaktiv:hover { background:#334155; color:#e2e8f0; }
+
+  /* Ergebnis-Karten */
+  html.dark #ergebnis .bg-white,
+  .dark #ergebnis .bg-white,
+  html.dark #zusammenfassung,
+  .dark #zusammenfassung,
+  html.dark #extra-tools,
+  .dark #extra-tools {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
   }
-  html.dark #drop-zone:hover, .dark #drop-zone:hover {
-    border-color:#3b82f6;
-    background-color:#1e3a5f;
+  html.dark #ergebnis h2,
+  html.dark #ergebnis h3,
+  .dark #ergebnis h2,
+  .dark #ergebnis h3 {
+    color: #f1f5f9 !important;
   }
 </style>
 
@@ -150,9 +208,9 @@
       <!-- ════════════════════════════════════════════════════
            TAB 2 — BILD / KI-SCAN
            ════════════════════════════════════════════════════ -->
-      <div id="panel-bild" class="hidden bg-white rounded-xl shadow p-4 md:p-6 space-y-5">
+      <div id="panel-bild" class="hidden bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 space-y-5 border border-transparent dark:border-slate-700">
 
-        <div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-200 space-y-1">
+        <div class="bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-700/60 rounded-lg px-4 py-3 text-sm text-amber-800 dark:text-amber-100 space-y-1">
           <p class="font-semibold">🤖 KI-Erkennung aus technischer Zeichnung</p>
           <p>Lade ein Foto oder einen Scan einer <strong>technischen Zeichnung</strong> hoch (Werkstattzeichnung, Stahlbauplan, Positionsplan). Die KI liest automatisch alle Bauteilpositionen, Profile, Längen und Mengen heraus.</p>
           <p class="text-xs text-amber-700 mt-1">Die KI wertet aus: Stücklisten-Tabellen · Bemaßungslinien · Profilbezeichnungen · Positionsnummern · Mengenangaben · Maßstäbe · ungefähres Gewicht (kg)</p>
@@ -387,6 +445,29 @@ let aktProjectId = null;       // zugeordneter Auftrag
 let aktProjectTitle = '';      // Auftragsname für PDF / Anzeige
 let aktProjekteCache = null;
 
+
+function isDarkMode() {
+  return document.documentElement.classList.contains('dark')
+    || document.body.classList.contains('dark')
+    || document.documentElement.getAttribute('data-theme') === 'dark'
+    || document.body.getAttribute('data-theme') === 'dark';
+}
+function applyDarkPanels() {
+  if (!isDarkMode()) return;
+  ['panel-bild', 'panel-datei', 'zusammenfassung', 'extra-tools'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.backgroundColor = '#1e293b';
+    el.style.borderColor = '#334155';
+    el.style.color = '#e2e8f0';
+  });
+  document.querySelectorAll('#ergebnis .bg-white, #ergebnis [class*="rounded-xl shadow"]').forEach(function(el) {
+    if (el.id === 'ki-hinweis') return;
+    el.style.backgroundColor = '#1e293b';
+    el.style.borderColor = '#334155';
+  });
+}
+
 function leseSaege() {
   const el = document.getElementById(aktQuelle === 'bild' ? 'saege-bild' : 'saege');
   const v = parseFloat(String(el && el.value).replace(',', '.'));
@@ -403,6 +484,7 @@ function wechsleTab(tab) {
   document.getElementById('tab-bild').className =
     'flex-1 text-sm font-semibold py-2 px-4 rounded-lg transition ' + (tab === 'bild' ? 'tab-aktiv' : 'tab-inaktiv');
   verstecke('ergebnis'); verstecke('fehler-box');
+  applyDarkPanels();
 }
 
 // ── Datei-Tab ────────────────────────────────────────────────
@@ -876,6 +958,7 @@ function rendereErgebnis() {
 
   document.getElementById('ergebnis').classList.remove('hidden');
   fuelleAuftragSelect();
+  applyDarkPanels();
 }
 
 // Schnittskizze (Draufsicht): Abweichung vom geraden 90°-Schnitt; links = Anfang, rechts = Ende
@@ -1322,6 +1405,16 @@ document.addEventListener('DOMContentLoaded', () => {
   ladeGespeicherte();
   fuelleAuftragSelect();
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+  applyDarkPanels();
+  // falls Dark-Mode später umgeschaltet wird
+  try {
+    new MutationObserver(function() { applyDarkPanels(); })
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+  } catch (e) {}
+});
+applyDarkPanels(); // init
 </script>
 
 </body>
