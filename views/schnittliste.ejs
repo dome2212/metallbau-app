@@ -175,6 +175,17 @@
           ✅ KI hat <span id="ki-anzahl">0</span> Positionen erkannt. Bitte kurz prüfen, dann PDF herunterladen.
         </div>
 
+        <!-- Auftrag zuweisen (für PDF + Speichern) -->
+        <div class="bg-white rounded-xl shadow p-4 md:p-5">
+          <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Auftrag</label>
+          <select id="auftrag-select"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+            onchange="onAuftragGewaehlt(this)">
+            <option value="">– keinen Auftrag wählen –</option>
+          </select>
+          <p id="auftrag-hinweis" class="text-xs text-slate-400 mt-1.5">Auftragsname erscheint in der PDF und in der gespeicherten Liste.</p>
+        </div>
+
         <div id="zusammenfassung" class="bg-white rounded-xl shadow p-4 md:p-5"></div>
 
         <!-- Editierbare Positionstabelle -->
@@ -223,6 +234,7 @@
   <input type="hidden" name="stangenlaenge" id="pdf-stangenlaenge">
   <input type="hidden" name="saege" id="pdf-saege">
   <input type="hidden" name="firma_name" value="<%= currentUser ? currentUser.username : '' %>">
+  <input type="hidden" name="project_name" id="pdf-project-name" value="">
 </form>
 
 <style>
@@ -247,6 +259,7 @@ let aktQuelle       = 'datei'; // 'datei' | 'bild'
 let aktGespeichertId = null;   // ID wenn aus DB geladen / zuletzt gespeichert
 let aktGespeichertName = '';
 let aktProjectId = null;       // zugeordneter Auftrag
+let aktProjectTitle = '';      // Auftragsname für PDF / Anzeige
 let aktProjekteCache = null;
 
 function leseSaege() {
@@ -483,8 +496,13 @@ function pdfHerunterladen() {
     aktPositionen.map(p => `${p.pos};${p.menge};${p.profil};${p.laenge};${p.bemerk};${p.winkel || ''};${p.kg || 0}`).join('\n');
   const csvFile = new File([csv], 'schnittliste.csv', { type: 'text/csv' });
 
+  // Auftrag aus Dropdown übernehmen (falls noch nicht gesetzt)
+  const auftragSel = document.getElementById('auftrag-select');
+  if (auftragSel && auftragSel.value) onAuftragGewaehlt(auftragSel);
   document.getElementById('pdf-stangenlaenge').value = sl;
   document.getElementById('pdf-saege').value = leseSaege();
+  const pn = document.getElementById('pdf-project-name');
+  if (pn) pn.value = aktProjectTitle || '';
   const form = document.getElementById('pdf-form');
   const old = form.querySelector('input[name="datei"]');
   if (old) old.remove();
@@ -519,32 +537,75 @@ function rendereErgebnis() {
 
   rendereTabelle();
 
-  // Profil-Karten
+  // Profil-Karten + empfohlene Schnittreihenfolge
   const container = document.getElementById('profil-karten');
   const FARBEN = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
-  container.innerHTML = aktGruppen.map(g => {
+
+  const alleSchritte = [];
+  (aktGruppen || []).forEach(g => {
+    (g.schnittfolge || []).forEach(s => alleSchritte.push(Object.assign({ profil: g.profil }, s)));
+  });
+  const folgeHtml = alleSchritte.length ? `
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="px-4 md:px-5 py-3 bg-amber-50 border-b border-amber-100">
+        <h3 class="text-sm font-bold text-amber-900">✂️ Empfohlene Schnittreihenfolge</h3>
+        <p class="text-xs text-amber-800/80 mt-0.5">Große Teile zuerst – so entsteht weniger Verschnitt. In dieser Reihenfolge schneiden.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-xs text-slate-500 uppercase border-b bg-slate-50">
+            <tr>
+              <th class="px-3 py-2 text-left">Nr</th>
+              <th class="px-3 py-2 text-left">Pos</th>
+              <th class="px-3 py-2 text-left">Profil</th>
+              <th class="px-3 py-2 text-left">Länge</th>
+              <th class="px-3 py-2 text-left">Stange</th>
+              <th class="px-3 py-2 text-left hidden sm:table-cell">Winkel</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            ${alleSchritte.map(s => `
+              <tr class="hover:bg-slate-50">
+                <td class="px-3 py-2 font-bold text-blue-700">#${s.nr}</td>
+                <td class="px-3 py-2 font-medium">${esc(String(s.pos))}</td>
+                <td class="px-3 py-2 text-slate-700">${esc(s.profil || '')}</td>
+                <td class="px-3 py-2">${mm(s.laenge)} mm</td>
+                <td class="px-3 py-2 text-slate-600">${s.uebermas ? 'Übermaß' : ('Stange ' + s.stangeNr)}</td>
+                <td class="px-3 py-2 text-slate-500 hidden sm:table-cell">${esc(s.winkel || '–')}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : '';
+
+  const kartenHtml = aktGruppen.map(g => {
     const stDetails = g.stangen.map((st, si) => {
       const label   = st.uebermas ? 'Übermaß' : `Stange ${si+1}`;
       const balken  = st.teile.map((t, ti) => {
         const pct   = st.uebermas ? 100 : Math.max(1, Math.round((t.laenge / aktStange) * 100));
-        return `<div title="Pos ${esc(t.pos)}: ${mm(t.laenge)} mm"
+        const nr = t.schnittNr || (st.folge && st.folge[ti] && st.folge[ti].nr) || (ti + 1);
+        return `<div title="#${nr} Pos ${esc(t.pos)}: ${mm(t.laenge)} mm"
           style="width:${pct}%;background:${FARBEN[ti%FARBEN.length]};height:100%;display:inline-block;vertical-align:top;"></div>`;
       }).join('');
       const restPct = st.uebermas ? 0 : Math.round((st.rest / aktStange) * 100);
       const restB   = restPct > 0
         ? `<div style="width:${restPct}%;background:#e5e7eb;height:100%;display:inline-block;vertical-align:top;" title="Verschnitt: ${mm(st.rest)} mm"></div>` : '';
-      const teileListe = st.teile.map(t =>
-        `<span class="inline-block bg-slate-100 text-slate-600 text-xs px-1.5 py-0.5 rounded mr-1 mb-1">Pos ${esc(t.pos)}: ${mm(t.laenge)} mm${t.winkel ? ' · ' + esc(t.winkel) : ''}</span>`
-      ).join('');
+      const teileListe = st.teile.map((t, ti) => {
+        const nr = t.schnittNr || (st.folge && st.folge[ti] && st.folge[ti].nr) || (ti + 1);
+        return `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs px-1.5 py-0.5 rounded mr-1 mb-1">
+          <span class="font-bold text-blue-600">#${nr}</span>
+          Pos ${esc(t.pos)}: ${mm(t.laenge)} mm${t.winkel ? ' · ' + esc(t.winkel) : ''}
+        </span>`;
+      }).join('');
       return `
         <div class="border border-slate-200 rounded-lg p-3 space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-600">${label}</span>
+            <span class="text-xs font-semibold text-slate-600">${label} · Schnittreihenfolge</span>
             ${st.uebermas ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">⚠ Übermaß</span>'
                           : `<span class="text-xs text-slate-400">Rest: ${mm(st.rest)} mm</span>`}
           </div>
           <div style="height:14px;width:100%;background:#f1f5f9;border-radius:4px;overflow:hidden;">${balken}${restB}</div>
-          <div class="pt-1">${teileListe}</div>
+          <div class="pt-1 flex flex-wrap items-center gap-0.5">${teileListe}</div>
         </div>`;
     }).join('');
 
@@ -565,7 +626,10 @@ function rendereErgebnis() {
       </div>`;
   }).join('');
 
+  container.innerHTML = folgeHtml + kartenHtml;
+
   document.getElementById('ergebnis').classList.remove('hidden');
+  fuelleAuftragSelect();
 }
 
 // Schnittskizze (Draufsicht): Abweichung vom geraden 90°-Schnitt; links = Anfang, rechts = Ende
@@ -662,7 +726,7 @@ async function ladeProjekte(force) {
   try {
     const res = await fetch('/schnittliste/api/projects');
     const data = await res.json();
-    if (!data.ok) {
+    if (!data.ok && !Array.isArray(data.projects)) {
       console.warn('Projekte API:', data.fehler);
       aktProjekteCache = [];
       return [];
@@ -671,9 +735,43 @@ async function ladeProjekte(force) {
     return aktProjekteCache;
   } catch (e) {
     console.warn('Projekte laden:', e.message);
-    aktProjekteCache = null; // nicht cachen – nächster Versuch erneut
+    aktProjekteCache = null;
     return [];
   }
+}
+
+async function fuelleAuftragSelect() {
+  const sel = document.getElementById('auftrag-select');
+  const hinweis = document.getElementById('auftrag-hinweis');
+  if (!sel) return;
+  const projekte = await ladeProjekte(true);
+  const cur = aktProjectId ? String(aktProjectId) : '';
+  sel.innerHTML = '<option value="">– keinen Auftrag wählen –</option>' +
+    projekte.map(p => {
+      const lab = p.label || p.title || ('#' + p.id);
+      return `<option value="${p.id}" ${String(p.id) === cur ? 'selected' : ''}>${esc(lab)}</option>`;
+    }).join('');
+  if (hinweis) {
+    hinweis.textContent = projekte.length
+      ? (projekte.length + ' Auftrag/Aufträge geladen. Name erscheint in PDF und gespeicherter Liste.')
+      : 'Keine Aufträge gefunden. Lege unter „Aufträge“ einen an.';
+    hinweis.className = projekte.length
+      ? 'text-xs text-slate-400 mt-1.5'
+      : 'text-xs text-amber-600 mt-1.5';
+  }
+}
+
+function onAuftragGewaehlt(sel) {
+  const pid = parseInt(sel.value, 10) || null;
+  aktProjectId = pid;
+  if (!pid) {
+    aktProjectTitle = '';
+    return;
+  }
+  const opt = sel.options[sel.selectedIndex];
+  // label kann "Titel – Kunde" sein; für PDF/Name den reinen Titel aus Cache nehmen
+  const p = (aktProjekteCache || []).find(x => Number(x.id) === Number(pid));
+  aktProjectTitle = (p && p.title) ? p.title : (opt ? opt.textContent.split(' – ')[0].trim() : '');
 }
 
 async function ladeGespeicherte() {
@@ -700,9 +798,15 @@ async function ladeGespeicherte() {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            ${data.listen.map(l => `
+            ${data.listen.map(l => {
+              const anzeigeName = l.project_title
+                ? (l.name && l.name !== l.project_title
+                    ? esc(l.project_title) + ' <span class="text-slate-400 font-normal">· ' + esc(l.name) + '</span>'
+                    : esc(l.project_title))
+                : esc(l.name);
+              return `
               <tr class="hover:bg-slate-50">
-                <td class="py-2 pr-3 font-medium text-slate-800">${esc(l.name)}
+                <td class="py-2 pr-3 font-medium text-slate-800">${anzeigeName}
                   <span class="text-xs text-slate-400 ml-1">${l.quelle === 'bild' ? '📷' : '📂'}</span>
                 </td>
                 <td class="py-2 pr-3 text-slate-600 text-xs hidden sm:table-cell">${l.project_title ? esc(l.project_title) : '<span class="text-slate-300">–</span>'}</td>
@@ -714,8 +818,8 @@ async function ladeGespeicherte() {
                   <button type="button" onclick="schnittlisteLoeschen(${l.id}, '${esc(l.name).replace(/'/g, "\\'")}')"
                     class="text-xs text-red-500 hover:underline">Löschen</button>
                 </td>
-              </tr>
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
@@ -728,10 +832,20 @@ async function schnittlisteSpeichern() {
   leseTabelle();
   if (!aktPositionen.length) { alert('Keine Positionen zum Speichern.'); return; }
 
+  // Auftrag aus dem Ergebnis-Dropdown übernehmen
+  const auftragSel = document.getElementById('auftrag-select');
+  if (auftragSel && auftragSel.value) onAuftragGewaehlt(auftragSel);
+
   const projekte = await ladeProjekte(true);
-  const vorschlag = aktGespeichertName || ('Schnittliste ' + new Date().toLocaleDateString('de-DE'));
+  // Vorschlag: Auftragsname hat Vorrang, sonst gespeicherter Name, sonst Datum
+  const vorschlag = aktProjectTitle
+    || aktGespeichertName
+    || ('Schnittliste ' + new Date().toLocaleDateString('de-DE'));
   const projektOpts = projekte.length
-    ? projekte.map(p => `<option value="${p.id}" ${Number(aktProjectId) === Number(p.id) ? 'selected' : ''}>${esc(p.title || ('Auftrag #' + p.id))}${p.status ? ' (' + esc(p.status) + ')' : ''}</option>`).join('')
+    ? projekte.map(p => {
+        const lab = p.label || p.title || ('#' + p.id);
+        return `<option value="${p.id}" ${Number(aktProjectId) === Number(p.id) ? 'selected' : ''}>${esc(lab)}</option>`;
+      }).join('')
     : '';
 
   // Einfacher Dialog: Name + Auftrag
@@ -763,13 +877,30 @@ async function schnittlisteSpeichern() {
   document.getElementById('sl-save-name').focus();
   document.getElementById('sl-save-name').select();
 
+  // Auftrag wählen → Name vorschlagen (Auftragsname)
+  document.getElementById('sl-save-project').addEventListener('change', function () {
+    const pid = parseInt(this.value, 10) || null;
+    const p = projekte.find(x => Number(x.id) === Number(pid));
+    const nameEl = document.getElementById('sl-save-name');
+    if (p && p.title) {
+      // Nur überschreiben wenn leer oder noch der alte Vorschlag
+      const cur = nameEl.value.trim();
+      if (!cur || cur.startsWith('Schnittliste ') || cur === aktGespeichertName || cur === aktProjectTitle) {
+        nameEl.value = p.title;
+      }
+    }
+  });
+
   const close = () => { overlay.remove(); };
   document.getElementById('sl-save-cancel').onclick = close;
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
   document.getElementById('sl-save-ok').onclick = async () => {
-    const name = document.getElementById('sl-save-name').value.trim();
+    let name = document.getElementById('sl-save-name').value.trim();
     const projectId = parseInt(document.getElementById('sl-save-project').value, 10) || null;
+    const selProj = projectId ? projekte.find(p => Number(p.id) === Number(projectId)) : null;
+    // Wenn Name leer aber Auftrag gewählt → Auftragsname verwenden
+    if (!name && selProj && selProj.title) name = selProj.title;
     if (!name) { alert('Bitte einen Namen eingeben.'); return; }
 
     const payload = {
@@ -804,10 +935,9 @@ async function schnittlisteSpeichern() {
       aktGespeichertId = data.id;
       aktGespeichertName = data.name;
       aktProjectId = data.project_id || projectId;
+      aktProjectTitle = (selProj && selProj.title) || '';
       close();
-      const auftragTxt = projectId
-        ? (projekte.find(p => Number(p.id) === Number(projectId)) || {}).title || 'Auftrag'
-        : null;
+      const auftragTxt = aktProjectTitle || null;
       alert('Gespeichert: „' + data.name + '“ (' + data.anzahl + ' Positionen)' +
         (auftragTxt ? '\nAuftrag: ' + auftragTxt : ''));
       ladeGespeicherte();
@@ -831,6 +961,8 @@ async function schnittlisteLaden(id) {
     aktGespeichertId = data.id;
     aktGespeichertName = data.name || '';
     aktProjectId = data.project_id || null;
+    aktProjectTitle = data.project_title || '';
+    fuelleAuftragSelect();
     const el1 = document.getElementById('stangenlaenge');
     const el2 = document.getElementById('stangenlaenge-bild');
     if (el1) el1.value = aktStange;
@@ -866,6 +998,7 @@ async function schnittlisteLoeschen(id, name) {
       aktGespeichertId = null;
       aktGespeichertName = '';
       aktProjectId = null;
+      aktProjectTitle = '';
     }
     ladeGespeicherte();
   } catch (e) {
@@ -873,7 +1006,10 @@ async function schnittlisteLoeschen(id, name) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => { ladeGespeicherte(); });
+document.addEventListener('DOMContentLoaded', () => {
+  ladeGespeicherte();
+  fuelleAuftragSelect();
+});
 </script>
 
 </body>
