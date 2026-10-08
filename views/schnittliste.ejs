@@ -60,6 +60,20 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Name der Schnittliste</label>
+            <input type="text" id="sl-name-datei" placeholder="z.B. Geländer Hof Nord"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              oninput="syncMetaFromPre()">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Baustelle / Auftrag</label>
+            <select id="auftrag-pre-datei"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              onchange="onAuftragPre(this)">
+              <option value="">– Baustelle / Auftrag wählen –</option>
+            </select>
+          </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">CSV- oder XLSX-Datei</label>
             <input type="file" id="datei-input" accept=".csv,.txt,.xlsx"
@@ -135,6 +149,21 @@
         <input type="file" id="bild-kamera" accept="image/*" capture="environment" class="hidden" onchange="onBildGewaehlt(this)">
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Name der Schnittliste</label>
+            <input type="text" id="sl-name-bild" placeholder="z.B. Geländer Hof Nord"
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              oninput="syncMetaFromPre()">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Baustelle / Auftrag</label>
+            <select id="auftrag-pre-bild"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+              onchange="onAuftragPre(this)">
+              <option value="">– Baustelle / Auftrag wählen –</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">Vor der KI-Analyse wählen – erscheint in PDF und beim Speichern.</p>
+          </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Stangenlänge (mm)</label>
             <input type="number" id="stangenlaenge-bild" value="6000" min="100" max="20000" step="100"
@@ -292,6 +321,7 @@ async function berechnen() {
   verstecke('fehler-box'); verstecke('ergebnis');
   document.getElementById('btn-pdf').disabled = true;
   if (!aktDatei) { zeigeFehler('Bitte zuerst eine Datei auswählen.'); return; }
+  leseMetaVoranalyse();
   const sl = parseInt(document.getElementById('stangenlaenge').value, 10);
   if (!sl || sl < 100) { zeigeFehler('Ungültige Stangenlänge.'); return; }
 
@@ -399,6 +429,7 @@ async function bildAnalysieren() {
   verstecke('fehler-box'); verstecke('ergebnis');
   document.getElementById('btn-pdf-bild').disabled = true;
   if (aktBilder.length === 0) { zeigeFehler('Kein Bild ausgewählt.'); return; }
+  leseMetaVoranalyse();
   const sl = parseInt(document.getElementById('stangenlaenge-bild').value, 10) || 6000;
 
   zeigeLoading(aktBilder.length > 1 ? `KI analysiert ${aktBilder.length} Bilder — das kann einige Sekunden dauern…` : 'KI analysiert das Bild — das kann einige Sekunden dauern…');
@@ -414,7 +445,6 @@ async function bildAnalysieren() {
     aktPositionen = data.positionen;
     aktGruppen    = data.gruppen;
     aktStange     = data.stangenlaenge;
-    // KI-Hinweis zeigen
     const hinweis = document.getElementById('ki-hinweis');
     document.getElementById('ki-anzahl').textContent = aktPositionen.length;
     hinweis.classList.remove('hidden');
@@ -485,6 +515,7 @@ function neuBerechnen() {
 // ── PDF ──────────────────────────────────────────────────────
 function pdfHerunterladen() {
   leseTabelle();
+  leseMetaVoranalyse();
   const sl = parseInt(
     (aktQuelle === 'bild'
       ? document.getElementById('stangenlaenge-bild')
@@ -740,17 +771,25 @@ async function ladeProjekte(force) {
   }
 }
 
-async function fuelleAuftragSelect() {
-  const sel = document.getElementById('auftrag-select');
-  const hinweis = document.getElementById('auftrag-hinweis');
-  if (!sel) return;
-  const projekte = await ladeProjekte(true);
-  const cur = aktProjectId ? String(aktProjectId) : '';
-  sel.innerHTML = '<option value="">– keinen Auftrag wählen –</option>' +
+function auftragOptionsHtml(projekte, cur) {
+  return '<option value="">– Baustelle / Auftrag wählen –</option>' +
     projekte.map(p => {
       const lab = p.label || p.title || ('#' + p.id);
-      return `<option value="${p.id}" ${String(p.id) === cur ? 'selected' : ''}>${esc(lab)}</option>`;
+      return `<option value="${p.id}" ${String(p.id) === String(cur || '') ? 'selected' : ''}>${esc(lab)}</option>`;
     }).join('');
+}
+
+async function fuelleAuftragSelect() {
+  const projekte = await ladeProjekte(true);
+  const cur = aktProjectId ? String(aktProjectId) : '';
+  const opts = auftragOptionsHtml(projekte, cur);
+
+  ['auftrag-select', 'auftrag-pre-bild', 'auftrag-pre-datei'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = opts;
+  });
+
+  const hinweis = document.getElementById('auftrag-hinweis');
   if (hinweis) {
     hinweis.textContent = projekte.length
       ? (projekte.length + ' Auftrag/Aufträge geladen. Name erscheint in PDF und gespeicherter Liste.')
@@ -759,19 +798,72 @@ async function fuelleAuftragSelect() {
       ? 'text-xs text-slate-400 mt-1.5'
       : 'text-xs text-amber-600 mt-1.5';
   }
+
+  // Namen-Felder synchronisieren
+  ['sl-name-bild', 'sl-name-datei'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && aktGespeichertName && !el.value) el.value = aktGespeichertName;
+  });
+}
+
+function applyAuftrag(pid) {
+  aktProjectId = pid ? parseInt(pid, 10) || null : null;
+  if (!aktProjectId) {
+    aktProjectTitle = '';
+  } else {
+    const p = (aktProjekteCache || []).find(x => Number(x.id) === Number(aktProjectId));
+    aktProjectTitle = (p && p.title) ? p.title : '';
+  }
+  // Alle Dropdowns synchron halten
+  ['auftrag-select', 'auftrag-pre-bild', 'auftrag-pre-datei'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel && String(sel.value) !== String(aktProjectId || '')) {
+      sel.value = aktProjectId ? String(aktProjectId) : '';
+    }
+  });
+  // Name vorschlagen, wenn leer
+  if (aktProjectTitle) {
+    ['sl-name-bild', 'sl-name-datei'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && (!el.value.trim() || el.value.trim() === aktGespeichertName)) {
+        // nur vorschlagen wenn Feld leer
+      }
+      if (el && !el.value.trim()) {
+        el.value = aktProjectTitle;
+        aktGespeichertName = aktProjectTitle;
+      }
+    });
+  }
 }
 
 function onAuftragGewaehlt(sel) {
-  const pid = parseInt(sel.value, 10) || null;
-  aktProjectId = pid;
-  if (!pid) {
-    aktProjectTitle = '';
-    return;
+  applyAuftrag(sel.value);
+}
+
+function onAuftragPre(sel) {
+  applyAuftrag(sel.value);
+  syncMetaFromPre();
+}
+
+function syncMetaFromPre() {
+  const nameEl = document.getElementById(aktQuelle === 'bild' ? 'sl-name-bild' : 'sl-name-datei')
+    || document.getElementById('sl-name-bild')
+    || document.getElementById('sl-name-datei');
+  if (nameEl && nameEl.value.trim()) {
+    aktGespeichertName = nameEl.value.trim();
   }
-  const opt = sel.options[sel.selectedIndex];
-  // label kann "Titel – Kunde" sein; für PDF/Name den reinen Titel aus Cache nehmen
-  const p = (aktProjekteCache || []).find(x => Number(x.id) === Number(pid));
-  aktProjectTitle = (p && p.title) ? p.title : (opt ? opt.textContent.split(' – ')[0].trim() : '');
+  // Namen zwischen Tabs spiegeln
+  const n = aktGespeichertName || '';
+  ['sl-name-bild', 'sl-name-datei'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el !== nameEl && n && !el.value.trim()) el.value = n;
+  });
+}
+
+function leseMetaVoranalyse() {
+  syncMetaFromPre();
+  const preSel = document.getElementById(aktQuelle === 'bild' ? 'auftrag-pre-bild' : 'auftrag-pre-datei');
+  if (preSel && preSel.value) applyAuftrag(preSel.value);
 }
 
 async function ladeGespeicherte() {
@@ -832,7 +924,8 @@ async function schnittlisteSpeichern() {
   leseTabelle();
   if (!aktPositionen.length) { alert('Keine Positionen zum Speichern.'); return; }
 
-  // Auftrag aus dem Ergebnis-Dropdown übernehmen
+  // Name + Auftrag aus Vor-Analyse-Feldern / Ergebnis übernehmen
+  leseMetaVoranalyse();
   const auftragSel = document.getElementById('auftrag-select');
   if (auftragSel && auftragSel.value) onAuftragGewaehlt(auftragSel);
 
@@ -962,6 +1055,10 @@ async function schnittlisteLaden(id) {
     aktGespeichertName = data.name || '';
     aktProjectId = data.project_id || null;
     aktProjectTitle = data.project_title || '';
+    ['sl-name-bild', 'sl-name-datei'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = aktGespeichertName || '';
+    });
     fuelleAuftragSelect();
     const el1 = document.getElementById('stangenlaenge');
     const el2 = document.getElementById('stangenlaenge-bild');
