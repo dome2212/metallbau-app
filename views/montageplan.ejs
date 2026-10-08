@@ -41,10 +41,21 @@
           <thead>
             <tr class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700">
               <th class="px-3 py-2.5 text-left font-semibold text-slate-500 w-32 sticky left-0 bg-slate-50 dark:bg-slate-800 z-10">Mitarbeiter</th>
-              <% (days || []).forEach(function(day) { %>
+              <% (days || []).forEach(function(day) {
+                  const w = day.weather;
+                  let wCls = 'text-slate-400';
+                  if (w && w.warningLevel === 'danger') wCls = 'text-red-600 dark:text-red-400';
+                  else if (w && w.warningLevel === 'warn') wCls = 'text-amber-600 dark:text-amber-400';
+                %>
                 <th class="px-1.5 py-2.5 text-center font-semibold min-w-[6.5rem] <%= day.isToday ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-500' %>">
                   <%= (day.shortLabel || day.label || '').split(',')[0] || (day.label || '').split(' ')[0] %><br>
                   <span class="font-normal text-[10px]"><%= day.date.slice(8,10) %>.<%= day.date.slice(5,7) %>.</span>
+                  <% if (w) { %>
+                    <div class="mt-0.5 text-[10px] font-normal <%= wCls %>" title="<%= w.weatherText %> · Böen <%= w.windgusts %> km/h · <%= w.precipitation %> mm">
+                      <%= w.icon || '🌤️' %> <% if (w.warningLevel === 'danger') { %>⚠️<% } else if (w.warningLevel === 'warn') { %>⚡<% } %>
+                      <span class="opacity-80"><%= w.windgusts %>km/h</span>
+                    </div>
+                  <% } %>
                 </th>
               <% }); %>
             </tr>
@@ -123,11 +134,31 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <% (days || []).forEach(function(day) { %>
           <div class="rounded-xl border <%= day.isToday ? 'border-blue-300 dark:border-blue-600 ring-1 ring-blue-100 dark:ring-blue-900' : 'border-slate-200 dark:border-slate-700' %> bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
-            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between <%= day.isToday ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-slate-50 dark:bg-slate-800/80' %>">
+            <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2 <%= day.isToday ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-slate-50 dark:bg-slate-800/80' %>">
               <span class="text-xs font-bold <%= day.isToday ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200' %>"><%= day.label %></span>
-              <% if (day.isToday) { %><span class="text-[10px] font-semibold text-blue-600 bg-blue-100 dark:bg-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded">Heute</span><% } %>
+              <div class="flex items-center gap-1 shrink-0">
+                <% if (day.isToday) { %><span class="text-[10px] font-semibold text-blue-600 bg-blue-100 dark:bg-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded">Heute</span><% } %>
+                <% if (day.weather) {
+                     const w = day.weather;
+                     let badge = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+                     if (w.warningLevel === 'danger') badge = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+                     else if (w.warningLevel === 'warn') badge = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200';
+                %>
+                  <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded <%= badge %>"
+                    title="<%= w.weatherText %> · Wind <%= w.windspeed %> · Böen <%= w.windgusts %> km/h · Regen <%= w.precipitation %> mm">
+                    <%= w.icon || '🌤️' %> <%= w.weatherText %><% if (w.windgusts) { %> · <%= w.windgusts %> km/h<% } %>
+                  </span>
+                <% } %>
+              </div>
             </div>
             <div class="p-3 space-y-2 min-h-[4rem]">
+              <% if (day.weather && (day.weather.warningLevel === 'warn' || day.weather.warningLevel === 'danger')) { %>
+                <div class="rounded-lg px-2.5 py-2 text-xs <%= day.weather.warningLevel === 'danger' ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' : 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200' %>">
+                  <strong><%= day.weather.warningLevel === 'danger' ? '⚠️ Montage kritisch' : '⚡ Wetterhinweis' %></strong>
+                  – <%= day.weather.weatherText %>,
+                  Böen <%= day.weather.windgusts %> km/h<% if (day.weather.precipitation) { %>, Regen <%= day.weather.precipitation %> mm<% } %>
+                </div>
+              <% } %>
               <% if ((day.sites || []).length === 0 && (day.apps || []).length === 0) { %>
                 <p class="text-xs text-slate-400 italic">Keine Baustelle / Termin</p>
               <% } %>
@@ -301,44 +332,56 @@ function collectAssignments() {
   return out;
 }
 
-async function saveCell() {
+async function saveCell(opts) {
+  opts = opts || {};
   const btn = document.getElementById('modal-save-btn');
-  const assignments = collectAssignments();
-  const note = document.getElementById('modal-note').value.trim();
-  btn.disabled = true;
-  btn.textContent = '…';
+  const clearBtn = document.querySelector('#cell-modal button[onclick="clearCell()"]');
+  const assignments = opts.clear ? [] : collectAssignments();
+  const note = opts.clear ? '' : document.getElementById('modal-note').value.trim();
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (clearBtn) clearBtn.disabled = true;
   try {
+    const body = opts.clear
+      ? { user_id: _uid, date: _date, clear: true }
+      : { user_id: _uid, date: _date, assignments: assignments, note: note };
     const res = await fetch('/admin/staffplan/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: _uid, date: _date, assignments: assignments, note: note })
+      body: JSON.stringify(body)
     });
-    const data = await res.json();
+    let data = {};
+    try { data = await res.json(); } catch (_) {
+      data = { ok: false, error: res.status === 403 ? 'Keine Berechtigung (nur Chef/Admin)' : ('HTTP ' + res.status) };
+    }
     if (data.ok) {
-      if (typeof showToast === 'function') showToast('Gespeichert', 'success', 1500);
+      if (typeof showToast === 'function') {
+        showToast(data.cleared ? 'Gelöscht' : 'Gespeichert', 'success', 1500);
+      }
       closeCell();
       setTimeout(function(){ location.reload(); }, 250);
     } else {
-      if (typeof showToast === 'function') showToast(data.error || 'Fehler', 'error');
-      else alert(data.error || 'Fehler beim Speichern');
+      const msg = data.error || 'Fehler beim Speichern';
+      if (typeof showToast === 'function') showToast(msg, 'error');
+      else alert(msg);
     }
   } catch (e) {
-    if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
-    else alert('Netzwerkfehler');
+    if (typeof showToast === 'function') showToast('Netzwerkfehler: ' + e.message, 'error');
+    else alert('Netzwerkfehler: ' + e.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Speichern';
+    if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
+    if (clearBtn) clearBtn.disabled = false;
   }
 }
 
 async function clearCell() {
-  if (!confirm('Alle Baustellen für diesen Tag löschen?')) return;
+  if (!confirm('Alle Baustellen für diesen Tag wirklich löschen?')) return;
   document.querySelectorAll('.modal-proj-cb').forEach(function(cb) {
     cb.checked = false;
-    toggleTimeRow(cb);
+    if (typeof toggleTimeRow === 'function') toggleTimeRow(cb);
   });
-  document.getElementById('modal-note').value = '';
-  await saveCell();
+  const noteEl = document.getElementById('modal-note');
+  if (noteEl) noteEl.value = '';
+  await saveCell({ clear: true });
 }
 
 document.getElementById('cell-modal')?.addEventListener('click', function(e) {
