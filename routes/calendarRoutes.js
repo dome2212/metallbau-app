@@ -65,58 +65,201 @@ function buildCalendar(yearMonth, vacations, users) {
 const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
 const FIRM_LNG = parseFloat(process.env.FIRM_LNG || '6.9483845');
 
+/** Datum → YYYY-MM-DD (Date-Objekt, ISO-String, de-DE …) */
+function toDateStr(val) {
+  if (!val) return null;
+  if (val instanceof Date && !isNaN(val)) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(val).trim();
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const de = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (de) return `${de[3]}-${de[2].padStart(2, '0')}-${de[1].padStart(2, '0')}`;
+  const t = new Date(s);
+  if (!isNaN(t)) return toDateStr(t);
+  return null;
+}
+
 function wmoCodeToText(code) {
-  if (code === 0)  return 'Klar';
-  if (code <= 3)   return 'Bewölkt';
-  if (code <= 9)   return 'Nebelfelder';
-  if (code <= 19)  return 'Niederschlag';
-  if (code <= 29)  return 'Gewitter (Nähe)';
-  if (code <= 39)  return 'Staubnebel';
-  if (code <= 49)  return 'Nebel';
-  if (code <= 59)  return 'Nieselregen';
-  if (code <= 69)  return 'Regen';
-  if (code <= 79)  return 'Schnee / Graupel';
-  if (code <= 84)  return 'Schauer';
-  if (code <= 94)  return 'Gewitter';
+  const c = Number(code) || 0;
+  if (c === 0)  return 'Klar';
+  if (c <= 3)   return 'Bewölkt';
+  if (c <= 9)   return 'Nebelfelder';
+  if (c <= 19)  return 'Niederschlag';
+  if (c <= 29)  return 'Gewitter (Nähe)';
+  if (c <= 39)  return 'Staubnebel';
+  if (c <= 49)  return 'Nebel';
+  if (c <= 59)  return 'Nieselregen';
+  if (c <= 69)  return 'Regen';
+  if (c <= 79)  return 'Schnee / Graupel';
+  if (c <= 84)  return 'Schauer';
+  if (c <= 94)  return 'Gewitter';
   return 'Heftiger Sturm';
 }
 
+function weatherIcon(code, level) {
+  if (level === 'danger') return '⛈️';
+  if (level === 'warn') return '🌧️';
+  const c = Number(code) || 0;
+  if (c === 0) return '☀️';
+  if (c <= 3) return '⛅';
+  if (c <= 49) return '🌫️';
+  if (c <= 69) return '🌧️';
+  if (c <= 79) return '❄️';
+  return '🌦️';
+}
+
+function computeWarning(windgusts, precip, wcode) {
+  if (windgusts >= 55 || precip >= 10 || wcode >= 80) return 'danger';
+  if (windgusts >= 40 || precip >= 5 || wcode >= 61) return 'warn';
+  return 'ok';
+}
+
+function parseDailyWeather(d, idx) {
+  if (!d || !d.time || !d.time[idx]) return null;
+  const windgusts = (d.wind_gusts_10m_max || d.windgusts_10m_max || [])[idx] || 0;
+  const windspeed = (d.wind_speed_10m_max || d.windspeed_10m_max || [])[idx] || 0;
+  const precip = (d.precipitation_sum || [])[idx] || 0;
+  const wcode = (d.weather_code || d.weathercode || [])[idx] || 0;
+  const warningLevel = computeWarning(windgusts, precip, wcode);
+  return {
+    windspeed: Math.round(windspeed),
+    windgusts: Math.round(windgusts),
+    precipitation: Math.round(precip * 10) / 10,
+    weathercode: wcode,
+    weatherText: wmoCodeToText(wcode),
+    warningLevel,
+    icon: weatherIcon(wcode, warningLevel),
+    date: d.time[idx]
+  };
+}
+
+// Einfacher Speicher-Cache (1 h) – schont Open-Meteo Rate-Limit
+const weatherCache = new Map();
+const WEATHER_TTL_MS = 60 * 60 * 1000;
+
+function cacheGet(key) {
+  const e = weatherCache.get(key);
+  if (!e) return undefined;
+  if (Date.now() - e.ts > WEATHER_TTL_MS) { weatherCache.delete(key); return undefined; }
+  return e.val;
+}
+function cacheSet(key, val) {
+  weatherCache.set(key, { ts: Date.now(), val });
+}
+
+/**
+ * Wetter für einen Tag. lat/lng optional → Firmenstandort.
+ * dateStr: YYYY-MM-DD oder Date.
+ */
 function fetchWeather(lat, lng, dateStr) {
   return new Promise((resolve) => {
+    const day = toDateStr(dateStr);
+    if (!day) return resolve(null);
+    const la = Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : FIRM_LAT;
+    const ln = Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : FIRM_LNG;
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const target = new Date(dateStr);
+    const target = new Date(day + 'T12:00:00');
     if (Math.round((target - today) / 86400000) > 16) return resolve(null);
+
+    const key = `${la.toFixed(3)},${ln.toFixed(3)},${day}`;
+    const cached = cacheGet(key);
+    if (cached !== undefined) return resolve(cached);
+
     const params = new URLSearchParams({
-      latitude: lat, longitude: lng,
-      daily: 'weathercode,windspeed_10m_max,windgusts_10m_max,precipitation_sum',
-      timezone: 'Europe/Berlin', start_date: dateStr, end_date: dateStr, wind_speed_unit: 'kmh'
+      latitude: String(la),
+      longitude: String(ln),
+      // Neue + alte Feldnamen parallel (Open-Meteo-Kompatibilität)
+      daily: 'weather_code,weathercode,wind_speed_10m_max,windspeed_10m_max,wind_gusts_10m_max,windgusts_10m_max,precipitation_sum',
+      timezone: 'Europe/Berlin',
+      start_date: day,
+      end_date: day,
+      wind_speed_unit: 'kmh'
     });
-    https.get(`https://api.open-meteo.com/v1/forecast?${params}`, (resp) => {
+    const req = https.get(`https://api.open-meteo.com/v1/forecast?${params}`, (resp) => {
       let data = '';
       resp.on('data', chunk => { data += chunk; });
       resp.on('end', () => {
         try {
+          if (resp.statusCode === 429) {
+            console.warn('Open-Meteo Rate-Limit');
+            cacheSet(key, null);
+            return resolve(null);
+          }
           const json = JSON.parse(data);
-          const d = json.daily;
-          if (!d || !d.time || d.time.length === 0) return resolve(null);
-          const windgusts = d.windgusts_10m_max[0] || 0;
-          const precip    = d.precipitation_sum[0] || 0;
-          const wcode     = d.weathercode[0]        || 0;
-          let warningLevel = 'ok';
-          if (windgusts >= 55 || precip >= 10 || wcode >= 80) warningLevel = 'danger';
-          else if (windgusts >= 40 || precip >= 5  || wcode >= 61) warningLevel = 'warn';
-          resolve({
-            windspeed: Math.round(d.windspeed_10m_max[0] || 0),
-            windgusts: Math.round(windgusts),
-            precipitation: Math.round(precip * 10) / 10,
-            weathercode: wcode,
-            weatherText: wmoCodeToText(wcode),
-            warningLevel
-          });
-        } catch (_) { resolve(null); }
+          if (json.error) {
+            console.warn('Open-Meteo:', json.reason || json.error);
+            cacheSet(key, null);
+            return resolve(null);
+          }
+          const w = parseDailyWeather(json.daily, 0);
+          cacheSet(key, w);
+          resolve(w);
+        } catch (e) {
+          console.warn('Wetter parse:', e.message);
+          resolve(null);
+        }
       });
-      resp.on('error', () => resolve(null));
-    }).on('error', () => resolve(null));
+    });
+    req.on('error', (e) => { console.warn('Wetter net:', e.message); resolve(null); });
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+  });
+}
+
+/** Wetter für einen Zeitraum (eine API-Anfrage) → Map date → weather */
+function fetchWeatherRange(lat, lng, startStr, endStr) {
+  return new Promise((resolve) => {
+    const start = toDateStr(startStr);
+    const end = toDateStr(endStr);
+    if (!start || !end) return resolve({});
+    const la = Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : FIRM_LAT;
+    const ln = Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : FIRM_LNG;
+    const rangeKey = `range:${la.toFixed(3)},${ln.toFixed(3)},${start},${end}`;
+    const cached = cacheGet(rangeKey);
+    if (cached !== undefined) return resolve(cached);
+
+    const params = new URLSearchParams({
+      latitude: String(la),
+      longitude: String(ln),
+      daily: 'weather_code,weathercode,wind_speed_10m_max,windspeed_10m_max,wind_gusts_10m_max,windgusts_10m_max,precipitation_sum',
+      timezone: 'Europe/Berlin',
+      start_date: start,
+      end_date: end,
+      wind_speed_unit: 'kmh'
+    });
+    const req = https.get(`https://api.open-meteo.com/v1/forecast?${params}`, (resp) => {
+      let data = '';
+      resp.on('data', chunk => { data += chunk; });
+      resp.on('end', () => {
+        try {
+          if (resp.statusCode === 429 || !data) {
+            cacheSet(rangeKey, {});
+            return resolve({});
+          }
+          const json = JSON.parse(data);
+          if (json.error || !json.daily) {
+            cacheSet(rangeKey, {});
+            return resolve({});
+          }
+          const map = {};
+          (json.daily.time || []).forEach((_, i) => {
+            const w = parseDailyWeather(json.daily, i);
+            if (w) {
+              map[w.date] = w;
+              cacheSet(`${la.toFixed(3)},${ln.toFixed(3)},${w.date}`, w);
+            }
+          });
+          cacheSet(rangeKey, map);
+          resolve(map);
+        } catch (_) { resolve({}); }
+      });
+    });
+    req.on('error', () => resolve({}));
+    req.setTimeout(10000, () => { req.destroy(); resolve({}); });
   });
 }
 
@@ -233,11 +376,14 @@ router.get('/api/appointments', async (req, res) => {
       return assigned.length === 0 || assigned.includes(Number(userId));
     });
 
-    // Wetter parallel abrufen
+    // Wetter parallel abrufen (robuste Datums-Normalisierung + Cache)
     const weatherResults = await Promise.all(
       filtered.map(app => {
-        if (!app.start) return Promise.resolve(null);
-        return fetchWeather(app.site_lat || FIRM_LAT, app.site_lng || FIRM_LNG, app.start.split('T')[0]);
+        const day = toDateStr(app.start);
+        if (!day) return Promise.resolve(null);
+        const lat = app.site_lat != null ? parseFloat(app.site_lat) : FIRM_LAT;
+        const lng = app.site_lng != null ? parseFloat(app.site_lng) : FIRM_LNG;
+        return fetchWeather(lat, lng, day);
       })
     );
 
@@ -261,8 +407,8 @@ router.get('/api/appointments', async (req, res) => {
       return {
         id:    app.id,
         title: displayTitle,
-        start: app.start,
-        end:   app.end,
+        start: toDateStr(app.start) || app.start,
+        end:   toDateStr(app.end) || app.end,
         description:     app.description,
         customerName:    app.company_name || app.contact_person || 'Privat',
         assignedUsers:   assigned,
@@ -447,6 +593,15 @@ router.get('/montageplan', async (req, res) => {
       return null;
     }
 
+    // Wetter für die ganze Woche in einer Anfrage (Firmenstandort)
+    let weatherByDate = {};
+    try {
+      weatherByDate = await fetchWeatherRange(FIRM_LAT, FIRM_LNG, startStr, endStr);
+    } catch (e) {
+      console.warn('Wochenplan-Wetter:', e.message);
+      weatherByDate = {};
+    }
+
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
@@ -535,7 +690,8 @@ router.get('/montageplan', async (req, res) => {
         isToday: ds === fmt(new Date()),
         apps: dayApps,
         personal,
-        sites
+        sites,
+        weather: weatherByDate[ds] || null
       });
     }
 
