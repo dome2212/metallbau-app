@@ -252,8 +252,22 @@ function parseSaege(body) {
   return Number.isFinite(v) ? Math.min(Math.max(v, 0), 20) : 3;
 }
 
-function optimiere(positionen, stangenlaenge, saege = 0) {
-  // Alle Einzelstücke auffalten (Menge × Länge)
+function normProfil(s) {
+  return String(s || '').toLowerCase().replace(/\s+/g, '').replace(/[,]/g, '.');
+}
+
+function parseLaengeMm(val) {
+  if (val == null) return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(',', '.').replace(/[^\d.]/g, '');
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+
+/**
+ * @param {Array} reststuecke optional [{id, profil, laenge}] – Reststücke aus dem Lager
+ */
+function optimiere(positionen, stangenlaenge, saege = 0, reststuecke = []) {
   const stuecke = [];
   for (const p of positionen) {
     for (let i = 0; i < p.menge; i++) {
@@ -268,27 +282,37 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
     }
   }
 
-  // Gruppieren nach Profil
   const gruppen = {};
   for (const s of stuecke) {
     if (!gruppen[s.profil]) gruppen[s.profil] = [];
     gruppen[s.profil].push(s);
   }
 
+  // Reststücke nach Profil-Schlüssel
+  const restePool = (Array.isArray(reststuecke) ? reststuecke : []).map(r => ({
+    id: r.id,
+    profil: r.profil || r.bezeichnung || '',
+    laenge: parseLaengeMm(r.laenge),
+    used: false
+  })).filter(r => r.laenge > 0);
+
   const ergebnis = [];
   let globalSchritt = 0;
+  const verwendeteReste = [];
 
   for (const [profil, teile] of Object.entries(gruppen)) {
-    // Absteigende Sortierung (größte zuerst → bessere Packung / weniger Verschnitt)
     const sorted = [...teile].sort((a, b) => b.laenge - a.laenge);
-    const stangen = []; // Array von { rest, teile[] }
+    const stangen = [];
+    const pKey = normProfil(profil);
 
     for (const teil of sorted) {
       if (teil.laenge > stangenlaenge) {
-        stangen.push({ rest: 0, teile: [teil], uebermas: true });
+        stangen.push({ rest: 0, teile: [teil], uebermas: true, istRest: false });
         continue;
       }
       let gefunden = false;
+
+      // 1) Auf bereits geöffnete Stangen/Reste packen
       for (const stange of stangen) {
         const bedarf = teil.laenge + (stange.teile.length > 0 ? saege : 0);
         if (!stange.uebermas && stange.rest >= bedarf) {
@@ -298,13 +322,40 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
           break;
         }
       }
-      if (!gefunden) {
-        stangen.push({ rest: stangenlaenge - teil.laenge, teile: [teil], uebermas: false });
+      if (gefunden) continue;
+
+      // 2) Passendes Reststück aus dem Lager (Profil match, Länge reicht)
+      const kandidaten = restePool
+        .filter(r => !r.used && r.laenge >= teil.laenge && (
+          normProfil(r.profil) === pKey ||
+          normProfil(r.profil).includes(pKey) ||
+          pKey.includes(normProfil(r.profil))
+        ))
+        .sort((a, b) => a.laenge - b.laenge); // kleinstes passendes Reststück
+      if (kandidaten.length) {
+        const r = kandidaten[0];
+        r.used = true;
+        verwendeteReste.push({ id: r.id, profil: r.profil, laenge: r.laenge });
+        stangen.push({
+          rest: r.laenge - teil.laenge,
+          teile: [teil],
+          uebermas: false,
+          istRest: true,
+          restId: r.id,
+          restUrsprung: r.laenge
+        });
+        continue;
       }
+
+      // 3) Neue volle Stange
+      stangen.push({
+        rest: stangenlaenge - teil.laenge,
+        teile: [teil],
+        uebermas: false,
+        istRest: false
+      });
     }
 
-    // Schnittreihenfolge: pro Stange von links (erstes Teil) nach rechts nummerieren
-    // und globale Reihenfolge für die Werkstatt erzeugen
     const schnittfolge = [];
     let stIdx = 0;
     for (const stange of stangen) {
@@ -320,34 +371,85 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
           laenge: t.laenge,
           winkel: t.winkel || '',
           bemerk: t.bemerk || '',
-          uebermas: !!stange.uebermas
+          uebermas: !!stange.uebermas,
+          istRest: !!stange.istRest
         };
         folge.push(schritt);
         schnittfolge.push(schritt);
-        t.schnittNr = globalSchritt; // für Anzeige auf dem Teil
+        t.schnittNr = globalSchritt;
       });
       stange.folge = folge;
       stange.stangeNr = stIdx;
     }
 
     const gesamtLaenge  = teile.reduce((s, t) => s + t.laenge, 0);
-    const stangenzahl   = stangen.filter(s => !s.uebermas).length;
+    const neueStangen   = stangen.filter(s => !s.uebermas && !s.istRest);
+    const restStangen   = stangen.filter(s => s.istRest);
+    const stangenzahl   = neueStangen.length; // nur neu zu bestellende Stangen
     const verschnittGes = stangen.filter(s => !s.uebermas).reduce((s, st) => s + st.rest, 0);
-    const ausnutzung    = stangenzahl > 0
-      ? Math.round((gesamtLaenge / (stangenzahl * stangenlaenge)) * 100)
+    const basisLaenge   = (stangenzahl * stangenlaenge) + restStangen.reduce((s, st) => s + (st.restUrsprung || 0), 0);
+    const ausnutzung    = basisLaenge > 0
+      ? Math.round((gesamtLaenge / basisLaenge) * 100)
       : 100;
+
+    // Reststücke die nach dem Schnitt übrig bleiben (>= 300 mm sinnvoll)
+    const neueReste = stangen
+      .filter(s => !s.uebermas && s.rest >= 300)
+      .map(s => ({
+        profil,
+        laenge: Math.round(s.rest),
+        vonRest: !!s.istRest,
+        restId: s.restId || null
+      }));
 
     ergebnis.push({
       profil,
       stangen,
       gesamtLaenge,
       stangenzahl,
+      reststangenZahl: restStangen.length,
       verschnittGes,
       ausnutzung,
-      schnittfolge
+      schnittfolge,
+      neueReste
     });
   }
+
+  // Meta anhängen (nicht in Gruppen-Array, sondern als Property auf dem Array)
+  ergebnis.verwendeteReste = verwendeteReste;
   return ergebnis;
+}
+
+/** Materialbedarf: Stangen je Profil + kg-Summe */
+function materialbedarf(positionen, gruppen, stangenlaenge) {
+  const byProfil = {};
+  for (const g of gruppen) {
+    byProfil[g.profil] = {
+      profil: g.profil,
+      stangen: g.stangenzahl,
+      reststangen: g.reststangenZahl || 0,
+      gesamtLaengeMm: g.gesamtLaenge,
+      verschnittMm: g.verschnittGes,
+      kg: 0
+    };
+  }
+  for (const p of positionen) {
+    if (!byProfil[p.profil]) {
+      byProfil[p.profil] = {
+        profil: p.profil, stangen: 0, reststangen: 0,
+        gesamtLaengeMm: 0, verschnittMm: 0, kg: 0
+      };
+    }
+    byProfil[p.profil].kg += (Number(p.kg) || 0) * (Number(p.menge) || 1);
+  }
+  const zeilen = Object.values(byProfil).map(z => ({
+    ...z,
+    kg: Math.round(z.kg * 10) / 10,
+    stangenlaenge
+  }));
+  const sumStangen = zeilen.reduce((s, z) => s + z.stangen, 0);
+  const sumKg = Math.round(zeilen.reduce((s, z) => s + z.kg, 0) * 10) / 10;
+  return { zeilen, sumStangen, sumKg, stangenlaenge };
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -625,6 +727,161 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   doc.end();
 }
 
+/** PDF: Materialbedarf / Bestellliste für Stahlhändler */
+function erzeugeBestellPdf(res, dateiname, bedarf, firmaName, projectTitle) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
+  doc.pipe(res);
+  const M = 40, W = 515;
+  const SCHW = '#111827', GRAU = '#6b7280', BLAU = '#1d4ed8', LINIE = '#e5e7eb';
+  const fmt = n => Number(n).toLocaleString('de-DE');
+
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(SCHW).text('Materialbedarf / Bestellliste', M, 40);
+  doc.font('Helvetica').fontSize(9).fillColor(GRAU)
+    .text(`${firmaName || 'Metallbau'}  ·  ${new Date().toLocaleDateString('de-DE')}`, M, 62, { width: W });
+  if (projectTitle) {
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(BLAU).text('Auftrag: ' + projectTitle, M, 80, { width: W });
+  }
+  let y = projectTitle ? 105 : 85;
+
+  doc.font('Helvetica').fontSize(9).fillColor(SCHW)
+    .text(`Stangenlänge Standard: ${fmt(bedarf.stangenlaenge)} mm`, M, y);
+  y += 18;
+
+  const cols = [
+    { t: 'Profil', w: 200 },
+    { t: 'Stangen', w: 70 },
+    { t: 'ca. kg', w: 70 },
+    { t: 'Teile-Länge', w: 90 },
+    { t: 'Hinweis', w: 85 }
+  ];
+  let x = M;
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAU);
+  cols.forEach(c => { doc.text(c.t, x, y, { width: c.w, lineBreak: false }); x += c.w; });
+  y += 12;
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.5).strokeColor(LINIE).stroke();
+  y += 6;
+
+  for (const z of bedarf.zeilen) {
+    if (y > 750) { doc.addPage(); y = 50; }
+    x = M;
+    const hinweis = z.reststangen ? (z.reststangen + '× Reststück genutzt') : '';
+    const vals = [
+      String(z.profil).slice(0, 40),
+      String(z.stangen),
+      fmt(z.kg),
+      fmt(z.gesamtLaengeMm) + ' mm',
+      hinweis
+    ];
+    doc.font('Helvetica').fontSize(9).fillColor(SCHW);
+    vals.forEach((v, i) => { doc.text(v, x, y, { width: cols[i].w, lineBreak: false }); x += cols[i].w; });
+    y += 16;
+  }
+
+  y += 10;
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.6).strokeColor(LINIE).stroke();
+  y += 12;
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW)
+    .text(`Summe: ${bedarf.sumStangen} Stange(n)  ·  ca. ${fmt(bedarf.sumKg)} kg`, M, y);
+  y += 20;
+  doc.font('Helvetica').fontSize(8).fillColor(GRAU)
+    .text('Hinweis: Stangenanzahl aus Schnitt-Optimierung. kg = Schätzwert (Stahl ~7,85 kg/dm³). Reststücke aus dem Lager sind bereits abgezogen.', M, y, { width: W });
+  doc.end();
+}
+
+/** PDF: Angebot aus Schnittliste */
+function erzeugeAngebotPdf(res, dateiname, positionen, firmaName, projectTitle, opts = {}) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
+  doc.pipe(res);
+  const M = 40, W = 515;
+  const SCHW = '#111827', GRAU = '#6b7280', BLAU = '#1d4ed8', LINIE = '#e5e7eb';
+  const fmt = n => Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtN = n => Number(n).toLocaleString('de-DE');
+
+  const stahlPreisPro100kg = Number(opts.stahlPreis) || 0; // € / 100 kg
+  const stunden = Number(opts.stunden) || 0;
+  const stundensatz = Number(opts.stundensatz) || 0;
+  const mwst = Number(opts.mwst) || 19;
+
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(SCHW).text('Angebot (aus Schnittliste)', M, 40);
+  doc.font('Helvetica').fontSize(9).fillColor(GRAU)
+    .text(`${firmaName || 'Metallbau'}  ·  ${new Date().toLocaleDateString('de-DE')}`, M, 62, { width: W });
+  if (projectTitle) {
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(BLAU).text('Auftrag / Projekt: ' + projectTitle, M, 80, { width: W });
+  }
+  let y = projectTitle ? 105 : 85;
+
+  // Positionstabelle
+  const cW = [35, 45, 160, 70, 55, 70, 80];
+  const heads = ['Pos', 'Menge', 'Profil / Bezeichnung', 'Länge', 'kg/Stk', 'kg ges.', 'Material €'];
+  let x = M;
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(GRAU);
+  heads.forEach((h, i) => { doc.text(h, x, y, { width: cW[i], lineBreak: false }); x += cW[i]; });
+  y += 11;
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.5).strokeColor(LINIE).stroke();
+  y += 5;
+
+  let materialSumme = 0;
+  let kgSumme = 0;
+  for (const p of positionen) {
+    if (y > 720) { doc.addPage(); y = 50; }
+    const menge = Number(p.menge) || 1;
+    const kgStk = Number(p.kg) || 0;
+    const kgGes = Math.round(kgStk * menge * 10) / 10;
+    kgSumme += kgGes;
+    const matEuro = stahlPreisPro100kg > 0 ? (kgGes / 100) * stahlPreisPro100kg : 0;
+    materialSumme += matEuro;
+    x = M;
+    const vals = [
+      String(p.pos),
+      String(menge),
+      String(p.profil || '').slice(0, 36) + (p.bemerk ? ' – ' + String(p.bemerk).slice(0, 20) : ''),
+      fmtN(p.laenge) + ' mm',
+      kgStk ? String(kgStk).replace('.', ',') : '–',
+      kgGes ? String(kgGes).replace('.', ',') : '–',
+      matEuro > 0 ? fmt(matEuro) : '–'
+    ];
+    doc.font('Helvetica').fontSize(8).fillColor(SCHW);
+    vals.forEach((v, i) => { doc.text(v, x, y, { width: cW[i], lineBreak: false, ellipsis: true }); x += cW[i]; });
+    y += 14;
+  }
+
+  y += 8;
+  doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.6).strokeColor(LINIE).stroke();
+  y += 14;
+
+  const lohn = stunden * stundensatz;
+  const netto = materialSumme + lohn;
+  const mwstBetrag = netto * (mwst / 100);
+  const brutto = netto + mwstBetrag;
+
+  doc.font('Helvetica').fontSize(9).fillColor(SCHW);
+  doc.text(`Gesamtgewicht (ca.): ${fmtN(Math.round(kgSumme * 10) / 10)} kg`, M, y); y += 14;
+  if (stahlPreisPro100kg > 0) {
+    doc.text(`Material (Stahl ca. ${fmt(stahlPreisPro100kg)} €/100 kg): ${fmt(materialSumme)} €`, M, y); y += 14;
+  } else {
+    doc.fillColor(GRAU).text('Materialpreis: kein Stahlpreis hinterlegt – nur kg-Angabe.', M, y); y += 14;
+    doc.fillColor(SCHW);
+  }
+  if (stunden > 0 && stundensatz > 0) {
+    doc.text(`Arbeitszeit: ${fmtN(stunden)} h × ${fmt(stundensatz)} €/h = ${fmt(lohn)} €`, M, y); y += 14;
+  }
+  y += 4;
+  doc.font('Helvetica-Bold').fontSize(11)
+    .text(`Netto: ${fmt(netto)} €`, M, y); y += 16;
+  doc.font('Helvetica').fontSize(9)
+    .text(`MwSt. ${mwst} %: ${fmt(mwstBetrag)} €`, M, y); y += 14;
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(BLAU)
+    .text(`Brutto: ${fmt(brutto)} €`, M, y); y += 24;
+
+  doc.font('Helvetica').fontSize(8).fillColor(GRAU)
+    .text('Unverbindliche Kalkulation auf Basis der Schnittliste. kg und Preise sind Schätzwerte. Kein rechtsverbindliches Angebot ohne Prüfung.', M, y, { width: W });
+  doc.end();
+}
+
 // ══════════════════════════════════════════════════════════════
 //  ROUTEN
 // ══════════════════════════════════════════════════════════════
@@ -736,13 +993,23 @@ Regeln:
 - Keine Codeblöcke, kein Markdown, nur reines JSON`;
 
 function visionPrompt(anzahl) {
-  if (anzahl <= 1) return VISION_PROMPT_BASIS;
-  return VISION_PROMPT_BASIS + `
+  const multi = anzahl <= 1 ? '' : `
 
-MEHRERE BILDER: Du erhältst ${anzahl} Bilder derselben Konstruktion (z.B. Gesamtansicht, Detailzeichnung, Stückliste, Foto). Werte ALLE Bilder gemeinsam aus und erstelle EINE zusammengeführte Schnittliste:
-- Jedes Bauteil nur EINMAL aufnehmen, auch wenn es auf mehreren Bildern vorkommt.
-- Maße, Winkel und Profile aus verschiedenen Bildern kombinieren (z.B. Länge aus der Gesamtansicht, Winkel aus dem Detail, Profil aus der Stückliste).
-- Widersprechen sich Bilder, bevorzuge die Stückliste und schreibe den Widerspruch in "bemerk".`;
+MEHRERE BILDER (${anzahl}): Du erhältst mehrere Bilder derselben Konstruktion (z.B. Handskizze, CAD-Zeichnung, Stücklistentabelle, Detail, Foto).
+Werte ALLE gemeinsam aus und erstelle EINE zusammengeführte Schnittliste:
+- Stücklistentabelle hat Vorrang bei Pos/Menge/Profil/Länge – ergänze fehlende Winkel/kg aus Skizze und Details.
+- Handskizze + Bemaßung: alle erkennbaren Längen und Winkel übernehmen.
+- Jedes Bauteil nur EINMAL; Maße aus verschiedenen Bildern kombinieren.
+- Bei Widerspruch: Stückliste bevorzugen, Hinweis in "bemerk".
+- Fehlende Länge → laenge:0 und Platzhalter in "bemerk".`;
+
+  return VISION_PROMPT_BASIS + multi + `
+
+ZUSÄTZLICH:
+- Erkenne Handskizzen, CAD, Katalogblätter und Fotos gleichermaßen.
+- Wenn nur eine Tabelle (Stückliste) ohne Zeichnung: übernimm alle Zeilen exakt.
+- Wenn Zeichnung ohne Tabelle: Positionen aus Bemaßung und Bauteilbezeichnungen ableiten.
+- Füllstäbe/Wiederholungen zählen (z.B. 12 gleiche Stäbe → menge:12).`;
 }
 
 async function callGeminiVision(bilder, errors) {
@@ -1089,6 +1356,163 @@ router.delete('/api/:id', requireSchnittliste, async (req, res) => {
   } catch (err) {
     console.error('Schnittliste delete:', err.message);
     res.status(500).json({ fehler: 'Löschen fehlgeschlagen: ' + err.message });
+  }
+});
+
+// ── Reststücke aus Lager (für Optimierung) ───────────────────
+router.get('/api/reststuecke', requireSchnittliste, async (req, res) => {
+  try {
+    const r = await dbQuery(
+      `SELECT id, material_type, bezeichnung, profil, laenge, menge, einheit, lagerort, notiz
+       FROM lager_reststuecke ORDER BY created_at DESC LIMIT 200`
+    );
+    const rows = (r.rows || []).map(x => ({
+      id: x.id,
+      material_type: x.material_type,
+      bezeichnung: x.bezeichnung,
+      profil: x.profil || x.bezeichnung,
+      laenge: parseLaengeMm(x.laenge),
+      laenge_raw: x.laenge,
+      menge: x.menge,
+      lagerort: x.lagerort,
+      notiz: x.notiz
+    }));
+    res.json({ ok: true, reststuecke: rows });
+  } catch (err) {
+    console.error('reststuecke list:', err.message);
+    res.status(500).json({ ok: false, fehler: err.message });
+  }
+});
+
+// Reststücke aus Optimierung ins Lager speichern
+router.post('/api/reststuecke/save', requireSchnittliste, async (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    if (!items.length) return res.status(400).json({ fehler: 'Keine Reststücke.' });
+    let n = 0;
+    for (const it of items) {
+      const profil = String(it.profil || '').trim();
+      const laenge = parseLaengeMm(it.laenge);
+      if (!profil || laenge < 50) continue;
+      await dbQuery(
+        `INSERT INTO lager_reststuecke
+           (material_type, bezeichnung, profil, laenge, menge, einheit, lagerort, notiz)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          it.material_type || 'baustahl',
+          profil + ' Rest ' + laenge + ' mm',
+          profil,
+          String(laenge),
+          1,
+          'Stk',
+          it.lagerort || null,
+          it.notiz || ('Aus Schnittliste' + (it.vonRest ? ' (Nachschnitt)' : ''))
+        ]
+      );
+      n++;
+    }
+    // Verwendete Reststücke aus Lager entfernen (verbraucht)
+    const usedIds = Array.isArray(req.body.used_ids)
+      ? req.body.used_ids.map(x => parseInt(x, 10)).filter(x => Number.isFinite(x) && x > 0)
+      : [];
+    for (const id of usedIds) {
+      try { await dbQuery('DELETE FROM lager_reststuecke WHERE id = ?', [id]); } catch (_) {}
+    }
+    res.json({ ok: true, gespeichert: n, verbraucht: usedIds.length });
+  } catch (err) {
+    console.error('reststuecke save:', err.message);
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// Neu optimieren inkl. optionaler Reststücke
+router.post('/api/optimieren', requireSchnittliste, async (req, res) => {
+  try {
+    const positionen = Array.isArray(req.body.positionen) ? req.body.positionen : [];
+    const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10) || 6000;
+    const saege = parseSaege(req.body);
+    let reste = Array.isArray(req.body.reststuecke) ? req.body.reststuecke : null;
+    if (!reste) {
+      try {
+        const r = await dbQuery(`SELECT id, bezeichnung, profil, laenge FROM lager_reststuecke`);
+        reste = (r.rows || []).map(x => ({
+          id: x.id, profil: x.profil || x.bezeichnung, laenge: parseLaengeMm(x.laenge)
+        }));
+      } catch (_) { reste = []; }
+    }
+    const gruppen = optimiere(positionen, stangenlaenge, saege, reste);
+    const bedarf = materialbedarf(positionen, gruppen, stangenlaenge);
+    res.json({
+      ok: true,
+      positionen,
+      gruppen,
+      stangenlaenge,
+      saege,
+      materialbedarf: bedarf,
+      verwendeteReste: gruppen.verwendeteReste || []
+    });
+  } catch (err) {
+    console.error('optimieren:', err.message);
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// PDF Materialbedarf / Bestellliste
+router.post('/pdf/bestellliste', requireSchnittliste, upload.single('datei'), (req, res) => {
+  try {
+    let positionen = [];
+    if (req.file) {
+      positionen = /\.xlsx$/i.test(req.file.originalname)
+        ? parseXlsx(req.file.buffer) : parseCsv(req.file.buffer);
+    } else if (req.body.positionen_json) {
+      positionen = JSON.parse(req.body.positionen_json);
+    }
+    const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10) || 6000;
+    const saege = parseSaege(req.body);
+    const gruppen = optimiere(positionen, stangenlaenge, saege);
+    const bedarf = materialbedarf(positionen, gruppen, stangenlaenge);
+    const firmaName = req.body.firma_name || '';
+    const projectTitle = (req.body.project_name || '').trim();
+    const dateiname = 'Bestellliste_' + new Date().toISOString().slice(0, 10) + '.pdf';
+    erzeugeBestellPdf(res, dateiname, bedarf, firmaName, projectTitle);
+  } catch (err) {
+    console.error('bestellliste pdf:', err.message);
+    res.status(500).json({ fehler: err.message });
+  }
+});
+
+// PDF Angebot
+router.post('/pdf/angebot', requireSchnittliste, upload.single('datei'), async (req, res) => {
+  try {
+    let positionen = [];
+    if (req.file) {
+      positionen = /\.xlsx$/i.test(req.file.originalname)
+        ? parseXlsx(req.file.buffer) : parseCsv(req.file.buffer);
+    } else if (req.body.positionen_json) {
+      positionen = JSON.parse(req.body.positionen_json);
+    }
+    const firmaName = req.body.firma_name || '';
+    const projectTitle = (req.body.project_name || '').trim();
+    let stahlPreis = parseFloat(String(req.body.stahl_preis || '').replace(',', '.')) || 0;
+    if (!stahlPreis) {
+      try {
+        const sp = await dbQuery(
+          `SELECT preis_100kg FROM steel_prices ORDER BY gueltig_am DESC, id DESC LIMIT 1`
+        );
+        if (sp.rows && sp.rows[0]) stahlPreis = Number(sp.rows[0].preis_100kg) || 0;
+      } catch (_) {}
+    }
+    const opts = {
+      stahlPreis,
+      stunden: parseFloat(String(req.body.stunden || '0').replace(',', '.')) || 0,
+      stundensatz: parseFloat(String(req.body.stundensatz || '65').replace(',', '.')) || 65,
+      mwst: parseFloat(String(req.body.mwst || '19').replace(',', '.')) || 19
+    };
+    const dateiname = 'Angebot_Schnittliste_' + new Date().toISOString().slice(0, 10) + '.pdf';
+    erzeugeAngebotPdf(res, dateiname, positionen, firmaName, projectTitle, opts);
+  } catch (err) {
+    console.error('angebot pdf:', err.message);
+    res.status(500).json({ fehler: err.message });
   }
 });
 
