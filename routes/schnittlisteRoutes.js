@@ -257,7 +257,14 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
   const stuecke = [];
   for (const p of positionen) {
     for (let i = 0; i < p.menge; i++) {
-      stuecke.push({ pos: p.pos, profil: p.profil, laenge: p.laenge, bemerk: p.bemerk, winkel: p.winkel || '' });
+      stuecke.push({
+        pos: p.pos,
+        profil: p.profil,
+        laenge: p.laenge,
+        bemerk: p.bemerk,
+        winkel: p.winkel || '',
+        kg: p.kg || 0
+      });
     }
   }
 
@@ -269,24 +276,23 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
   }
 
   const ergebnis = [];
+  let globalSchritt = 0;
+
   for (const [profil, teile] of Object.entries(gruppen)) {
-    // Absteigende Sortierung (größte zuerst → bessere Packung)
+    // Absteigende Sortierung (größte zuerst → bessere Packung / weniger Verschnitt)
     const sorted = [...teile].sort((a, b) => b.laenge - a.laenge);
     const stangen = []; // Array von { rest, teile[] }
 
     for (const teil of sorted) {
       if (teil.laenge > stangenlaenge) {
-        // Stück länger als Stange → eigene "Übermaß-Stange"
         stangen.push({ rest: 0, teile: [teil], uebermas: true });
         continue;
       }
-      // Erste Stange finden, die noch Platz hat
       let gefunden = false;
       for (const stange of stangen) {
-        // Jeder weitere Schnitt auf derselben Stange kostet zusätzlich die Sägeblattbreite
         const bedarf = teil.laenge + (stange.teile.length > 0 ? saege : 0);
         if (!stange.uebermas && stange.rest >= bedarf) {
-          stange.rest  -= bedarf;
+          stange.rest -= bedarf;
           stange.teile.push(teil);
           gefunden = true;
           break;
@@ -297,14 +303,49 @@ function optimiere(positionen, stangenlaenge, saege = 0) {
       }
     }
 
-    const gesamtLaenge   = teile.reduce((s, t) => s + t.laenge, 0);
-    const stangenzahl    = stangen.filter(s => !s.uebermas).length;
-    const verschnittGes  = stangen.filter(s => !s.uebermas).reduce((s, st) => s + st.rest, 0);
-    const ausnutzung     = stangenzahl > 0
+    // Schnittreihenfolge: pro Stange von links (erstes Teil) nach rechts nummerieren
+    // und globale Reihenfolge für die Werkstatt erzeugen
+    const schnittfolge = [];
+    let stIdx = 0;
+    for (const stange of stangen) {
+      stIdx++;
+      const folge = [];
+      stange.teile.forEach((t, ti) => {
+        globalSchritt += 1;
+        const schritt = {
+          nr: globalSchritt,
+          stangeNr: stIdx,
+          teilNr: ti + 1,
+          pos: t.pos,
+          laenge: t.laenge,
+          winkel: t.winkel || '',
+          bemerk: t.bemerk || '',
+          uebermas: !!stange.uebermas
+        };
+        folge.push(schritt);
+        schnittfolge.push(schritt);
+        t.schnittNr = globalSchritt; // für Anzeige auf dem Teil
+      });
+      stange.folge = folge;
+      stange.stangeNr = stIdx;
+    }
+
+    const gesamtLaenge  = teile.reduce((s, t) => s + t.laenge, 0);
+    const stangenzahl   = stangen.filter(s => !s.uebermas).length;
+    const verschnittGes = stangen.filter(s => !s.uebermas).reduce((s, st) => s + st.rest, 0);
+    const ausnutzung    = stangenzahl > 0
       ? Math.round((gesamtLaenge / (stangenzahl * stangenlaenge)) * 100)
       : 100;
 
-    ergebnis.push({ profil, stangen, gesamtLaenge, stangenzahl, verschnittGes, ausnutzung });
+    ergebnis.push({
+      profil,
+      stangen,
+      gesamtLaenge,
+      stangenzahl,
+      verschnittGes,
+      ausnutzung,
+      schnittfolge
+    });
   }
   return ergebnis;
 }
@@ -346,7 +387,7 @@ function zeichneSchnitt(doc, x, y, w, h, info) {
   doc.restore();
 }
 
-function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege = 0) {
+function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege = 0, projectTitle = '') {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${dateiname}"`);
 
@@ -363,6 +404,7 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   const LINIE  = '#d1d5db';
   const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
   const fmt    = n => Number(n).toLocaleString('de-DE');
+  const auftrag = String(projectTitle || '').trim();
 
   let y = M;
   // Platz für "h" Punkte sicherstellen, sonst neue Seite
@@ -371,6 +413,11 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   // ── Kopf ──────────────────────────────────────────────────
   doc.font('Helvetica-Bold').fontSize(20).fillColor(BLAU).text('Schnittliste', M, y, { width: W, lineBreak: false });
   y += 26;
+  if (auftrag) {
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(SCHW)
+      .text('Auftrag: ' + auftrag, M, y, { width: W, lineBreak: false });
+    y += 18;
+  }
   doc.font('Helvetica').fontSize(9).fillColor(GRAU)
     .text(`${firmaName || 'Metallbau'}  ·  Stangenlänge: ${fmt(stangenlaenge)} mm  ·  Sägeblatt: ${saege} mm  ·  Erstellt: ${new Date().toLocaleDateString('de-DE')}`,
       M, y, { width: W, lineBreak: false });
@@ -457,7 +504,10 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
   // ── Optimierungsergebnis pro Profil ───────────────────────
   platz(60);
   doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW).text('Optimierte Schnittaufteilung', M, y, { lineBreak: false });
-  y += 22;
+  y += 14;
+  doc.font('Helvetica').fontSize(8).fillColor(GRAU)
+    .text('Reihenfolge: große Teile zuerst auf die Stange legen – so entsteht weniger Verschnitt.', M, y, { width: W, lineBreak: false });
+  y += 18;
 
   for (const g of gruppen) {
     platz(70);
@@ -473,14 +523,17 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
     let stIdx = 0;
     for (const stange of g.stangen) {
       stIdx++;
-      const teileText = stange.teile.map(t => `${fmt(t.laenge)} (Pos ${t.pos}${t.winkel ? ', ' + t.winkel : ''})`).join('  ·  ')
+      const teileText = stange.teile.map((t, ti) => {
+        const nr = t.schnittNr || (stange.folge && stange.folge[ti] && stange.folge[ti].nr) || (ti + 1);
+        return `#${nr} Pos ${t.pos}: ${fmt(t.laenge)} mm${t.winkel ? ' (' + t.winkel + ')' : ''}`;
+      }).join('  →  ')
         + (stange.uebermas ? '' : `   —   Rest: ${fmt(stange.rest)} mm`);
       doc.font('Helvetica').fontSize(8);
       const textH = doc.heightOfString(teileText, { width: W - 10 });
       platz(12 + 14 + textH + 14);
 
       doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAU)
-        .text(stange.uebermas ? 'Übermaß-Stück' : `Stange ${stIdx}`, M + 5, y, { lineBreak: false });
+        .text(stange.uebermas ? 'Übermaß-Stück' : `Stange ${stIdx} – Schnittreihenfolge`, M + 5, y, { lineBreak: false });
       y += 12;
 
       const barX = M + 5, barW = W - 10, barH = 14;
@@ -491,7 +544,6 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
         doc.rect(xCur, y, Math.min(tw, barX + barW - xCur), barH).fill(COLORS[ci % COLORS.length]);
         xCur += tw;
         if (!stange.uebermas && ci < stange.teile.length - 1) {
-          // Schnittfuge (Sägeblatt) als sichtbare Lücke zwischen den Teilen
           doc.moveTo(xCur, y).lineTo(xCur, y + barH).lineWidth(0.6).strokeColor('#ffffff').stroke();
           xCur += (saege / stangenlaenge) * barW;
         }
@@ -504,6 +556,52 @@ function erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaNam
       y += textH + 12;
     }
     y += 6;
+  }
+
+  // ── Empfohlene Schnittreihenfolge (gesamt) ────────────────
+  const alleSchritte = [];
+  for (const g of gruppen) {
+    for (const s of (g.schnittfolge || [])) {
+      alleSchritte.push({ ...s, profil: g.profil });
+    }
+  }
+  if (alleSchritte.length) {
+    platz(50);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(SCHW)
+      .text('Empfohlene Schnittreihenfolge (weniger Verschnitt)', M, y, { lineBreak: false });
+    y += 14;
+    doc.font('Helvetica').fontSize(8).fillColor(GRAU)
+      .text('In dieser Reihenfolge schneiden – zuerst die längsten Teile je Profil, Stange für Stange.', M, y, { width: W });
+    y += 16;
+
+    // Tabellenkopf
+    const cNr = 28, cPos = 45, cProf = 130, cLen = 70, cSt = 70, cRest = W - 28 - 45 - 130 - 70 - 70;
+    platz(16);
+    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(GRAU);
+    doc.text('Nr', M, y, { width: cNr, lineBreak: false });
+    doc.text('Pos', M + cNr, y, { width: cPos, lineBreak: false });
+    doc.text('Profil', M + cNr + cPos, y, { width: cProf, lineBreak: false });
+    doc.text('Länge', M + cNr + cPos + cProf, y, { width: cLen, lineBreak: false });
+    doc.text('Stange', M + cNr + cPos + cProf + cLen, y, { width: cSt, lineBreak: false });
+    doc.text('Winkel / Hinweis', M + cNr + cPos + cProf + cLen + cSt, y, { width: cRest, lineBreak: false });
+    y += 11;
+    doc.moveTo(M, y).lineTo(M + W, y).lineWidth(0.5).strokeColor(LINIE).stroke();
+    y += 4;
+
+    for (const s of alleSchritte) {
+      platz(14);
+      const hinweis = [s.winkel, s.bemerk, s.uebermas ? 'Übermaß' : ''].filter(Boolean).join(' · ');
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(BLAU)
+        .text(String(s.nr), M, y, { width: cNr, lineBreak: false });
+      doc.font('Helvetica').fontSize(8).fillColor(SCHW)
+        .text(String(s.pos), M + cNr, y, { width: cPos, lineBreak: false })
+        .text(String(s.profil || '').slice(0, 28), M + cNr + cPos, y, { width: cProf, lineBreak: false, ellipsis: true })
+        .text(fmt(s.laenge) + ' mm', M + cNr + cPos + cProf, y, { width: cLen, lineBreak: false })
+        .text(s.uebermas ? 'Übermaß' : ('Stange ' + s.stangeNr), M + cNr + cPos + cProf + cLen, y, { width: cSt, lineBreak: false })
+        .text(hinweis.slice(0, 40), M + cNr + cPos + cProf + cLen + cSt, y, { width: cRest, lineBreak: false, ellipsis: true });
+      y += 13;
+    }
+    y += 8;
   }
 
   // ── Zusammenfassung ───────────────────────────────────────
@@ -572,6 +670,7 @@ router.post('/pdf', requireSchnittliste, upload.single('datei'), (req, res) => {
 
     const stangenlaenge = parseInt(req.body.stangenlaenge || '6000', 10);
     const firmaName     = req.body.firma_name || '';
+    const projectTitle  = String(req.body.project_name || '').trim();
 
     let positionen;
     if (/\.xlsx$/i.test(req.file.originalname)) {
@@ -582,8 +681,13 @@ router.post('/pdf', requireSchnittliste, upload.single('datei'), (req, res) => {
 
     const saege    = parseSaege(req.body);
     const gruppen  = optimiere(positionen, stangenlaenge, saege);
-    const dateiname = `Schnittliste_${new Date().toISOString().slice(0,10)}.pdf`;
-    erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege);
+    const safeTitle = projectTitle
+      ? projectTitle.replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_').slice(0, 40)
+      : '';
+    const dateiname = safeTitle
+      ? `Schnittliste_${safeTitle}_${new Date().toISOString().slice(0,10)}.pdf`
+      : `Schnittliste_${new Date().toISOString().slice(0,10)}.pdf`;
+    erzeugePdf(res, dateiname, positionen, gruppen, stangenlaenge, firmaName, saege, projectTitle);
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message);
   }
@@ -778,36 +882,50 @@ router.post('/bild', requireSchnittliste, bildUpload.array('bild', 4), async (re
 //  GESPEICHERTE SCHNITTLISTEN (CRUD)
 // ══════════════════════════════════════════════════════════════
 
-// GET /schnittliste/api/projects  – offene Aufträge für Dropdown
+// GET /schnittliste/api/projects  – Aufträge für Dropdown (wie Projektliste)
 router.get('/api/projects', requireSchnittliste, async (req, res) => {
   try {
     let rows = [];
-    // Gleicher Filter wie Lager/Projektliste (deleted_at IS NULL)
     try {
+      // Identisch zu GET /projects
       const r = await dbQuery(
-        `SELECT id, title, status FROM projects
-         WHERE deleted_at IS NULL
-           AND (status IS NULL OR TRIM(COALESCE(status, '')) = '' OR status != 'Abgeschlossen')
-         ORDER BY title ASC
+        `SELECT projects.id, projects.title, projects.status,
+                customers.company_name, customers.contact_person
+         FROM projects
+         LEFT JOIN customers ON projects.customer_id = customers.id
+         WHERE projects.deleted_at IS NULL
+         ORDER BY projects.title ASC
          LIMIT 500`
       );
       rows = r.rows || [];
     } catch (e1) {
-      console.warn('Schnittliste projects Filter:', e1.message);
+      console.warn('Schnittliste projects JOIN:', e1.message);
       try {
         const r2 = await dbQuery(
-          `SELECT id, title, status FROM projects ORDER BY title ASC LIMIT 500`
+          `SELECT id, title, status FROM projects WHERE deleted_at IS NULL ORDER BY title ASC LIMIT 500`
         );
         rows = r2.rows || [];
       } catch (e2) {
-        console.error('Schnittliste projects Fallback:', e2.message);
-        return res.status(500).json({ fehler: 'Aufträge konnten nicht geladen werden: ' + e2.message });
+        console.warn('Schnittliste projects deleted_at:', e2.message);
+        const r3 = await dbQuery(`SELECT id, title, status FROM projects ORDER BY title ASC LIMIT 500`);
+        rows = r3.rows || [];
       }
     }
-    res.json({ ok: true, projects: rows });
+    const projects = rows.map(p => {
+      const titel = p.title || ('Auftrag #' + p.id);
+      const kunde = p.company_name || p.contact_person || '';
+      return {
+        id: p.id,
+        title: titel,
+        status: p.status || '',
+        company_name: p.company_name || '',
+        label: kunde ? (titel + ' – ' + kunde) : titel
+      };
+    });
+    res.json({ ok: true, projects, anzahl: projects.length });
   } catch (err) {
     console.error('Schnittliste projects:', err.message);
-    res.status(500).json({ fehler: 'Aufträge konnten nicht geladen werden: ' + err.message });
+    res.status(500).json({ ok: false, fehler: err.message, projects: [] });
   }
 });
 
