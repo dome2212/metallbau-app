@@ -17,6 +17,11 @@
     if(numeric.some(k=>typeof c[k]!=='number'||!Number.isFinite(c[k])))throw Error('Bitte gültige Maße eingeben.');
     if(c.width<300||c.width>20000||c.height<400||c.height>3000||c.postSpacing<100||c.postSpacing>3000||c.clearance<0||c.clearance>1000||c.barGap<20||c.barGap>1000||Math.abs(c.x)>70000||Math.abs(c.y)>70000)throw Error('Bitte Maße innerhalb der angegebenen Grenzen eingeben.');
     if(!materials.includes(c.material)||['materialPost','materialRail','materialBar'].some(k=>c[k]&&!materials.includes(c[k]))||!['Unbehandelt','Feuerverzinkt','Pulverbeschichtet','Geschliffen'].includes(c.finish)||!['bars','open','glass'].includes(c.infill))throw Error('Ungültige Material- oder Füllungsauswahl.');
+    if(c.postRailJoint!==undefined&&!['miter','butt'].includes(c.postRailJoint))throw Error('Ungültige Pfostenverbindung.');
+    const mount=c.plateMount??(c.plates?'below':'none'),hasPlate=mount!=='none';
+    if(!['none','below','front','back'].includes(mount))throw Error('Ungültige Plattenposition.');
+    const plateWidth=c.plateWidth??c.plateSize,plateHeight=c.plateHeight??c.plateSize,plateThickness=c.plateThickness;
+    if(hasPlate&&(![plateWidth,plateHeight,plateThickness].every(v=>typeof v==='number'&&Number.isFinite(v)&&v>0&&v<=1000)))throw Error('Bitte gültige Plattenmaße eingeben.');
     const post=profiles[c.postProfile],rail=profiles[c.railProfile],bar=profiles[c.barProfile];if(!post||!rail||!bar)throw Error('Bitte gültige Profile auswählen.');
     if(c.width<=post.size*2||c.height<=rail.h*2+c.clearance)throw Error('Länge oder Höhe ist für diese Profile zu klein.');
     const spans=Math.ceil((c.width-post.size)/c.postSpacing),step=(c.width-post.size)/spans,clear=step-post.size;
@@ -24,17 +29,18 @@
     if(c.infill==='glass'&&(!Number.isFinite(c.glassThickness)||c.glassThickness<4||c.glassThickness>30||!['VSG','ESG'].includes(c.glassType)))throw Error('Bitte Glastyp und Glasdicke zwischen 4 und 30 mm eingeben.');
     const n=c.infill==='bars'?Math.max(0,Math.ceil((clear-c.barGap)/(c.barGap+bar.size))):0;
     if(n*bar.size>clear)throw Error('Füllstäbe passen nicht zwischen die Pfosten.');
-    if((spans+1)+spans*n+(c.infill==='glass'?spans:0)+1+spans+(c.plates?spans+1:0)>1900)throw Error('Zu viele Bauteile. Bitte Länge oder Abstände anpassen.');
+    if((spans+1)+spans*n+(c.infill==='glass'?spans:0)+1+spans+(hasPlate?spans+1:0)>1900)throw Error('Zu viele Bauteile. Bitte Länge oder Abstände anpassen.');
     const objects=[],round=n=>Math.round(n*1000)/1000;
     function add(name,x,y,z,w,h,depth,profile,axis,notes=''){
       const isRound=profile.round&&axis==='z', o={type:isRound?'circle':'rect',x:round(c.x+x+(isRound?w/2:0)),y:round(c.y+y+(isRound?h/2:0)),z:round(z),w:round(isRound?w/2:w),h:round(isRound?h/2:h),depth:round(depth)};
-      const material=(name==='Pfosten'||name==='Fußplatte'?c.materialPost:name==='Handlauf'||name==='Untergurt'?c.materialRail:c.materialBar)||c.material;
+      const material=(name==='Pfosten'||name==='Fußplatte'||name==='Seitenplatte'?c.materialPost:name==='Handlauf'||name==='Untergurt'?c.materialRail:c.materialBar)||c.material;
       const data={catalogId:'custom',name,material,finish:c.finish,wall:profile.wall,lengthAxis:axis,notes};if(profile.round&&axis==='x')data.section='round';
       o.part=parts.validatePart(data,o);objects.push(o);
     }
     for(let i=0;i<=spans;i++){
       const x=round(i*step);add('Pfosten',x,0,0,post.b,post.h,c.height-rail.h,post,'z');
-      if(c.plates)add('Fußplatte',x-(c.plateSize-post.b)/2,(post.h-c.plateSize)/2,-c.plateThickness,c.plateSize,c.plateSize,c.plateThickness,{wall:0},'plate','Bohrungen und Befestigung projektspezifisch festlegen.');
+      if(mount==='below')add('Fußplatte',x-(plateWidth-post.b)/2,(post.h-plateHeight)/2,-plateThickness,plateWidth,plateHeight,plateThickness,{wall:0},'plate','Unter dem Pfosten. Bohrungen und Befestigung projektspezifisch festlegen.');
+      if(mount==='front'||mount==='back')add('Seitenplatte',x-(plateWidth-post.b)/2,mount==='front'?-plateThickness:post.h,0,plateWidth,plateThickness,plateHeight,{wall:0},'plate',`Seitlich ${mount==='front'?'vorne':'hinten'} am Pfosten. Bohrungen und Befestigung projektspezifisch festlegen.`);
     }
     const railY=(post.h-rail.b)/2;
     add('Handlauf',0,railY,c.height-rail.h,c.width,rail.b,rail.h,rail,'x');
@@ -62,17 +68,18 @@
     const checkBounds=items=>{if(items.some(o=>Math.abs(o.x)>100000||Math.abs(o.y)>100000))throw Error('Geländer liegt außerhalb des Zeichenbereichs.');};
     const dim=(x,y,dx,dy,z,dz)=>({type:'dim',x:Math.round(x*1000)/1000,y:Math.round(y*1000)/1000,w:Math.round(dx*1000)/1000,h:Math.round(dy*1000)/1000,z,dz,depth:0});
     const addDimensions=(items,start,bearing,width)=>{const d=rotate(width,0,bearing),offset=rotate(0,-120,bearing),heightOffset=rotate(-100,0,bearing);items.push(dim(start.x+offset.x,start.y+offset.y,d.x,d.y,0,0),dim(start.x+heightOffset.x,start.y+heightOffset.y,0,0,0,c.height));};
-    if(!corner){addDimensions(first.objects,origin,a,c.width);checkBounds(first.objects);return first;}
+    function connectTerminal(items,atStart){if(c.postRailJoint!=='miter')return;const posts=items.map((o,i)=>({o,i})).filter(v=>v.o.part?.name==='Pfosten'),railIndex=items.findIndex(o=>o.part?.name==='Handlauf'),postIndex=atStart?posts[0].i:posts[posts.length-1].i;const joined=joiner.joinPostRail(items[postIndex],items[railIndex]);if(joined.endB!==(atStart?'start':'end'))throw Error('Endpfosten konnte nicht zugeordnet werden.');items[postIndex]=joined.first;items[railIndex]=joined.second;}
+    if(!corner){connectTerminal(first.objects,true);connectTerminal(first.objects,false);addDimensions(first.objects,origin,a,c.width);checkBounds(first.objects);return first;}
     if(typeof c.width2!=='number'||!Number.isFinite(c.width2))throw Error('Länge des zweiten Abschnitts eingeben.');
     const second=generateStraight({...c,width:c.width2}), b=a+turn*Math.PI/180;
     const center=rotate(c.width-size/2,postDepth/2,a), localCenter=rotate(size/2,postDepth/2,b);
     const start={x:c.x+center.x-localCenter.x,y:c.y+center.y-localCenter.y};
     const removedPost=second.objects.findIndex(o=>o.part.name==='Pfosten');second.objects.splice(removedPost,1);
-    if(c.plates){const plate=second.objects.findIndex(o=>o.part.name==='Fußplatte');second.objects.splice(plate,1);}
+    if((c.plateMount??(c.plates?'below':'none'))!=='none'){const plate=second.objects.findIndex(o=>['Fußplatte','Seitenplatte'].includes(o.part.name));second.objects.splice(plate,1);}
     second.objects.forEach(o=>toWorld(o,start,b));checkBounds([...first.objects,...second.objects]);
     addDimensions(first.objects,origin,a,c.width);addDimensions(second.objects,start,b,c.width2);
     const i=first.objects.findIndex(o=>o.part?.name==='Handlauf'),j=second.objects.findIndex(o=>o.part?.name==='Handlauf');
-    const joint=joiner.join(first.objects[i],second.objects[j]);first.objects[i]=joint.first;second.objects[j]=joint.second;
+    const joint=joiner.join(first.objects[i],second.objects[j]);first.objects[i]=joint.first;second.objects[j]=joint.second;connectTerminal(first.objects,true);connectTerminal(second.objects,false);
     return {objects:[...first.objects,...second.objects],posts:first.posts+second.posts-1,bars:first.bars+second.bars,span:first.span,opening:Math.max(first.opening,second.opening),secondSpan:second.span};
   }
   return {profiles,materials,generate};

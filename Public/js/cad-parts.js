@@ -81,21 +81,24 @@
     objects.forEach((o,index)=>{
       if(!['rect','circle'].includes(o.type))return;
       const p=o.part||validatePart({catalogId:'custom',name:o.type==='circle'?'Freier Rundkörper':'Freie Rechteckkontur',material:'Nicht zugeordnet'},o);
-      const groupKey=JSON.stringify([o.type,o.w,o.h,o.depth,{...p,quantity:0}]);
-      if(!groups.has(groupKey))groups.set(groupKey,{position:groups.size+1,indices:[],part:p,dimensions:dimensions(o),length:length(o),quantity:0});
+      const groupKey=JSON.stringify([o.type,o.w,o.h,o.depth,o.pitch||0,{...p,quantity:0}]);
+      if(!groups.has(groupKey))groups.set(groupKey,{position:groups.size+1,indices:[],part:p,dimensions:dimensions(o),length:length(o),pitch:o.pitch||0,quantity:0});
       const row=groups.get(groupKey);row.indices.push(index);row.quantity+=p.quantity;
     });return [...groups.values()];
   }
   function csvCell(value) {let s=String(value??'');if(/^[\s]*[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   function csv(objects,production=false) {
     const header=['Pos','Bauteil','Material','Maße mm (B × H × Tiefe / Ø × Tiefe)','Wand mm','Menge','Zuschnittlänge mm','Oberfläche'];
-    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise','Geometrie Anfang °','Geometrie Ende °','Bohrpositionen (X/Y/Ø mm)','Schnittebene Anfang','Schnittebene Ende','Profilachse');
-    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes,p.miterStart??'',p.miterEnd??'',p.holes?.map(h=>`${h.x}/${h.y}/${h.d}`).join(' | ')||'',p.miterStart!==undefined?(p.miterAxisStart||'width'):'',p.miterEnd!==undefined?(p.miterAxisEnd||'width'):'',p.lengthAxis||catalog.find(t=>t.id===p.catalogId)?.axis||'plate');return a;});
+    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise','Geometrie Anfang °','Geometrie Ende °','Bohrpositionen (X/Y/Ø mm)','Schnittebene Anfang','Schnittebene Ende','Profilachse','Neigung zur Senkrechten °');
+    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes,p.miterStart??'',p.miterEnd??'',p.holes?.map(h=>`${h.x}/${h.y}/${h.d}`).join(' | ')||'',p.miterStart!==undefined?(p.miterAxisStart||'width'):'',p.miterEnd!==undefined?(p.miterAxisEnd||'width'):'',p.lengthAxis||catalog.find(t=>t.id===p.catalogId)?.axis||'plate',r.pitch);return a;});
     return '\uFEFF'+[header,...data].map(r=>r.map(csvCell).join(';')).join('\r\n');
   }
   function rotate(o,p,reverse=false) {const a=(o.angle||0)*Math.PI/180*(reverse?-1:1),x=p.x-o.x,y=p.y-o.y;return {x:o.x+x*Math.cos(a)-y*Math.sin(a),y:o.y+x*Math.sin(a)+y*Math.cos(a)};}
   // Signed angles define the slope of each end in local coordinates. Length is measured at the profile centre.
   function miterOffset(o,end,widthOffset,heightOffset=0){const part=o.part||{},angle=part[end==='start'?'miterStart':'miterEnd']||0,axis=part[end==='start'?'miterAxisStart':'miterAxisEnd']||'width';return Math.tan(angle*Math.PI/180)*(axis==='height'?heightOffset:widthOffset);}
+  // Profile axis tilts toward local +Y; rotation about local X keeps the cross-section perpendicular.
+  function profilePoint(o,p,d){const l=rotate(o,p,true),cy=o.type==='circle'?o.y:o.y+o.h/2,theta=(o.pitch||0)*Math.PI/180,dy=l.y-cy;const q=rotate(o,{x:l.x,y:cy+dy*Math.cos(theta)+d*Math.sin(theta)});return{x:q.x,y:q.y,z:(o.z||0)-dy*Math.sin(theta)+d*Math.cos(theta)};}
+  function footprint(o){const ring=rings(o).outer,cy=o.type==='circle'?o.y:o.y+o.h/2,cx=o.type==='circle'?o.x:o.x+o.w/2,points=[];for(const p of ring){const local=rotate(o,p,true);for(const end of ['start','end']){const d=(end==='start'?0:o.depth)+miterOffset(o,end,local.x-cx,local.y-cy);points.push(profilePoint(o,p,d));}}points.sort((a,b)=>a.x-b.x||a.y-b.y);const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x),half=arr=>{const h=[];for(const p of arr){while(h.length>1&&cross(h[h.length-2],h[h.length-1],p)<=1e-9)h.pop();h.push(p);}return h;};const a=half(points),b=half([...points].reverse());return a.slice(0,-1).concat(b.slice(0,-1));}
   function rings(o) {
     const wall=o.part?.wall||0;
     if(o.type==='circle') {const ring=r=>Array.from({length:48},(_,i)=>({x:o.x+Math.cos(i/48*Math.PI*2)*r,y:o.y+Math.sin(i/48*Math.PI*2)*r}));return {outer:ring(o.w),inner:wall?ring(o.w-wall):null};}
@@ -103,5 +106,5 @@
     const orient=points=>points.map(p=>{if(o.part?.lengthAxis==='x'){const end=p.x===o.x?'start':'end';p.x+=miterOffset(o,end,p.y-(o.y+o.h/2));}return rotate(o,p);});
     return {outer:orient(ring(o.x,o.y,o.w,o.h)),inner:wall?orient(ring(o.x+wall,o.y+wall,o.w-2*wall,o.h-2*wall)):null};
   }
-  return {catalog,validatePart,create,dimensions,length,rows,csv,rings,rotate,miterOffset};
+  return {catalog,validatePart,create,dimensions,length,rows,csv,rings,rotate,miterOffset,profilePoint,footprint};
 });
