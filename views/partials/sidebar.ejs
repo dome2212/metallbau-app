@@ -142,6 +142,9 @@
       Lagerliste
     </a>
     <% } %>
+    <% if (_show('cad') && _perm('cad', true, false)) { %>
+    <a href="/cad" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition"><span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">◇</span>CAD Studio <span style="font-size:10px;opacity:.6">2D / 3D</span></a>
+    <% } %>
     <% if (_show('schnittliste') && _perm('schnittliste', true, false)) { %>
     <a href="/schnittliste" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition">
       <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10">
@@ -401,6 +404,7 @@
     { key: 'customers',          label: '👤 Kunden' },
     { key: 'documents',          label: '📋 Angebote & Rechnungen' },
     { key: 'articles',           label: '📦 Artikelstamm (Admin)' },
+    { key: 'cad',               label: '◇ CAD Studio' },
     { key: 'schnittliste',       label: '✂️ Schnittliste' },
     { key: 'company_settings',   label: '🏢 Firmendaten (Admin)' },
   ];
