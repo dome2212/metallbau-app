@@ -325,7 +325,7 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
 router.post('/panel/access', requireAdmin, async (req, res) => {
   try {
     const areas = ['projects','calendar','timetracking','vacations','tasks','chat','farben',
-                   'customers','documents','articles','map','lager','schnittliste','reports',
+                   'customers','documents','articles','map','lager','schnittliste','cad','reports',
                    'money','stamp_edit'];
     for (const key of areas) {
       for (const role of ['admin','employee']) {
