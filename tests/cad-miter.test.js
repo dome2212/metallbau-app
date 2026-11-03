@@ -24,3 +24,12 @@ test('reject intersecting cuts, unsupported plates and inconsistent metadata',()
 test('vertical profile slopes at both sides of the section',()=>{
   const o=parts.create('shs');o.part=parts.validatePart({...o.part,miterEnd:45,cutEnd:45},o);assert.ok(Math.abs(parts.miterOffset(o,'end',20)-20)<1e-7);assert.ok(Math.abs(parts.miterOffset(o,'end',-20)+20)<1e-7);
 });
+test('both cut planes and directions preserve signed geometry and CSV metadata',()=>{
+ const o=rail();o.part=parts.validatePart({...o.part,cutStart:45,miterStart:-45,miterAxisStart:'height',cutEnd:30,miterEnd:30,miterAxisEnd:'width'},o);
+ assert.ok(Math.abs(parts.miterOffset(o,'start',100,20)+20)<1e-7);assert.ok(Math.abs(parts.miterOffset(o,'start',20,0))<1e-9);assert.ok(Math.abs(parts.miterOffset(o,'end',10,100)-Math.tan(Math.PI/6)*10)<1e-7);
+ assert.deepEqual(parts.validatePart(JSON.parse(JSON.stringify(o.part)),o),o.part);const csv=parts.csv([o],true);assert.match(csv,/Schnittebene Anfang/);assert.ok(csv.includes('"height";"width";"x"'));
+});
+test('mixed-axis end cuts may not intersect and unknown axes are rejected',()=>{
+ const o=rail(),short={...o,w:15};assert.throws(()=>parts.validatePart({...o.part,cutStart:45,miterStart:-45,miterAxisStart:'height',cutEnd:45,miterEnd:45,miterAxisEnd:'width'},short),/überschneiden/);
+ assert.throws(()=>parts.validatePart({...o.part,miterAxisStart:'height'},o),/Schnittebene/);assert.throws(()=>parts.validatePart({...o.part,cutStart:45,miterStart:45,miterAxisStart:'diagonal'},o),/Schnittebene/);
+});

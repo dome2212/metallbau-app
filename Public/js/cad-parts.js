@@ -50,10 +50,14 @@
       part[key]=v;
       const cut=key==='miterStart'?'cutStart':'cutEnd';if(Math.abs(v)!==part[cut])throw Error('Gehrung und Schnittwinkel müssen übereinstimmen.');
     }
+    for(const [key,cut] of [['miterAxisStart','miterStart'],['miterAxisEnd','miterEnd']])if(value[key]!==undefined){
+      if(!['width','height'].includes(value[key])||part[cut]===undefined)throw Error('Ungültige Schnittebene.');part[key]=value[key];
+    }
     if(part.miterStart||part.miterEnd){
-      const length=axis==='x'?o.w:o.depth, cross=axis==='x'?o.h:(o.type==='circle'?o.w*2:o.w);
-      const slope=v=>Math.tan((v||0)*Math.PI/180);
-      if(length<=Math.abs(slope(part.miterEnd)-slope(part.miterStart))*cross/2+1e-8)throw Error('Die Gehrungen überschneiden sich. Profil länger oder Winkel kleiner wählen.');
+      const length=axis==='x'?o.w:o.depth, width=axis==='x'?o.h:(o.type==='circle'?o.w*2:o.w), height=axis==='x'?o.depth:(o.type==='circle'?o.w*2:o.h);
+      const slope=(end,plane)=>((part[end==='start'?'miterAxisStart':'miterAxisEnd']||'width')===plane?Math.tan((part[end==='start'?'miterStart':'miterEnd']||0)*Math.PI/180):0);
+      const overlap=Math.abs(slope('end','width')-slope('start','width'))*width/2+Math.abs(slope('end','height')-slope('start','height'))*height/2;
+      if(length<=overlap+1e-8)throw Error('Die Gehrungen überschneiden sich. Profil länger oder Winkel kleiner wählen.');
     }
     if(value.holes!==undefined){
       if(!Array.isArray(value.holes)||value.holes.length>100||axis!=='plate'||o.type!=='rect'||wall!==0)throw Error('Ungültige Plattenbohrungen.');
@@ -85,13 +89,13 @@
   function csvCell(value) {let s=String(value??'');if(/^[\s]*[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   function csv(objects,production=false) {
     const header=['Pos','Bauteil','Material','Maße mm (B × H × Tiefe / Ø × Tiefe)','Wand mm','Menge','Zuschnittlänge mm','Oberfläche'];
-    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise','Geometrie Anfang °','Geometrie Ende °','Bohrpositionen (X/Y/Ø mm)');
-    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes,p.miterStart??'',p.miterEnd??'',p.holes?.map(h=>`${h.x}/${h.y}/${h.d}`).join(' | ')||'');return a;});
+    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise','Geometrie Anfang °','Geometrie Ende °','Bohrpositionen (X/Y/Ø mm)','Schnittebene Anfang','Schnittebene Ende','Profilachse');
+    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes,p.miterStart??'',p.miterEnd??'',p.holes?.map(h=>`${h.x}/${h.y}/${h.d}`).join(' | ')||'',p.miterStart!==undefined?(p.miterAxisStart||'width'):'',p.miterEnd!==undefined?(p.miterAxisEnd||'width'):'',p.lengthAxis||catalog.find(t=>t.id===p.catalogId)?.axis||'plate');return a;});
     return '\uFEFF'+[header,...data].map(r=>r.map(csvCell).join(';')).join('\r\n');
   }
   function rotate(o,p,reverse=false) {const a=(o.angle||0)*Math.PI/180*(reverse?-1:1),x=p.x-o.x,y=p.y-o.y;return {x:o.x+x*Math.cos(a)-y*Math.sin(a),y:o.y+x*Math.sin(a)+y*Math.cos(a)};}
   // Signed angles define the slope of each end in local coordinates. Length is measured at the profile centre.
-  function miterOffset(o,end,offset){const angle=o.part?.[end==='start'?'miterStart':'miterEnd']||0;return Math.tan(angle*Math.PI/180)*offset;}
+  function miterOffset(o,end,widthOffset,heightOffset=0){const part=o.part||{},angle=part[end==='start'?'miterStart':'miterEnd']||0,axis=part[end==='start'?'miterAxisStart':'miterAxisEnd']||'width';return Math.tan(angle*Math.PI/180)*(axis==='height'?heightOffset:widthOffset);}
   function rings(o) {
     const wall=o.part?.wall||0;
     if(o.type==='circle') {const ring=r=>Array.from({length:48},(_,i)=>({x:o.x+Math.cos(i/48*Math.PI*2)*r,y:o.y+Math.sin(i/48*Math.PI*2)*r}));return {outer:ring(o.w),inner:wall?ring(o.w-wall):null};}
