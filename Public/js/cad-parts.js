@@ -38,6 +38,16 @@
     if((['rhs','shs','chs'].includes(id)&&wall<=0)||(wall>0&&wall*2>=(axis==='x'?Math.min(o.h,o.depth):Math.min(o.w*(o.type==='circle'?2:1),o.h*(o.type==='circle'?2:1)))))throw Error('Wandstärke muss kleiner als der halbe Querschnitt sein.');
     const part={catalogId:id,name:text(value.name,template?.name||'Freies Bauteil',100),material:text(value.material,'S235JR',60),quantity:number(value.quantity,1,1,10000,true),wall,finish:text(value.finish,'Unbehandelt',80),cutStart:number(value.cutStart,0,0,89),cutEnd:number(value.cutEnd,0,0,89),drillCount:number(value.drillCount,0,0,10000,true),drillDiameter:number(value.drillDiameter,0,0,1000),notes:text(value.notes,'',500)};
     if(value.lengthAxis!==undefined)part.lengthAxis=axis;
+    for(const key of ['miterStart','miterEnd'])if(value[key]!==undefined){
+      const v=number(value[key],0,-89,89);if(axis==='plate'||(axis==='x'&&o.type!=='rect'))throw Error('Gehrungen sind nur für Profile möglich.');
+      part[key]=v;
+      const cut=key==='miterStart'?'cutStart':'cutEnd';if(Math.abs(v)!==part[cut])throw Error('Gehrung und Schnittwinkel müssen übereinstimmen.');
+    }
+    if(part.miterStart||part.miterEnd){
+      const length=axis==='x'?o.w:o.depth, cross=axis==='x'?o.h:(o.type==='circle'?o.w*2:o.w);
+      const slope=v=>Math.tan((v||0)*Math.PI/180);
+      if(length<=Math.abs(slope(part.miterEnd)-slope(part.miterStart))*cross/2+1e-8)throw Error('Die Gehrungen überschneiden sich. Profil länger oder Winkel kleiner wählen.');
+    }
     if(!part.name||!part.material)throw Error('Bezeichnung und Material sind erforderlich.');
     if(part.drillCount>0&&part.drillDiameter<=0)throw Error('Für Bohrungen einen positiven Durchmesser eintragen.');
     return part;
@@ -62,16 +72,19 @@
   function csvCell(value) {let s=String(value??'');if(/^[\s]*[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
   function csv(objects,production=false) {
     const header=['Pos','Bauteil','Material','Maße mm (B × H × Tiefe / Ø × Tiefe)','Wand mm','Menge','Zuschnittlänge mm','Oberfläche'];
-    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise');
-    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes);return a;});
+    if(production)header.push('Schnitt Anfang °','Schnitt Ende °','Bohrungen je Teil','Bohrung Ø mm','Hinweise','Geometrie Anfang °','Geometrie Ende °');
+    const data=rows(objects).map(r=>{const p=r.part,a=[r.position,p.name,p.material,r.dimensions,p.wall,r.quantity,r.length??'',p.finish];if(production)a.push(p.cutStart,p.cutEnd,p.drillCount,p.drillDiameter,p.notes,p.miterStart??'',p.miterEnd??'');return a;});
     return '\uFEFF'+[header,...data].map(r=>r.map(csvCell).join(';')).join('\r\n');
   }
   function rotate(o,p,reverse=false) {const a=(o.angle||0)*Math.PI/180*(reverse?-1:1),x=p.x-o.x,y=p.y-o.y;return {x:o.x+x*Math.cos(a)-y*Math.sin(a),y:o.y+x*Math.sin(a)+y*Math.cos(a)};}
+  // Signed angles define the slope of each end in local coordinates. Length is measured at the profile centre.
+  function miterOffset(o,end,offset){const angle=o.part?.[end==='start'?'miterStart':'miterEnd']||0;return Math.tan(angle*Math.PI/180)*offset;}
   function rings(o) {
     const wall=o.part?.wall||0;
     if(o.type==='circle') {const ring=r=>Array.from({length:48},(_,i)=>({x:o.x+Math.cos(i/48*Math.PI*2)*r,y:o.y+Math.sin(i/48*Math.PI*2)*r}));return {outer:ring(o.w),inner:wall?ring(o.w-wall):null};}
     const ring=(x,y,w,h)=>[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
-    return {outer:ring(o.x,o.y,o.w,o.h).map(p=>rotate(o,p)),inner:wall?ring(o.x+wall,o.y+wall,o.w-2*wall,o.h-2*wall).map(p=>rotate(o,p)):null};
+    const orient=points=>points.map(p=>{if(o.part?.lengthAxis==='x'){const end=p.x===o.x?'start':'end';p.x+=miterOffset(o,end,p.y-(o.y+o.h/2));}return rotate(o,p);});
+    return {outer:orient(ring(o.x,o.y,o.w,o.h)),inner:wall?orient(ring(o.x+wall,o.y+wall,o.w-2*wall,o.h-2*wall)):null};
   }
-  return {catalog,validatePart,create,dimensions,length,rows,csv,rings,rotate};
+  return {catalog,validatePart,create,dimensions,length,rows,csv,rings,rotate,miterOffset};
 });
