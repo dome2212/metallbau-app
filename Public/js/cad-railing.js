@@ -1,5 +1,5 @@
 /* Straight railing generator. Dimensions are millimetres; Z is height. */
-(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./cad-parts'));else root.CadRailing=factory(root.CadParts);})(typeof globalThis!=='undefined'?globalThis:this,function(parts){
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./cad-parts'),require('./cad-join'));else root.CadRailing=factory(root.CadParts,root.CadJoin);})(typeof globalThis!=='undefined'?globalThis:this,function(parts,joiner){
   'use strict';
   // Querschnitt in mm: bei Pfosten/Befüllung X × Y, beim Gurt Y × Z.
   const profiles={
@@ -71,8 +71,8 @@
     if(c.plates){const plate=second.objects.findIndex(o=>o.part.name==='Fußplatte');second.objects.splice(plate,1);}
     second.objects.forEach(o=>toWorld(o,start,b));checkBounds([...first.objects,...second.objects]);
     addDimensions(first.objects,origin,a,c.width);addDimensions(second.objects,start,b,c.width2);
-    const note='Eckverbindung: Zuschnitt und Anschluss vor Fertigung festlegen.';
-    for(const o of [...first.objects,...second.objects])if(o.part?.name==='Handlauf')o.part.notes=note;
+    const i=first.objects.findIndex(o=>o.part?.name==='Handlauf'),j=second.objects.findIndex(o=>o.part?.name==='Handlauf');
+    const joint=joiner.join(first.objects[i],second.objects[j]);first.objects[i]=joint.first;second.objects[j]=joint.second;
     return {objects:[...first.objects,...second.objects],posts:first.posts+second.posts-1,bars:first.bars+second.bars,span:first.span,opening:Math.max(first.opening,second.opening),secondSpan:second.span};
   }
   return {profiles,materials,generate};

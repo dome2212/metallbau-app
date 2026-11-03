@@ -27,11 +27,11 @@ test('corner shares one post, adds second run at left or right angle and groups 
  for(const turn of [90,-90,35]){
   const c={...base,corner:true,width2:1500,turn,angle:0};const g=railing.generate(c);
   const posts=g.objects.filter(o=>o.part?.name==='Pfosten'),plates=g.objects.filter(o=>o.part?.name==='Fußplatte'),rails=g.objects.filter(o=>o.part?.name==='Handlauf');
-  assert.equal(posts.length,5);assert.equal(plates.length,5);assert.equal(rails.length,2);assert.equal(rails[1].angle,turn);assert.equal(rails[1].w,1500);
-  const rows=parts.rows(g.objects);assert.equal(rows.find(r=>r.part.name==='Pfosten').quantity,5);assert.ok(rows.some(r=>r.part.name==='Handlauf'&&r.length===1500));
-  const firstCenter={x:1980,y:20},center=parts.rotate(rails[1],{x:rails[1].x+20,y:rails[1].y+20});
+  assert.equal(posts.length,5);assert.equal(plates.length,5);assert.equal(rails.length,2);assert.equal(rails[1].angle,turn);assert.ok(Math.abs(rails[1].w-1480)<.002);assert.ok(Math.abs(rails[0].w-1980)<.002);
+  const rows=parts.rows(g.objects);assert.equal(rows.find(r=>r.part.name==='Pfosten').quantity,5);assert.ok(rows.some(r=>r.part.name==='Handlauf'&&Math.abs(r.length-1480)<.002));
+  const firstCenter={x:1980,y:20},center=parts.rotate(rails[1],{x:rails[1].x,y:rails[1].y+20});
   assert.ok(Math.hypot(center.x-firstCenter.x,center.y-firstCenter.y)<.002);
-  assert.ok(rails.every(r=>r.part.notes.includes('Eckverbindung')));
+  assert.ok(rails[0].part.miterEnd!==undefined);assert.ok(rails[1].part.miterStart!==undefined);
  }
 });
 test('arbitrary bearing rotates footprints without changing lengths and invalid turns are rejected',()=>{
