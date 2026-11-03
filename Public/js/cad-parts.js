@@ -39,11 +39,12 @@
     if(['shs','shs60'].includes(id)&&o.w!==o.h)throw Error('Beim Quadratrohr müssen Breite und Höhe gleich sein.');
     const axis=value.lengthAxis===undefined?(template?.axis||'plate'):value.lengthAxis;
     if(!['x','z','plate'].includes(axis)||(axis==='x'&&o.type!=='rect')||(template&&axis!==template.axis))throw Error('Ungültige Profilausrichtung.');
+    if(value.section!==undefined&&(value.section!=='round'||axis!=='x'||o.type!=='rect'||Math.abs(o.h-o.depth)>1e-7))throw Error('Rundprofil benötigt einen kreisförmigen Querschnitt.');
     const wall=number(value.wall,template?.wall||0,0,10000);
     if(template&&!template.wall&&wall!==0)throw Error('Vollmaterial und Blech haben keine Hohlprofil-Wandstärke.');
     if((template?.wall>0&&wall<=0)||(wall>0&&wall*2>=(axis==='x'?Math.min(o.h,o.depth):Math.min(o.w*(o.type==='circle'?2:1),o.h*(o.type==='circle'?2:1)))))throw Error('Wandstärke muss kleiner als der halbe Querschnitt sein.');
     const part={catalogId:id,name:text(value.name,template?.name||'Freies Bauteil',100),material:text(value.material,'S235JR',60),quantity:number(value.quantity,1,1,10000,true),wall,finish:text(value.finish,'Unbehandelt',80),cutStart:number(value.cutStart,0,0,89),cutEnd:number(value.cutEnd,0,0,89),drillCount:number(value.drillCount,0,0,10000,true),drillDiameter:number(value.drillDiameter,0,0,1000),notes:text(value.notes,'',500)};
-    if(value.lengthAxis!==undefined)part.lengthAxis=axis;
+    if(value.lengthAxis!==undefined)part.lengthAxis=axis;if(value.section!==undefined)part.section=value.section;
     for(const key of ['miterStart','miterEnd'])if(value[key]!==undefined){
       const v=number(value[key],0,-89,89);if(axis==='plate'||(axis==='x'&&o.type!=='rect'))throw Error('Gehrungen sind nur für Profile möglich.');
       part[key]=v;
@@ -69,7 +70,7 @@
     const o={type:t.type,x:0,y:0,w:t.w,h:t.h,depth:t.depth};o.part=validatePart({catalogId:id},o);return o;
   }
   // Profiles are XY cross sections extruded along Z; free contours and plates use W×H×D.
-  function dimensions(o) {return o.type==='circle'?`Ø ${o.w*2} × ${o.depth}`:`${o.w} × ${o.h} × ${o.depth}`;}
+  function dimensions(o) {if(o.part?.section==='round')return `Ø ${o.h} × ${o.w}`;return o.type==='circle'?`Ø ${o.w*2} × ${o.depth}`:`${o.w} × ${o.h} × ${o.depth}`;}
   function length(o) {const axis=o.part?.lengthAxis||catalog.find(t=>t.id===o.part?.catalogId)?.axis;return axis==='z'?o.depth:axis==='x'?o.w:null;}
   function rows(objects) {
     const groups=new Map();
