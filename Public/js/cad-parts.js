@@ -97,7 +97,7 @@
   // Signed angles define the slope of each end in local coordinates. Length is measured at the profile centre.
   function miterOffset(o,end,widthOffset,heightOffset=0){const part=o.part||{},angle=part[end==='start'?'miterStart':'miterEnd']||0,axis=part[end==='start'?'miterAxisStart':'miterAxisEnd']||'width';return Math.tan(angle*Math.PI/180)*(axis==='height'?heightOffset:widthOffset);}
   // Profile axis tilts toward local +Y; rotation about local X keeps the cross-section perpendicular.
-  function profilePoint(o,p,d){const l=rotate(o,p,true),cy=o.type==='circle'?o.y:o.y+o.h/2,theta=(o.pitch||0)*Math.PI/180,dy=l.y-cy;const q=rotate(o,{x:l.x,y:cy+dy*Math.cos(theta)+d*Math.sin(theta)});return{x:q.x,y:q.y,z:(o.z||0)-dy*Math.sin(theta)+d*Math.cos(theta)};}
+  function profilePoint(o,p,d){const l=rotate(o,p,true),cy=o.type==='circle'?o.y:o.y+o.h/2,theta=(o.pitch||0)*Math.PI/180,dy=l.y-cy;const q=rotate(o,{x:l.x,y:cy+dy*Math.cos(theta)+d*Math.sin(theta)});return{x:q.x,y:q.y,z:(o.z||0)-dy*Math.sin(theta)+d*Math.cos(theta)+(o.shear||0)*(l.x-(o.x+o.w/2))};}
   function footprint(o){const ring=rings(o).outer,cy=o.type==='circle'?o.y:o.y+o.h/2,cx=o.type==='circle'?o.x:o.x+o.w/2,points=[];for(const p of ring){const local=rotate(o,p,true);for(const end of ['start','end']){const d=(end==='start'?0:o.depth)+miterOffset(o,end,local.x-cx,local.y-cy);points.push(profilePoint(o,p,d));}}points.sort((a,b)=>a.x-b.x||a.y-b.y);const cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x),half=arr=>{const h=[];for(const p of arr){while(h.length>1&&cross(h[h.length-2],h[h.length-1],p)<=1e-9)h.pop();h.push(p);}return h;};const a=half(points),b=half([...points].reverse());return a.slice(0,-1).concat(b.slice(0,-1));}
   function rings(o) {
     const wall=o.part?.wall||0;
