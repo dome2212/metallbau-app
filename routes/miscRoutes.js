@@ -7,6 +7,8 @@ router.get('/cad', requirePerm('cad', true, false, 'CAD Studio'), (req, res) => 
   res.render('cad', { cadUserId: String(req.user.id) });
 });
 
+router.use('/cad/api', require('./cadRoutes'));
+
 // Karte mit offenen Projekten
 router.get('/map', requirePerm('map', true, false, 'die Baustellen-Karte'), async (req, res) => {
   try {

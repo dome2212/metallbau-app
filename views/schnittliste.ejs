@@ -1415,6 +1415,12 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch (e) {}
 });
 applyDarkPanels(); // init
+
+// CAD übernimmt die vorhandene CSV-Analyse und Zuschnittoptimierung.
+if(new URLSearchParams(location.search).get('from')==='cad'){
+ try{const raw=sessionStorage.getItem('cad-cut-transfer');if(raw){const data=JSON.parse(raw);if(typeof data.csv!=='string'||data.csv.length>2000000)throw Error('Ungültige CAD-Übergabe.');aktDatei=new File([data.csv], 'CAD-Zuschnitt.csv',{type:'text/csv'});sessionStorage.removeItem('cad-cut-transfer');berechnen();}}
+ catch(e){zeigeFehler(e.message);}
+}
 </script>
 
 </body>
