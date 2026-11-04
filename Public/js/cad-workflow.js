@@ -3,7 +3,7 @@
 function generate(c){
  if(c.rise!==undefined&&(!Number.isFinite(c.rise)||c.rise<0))throw Error('Ungültige Stufenhöhe.');
  const stair=Number(c.rise)>0;
- if(stair&&(!Number.isFinite(c.run)||!Number.isFinite(c.steps)||!Number.isFinite(c.rise)||c.run<100||c.run>1000||c.rise>350||!Number.isInteger(c.steps)||c.steps<1||c.steps>50||c.corner))throw Error('Treppe: 1–50 Stufen, Auftritt 100–1000 mm, Steigung bis 350 mm; gerade Laufrichtung wählen.');
+ if(stair&&(!Number.isFinite(c.run)||!Number.isFinite(c.steps)||!Number.isFinite(c.rise)||c.run<100||c.run>1000||c.rise>350||!Number.isInteger(c.steps)||c.steps<1||c.steps>50||c.corner||c.sections?.length>1))throw Error('Treppe: 1–50 Stufen, Auftritt 100–1000 mm, Steigung bis 350 mm; gerade Laufrichtung wählen.');
  const slope=stair?Math.atan(c.rise/c.run):0,cos=Math.cos(slope),s=Math.tan(slope);
  if(stair&&(slope<10*Math.PI/180||slope>60*Math.PI/180))throw Error('Treppenwinkel muss zwischen 10° und 60° liegen.');
  const width=stair?c.steps*c.run:c.width;

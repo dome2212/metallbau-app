@@ -34,7 +34,7 @@
   for(const name of ['barProfile','barGap','materialBar'])visible(name,bars);
   for(const name of ['plateWidth','plateHeight','plateThickness'])visible(name,plate);
   visible('fasteners',f.elements.plateMount.value==='below');
-  const length=stair?Number(f.elements.run.value)*Number(f.elements.steps.value):Number(f.elements.width.value)+(corner?Number(f.elements.width2.value):0);
+  const length=stair?Number(f.elements.run.value)*Number(f.elements.steps.value):Number(f.elements.width.value)+(corner?Number(f.elements.width2.value):0)+[...document.querySelectorAll('#cad-extra-sections [data-section-field=width]')].reduce((n,el)=>n+(corner?Number(el.value):0),0);
   summary.textContent=`${type.selectedOptions[0].textContent} · ${(length/1000).toLocaleString('de-DE',{maximumFractionDigits:2})} m · Höhe ${f.elements.height.value} mm · ${f.elements.infill.selectedOptions[0].textContent}`;
   const editing=Boolean(f.dataset.editGroup);f.querySelector('button[type=submit]').textContent=editing?'Geländer aktualisieren':'＋ Geländer erstellen';
  }
