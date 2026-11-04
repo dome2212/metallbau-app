@@ -58,6 +58,7 @@
     return {objects,posts:spans+1,bars:spans*n,span:round(step),opening:round((clear-n*bar.size)/(n+1))};
   }
   function generate(c){
+    if(c.sections!==undefined)return generatePath(c);
     const angle=c.angle??0,turn=c.turn??90,corner=c.corner??false;
     if(typeof angle!=='number'||!Number.isFinite(angle)||Math.abs(angle)>180)throw Error('Ausrichtungswinkel muss zwischen −180° und 180° liegen.');
     if(corner&&(typeof turn!=='number'||!Number.isFinite(turn)||Math.abs(turn)<10||Math.abs(turn)>170))throw Error('Eckwinkel muss zwischen 10° und 170° liegen (links oder rechts).');
@@ -81,6 +82,28 @@
     const i=first.objects.findIndex(o=>o.part?.name==='Handlauf'),j=second.objects.findIndex(o=>o.part?.name==='Handlauf');
     const joint=joiner.join(first.objects[i],second.objects[j]);first.objects[i]=joint.first;second.objects[j]=joint.second;connectTerminal(first.objects,true);connectTerminal(second.objects,false);
     return {objects:[...first.objects,...second.objects],posts:first.posts+second.posts-1,bars:first.bars+second.bars,span:first.span,opening:Math.max(first.opening,second.opening),secondSpan:second.span};
+  }
+  function generatePath(c){
+    if(!Array.isArray(c.sections)||c.sections.length<1||c.sections.length>12)throw Error('1–12 Geländerabschnitte wählen.');
+    let bearing=c.angle??0,origin={x:c.x,y:c.y},previous=null,posts=0,bars=0,opening=0,span=0;
+    const objects=[],post=profiles[c.postProfile];if(!post)throw Error('Ungültiges Pfostenprofil.');
+    for(let i=0;i<c.sections.length;i++){
+      const section=c.sections[i];if(!section||!Number.isFinite(section.width)||!Number.isFinite(section.turn)||i&& (Math.abs(section.turn)<10||Math.abs(section.turn)>170))throw Error('Abschnittslänge und Richtungsänderung (±10–170°) prüfen.');
+      if(i){bearing+=section.turn;const a=bearing*Math.PI/180;origin={x:previous.center.x-post.b/2*Math.cos(a)+post.h/2*Math.sin(a),y:previous.center.y-post.b/2*Math.sin(a)-post.h/2*Math.cos(a)};}
+      const g=generate({...c,sections:undefined,corner:false,width:section.width,angle:((bearing+180)%360+360)%360-180,x:origin.x,y:origin.y,postRailJoint:'butt'});
+      const counts={};g.objects.forEach(o=>{const role=o.part?.name||o.type;o.memberKey=`s${i}:${role}:${counts[role]||0}`;counts[role]=(counts[role]||0)+1;});
+      const hand=g.objects.find(o=>o.part?.name==='Handlauf');
+      if(i){const firstPost=g.objects.find(o=>o.part?.name==='Pfosten');g.objects.splice(g.objects.indexOf(firstPost),1);const plate=g.objects.find(o=>['Fußplatte','Seitenplatte'].includes(o.part?.name));if(plate)g.objects.splice(g.objects.indexOf(plate),1);
+        const joint=joiner.join(previous.hand,hand);Object.assign(previous.hand,joint.first);Object.assign(hand,joint.second);}
+      const a=bearing*Math.PI/180;previous={hand,center:{x:origin.x+(section.width-post.b/2)*Math.cos(a)-post.h/2*Math.sin(a),y:origin.y+(section.width-post.b/2)*Math.sin(a)+post.h/2*Math.cos(a)}};
+      objects.push(...g.objects);posts+=g.posts-(i?1:0);bars+=g.bars;opening=Math.max(opening,g.opening);span=Math.max(span,g.span);
+    }
+    if(c.postRailJoint==='miter'){
+      const ps=objects.filter(o=>o.part?.name==='Pfosten'),rs=objects.filter(o=>o.part?.name==='Handlauf');
+      for(const [p,r] of [[ps[0],rs[0]],[ps.at(-1),rs.at(-1)]]){const j=joiner.joinPostRail(p,r);Object.assign(p,j.first);Object.assign(r,j.second);}
+    }
+    if(objects.length>1900)throw Error('Zu viele Bauteile. Abstände oder Abschnitte anpassen.');
+    return {objects,posts,bars,opening,span};
   }
   return {profiles,materials,generate};
 });
