@@ -87,6 +87,11 @@ function stairs(c){
  }
  list.push({type:'dim',x:0,y:-120,z:0,w:count*run+landing,h:0,depth:0},{type:'dim',x:-150,y:0,z:0,w:0,h:0,dz:count*rise,depth:0});return list;
 }
+// Reuse the final generator so preview and exported parts agree.
+function stairSummary(config){
+ const objects=stairs(config),treads=objects.filter(o=>['Treppenstufe','Gitterroststufe','Riffelblechstufe','Blechstufe'].includes(o.part?.name)),supports=objects.filter(o=>['Treppenholm','Treppenwange'].includes(o.part?.name)),plates=objects.filter(o=>o.part?.name?.startsWith('Anschlussplatte')),anchors=objects.filter(o=>o.part?.name?.startsWith('Anker ')),rows=parts.rows(objects);
+ return {steps:treads.length,run:config.steps*config.run,landing:config.landing,height:config.steps*config.rise,angle:Math.atan(config.rise/config.run)*180/Math.PI,treadWidth:treads[0]?.h||0,treadY:treads[0]?.y||0,beams:supports.map(o=>({name:o.part.name,section:parts.dimensions(o),length:parts.length(o),material:o.part.material,y:o.type==='circle'?o.y:parts.rotate(o,{x:o.x+o.w/2,y:o.y+o.h/2}).y,width:o.type==='circle'?o.w*2:o.w,round:o.type==='circle'})),plateCount:plates.length,anchorCount:anchors.length,partCount:rows.reduce((sum,r)=>sum+r.quantity,0)};
+}
 function segments(objects){const edges=[];for(const o of objects){if(o.type==='circle')continue;if(['line','dim'].includes(o.type))edges.push([{x:o.x,y:o.y},{x:o.x+o.w,y:o.y+o.h}]);else{const r=o.type==='circle'?Array.from({length:4},(_,i)=>({x:o.x+Math.cos(i*Math.PI/2)*o.w,y:o.y+Math.sin(i*Math.PI/2)*o.w})):parts.rings(o).outer;for(let i=0;i<r.length;i++)edges.push([r[i],r[(i+1)%r.length]]);}}return edges;}
 function snap(objects,p,tolerance){
  const edges=segments(objects),circles=[];for(const o of objects){if(o.type==='circle')circles.push({x:o.x,y:o.y,r:o.w});for(const h of o.part?.holes||[]){const q=parts.rotate(o,{x:o.x+h.x,y:o.y+h.y});circles.push({...q,r:h.d/2});}}
@@ -99,5 +104,5 @@ function snap(objects,p,tolerance){
 function weight(o){if(!['rect','circle'].includes(o.type))return 0;const p=o.part||{};if(p.name==='Gitterroststufe')return null;const m=p.material||'',density=/Aluminium/i.test(m)?2700:/Glas/i.test(m)?2500:/Edelstahl/i.test(m)?8000:/S\d|stahl/i.test(m)?7850:null;if(density===null)return null;const t=p.wall||0,axis=p.lengthAxis||'plate',round=o.type==='circle'||p.section==='round',w=o.type==='circle'?2*o.w:axis==='x'?o.h:o.w,h=o.type==='circle'?2*o.w:axis==='x'?o.depth:o.h,L=axis==='x'?o.w:o.depth;
  let area=round?Math.PI*(w*w-(t?(w-2*t)**2:0))/4:w*h-(t?(w-2*t)*(h-2*t):0);let volume=area*L;if(p.holes?.length)volume-=p.holes.reduce((n,h)=>n+Math.PI*h.d*h.d/4*o.depth,0);return Math.max(0,volume)*density/1e9*(p.quantity||1);}
 function compare(a,b){const identifyAll=d=>{const counts={};return new Map(d.objects.map(o=>{const key=o.groupId&&o.memberKey?o.groupId+':'+o.memberKey:o.objectId?'id:'+o.objectId:'free:'+(counts.free=(counts.free||0)+1);return [key,o];}));},A=identifyAll(a),B=identifyAll(b),out=[];for(const [k,v] of A){if(!B.has(k))out.push({key:k,state:'Entfernt',name:v.part?.name||v.type});else if(stable(v)!==stable(B.get(k)))out.push({key:k,state:'Geändert',name:v.part?.name||v.type,before:v,after:B.get(k)});}for(const [k,v] of B)if(!A.has(k))out.push({key:k,state:'Hinzugefügt',name:v.part?.name||v.type});return out;}
-return {identify,regenerate,gate,stairs,stairProfiles,snap,weight,compare};
+return {identify,regenerate,gate,stairs,stairSummary,stairProfiles,snap,weight,compare};
 });
