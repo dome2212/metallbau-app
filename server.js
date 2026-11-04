@@ -143,6 +143,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(express.json({ limit: '15mb' }));
 app.use(cookieParser());
+app.use('/cad/vendor/three', express.static(path.join(__dirname, 'node_modules/three/build'), { fallthrough: false }));
+app.use('/cad/vendor/three-controls', express.static(path.join(__dirname, 'node_modules/three/examples/jsm/controls'), { fallthrough: false }));
 app.use(express.static(path.join(__dirname, 'Public')));
 
 // UTF-8 Charset für alle HTML-Antworten erzwingen
