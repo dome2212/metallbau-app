@@ -56,6 +56,7 @@
  function showCategory(index){groups.forEach((group,i)=>{for(const n of group.cards)card(n).hidden=i!==index;categoryButtons[i].classList.toggle('active',i===index);if(i===index)categoryButtons[i].setAttribute('aria-current','true');else categoryButtons[i].removeAttribute('aria-current');});}
  showCategory(0);
  function openDesign(id){$('tab-design').click();const group=groups.findIndex(g=>g.cards.includes(id));if(group>=0)showCategory(group);const target=card(id);target.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}
+ window.addEventListener('cad-open-design',e=>openDesign(e.detail));
  const shortcuts=document.querySelector('.cad-shortcuts');for(const [name,cardIndex] of [['Treppe','stairs-form'],['Tor','gate-form']]){const b=document.createElement('button');b.type='button';b.textContent=name;b.addEventListener('click',()=>openDesign(cardIndex));shortcuts.append(b);}
  // Keep the drawing options together without removing their existing controls.
  const options=document.querySelector('.cad-tool-options'),settings=document.createElement('details'),settingsTitle=document.createElement('summary'),settingsBody=document.createElement('div');settings.className='cad-view-settings';settingsTitle.textContent='Fang & Raster';settingsBody.className='cad-view-settings-body';settings.append(settingsTitle,settingsBody);options.insertBefore(settings,$('fit'));for(const id of ['direct-edit','object-snap','snap'])settingsBody.append($(id).closest('label'));settingsBody.append($('grid'));
