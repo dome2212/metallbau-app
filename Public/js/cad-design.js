@@ -42,25 +42,45 @@ function stairs(c){
  const stringerMaterial=material('stringerMaterial'),treadMaterial=material('treadMaterial'),railMaterial=material('railMaterial'),mountMaterial=material('mountMaterial');
  const types={solid:['Treppenstufe',30],grating:['Gitterroststufe',30],checker:['Riffelblechstufe',5],sheet:['Blechstufe',5]},type=c.treadType||'solid';if(!Object.hasOwn(types,type))throw Error('Ungültiger Stufentyp.');
  const thickness=c.treadThickness??types[type][1];if(!Number.isFinite(thickness)||thickness<2||thickness>100||thickness>=rise)throw Error('Stufendicke muss zwischen 2 und 100 mm und kleiner als die Steigung sein.');
- const list=[];for(let i=0;i<count;i++){const o=block(types[type][0],i*run,0,(i+1)*rise-thickness,run,width,thickness,{...c,material:treadMaterial});if(type==='grating')o.part=parts.validatePart({...o.part,notes:'Gitterrost schematisch als geschlossener Körper. Maschenweite, Tragstab und Herstellergewicht festlegen.'},o);list.push(o);}
- if(landing)list.push(block('Podest',count*run,0,count*rise-40,landing,width,40,{...c,material:stringerMaterial}));
  const length=Math.hypot(count*run,count*rise),legacy=c.stairStructure===undefined&&c.stringerProfile===undefined,structure=c.stairStructure||'wangen',profile=stairProfiles[c.stringerProfile||'flat200x10'];
  if(!['wangen','middle','double'].includes(structure)||!profile)throw Error('Treppenart und gültiges Wangen-/Holmprofil wählen.');
  if(profile.b>=width/2)throw Error('Profil ist für die Treppenbreite zu groß.');
+ // Treppenbreite ist das Außenmaß. Bei Wangen liegt die Stufe zwischen den Innenseiten.
+ const enclosed=!legacy&&structure==='wangen',cos=Math.cos(angle),slope=rise/run;
+ if(enclosed&&profile.h/cos+1e-7<rise+thickness)throw Error(`Das Wangenprofil ist für mittig sitzende Stufen zu niedrig. Mindestens ${Math.ceil((rise+thickness)*cos)} mm Profilhöhe wählen oder Steigung / Stufendicke verringern.`);
+ const treadY=enclosed?profile.b:0,treadWidth=enclosed?width-2*profile.b:width;
+ const list=[];for(let i=0;i<count;i++){const o=block(types[type][0],i*run,treadY,(i+1)*rise-thickness,run,treadWidth,thickness,{...c,material:treadMaterial});if(type==='grating')o.part=parts.validatePart({...o.part,notes:'Gitterrost schematisch als geschlossener Körper. Maschenweite, Tragstab und Herstellergewicht festlegen.'},o);list.push(o);}
+ if(landing)list.push(block('Podest',count*run,0,count*rise-40,landing,width,40,{...c,material:stringerMaterial}));
  const centers=legacy?[0,width]:structure==='wangen'?[profile.b/2,width-profile.b/2]:structure==='middle'?[width/2]:[width/4,width*3/4];
+ // A centered tread intersects the inclined side profile at its mid-height.
+ const axisZ=enclosed?(rise-thickness)/2:-thickness-8-profile.h/(2*cos),topPlate=enclosed&&['plate','anchors'].includes(c.topMount),mountThickness=c.mountThickness??10;
  if(legacy){for(const y of [0,width-10]){const o=block('Treppenwange',-100,y,0,200,10,length,{...c,material:stringerMaterial},'z');o.angle=-90;o.pitch=90-angle*180/Math.PI;list.push(o);}}
- else {const supportThickness=8,axisZ=-thickness-(structure==='wangen'?0:supportThickness)-profile.h/(2*Math.cos(angle));
-  for(const center of centers){const round=profile.round,o={type:round?'circle':'rect',x:round?0:-profile.h/2,y:round?center:center+profile.b/2,z:axisZ,w:round?profile.b/2:profile.b,h:round?profile.b/2:profile.h,depth:length,angle:-90,pitch:90-angle*180/Math.PI};
-   o.part=parts.validatePart({catalogId:'custom',name:structure==='wangen'?'Treppenwange':'Treppenholm',material:stringerMaterial,finish:c.finish||'Unbehandelt',lengthAxis:'z',wall:profile.wall,notes:`${profile.label}; Länge entlang der Profilachse. Anschlüsse und Auflager projektspezifisch festlegen.`},o);list.push(o);}
+ else {
+  const supportThickness=8,startX=enclosed?-axisZ/slope:0,endZ=enclosed?count*rise-(topPlate?mountThickness:0):null,profileLength=enclosed?endZ/Math.sin(angle):length;
+  if(enclosed&&(!Number.isFinite(profileLength)||endZ<=0))throw Error('Anschlussplatte ist für die Treppe zu dick.');
+  for(const center of centers){const round=profile.round,o={type:round?'circle':'rect',x:startX+(round?0:-profile.h/2),y:round?center:center+profile.b/2,z:enclosed?0:axisZ,w:round?profile.b/2:profile.b,h:round?profile.b/2:profile.h,depth:profileLength,angle:-90,pitch:90-angle*180/Math.PI};
+   const data={catalogId:'custom',name:enclosed?'Treppenwange':'Treppenholm',material:stringerMaterial,finish:c.finish||'Unbehandelt',lengthAxis:'z',wall:profile.wall,notes:`${profile.label}; Länge entlang der Profilachse. Anschlüsse und Auflager projektspezifisch festlegen.`};
+   if(enclosed){data.miterStart=o.pitch;data.miterEnd=o.pitch;data.miterAxisStart='height';data.miterAxisEnd='height';data.cutStart=o.pitch;data.cutEnd=o.pitch;}
+   o.part=parts.validatePart(data,o);list.push(o);}
   if(structure!=='wangen')for(let i=0;i<count;i++)for(const center of centers){const supportLength=Math.min(width,Math.max(profile.b+60,Math.min(width/centers.length,300))),o=block('Stufenauflage',i*run+(run-Math.min(run,100))/2,center-supportLength/2,(i+1)*rise-thickness-supportThickness,Math.min(run,100),supportLength,supportThickness,{...c,material:stringerMaterial});o.part=parts.validatePart({...o.part,notes:'Schematische Stufenauflage; Verbindung und Abmessungen projektspezifisch festlegen.'},o);list.push(o);
-   const webWidth=Math.min(10,run),webHeight=rise/2+(rise/run)*webWidth/2,web=block('Stufenauflage · Steg',i*run+run/2-webWidth/2,center-Math.min(profile.b,100)/2,o.z-webHeight,webWidth,Math.min(profile.b,100),webHeight,{...c,material:stringerMaterial});web.part=parts.validatePart({...web.part,notes:'Schematischer Verbindungssteg zwischen Holm und Stufenauflage.'},web);list.push(web);}
+   const webWidth=Math.min(10,run),webHeight=rise/2+slope*webWidth/2,web=block('Stufenauflage · Steg',i*run+run/2-webWidth/2,center-Math.min(profile.b,100)/2,o.z-webHeight,webWidth,Math.min(profile.b,100),webHeight,{...c,material:stringerMaterial});web.part=parts.validatePart({...web.part,notes:'Schematischer Verbindungssteg zwischen Holm und Stufenauflage.'},web);list.push(web);}
  }
- if(c.railing){const base={height:1000,postSpacing:1000,clearance:100,barGap:100,x:0,y:0,angle:0,material:railMaterial,finish:c.finish||'Unbehandelt',postProfile:c.postProfile||'40x40x2',railProfile:c.railProfile||'40x40x2',barProfile:c.barProfile||'12x12x0',infill:'bars',plateMount:'none',postRailJoint:'butt',rise,run,steps:count};list.push(...flow.generate(base).objects);if(landing)list.push(...flow.generate({...base,rise:0,width:landing}).objects.map(o=>({...o,x:o.x+count*run,z:(o.z||0)+count*rise})));}
+ if(c.railing){const base={height:1000,postSpacing:1000,clearance:100,barGap:100,x:0,y:0,angle:0,material:railMaterial,finish:c.finish||'Unbehandelt',postProfile:c.postProfile||'40x40x2',railProfile:c.railProfile||'40x40x2',barProfile:c.barProfile||'12x12x0',infill:'bars',plateMount:'none',postRailJoint:'butt',rise,run,steps:count},stairRail=flow.generate(base).objects;
+  if(enclosed){const post=stairRail.find(o=>o.part?.name==='Pfosten');const postBreadth=post.type==='circle'?post.w*2:post.h,shiftY=profile.b/2-postBreadth/2,shiftZ=axisZ+profile.h/(2*cos),posts=stairRail.filter(o=>o.part?.name==='Pfosten');
+   for(const o of stairRail){o.y+=shiftY;o.z=(o.z||0)+shiftZ;if(o.part?.name==='Pfosten'){
+    if(o===posts[posts.length-1]){const top=o.z+o.depth,landingZ=count*rise;o.z=landingZ;o.depth=top-landingZ;o.part=parts.validatePart(o.part,o);}
+    else o.part=parts.validatePart({...o.part,miterStart:angle*180/Math.PI,miterAxisStart:'width',cutStart:angle*180/Math.PI},o);
+   }}
+  }
+  list.push(...stairRail);
+  if(landing){const landingRail=flow.generate({...base,rise:0,width:landing}).objects,shiftY=enclosed?profile.b/2-(stairRail.find(o=>o.part?.name==='Pfosten').type==='circle'?stairRail.find(o=>o.part?.name==='Pfosten').w*2:stairRail.find(o=>o.part?.name==='Pfosten').h)/2:0,shiftZ=enclosed?axisZ+profile.h/(2*cos):0;
+   for(const o of landingRail){o.x+=count*run;o.y+=shiftY;o.z=(o.z||0)+count*rise+shiftZ;if(enclosed&&o.part?.name==='Pfosten'){o.z-=shiftZ;o.depth+=shiftZ;o.part=parts.validatePart(o.part,o);}}list.push(...landingRail);}
+ }
  for(const [location,mode] of [['unten',c.bottomMount||'none'],['oben',c.topMount||'none']]){
   if(!['none','plate','anchors'].includes(mode))throw Error('Ungültige Befestigung '+location+'.');if(mode==='none')continue;
   const pw=c.mountWidth??120,ph=c.mountLength??120,pt=c.mountThickness??10,diameter=c.anchorDiameter??12;if(![pw,ph,pt,diameter].every(Number.isFinite)||pw<70||ph<70||pw>1000||ph>1000||pt<2||pt>100||![10,12,16].includes(diameter))throw Error('Befestigungsmaße prüfen: Platte mindestens 70 × 70 mm, Anker M10, M12 oder M16.');
   const hole=diameter+2,edge=Math.max(20,hole),xs=[edge,pw-edge],ys=[edge,ph-edge];if(xs[1]-xs[0]<=hole||ys[1]-ys[0]<=hole)throw Error('Die Platte ist für das gewählte Bohrbild zu klein.');
-  const z=location==='oben'?count*rise-pt:-pt,x=(location==='oben'?count*run:0)-pw/2;
+  const z=location==='oben'?count*rise-pt:-pt,x=(enclosed?(location==='oben'?(count*rise-pt-axisZ)/slope:-axisZ/slope):(location==='oben'?count*run:0))-pw/2;
   for(const y of centers.map(center=>center-ph/2)){const plate=block('Anschlussplatte '+location,x,y,z,pw,ph,pt,{...c,material:mountMaterial});const holes=xs.flatMap(hx=>ys.map(hy=>({x:hx,y:hy,d:hole})));plate.part=parts.validatePart({...plate.part,drillCount:4,drillDiameter:hole,holes,notes:`Anschluss ${location}; Position, Untergrund und Befestigung projektspezifisch festlegen.`},plate);list.push(plate);
    if(mode==='anchors')for(const h of holes){const anchor={type:'circle',x:x+h.x,y:y+h.y,z:z-80,w:diameter/2,h:diameter/2,depth:pt+80};anchor.part=parts.validatePart({catalogId:'custom',name:`Anker ${location} M${diameter}`,material:mountMaterial,finish:c.finish||'Unbehandelt',lengthAxis:'z',notes:'Schematischer Anker; Länge, Verankerung und Untergrund projektspezifisch festlegen.'},anchor);list.push(anchor);}
   }
