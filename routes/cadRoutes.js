@@ -5,6 +5,7 @@ const {requirePerm, hasPerm} = require('../middleware/auth');
 const {getFirma} = require('../utils/companySettings');
 const {validate} = require('../Public/js/cad-document');
 const {workshop} = require('../utils/cadWorkshop');
+const approval = require('../utils/cadApproval');
 const router = express.Router();
 router.use(requirePerm('cad', true, false, 'CAD Studio'));
 router.use((req,res,next)=>req.method==='POST'&&!req.is('application/json')?res.status(415).json({error:'JSON erforderlich.'}):next());
@@ -14,6 +15,7 @@ async function init(){
   await dbQuery('CREATE TABLE IF NOT EXISTS cad_documents (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, project_id TEXT, document TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)');
   await dbQuery('CREATE TABLE IF NOT EXISTS cad_document_access (document_id TEXT NOT NULL, user_id TEXT NOT NULL, can_edit INTEGER NOT NULL, PRIMARY KEY(document_id,user_id))');
   await dbQuery('CREATE TABLE IF NOT EXISTS cad_document_versions (document_id TEXT NOT NULL, revision INTEGER NOT NULL, document TEXT NOT NULL, updated_at TEXT NOT NULL, author_id TEXT NOT NULL, PRIMARY KEY(document_id,revision))');
+  await approval.init();
   await dbQuery('CREATE TABLE IF NOT EXISTS cad_templates (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL, document TEXT NOT NULL)');
  })().catch(e=>{ready=null;throw e;});await ready;
 }
@@ -60,5 +62,17 @@ router.post('/documents/:id/access',async(req,res,next)=>{try{const row=await ac
 router.get('/templates',async(req,res,next)=>{try{res.json((await dbQuery('SELECT id,name FROM cad_templates WHERE owner_id = ? ORDER BY name',[user(req)])).rows);}catch(e){next(e);}});
 router.get('/templates/:id',async(req,res,next)=>{try{const row=(await dbQuery('SELECT document FROM cad_templates WHERE id = ? AND owner_id = ?',[req.params.id,user(req)])).rows[0];if(!row)return res.status(404).json({error:'Vorlage nicht gefunden.'});res.json(JSON.parse(row.document));}catch(e){next(e);}});
 router.post('/templates',async(req,res,next)=>{let doc;try{doc=validate(req.body.document);if(JSON.stringify(doc).length>2000000)throw Error('Vorlage zu groß.');}catch(e){return res.status(400).json({error:e.message});}try{const id=crypto.randomUUID();await dbQuery('INSERT INTO cad_templates(id,owner_id,name,document) VALUES(?,?,?,?)',[id,user(req),doc.name,JSON.stringify(doc)]);res.json({id});}catch(e){next(e);}});
+// Customer approvals refer to an immutable PDF generated from a saved revision.
+router.post('/documents/:id/customer-approvals',async(req,res,next)=>{try{
+ const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});
+ if(row.revision!==req.body.revision)return res.status(409).json({error:'Die gespeicherte Revision hat sich geändert. Bitte erneut öffnen.'});
+ const doc=validate(req.body.document);if(JSON.stringify(doc)!==row.document)return res.status(409).json({error:'Bitte zuerst den aktuellen Zeichnungsstand auf dem Server speichern.'});
+ const token=crypto.randomBytes(32).toString('base64url'),id=crypto.randomUUID(),pdf=await approval.createPdf(doc),now=new Date(),expires=new Date(now.getTime()+7*86400000).toISOString(),digest=approval.hash(pdf);
+ await dbQuery('INSERT INTO cad_customer_approvals(id,document_id,revision,token_hash,pdf,pdf_hash,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)',[id,row.id,row.revision,approval.hash(token),pdf.toString('base64'),digest,now.toISOString(),expires]);
+ res.json({id,revision:row.revision,hash:digest,expires,path:'/cad-approval/'+token});
+ }catch(e){next(e);}});
+router.get('/documents/:id/customer-approvals',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});res.json((await dbQuery('SELECT id,revision,pdf_hash,created_at,expires_at,approved_at,signer,signature,revoked_at FROM cad_customer_approvals WHERE document_id = ? ORDER BY created_at DESC',[row.id])).rows);}catch(e){next(e);}});
+router.get('/documents/:id/customer-approvals/:approvalId/pdf',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});const a=(await dbQuery('SELECT pdf FROM cad_customer_approvals WHERE id = ? AND document_id = ?',[req.params.approvalId,row.id])).rows[0];if(!a)return res.status(404).end();res.type('application/pdf').set('Cache-Control','no-store').set('Content-Disposition','attachment; filename="freigabe.pdf"').send(Buffer.from(a.pdf,'base64'));}catch(e){next(e);}});
+router.post('/documents/:id/customer-approvals/:approvalId/revoke',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});await dbQuery('UPDATE cad_customer_approvals SET revoked_at = ? WHERE id = ? AND document_id = ?',[new Date().toISOString(),req.params.approvalId,row.id]);res.json({ok:true});}catch(e){next(e);}});
 router.post('/workshop',(req,res)=>{try{const doc=validate(req.body);if(JSON.stringify(doc).length>2000000)throw Error('Zeichnung zu groß.');const options=req.body.output||{};if(!['workshop','customer','labels','installation','parts'].includes(options.kind||'workshop')||![0,1,2,5,10,20,50].includes(options.scale||0))throw Error('Ungültige PDF-Auswahl.');workshop(doc,res,options);}catch(e){if(!res.headersSent)res.status(400).json({error:e.message});else res.destroy();}});
 module.exports=router;

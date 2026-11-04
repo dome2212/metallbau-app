@@ -50,7 +50,7 @@
  document.addEventListener('click',e=>{if(!more.contains(e.target))more.open=false;});more.addEventListener('keydown',e=>{if(e.key==='Escape'){more.open=false;moreSummary.focus();}});
  // Group related construction and workshop tools into short, discoverable categories.
  const designGrid=$('panel-design').querySelector('.cad-design-grid'),card=id=>$(id).closest('details');
- const groups=[{label:'Konstruieren',cards:['offset-form','gate-form','stairs-form']},{label:'Vorlagen & Aufmaß',cards:['template-save','symbol-form','site-notes']},{label:'Fertigung & Montage',cards:['install-form','pdf-kind','material-summary']}];
+ const groups=[{label:'Konstruieren',cards:['offset-form','gate-form','stairs-form']},{label:'Vorlagen & Aufmaß',cards:['structure-form','template-save','symbol-form','site-notes']},{label:'Fertigung & Montage',cards:['install-form','pdf-kind','material-summary']}];
  const categories=document.createElement('nav');categories.className='cad-design-categories';categories.setAttribute('aria-label','Konstruktion und Werkstatt');designGrid.before(categories);
  const categoryButtons=groups.map((group,i)=>{const b=document.createElement('button');b.type='button';b.textContent=group.label;b.addEventListener('click',()=>showCategory(i));categories.append(b);return b;});
  function showCategory(index){groups.forEach((group,i)=>{for(const n of group.cards)card(n).hidden=i!==index;categoryButtons[i].classList.toggle('active',i===index);if(i===index)categoryButtons[i].setAttribute('aria-current','true');else categoryButtons[i].removeAttribute('aria-current');});}
