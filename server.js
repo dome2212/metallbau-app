@@ -215,6 +215,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
+app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
 app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)

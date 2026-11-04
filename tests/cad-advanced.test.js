@@ -1,0 +1,16 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const advanced=require('../Public/js/cad-advanced'),parts=require('../Public/js/cad-parts'),doc=require('../Public/js/cad-document'),structures=require('../Public/js/cad-structures');
+const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
+test('mirror reflects rotated plate and its holes and detaches generated identity',()=>{
+ const o={type:'rect',x:10,y:20,w:100,h:60,depth:8,angle:37,groupId:'group',objectId:'old',part:{catalogId:'custom',name:'Platte',material:'S235JR',lengthAxis:'plate',drillCount:1,drillDiameter:10,holes:[{x:20,y:15,d:10}]}};
+ o.part=parts.validatePart(o.part,o);const r=advanced.mirror(o,200);assert.equal(r.groupId,undefined);assert.equal(r.objectId,undefined);
+ const a=parts.rings(o).outer,b=parts.rings(r).outer;for(const p of a)assert.ok(b.some(q=>Math.hypot(q.x-(400-p.x),q.y-p.y)<1e-6));
+ const h=o.part.holes[0],g=r.part.holes[0],p=parts.rotate(o,{x:o.x+h.x,y:o.y+h.y}),q=parts.rotate(r,{x:r.x+g.x,y:r.y+g.y});close(q.x,400-p.x);close(q.y,p.y);
+});
+test('array produces detached copies at requested positions',()=>{const a=advanced.array({type:'line',x:1,y:2,w:10,h:0,depth:0,objectId:'x'},2,2,100,200);assert.deepEqual(a.map(p=>[p.x,p.y]),[[1,2],[101,2],[1,202],[101,202]]);assert.ok(a.every(p=>!p.objectId));assert.throws(()=>advanced.array(a[0],501,1,1,1));});
+test('DXF imports units, arcs and polylines as reference geometry and reports unsupported entities',()=>{
+ const source=['0','SECTION','2','HEADER','9','$INSUNITS','70','1','0','ENDSEC','0','SECTION','2','ENTITIES','0','LINE','10','1','20','2','11','3','21','2','0','CIRCLE','10','1','20','2','40','1','0','ARC','10','0','20','0','40','1','50','0','51','90','0','LWPOLYLINE','70','1','10','0','20','0','10','1','20','0','10','1','20','1','0','TEXT','1','ignored','0','ENDSEC','0','EOF',''].join('\n');
+ const r=advanced.parseDxf(source);close(r.objects[0].x,25.4);close(r.objects[0].w,50.8);assert.equal(r.unsupported.TEXT,1);assert.ok(r.objects.length>20);assert.ok(r.objects.every(o=>o.reference));const valid=doc.validate({version:1,name:'DXF',objects:r.objects});assert.equal(parts.rows(valid.objects).length,0);assert.throws(()=>advanced.parseDxf(source.replace('0\nLINE\n10','0\nLINE\n210\n1\n10')),/3D/);
+});
+test('all five templates create valid editable geometry',()=>{for(const type of ['canopy','carport','fence','balcony','spiral']){const objects=structures.generate({type,width:3000,depth:2000,height:2400});const result=doc.validate({version:1,name:type,objects});assert.ok(parts.rows(result.objects).length);assert.equal(result.objects.filter(o=>o.type==='dim').length,2);}assert.throws(()=>structures.generate({type:'spiral',width:10,depth:10,height:2400}));});
+test('photo measurements and title field survive document validation',()=>{const m=doc.validateMeta({sheet:{projectNo:'A123',date:'2026-11-04',author:'Zeichner',logo:''},photos:[{name:'Foto',data:'data:image/jpeg;base64,AAAA',marks:[{x1:0,y1:0,x2:1,y2:1,label:'1200 mm'}]}]});assert.equal(m.sheet.projectNo,'A123');assert.equal(m.photos[0].marks[0].label,'1200 mm');assert.throws(()=>doc.validateMeta({photos:[{name:'Foto',data:'data:image/jpeg;base64,AAAA',marks:[{x1:2,y1:0,x2:1,y2:1,label:'x'}]}]}));});

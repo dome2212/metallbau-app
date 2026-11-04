@@ -79,7 +79,7 @@
   function rows(objects) {
     const groups=new Map();
     objects.forEach((o,index)=>{
-      if(!['rect','circle'].includes(o.type))return;
+      if(o.reference||!['rect','circle'].includes(o.type))return;
       const p=o.part||validatePart({catalogId:'custom',name:o.type==='circle'?'Freier Rundkörper':'Freie Rechteckkontur',material:'Nicht zugeordnet'},o);
       const groupKey=JSON.stringify([o.type,o.w,o.h,o.depth,o.pitch||0,{...p,quantity:0}]);
       if(!groups.has(groupKey))groups.set(groupKey,{position:groups.size+1,indices:[],part:p,dimensions:dimensions(o),length:length(o),pitch:o.pitch||0,quantity:0});
