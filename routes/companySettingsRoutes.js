@@ -11,7 +11,7 @@ const multer    = require('multer');
 const { Readable } = require('stream');
 const { v2: cloudinary } = require('cloudinary');
 
-const { requireAdmin }          = require('../middleware/auth');
+const { requireAdmin, requireChef } = require('../middleware/auth');
 const { getFirma, setFirmaValue, clearCache } = require('../utils/companySettings');
 
 // Multer: nur im Arbeitsspeicher (kein Dateisystem nötig)
@@ -162,7 +162,8 @@ router.get('/panel', requireAdmin, async (req, res) => {
     const firma   = await getFirma();
     const success = req.query.saved === '1';
     const tab     = req.query.tab || 'design';
-    res.render('admin-panel', { firma, success, tab });
+    const aiKeys  = tab === 'info' ? await require('../utils/aiKeys').status() : [];
+    res.render('admin-panel', { firma, success, tab, aiKeys });
   } catch (err) {
     console.error('Fehler beim Laden des Admin-Panels:', err.message);
     res.status(500).send('Datenbankfehler');
@@ -328,7 +329,7 @@ router.post('/panel/access', requireAdmin, async (req, res) => {
                    'customers','documents','articles','map','lager','schnittliste','cad','reports',
                    'money','stamp_edit'];
     for (const key of areas) {
-      for (const role of ['admin','buero','employee']) {
+      for (const role of ['admin','employee']) {
         const fieldName = `perm_${role}_${key}`;
         const raw = req.body[fieldName];
         const checked = Array.isArray(raw) ? raw.includes('true') : raw === 'true';
@@ -351,6 +352,21 @@ router.post('/panel/notifications', requireAdmin, async (req, res) => {
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+// ── POST: KI-API-Keys ────────────────────────────────────────────────────────
+router.post('/panel/ai-keys', requireChef, async (req, res) => {
+  try {
+    const ai = require('../utils/aiKeys');
+    for (const k of ai.KEYS) {
+      if (req.body['remove_' + k.env]) await ai.saveKey(k.env, '', true);
+      else await ai.saveKey(k.env, req.body[k.env], false);
+    }
+    await ai.loadAiKeys();
+    res.redirect('/admin/panel?tab=info&saved=1');
+  } catch (err) {
+    res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
   }
 });
 
