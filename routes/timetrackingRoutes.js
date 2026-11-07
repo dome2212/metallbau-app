@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
-const { requireAdmin, hasPerm } = require('../middleware/auth');
+const { requireAdmin, requirePerm, hasPerm } = require('../middleware/auth');
 const { getFirma } = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
@@ -134,25 +134,15 @@ router.get('/', async (req, res) => {
 // ==========================================
 // EINSTEMPELN / AUSSTEMPELN / WECHSELN
 // ==========================================
-router.post('/stamp', async (req, res) => {
+router.post('/stamp', requirePerm('timetracking', true, true), async (req, res) => {
   const userId   = req.user.id;
   const userRole = req.user.role;
   let { type, note, project_id, latitude, longitude } = req.body;
 
-  if (type === 'SWITCH') {
-    try {
-      const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
-      await dbQuery(
-        `INSERT INTO time_logs (user_id, type, note, latitude, longitude, timestamp) VALUES (?, 'OUT', ?, ?, ?, ${tsExpr})`,
-        [userId, 'Baustelle gewechselt', latitude || null, longitude || null]
-      );
-    } catch (e) { console.error('⚠️ POST /stamp:', e.message); }
-    type = 'IN';
-  }
+  const switching = type === 'SWITCH';
+  if (!['IN', 'OUT', 'SWITCH'].includes(type)) return res.status(400).send('Ungültiger Stempel-Typ');
 
-  if (!['IN', 'OUT'].includes(type)) return res.status(400).send('Ungültiger Stempel-Typ');
-
-  if (type === 'IN') {
+  if (type === 'IN' || switching) {
     const firma = await getFirma().catch(() => ({}));
 
     // GPS-Pflicht: deaktivierbar über Admin-Panel (stamp_require_gps)
@@ -163,7 +153,7 @@ router.post('/stamp', async (req, res) => {
     const skipGps      = isAdmin && adminNoGps;
 
     if (gpsRequired && !skipGps) {
-      if (!latitude || !longitude) {
+      if (latitude == null || latitude === '' || longitude == null || longitude === '' || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180) {
         return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
       }
       const lat = parseFloat(latitude);
@@ -203,12 +193,17 @@ router.post('/stamp', async (req, res) => {
 
   try {
     const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
-    await dbQuery(
-      `INSERT INTO time_logs (user_id, type, note, project_id, customer_id, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ${tsExpr})`,
-      [userId, type, note || null, assignedProjectId, assignedCustomerId, latitude || null, longitude || null]
+    if (switching) await dbQuery(
+      `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,'OUT',?,NULL,NULL,?,?,${tsExpr}),(?,'IN',?,?,?,?,?,${tsExpr})`,
+      [userId,'Baustelle gewechselt',latitude??null,longitude??null,userId,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
+    );
+    else await dbQuery(
+      `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,?,?,?,?,?,?,${tsExpr})`,
+      [userId,type,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
     );
     res.redirect('/timetracking');
   } catch (err) {
+    if (switching) return res.status(500).send('Fehler beim Speichern des Baustellenwechsels');
     try {
       const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
       await dbQuery(

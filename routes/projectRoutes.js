@@ -301,7 +301,8 @@ router.get('/', async (req, res) => {
 router.post('/add', async (req, res) => {
   if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { customer_id, title, description, total_price, status } = req.body;
-  const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
+  const firma = await getFirma();
+  const parsedPrice = canSeeMoney(req.user, firma) ? (parseFloat(String(total_price || '0').replace(',', '.')) || 0) : 0;
   try {
     await dbQuery(
       `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?, ?, ?, ?, ?)`,
@@ -359,13 +360,14 @@ router.post('/:id/edit', async (req, res) => {
   if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
   const { title, description, total_price, status } = req.body;
+  const firma = await getFirma();
   const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
   try {
     const cur = await dbQuery('SELECT status FROM projects WHERE id = ?', [id]);
     const oldStatus = cur.rows[0]?.status || null;
     await dbQuery(
-      'UPDATE projects SET title = ?, description = ?, total_price = ?, status = ? WHERE id = ?',
-      [title, description || null, parsedPrice, status || 'In Planung', id]
+      'UPDATE projects SET title = ?, description = ?, total_price = CASE WHEN ? = 1 THEN ? ELSE total_price END, status = ? WHERE id = ?',
+      [title, description || null, canSeeMoney(req.user, firma) ? 1 : 0, parsedPrice, status || 'In Planung', id]
     );
     if (oldStatus !== (status || 'In Planung')) {
       await dbQuery(

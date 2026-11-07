@@ -11,8 +11,9 @@ const express      = require('express');
 const router       = express.Router();
 const bcrypt       = require('bcryptjs');
 const jwt          = require('jsonwebtoken');
-const { dbQuery }  = require('../utils/db');
-const { JWT_SECRET } = require('../middleware/auth');
+const { dbQuery } = require('../utils/db');
+const { JWT_SECRET, hasPerm, canSeeMoney } = require('../middleware/auth');
+const { getFirma } = require('../utils/companySettings');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -29,6 +30,25 @@ function apiAuth(req, res, next) {
     return res.status(401).json({ error: 'Token ungültig oder abgelaufen' });
   }
 }
+
+// Enforce the same configurable access rules as the web application.
+function areaAccess(area, employeeDefault) {
+  return async (req, res, next) => {
+    try {
+      req.apiFirma = await getFirma();
+      if (!hasPerm(req.user, area, req.apiFirma, true, employeeDefault)) return res.status(403).json({ error: 'Zugriff verweigert' });
+      next();
+    } catch (err) { next(err); }
+  };
+}
+// Explicit allowlists keep newly added database fields private by default.
+const projectPublic = p => Object.fromEntries(['id','customer_id','title','description','status','site_lat','site_lng','site_radius','site_note','created_at','company_name','contact_person','street','zip','city','phone','email','planned_hours'].filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));
+const documentPublic = d => Object.fromEntries(['id','doc_type','doc_number','customer_id','project_id','status','due_date','status_note','dunning_level','created_at','company_name','contact_person','street','zip','city','email','phone'].filter(k=>Object.hasOwn(d,k)).map(k=>[k,d[k]]));
+const itemPublic = item => Object.fromEntries(['id','document_id','description','quantity','unit'].filter(k=>Object.hasOwn(item,k)).map(k=>[k,item[k]]));
+router.use('/customers', apiAuth, areaAccess('customers', false));
+router.use('/projects', apiAuth, areaAccess('projects', true));
+router.use('/documents', apiAuth, areaAccess('documents', false));
+router.use('/timetracking', apiAuth, areaAccess('timetracking', true));
 
 // ═══════════════════════════════════════════════════════════════════════
 // AUTH
@@ -92,7 +112,7 @@ router.get('/dashboard', apiAuth, async (req, res) => {
   const userRole = req.user.role;
 
   try {
-    if (userRole !== 'ADMIN') {
+    if (userRole !== 'ADMIN' && userRole !== 'CHEF') {
       // Mitarbeiter-Dashboard
       const now        = new Date();
       const curYear    = now.getFullYear();
@@ -163,19 +183,24 @@ router.get('/dashboard', apiAuth, async (req, res) => {
       dbQuery('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 10')
     ]);
 
+    const firma = await getFirma();
+    const docs = hasPerm(req.user, 'documents', firma, true, false);
+    const money = docs && canSeeMoney(req.user, firma);
+    const customers = hasPerm(req.user, 'customers', firma, true, false);
+    const projects = hasPerm(req.user, 'projects', firma, true, true);
     res.json({
       role:                'ADMIN',
-      openOffersCount:      offerRes.rows[0]?.count    ?? 0,
-      openOffersSum:        parseFloat(offerRes.rows[0]?.total   || 0),
-      openInvoicesCount:    invoiceRes.rows[0]?.count  ?? 0,
-      openInvoicesSum:      parseFloat(invoiceRes.rows[0]?.total || 0),
-      totalCustomers:       custRes.rows[0]?.count     ?? 0,
-      activeProjectsCount:  projRes.rows[0]?.count     ?? 0,
-      overdueInvoicesCount: overdueRes.rows[0]?.count  ?? 0,
-      overdueInvoicesSum:   parseFloat(overdueRes.rows[0]?.total || 0),
+      openOffersCount:      docs ? (offerRes.rows[0]?.count ?? 0) : null,
+      openOffersSum:        money ? parseFloat(offerRes.rows[0]?.total || 0) : null,
+      openInvoicesCount:    docs ? (invoiceRes.rows[0]?.count ?? 0) : null,
+      openInvoicesSum:      money ? parseFloat(invoiceRes.rows[0]?.total || 0) : null,
+      totalCustomers:       customers ? (custRes.rows[0]?.count ?? 0) : null,
+      activeProjectsCount:  projects ? (projRes.rows[0]?.count ?? 0) : null,
+      overdueInvoicesCount: docs ? (overdueRes.rows[0]?.count ?? 0) : null,
+      overdueInvoicesSum:   money ? parseFloat(overdueRes.rows[0]?.total || 0) : null,
       openTasksCount:       taskRes.rows[0]?.count     ?? 0,
-      recentDocs: (recentRes.rows || []).map(d => ({
-        ...d,
+      recentDocs: (docs ? (recentRes.rows || []) : []).map(d => ({
+        ...d, total_amount: money ? d.total_amount : null,
         customer_name: d.company_name || d.contact_person || 'Kein Kunde'
       })),
       tickers: tickerRes.rows || []
@@ -198,7 +223,7 @@ router.get('/projects', apiAuth, async (req, res) => {
       WHERE projects.deleted_at IS NULL
       ORDER BY projects.created_at DESC
     `);
-    res.json(result.rows || []);
+    res.json(canSeeMoney(req.user, req.apiFirma) ? (result.rows || []) : (result.rows || []).map(projectPublic));
   } catch (err) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
@@ -223,7 +248,7 @@ router.get('/projects/:id', apiAuth, async (req, res) => {
     ]);
 
     res.json({
-      ...project,
+      ...(canSeeMoney(req.user, req.apiFirma) ? project : projectPublic(project)),
       photos:       photosRes.rows  || [],
       notes:        notesRes.rows   || [],
       tasks:        tasksRes.rows   || [],
@@ -239,7 +264,7 @@ router.post('/projects', apiAuth, async (req, res) => {
   if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
   const { customer_id, title, description, total_price, status } = req.body;
   if (!title) return res.status(400).json({ error: 'Titel erforderlich' });
-  const parsedPrice = parseFloat(String(total_price || '0').replace(',', '.')) || 0;
+  const parsedPrice = canSeeMoney(req.user, req.apiFirma) ? (parseFloat(String(total_price || '0').replace(',', '.')) || 0) : 0;
   try {
     const r = await dbQuery(
       `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?,?,?,?,?)`,
@@ -389,32 +414,26 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
   }
 
   try {
-    if (type === 'SWITCH') {
-      const tsE = isPg ? 'NOW()' : 'CURRENT_TIMESTAMP';
-      await dbQuery(`INSERT INTO time_logs (user_id,type,note,latitude,longitude,timestamp) VALUES (?,\'OUT\',?,?,?,${tsE})`,
-        [userId, 'Baustelle gewechselt', latitude||null, longitude||null]);
-      type = 'IN';
-    }
-
-    if (type === 'IN' && userRole !== 'ADMIN') {
-      if (!latitude || !longitude) {
-        return res.status(400).json({ error: 'GPS-Standort ist erforderlich zum Einstempeln.' });
-      }
-      const lat = parseFloat(latitude), lng = parseFloat(longitude);
-      const FIRM_LAT    = parseFloat(process.env.FIRM_LAT    || '51.3069467');
-      const FIRM_LNG    = parseFloat(process.env.FIRM_LNG    || '6.9483845');
-      const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || '300', 10);
-      const distFirm    = dist(lat, lng, FIRM_LAT, FIRM_LNG);
-      let   atSite      = distFirm <= FIRM_RADIUS;
-      if (!atSite) {
-        const sites = (await dbQuery(`SELECT site_lat,site_lng,site_radius FROM projects WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status!='Abgeschlossen' AND deleted_at IS NULL`)).rows || [];
-        for (const s of sites) {
-          if (dist(lat, lng, parseFloat(s.site_lat), parseFloat(s.site_lng)) <= (s.site_radius || 200)) {
-            atSite = true; break;
-          }
+    const switching = type === 'SWITCH';
+    if (type === 'IN' || switching) {
+      const firma = req.apiFirma;
+      const skipGps = (userRole === 'ADMIN' || userRole === 'CHEF') && firma.stamp_admin_no_gps !== 'false';
+      if (firma.stamp_require_gps !== 'false' && !skipGps) {
+        const lat = Number(latitude), lng = Number(longitude);
+        if (latitude == null || latitude === '' || longitude == null || longitude === '' || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) {
+          return res.status(400).json({ error: 'Gültiger GPS-Standort ist erforderlich zum Einstempeln.' });
         }
+        const FIRM_LAT = parseFloat(process.env.FIRM_LAT || firma.firm_lat || '51.3069467');
+        const FIRM_LNG = parseFloat(process.env.FIRM_LNG || firma.firm_lng || '6.9483845');
+        const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || firma.firm_radius || '300', 10);
+        const distFirm = dist(lat, lng, FIRM_LAT, FIRM_LNG);
+        let atSite = distFirm <= FIRM_RADIUS;
+        if (!atSite) {
+          const sites = (await dbQuery(`SELECT site_lat,site_lng,site_radius FROM projects WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status!='Abgeschlossen' AND deleted_at IS NULL`)).rows || [];
+          atSite = sites.some(s => dist(lat, lng, parseFloat(s.site_lat), parseFloat(s.site_lng)) <= (s.site_radius || 200));
+        }
+        if (!atSite) return res.status(400).json({ error: `Einstempeln verweigert: ca. ${Math.round(distFirm)} m von der Firma entfernt.` });
       }
-      if (!atSite) return res.status(400).json({ error: `Einstempeln verweigert: ca. ${Math.round(distFirm)} m von der Firma entfernt.` });
     }
 
     let assignedProjectId  = project_id ? parseInt(project_id, 10) : null;
@@ -425,9 +444,13 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
     }
 
     const tsE = isPg ? 'NOW()' : 'CURRENT_TIMESTAMP';
-    await dbQuery(
+    if (switching) await dbQuery(
+      `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,'OUT',?,NULL,NULL,?,?,${tsE}),(?,'IN',?,?,?,?,?,${tsE})`,
+      [userId,'Baustelle gewechselt',latitude??null,longitude??null,userId,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
+    );
+    else await dbQuery(
       `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,?,?,?,?,?,?,${tsE})`,
-      [userId, type, note||null, assignedProjectId, assignedCustomerId, latitude||null, longitude||null]
+      [userId,type,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -443,7 +466,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
 router.get('/appointments', apiAuth, async (req, res) => {
   try {
     const userId  = req.user.id;
-    const isAdmin = req.user.role === 'ADMIN';
+    const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
     const rows = (await dbQuery(`
       SELECT a.id, a.title, a.start_date, a.end_date, a.description,
              c.company_name, c.contact_person
@@ -738,7 +761,7 @@ router.get('/documents', apiAuth, async (req, res) => {
     : `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id ORDER BY d.id DESC LIMIT 50`;
   try {
     const result = await dbQuery(sql, type ? [type] : []);
-    res.json(result.rows || []);
+    res.json(canSeeMoney(req.user, req.apiFirma) ? (result.rows || []) : (result.rows || []).map(documentPublic));
   } catch (err) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
@@ -752,7 +775,8 @@ router.get('/documents/:id', apiAuth, async (req, res) => {
     const doc      = docRes.rows[0];
     if (!doc) return res.status(404).json({ error: 'Dokument nicht gefunden' });
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id=? ORDER BY id ASC`, [req.params.id]);
-    res.json({ ...doc, items: itemsRes.rows || [] });
+    const money = canSeeMoney(req.user, req.apiFirma);
+    res.json({ ...(money ? doc : documentPublic(doc)), items: money ? (itemsRes.rows || []) : (itemsRes.rows || []).map(itemPublic) });
   } catch (err) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
