@@ -64,11 +64,12 @@
   .wz-draft button { margin-left: 8px; }
 </style>
 
+<link rel="stylesheet" href="/css/document-studio.css">
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
   <div class="wz w-full">
 
     <a href="/documents/buero" style="font-size:.875rem;color:#64748b;text-decoration:none">← zurück zum Büro</a>
-    <h1 class="text-slate-800 dark:text-slate-100" style="margin-top:6px">Neue<%= isInv ? '' : 's' %> <%= word %></h1>
+    <div class="doc-header"><div><div class="doc-eyebrow">Dokument erstellen</div><h1 class="text-slate-800 dark:text-slate-100">Neue<%= isInv ? '' : 's' %> <%= word %></h1><p>Kunde wählen, Positionen erfassen und vor dem Speichern prüfen.</p></div><a class="doc-action" href="/documents/<%= isInv ? 'invoices' : 'offers' %>">Alle <%= isInv ? 'Rechnungen' : 'Angebote' %></a></div>
 
     <div class="wz-draft" id="draftBox">
       Es gibt einen nicht abgeschlossenen Entwurf.
@@ -76,17 +77,17 @@
       <button type="button" class="wz-btn" style="padding:8px 14px;font-size:.875rem" onclick="discardDraft()">Verwerfen</button>
     </div>
 
-    <div class="wz-steps">
-      <div class="wz-step on" id="ind1">1. Für wen?</div>
-      <div class="wz-step" id="ind2">2. Was wurde gemacht?</div>
-      <div class="wz-step" id="ind3">3. Prüfen</div>
+    <div class="wz-steps" aria-label="Fortschritt">
+      <div class="wz-step on" id="ind1" aria-current="step">1 · Kunde</div>
+      <div class="wz-step" id="ind2">2 · Positionen</div>
+      <div class="wz-step" id="ind3">3 · Prüfen</div>
     </div>
 
     <!-- ── Schritt 1: Kunde ─────────────────────────────────────── -->
     <section id="step1" class="wz-card">
       <div class="wz-q">Für wen ist <%= isInv ? 'die' : 'das' %> <%= word %>?</div>
       <div class="wz-hint">Tippen Sie einen Teil des Namens ein und klicken Sie dann auf den Kunden.</div>
-      <input type="search" id="custSearch" placeholder="Kunde suchen …" autocomplete="off" oninput="renderCustomers()">
+      <label class="wz-lbl" for="custSearch">Kunde suchen</label><input type="search" id="custSearch" placeholder="Kunde suchen …" autocomplete="off" oninput="renderCustomers()">
       <div class="wz-list" id="custList"></div>
 
       <div style="margin-top:14px">
@@ -122,13 +123,13 @@
       <div class="wz-q">Was wurde gemacht oder geliefert?</div>
       <div class="wz-hint">Pro Zeile eine Leistung. Mit der Enter-Taste springen Sie zum nächsten Feld.</div>
 
-      <div class="wz-box">
+      <details class="wz-assist"><summary>KI-Vorschlag für Positionen</summary><div class="wz-box">
         <label class="wz-lbl" for="kiText">✨ Lieber in einem Satz beschreiben? (Vorschlag per KI)</label>
         <textarea id="kiText" rows="2" placeholder="z. B. Geländer 12 m für Familie Müller, verzinkt, mit Montage"></textarea>
         <div style="margin-top:10px"><button type="button" class="wz-btn" id="kiBtn" onclick="kiSuggest()">Vorschlag erstellen</button></div>
         <div class="wz-err" id="kiErr"></div>
         <div class="wz-ok" id="kiOk"></div>
-      </div>
+      </div></details>
 
       <div class="wz-grid2" style="margin-top:6px">
         <div>
@@ -170,11 +171,12 @@
     <section id="step3" class="wz-card" style="display:none">
       <div class="wz-q">Bitte prüfen</div>
       <div class="wz-hint">Stimmt alles? Dann unten auf den grünen Knopf drücken.</div>
+      <% if (!isInv && String(firma.kleinunternehmer || '').toLowerCase() === 'true') { %><div class="wz-tax-warning" role="alert">Die Firmeneinstellung Kleinunternehmer ist aktiv. Die Angebotsberechnung und das PDF verwenden derzeit unterschiedliche Steuersätze. Bitte das PDF vor dem Versand prüfen.</div><% } %>
       <p style="font-size:.9rem"><strong>Für:</strong> <span id="revCust"></span></p>
-      <table class="wz-rev-table">
+      <div class="wz-review-scroll"><table class="wz-rev-table">
         <thead><tr><th>Leistung</th><th class="r">Menge</th><th class="r">Einzelpreis</th><th class="r">Summe</th></tr></thead>
         <tbody id="revBody"></tbody>
-      </table>
+      </table></div>
       <div class="wz-tot" id="totals3"></div>
       <% if (isInv) { %><p class="wz-hint" style="margin-top:12px">Zahlungsziel: <%= parseInt(firma.zahlungsfrist, 10) || 14 %> Tage. Die Rechnung wird als Entwurf angelegt – verschickt wird erst im nächsten Schritt.</p><% } %>
       <div class="wz-err" id="saveErr"></div>
@@ -205,7 +207,7 @@
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
   function eur(n) { return (Number(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
-  function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\./g, function (m, off, str) { return str.indexOf(',') > -1 ? '' : m; }).replace(',', '.')); return isNaN(n) ? 0 : n; }
+  function num(v) { var text=String(v == null ? '' : v).trim(); if (!text) return 0; if (!/^(?:\d+(?:[.,]\d+)?|\d{1,3}(?:\.\d{3})+,\d+)$/.test(text)) return NaN; return Number(text.includes(',') ? text.replace(/\./g, '').replace(',', '.') : text); }
   function custLabel(c) { return c.company_name || c.contact_person || ('Kunde ' + c.id); }
 
   /* ── Kunden ─────────────────────────────────────────────── */
@@ -335,6 +337,7 @@
     if (i === -1) return;
     if (e.target.classList.contains('p-price')) {
       if (e.target.closest('.wz-pos').querySelector('.p-desc').value.trim() === '') return;
+      if (fields[i + 1]) { fields[i + 1].focus(); return; }
       var nr = addRow(); nr.querySelector('.p-desc').focus(); return;
     }
     if (fields[i + 1]) fields[i + 1].focus();
@@ -394,8 +397,8 @@
       var items = rowsData().filter(function (i) { return i.description; });
       var pe = $('posErr'); pe.style.display = 'none';
       if (!items.length) { pe.textContent = 'Bitte mindestens eine Leistung eintragen.'; pe.style.display = 'block'; return; }
-      var bad = items.filter(function (i) { return i.quantity <= 0; });
-      if (bad.length) { pe.textContent = 'Bei „' + bad[0].description + '" fehlt die Menge.'; pe.style.display = 'block'; return; }
+      var bad = items.filter(function (i) { return !Number.isFinite(i.quantity) || i.quantity <= 0 || i.quantity > 1000000 || !Number.isFinite(i.price) || i.price < 0 || i.price > 10000000; });
+      if (bad.length) { pe.textContent = 'Bitte gültige Menge und gültigen Preis bei „' + bad[0].description + '" eintragen.'; pe.style.display = 'block'; return; }
       var noPrice = items.filter(function (i) { return !i.price; });
       if (noPrice.length && !confirm('Bei „' + noPrice[0].description + '" steht kein Preis (0 €). Trotzdem weitermachen?')) return;
       $('revCust').textContent = custLabel(selected);
@@ -406,7 +409,7 @@
     }
     [1, 2, 3].forEach(function (i) {
       $('step' + i).style.display = i === n ? 'block' : 'none';
-      $('ind' + i).className = 'wz-step' + (i === n ? ' on' : (i < n ? ' done' : ''));
+      $('ind' + i).className = 'wz-step' + (i === n ? ' on' : (i < n ? ' done' : '')); if (i === n) $('ind' + i).setAttribute('aria-current','step'); else $('ind' + i).removeAttribute('aria-current');
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (n === 2) { var rs = $('posList').querySelectorAll('.wz-pos'); if (!rs.length) addRow(); setTimeout(function () { if ($('posList').querySelector('.p-desc') && !$('posList').querySelector('.p-desc').value) $('posList').querySelector('.p-desc').focus(); }, 150); }

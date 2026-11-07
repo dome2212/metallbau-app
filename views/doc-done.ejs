@@ -1,5 +1,6 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
+<link rel="stylesheet" href="/css/document-studio.css">
 
 <%
   const isInv = doc.doc_type === 'INVOICE';
@@ -40,6 +41,7 @@
 </style>
 
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-20">
+    <div class="doc-list-intro"><a href="/documents/buero">Büroübersicht</a> / <a href="/documents/buero">Büro</a></div>
   <div class="dn w-full">
 
     <div class="dn-ok">

@@ -1,5 +1,6 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
+<link rel="stylesheet" href="/css/document-studio.css">
 
     <div class="card p-4 mb-4">
       <form action="/documents/offers/convert-to-invoice" method="POST"
@@ -35,6 +36,7 @@
 
 
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+    <div class="doc-list-intro"><a href="/documents/buero">Büroübersicht</a> / <a href="/documents/offers">Angebote</a></div>
 
   <!-- ── Header ─────────────────────────────────────────────────────────────── -->
   <div class="px-4 md:px-6 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -122,7 +124,7 @@
               <td class="px-4 py-3 text-gray-500 dark:text-gray-400"><%= item.unit %></td>
               <% if (canSeeMoney) { %>
               <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300"><%= Number(item.price).toFixed(2) %></td>
-              <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100"><%= (Number(item.quantity) * Number(item.price)).toFixed(2) %></td>
+              <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100"><%= (Number(item.quantity) * Number(item.price) * (1 - (Number(item.discount_percent) || 0) / 100)).toFixed(2) %></td>
               <% } %>
             </tr>
             <% }); %>
@@ -134,7 +136,7 @@
               <td class="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-100"><%= Number(offer.subtotal || 0).toFixed(2) %> €</td>
             </tr>
             <tr class="text-sm">
-              <td colspan="4" class="px-4 py-1 text-right text-gray-400 dark:text-gray-500">MwSt. <%= Number(offer.tax_rate || 19).toFixed(0) %>%:</td>
+              <td colspan="4" class="px-4 py-1 text-right text-gray-400 dark:text-gray-500">MwSt. <%= Number(offer.tax_rate != null ? offer.tax_rate : 19).toFixed(0) %>%:</td>
               <td class="px-4 py-1 text-right text-gray-500 dark:text-gray-400"><%= Number(offer.tax_amount || 0).toFixed(2) %> €</td>
             </tr>
             <tr class="text-base font-bold">
@@ -146,6 +148,20 @@
         </table>
       </div>
     </div>
+
+    <% if (canSeeMoney && offer.status !== 'ANGENOMMEN') { %>
+    <details class="bg-white dark:bg-slate-800 rounded-xl shadow p-5" id="offer-edit"><summary class="font-semibold cursor-pointer text-teal-700 dark:text-teal-300">Positionen bearbeiten</summary>
+      <form action="/documents/offers/<%= offer.id %>/update" method="POST" class="space-y-3 mt-4" id="offer-edit-form">
+        <p class="text-sm text-slate-500 dark:text-slate-300">Beschreibung, Menge, Einheit und Nettopreis anpassen. Steuersatz und Belegrabatt bleiben erhalten.</p>
+        <div id="offer-edit-rows">
+        <% items.forEach(function(item) { %><div class="offer-edit-row"><label>Beschreibung<input name="description" required maxlength="2000" value="<%= item.description %>"></label><label>Menge<input type="number" name="quantity" min="0.001" max="1000000" step="any" required value="<%= item.quantity %>"></label><label>Einheit<input name="unit" required maxlength="40" value="<%= item.unit || 'Stk' %>"></label><label>Einzelpreis €<input type="number" name="price" min="0" max="10000000" step="any" required value="<%= item.price %>"></label><label>Rabatt %<input type="number" name="discount_percent" min="0" max="100" step="any" value="<%= item.discount_percent || 0 %>"></label><button type="button" class="offer-remove">Entfernen</button></div><% }); %>
+        </div>
+        <div class="flex flex-wrap gap-2"><button type="button" class="doc-action" id="offer-add-row">＋ Position</button><button type="submit" class="doc-action primary">Änderungen speichern</button></div>
+      </form>
+    </details>
+    <template id="offer-edit-template"><div class="offer-edit-row"><label>Beschreibung<input name="description" required maxlength="2000"></label><label>Menge<input type="number" name="quantity" min="0.001" max="1000000" step="any" required value="1"></label><label>Einheit<input name="unit" required maxlength="40" value="Stk"></label><label>Einzelpreis €<input type="number" name="price" min="0" max="10000000" step="any" required value="0"></label><label>Rabatt %<input type="number" name="discount_percent" min="0" max="100" step="any" value="0"></label><button type="button" class="offer-remove">Entfernen</button></div></template>
+    <script>document.getElementById('offer-add-row').onclick=()=>{const rows=document.getElementById('offer-edit-rows');if(rows.children.length>=200)return;rows.append(document.getElementById('offer-edit-template').content.cloneNode(true));rows.lastElementChild.querySelector('input').focus();};document.getElementById('offer-edit-rows').addEventListener('click',e=>{if(e.target.classList.contains('offer-remove')&&e.currentTarget.children.length>1)e.target.closest('.offer-edit-row').remove();});</script>
+    <% } %>
 
     <!-- ══ NACHTRÄGE ════════════════════════════════════════════════════════════ -->
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">

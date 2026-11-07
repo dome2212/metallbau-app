@@ -1,7 +1,8 @@
 const express  = require('express');
 const router   = require('express').Router();
 const crypto   = require('crypto');
-const { dbQuery }                    = require('../utils/db');
+const isPg = !!process.env.DATABASE_URL;
+const { dbQuery, withTransaction }   = require('../utils/db');
 const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma, setFirmaValue }    = require('../utils/companySettings');
 const { sendEmail }                  = require('../utils/notifier');
@@ -11,6 +12,16 @@ const { buildDatevCsv }               = require('../utils/datevExport');
 const { parseBankCsv, matchAndBookPayments } = require('../utils/bankImport');
 const multer = require('multer');
 const bankUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+// A single lock coordinates numbering for the wizard and offer conversion.
+async function nextDocumentNumber(tx, docType, prefix, year) {
+  if (isPg) await tx.query('SELECT pg_advisory_xact_lock(1900587937)');
+  const result = await tx.query('SELECT doc_number FROM documents WHERE doc_type = ?', [docType]);
+  const base = `${prefix}-${year}-`; let max = 0;
+  for (const row of result.rows) { const number = String(row.doc_number || ''); const suffix = number.startsWith(base) ? number.slice(base.length) : ''; if (/^\d+$/.test(suffix)) max = Math.max(max, Number(suffix)); }
+  if (!Number.isSafeInteger(max) || max >= 999999999) throw Error('Keine freie Belegnummer verfügbar.');
+  return base + String(max + 1).padStart(4, '0');
+}
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -144,47 +155,69 @@ router.post('/offers/delete', requireAdmin, async (req, res) => {
 
 // POST: Angebot → Rechnung umwandeln
 router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
-  const { offer_id } = req.body;
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
   try {
-    const offerRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
-    const offer    = offerRes.rows[0];
-    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
-
-    const _firmaConv = await getFirma();
-    const invPrefix  = (_firmaConv.invoice_prefix || 'RECH').toUpperCase();
-    const year     = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `${invPrefix}-${year}-${nextNum}`;
-
-    const today   = new Date();
-    const dueDate = new Date(today);
-    const _firma1 = await getFirma();
-    dueDate.setDate(dueDate.getDate() + (_firma1.zahlungsfrist || 14));
-
-    const insertRes = await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
-      [invoiceNumber, offer.customer_id, offer.tax_rate || 19, offer.subtotal || 0,
-       offer.tax_amount || 0, offer.total_amount || 0, dueDate.toISOString().split('T')[0]]
-    );
-    const newDocId = insertRes.lastID || insertRes.rows?.[0]?.id;
-
-    // Positionen kopieren
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ?`, [offer_id]);
-    for (const item of (itemsRes.rows || [])) {
-      await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
-        [newDocId, item.description, item.quantity, item.unit, item.price]
-      );
-    }
-
-    await dbQuery(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?`, [offer_id]);
-    // Direkt zur neuen Rechnung statt zur Liste – ein Klick weniger bis zum Ergebnis
-    res.redirect('/documents/invoices/' + newDocId);
+    const docId = await withTransaction(async tx => {
+      const offerRes = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [req.body.offer_id]);
+      const offer = offerRes.rows[0];
+      if (!offer) { const error = Error('Angebot nicht gefunden.'); error.status = 404; throw error; }
+      const number = await nextDocumentNumber(tx, 'INVOICE', String(firma.invoice_prefix || 'RECH').toUpperCase(), new Date().getFullYear());
+      const due = new Date(); due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
+      const returning = isPg ? ' RETURNING id' : '';
+      const result = await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount,due_date,discount_percent,discount_amount) VALUES ('INVOICE',?,?,'ENTWURF',?,?,?,?,?,?,?)${returning}`,
+        [number,offer.customer_id,offer.tax_rate ?? 19,offer.subtotal || 0,offer.tax_amount || 0,offer.total_amount || 0,due.toISOString().slice(0,10),offer.discount_percent || 0,offer.discount_amount || 0]);
+      const id = result.lastID || result.rows?.[0]?.id;
+      if (!id) throw Error('Rechnungskennung konnte nicht ermittelt werden.');
+      const items = await tx.query('SELECT * FROM document_items WHERE document_id = ? ORDER BY id', [offer.id]);
+      for (const item of items.rows) await tx.query('INSERT INTO document_items (document_id,description,quantity,unit,price,discount_percent) VALUES (?,?,?,?,?,?)', [id,item.description,item.quantity,item.unit,item.price,item.discount_percent || 0]);
+      await tx.query("UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?", [offer.id]);
+      return id;
+    });
+    res.redirect('/documents/invoices/' + docId);
   } catch (err) {
+    if (err.status) return res.status(err.status).send(err.message);
     console.error('Fehler beim Umwandeln Angebot→Rechnung:', err.message);
     res.status(500).send('Fehler beim Umwandeln.');
+  }
+});
+
+// Edit open offers while preserving their tax and document discounts.
+router.post('/offers/:id/update', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
+  if (!canSeeMoney(req.user, firma)) return res.status(403).send('Keine Berechtigung für Beträge.');
+  const toArray = value => Array.isArray(value) ? value : value === undefined ? [] : [value];
+  const descriptions = toArray(req.body.description), quantities = toArray(req.body.quantity), units = toArray(req.body.unit), prices = toArray(req.body.price), discounts = toArray(req.body.discount_percent);
+  if (!descriptions.length || descriptions.length > 200) return res.status(400).send('Bitte 1 bis 200 Positionen eingeben.');
+  const items = [];
+  for (let i = 0; i < descriptions.length; i++) {
+    const description = String(descriptions[i] || '').trim(), unit = String(units[i] || '').trim();
+    const quantity = Number(quantities[i]), price = Number(prices[i]), discount = Number(discounts[i] || 0);
+    if (!description || description.length > 2000 || !unit || unit.length > 40 || quantities[i] === '' || prices[i] === '' || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000 || !Number.isFinite(price) || price < 0 || price > 10000000 || !Number.isFinite(discount) || discount < 0 || discount > 100) return res.status(400).send('Bitte Beschreibung, Menge, Preis und Rabatt prüfen.');
+    items.push({description, unit, quantity, price, discount});
+  }
+  try {
+    await withTransaction(async tx => {
+      const result = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [req.params.id]);
+      const offer = result.rows[0];
+      if (!offer) { const error = Error('Angebot nicht gefunden.'); error.status = 404; throw error; }
+      if (offer.status === 'ANGENOMMEN') { const error = Error('Angenommene Angebote können nicht geändert werden.'); error.status = 409; throw error; }
+      const subtotal = Math.round(items.reduce((sum, it) => sum + it.quantity * it.price * (1 - it.discount / 100), 0) * 100) / 100;
+      if (!Number.isSafeInteger(Math.round(subtotal * 100))) { const error = Error('Der Gesamtbetrag ist zu groß.'); error.status = 400; throw error; }
+      const pct = Number(offer.discount_percent) || 0, absolute = Number(offer.discount_amount) || 0;
+      const discount = pct > 0 ? subtotal * pct / 100 : absolute;
+      const net = Math.max(0, subtotal - discount), rate = offer.tax_rate == null ? 19 : Number(offer.tax_rate);
+      const tax = Math.round(net * rate) / 100, total = Math.round((net + tax) * 100) / 100;
+      await tx.query('DELETE FROM document_items WHERE document_id = ?', [offer.id]);
+      for (const it of items) await tx.query('INSERT INTO document_items (document_id,description,quantity,unit,price,discount_percent) VALUES (?,?,?,?,?,?)', [offer.id,it.description,it.quantity,it.unit,it.price,it.discount]);
+      await tx.query('UPDATE documents SET subtotal = ?, tax_amount = ?, total_amount = ?, discount_amount = ? WHERE id = ?', [subtotal,tax,total,discount,offer.id]);
+    });
+    res.redirect('/documents/offers/' + encodeURIComponent(req.params.id) + '/detail?saved=1');
+  } catch (err) {
+    if (err.status) return res.status(err.status).send(err.message);
+    console.error('Angebot bearbeiten:', err.message);
+    res.status(500).send('Angebot konnte nicht gespeichert werden.');
   }
 });
 
@@ -610,7 +643,12 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
     const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
     const discArr     = Array.isArray(itemDiscs)  ? itemDiscs  : (itemDiscs  ? [itemDiscs]  : []);
 
-    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
+    const validItems = titleArr.map((title, i) => ({description: String(title || '').trim(), quantity: Number(quantityArr[i]), price: Number(priceArr[i]), discount: Number(discArr[i] || 0)})).filter(item => item.description);
+    if (!validItems.length || validItems.length > 200 || validItems.some(item => item.description.length > 2000 || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 1000000 || !Number.isFinite(item.price) || item.price < 0 || item.price > 10000000 || !Number.isFinite(item.discount) || item.discount < 0 || item.discount > 100)) return res.status(400).send('Bitte mindestens eine gültige Position mit Menge, Preis und Rabatt eingeben.');
+    const pctInput = Number(discount_percent_doc || 0), amountInput = Number(discount_amount_doc || 0), rateInput = tax_rate == null || tax_rate === '' ? 19 : Number(tax_rate);
+    if (![pctInput, amountInput, rateInput].every(Number.isFinite) || pctInput < 0 || pctInput > 100 || amountInput < 0 || rateInput < 0 || rateInput > 100) return res.status(400).send('Bitte Steuersatz und Belegrabatt prüfen.');
+    await withTransaction(async tx => {
+    await tx.query(`DELETE FROM document_items WHERE document_id = ?`, [id]);
 
     let subtotal = 0;
     for (let i = 0; i < titleArr.length; i++) {
@@ -620,7 +658,7 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
       const p = parseFloat(priceArr[i] || 0);
       const d = parseFloat(discArr[i] || 0);
       subtotal += q * p * (1 - d / 100);
-      await dbQuery(
+      await tx.query(
         `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
         [id, desc, q, unitArr[i] || 'Stk', p, d || 0]
       );
@@ -657,7 +695,8 @@ router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
     }
     params.push(id);
 
-    await dbQuery(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
+    await tx.query(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
+    });
     res.redirect(`/documents/invoices/${id}?saved=1`);
   } catch (err) {
     console.error('Fehler bei POST /invoices/:id/update:', err.message);
@@ -1860,6 +1899,8 @@ router.get('/neu/:type', requireAdmin, async (req, res) => {
 
 // POST (JSON): Neuer Kunde direkt im Assistenten
 router.post('/wizard/customer', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
   const b = req.body || {};
   const name = String(b.company_name || '').trim();
   const person = String(b.contact_person || '').trim();
@@ -1884,64 +1925,49 @@ router.post('/wizard/customer', requireAdmin, async (req, res) => {
 
 // POST (JSON): Angebot oder Rechnung aus dem Assistenten speichern
 router.post('/wizard/save', requireAdmin, async (req, res) => {
+  const firma = await bueroGuard(req, res);
+  if (!firma) return;
   const { type, customer_id, items } = req.body || {};
-  const isInvoice = type === 'rechnung';
-  if (!customer_id) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Kunden auswählen.' });
-  const list = (Array.isArray(items) ? items : [])
-    .map(it => ({
-      description: String(it.description || '').trim(),
-      quantity: parseFloat(it.quantity) || 0,
-      unit: String(it.unit || 'Stk').trim() || 'Stk',
-      price: parseFloat(it.price) || 0
-    }))
-    .filter(it => it.description);
-  if (!list.length) return res.status(400).json({ ok: false, error: 'Bitte mindestens eine Position eintragen.' });
+  const customerId = Number(customer_id);
+  if (!['rechnung', 'angebot'].includes(type)) return res.status(400).json({ ok: false, error: 'Bitte eine gültige Belegart auswählen.' });
+  if (!Number.isSafeInteger(customerId) || customerId <= 0) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Kunden auswählen.' });
+  if (!Array.isArray(items) || items.length === 0 || items.length > 200) return res.status(400).json({ ok: false, error: 'Bitte 1 bis 200 Positionen eintragen.' });
+  const list = [];
+  for (const it of items) {
+    if (!it || typeof it !== 'object' || typeof it.description !== 'string' || typeof it.unit !== 'string') return res.status(400).json({ ok: false, error: 'Bitte die Positionsangaben prüfen.' });
+    const description = it.description.trim(), unit = it.unit.trim();
+    const quantity = Number(it.quantity), price = Number(it.price);
+    if (!description || description.length > 2000 || !unit || unit.length > 40 || it.quantity === '' || it.quantity == null || it.price === '' || it.price == null || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000 || !Number.isFinite(price) || price < 0 || price > 10000000) return res.status(400).json({ ok: false, error: 'Bitte Beschreibung, Menge und Preis aller Positionen prüfen.' });
+    list.push({ description, quantity, unit, price });
+  }
   try {
-    const firma   = await getFirma();
+    const isInvoice = type === 'rechnung';
     const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
-    const taxRate = isInvoice && isKlein ? 0 : parseFloat(firma.default_tax_rate || 19);
-    const prefix  = ((isInvoice ? firma.invoice_prefix : firma.offer_prefix) || (isInvoice ? 'RECH' : 'ANG')).toUpperCase();
-    const year    = new Date().getFullYear();
-    const docType = isInvoice ? 'INVOICE' : 'OFFER';
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = ?`, [docType]);
-    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const docNumber = `${prefix}-${year}-${nextNum}`;
-
-    let subtotal = 0;
-    for (const it of list) subtotal += it.quantity * it.price;
-    subtotal = Math.round(subtotal * 100) / 100;
-    const taxAmount   = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+    const taxRate = isInvoice && isKlein ? 0 : Number(firma.default_tax_rate || 19);
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw Error('Ungültiger Steuersatz in Firmendaten.');
+    const prefix = String((isInvoice ? firma.invoice_prefix : firma.offer_prefix) || (isInvoice ? 'RECH' : 'ANG')).toUpperCase();
+    const year = new Date().getFullYear(), docType = isInvoice ? 'INVOICE' : 'OFFER';
+    const subtotal = Math.round(list.reduce((sum, it) => sum + it.quantity * it.price, 0) * 100) / 100;
+    if (!Number.isSafeInteger(Math.round(subtotal * 100))) return res.status(400).json({ ok: false, error: 'Der Gesamtbetrag ist zu groß.' });
+    const taxAmount = Math.round(subtotal * taxRate) / 100;
     const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
-
-    let insertRes;
-    if (isInvoice) {
-      const due = new Date();
-      due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
-      insertRes = await dbQuery(
-        `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
-         VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
-        [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, due.toISOString().split('T')[0]]
-      );
-    } else {
-      insertRes = await dbQuery(
-        `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
-         VALUES ('OFFER', ?, ?, 'OFFEN', ?, ?, ?, ?)`,
-        [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount]
-      );
-    }
-    let docId = insertRes.lastID || insertRes.rows?.[0]?.id;
-    if (!docId) {
-      const f = await dbQuery(`SELECT id FROM documents WHERE doc_number = ? AND doc_type = ? ORDER BY id DESC LIMIT 1`, [docNumber, docType]);
-      docId = f.rows?.[0]?.id;
-    }
-    for (const it of list) {
-      await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)`,
-        [docId, it.description, it.quantity, it.unit, it.price]
-      );
-    }
+    const due = new Date(); due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
+    const docId = await withTransaction(async tx => {
+      const customer = await tx.query('SELECT id FROM customers WHERE id = ?', [customerId]);
+      if (!customer.rows.length) { const error = new Error('Kunde wurde nicht gefunden.'); error.status = 400; throw error; }
+      const docNumber = await nextDocumentNumber(tx, docType, prefix, year);
+      const returning = isPg ? ' RETURNING id' : '';
+      const insert = isInvoice
+        ? await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount,due_date) VALUES ('INVOICE',?,?,'ENTWURF',?,?,?,?,?)${returning}`, [docNumber,customerId,taxRate,subtotal,taxAmount,totalAmount,due.toISOString().slice(0,10)])
+        : await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount) VALUES ('OFFER',?,?,'OFFEN',?,?,?,?)${returning}`, [docNumber,customerId,taxRate,subtotal,taxAmount,totalAmount]);
+      const id = insert.lastID || insert.rows?.[0]?.id;
+      if (!id) throw Error('Belegkennung konnte nicht ermittelt werden.');
+      for (const it of list) await tx.query('INSERT INTO document_items (document_id,description,quantity,unit,price) VALUES (?,?,?,?,?)', [id,it.description,it.quantity,it.unit,it.price]);
+      return id;
+    });
     res.json({ ok: true, id: docId, url: '/documents/fertig/' + docId });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ ok: false, error: err.message });
     console.error('Wizard-Save:', err.message);
     res.status(500).json({ ok: false, error: 'Speichern hat nicht geklappt. Bitte noch einmal versuchen.' });
   }
