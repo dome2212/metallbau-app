@@ -510,43 +510,33 @@ router.get('/open-items', requireAdmin, async (req, res) => {
 // GET: Rechnungs-Detail
 
 
-// GET: Rechnungs-PDF — inline im Browser (echter PDF-Stream)
-router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
-  const { id } = req.params;
+// A successfully generated invoice PDF also issues drafts for postal delivery.
+async function invoicePDF(req, res) {
   try {
-    const invoiceRes = await dbQuery(`
-      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
-             d.doc_number AS invoice_number
-      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
-    const invoice = invoiceRes.rows[0];
+    const result = await dbQuery(`SELECT d.*, c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone,
+      d.doc_number AS invoice_number FROM documents d LEFT JOIN customers c ON d.customer_id=c.id
+      WHERE d.id=? AND d.doc_type IN ('INVOICE','CREDIT')`, [req.params.id]);
+    const invoice = result.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    await generateDocumentPDF(invoice, itemsRes.rows || [], res, 'inline');
-  } catch (err) {
-    console.error('Fehler beim Rechnungs-PDF:', err.message);
-    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
+    const items = (await dbQuery('SELECT * FROM document_items WHERE document_id=? ORDER BY id', [invoice.id])).rows;
+    const buffer = await generateDocumentPDFBuffer(invoice, items);
+    if (req.method === 'GET' && invoice.doc_type === 'INVOICE') {
+      const billing = require('../utils/billingService');
+      await billing.issue(invoice.id, billing.revision(invoice, items));
+    }
+    const label = invoice.doc_type === 'CREDIT' ? 'Gutschrift' : 'Rechnung';
+    const name = String(invoice.doc_number || invoice.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition',`${req.path.endsWith('/pdf-download')?'attachment':'inline'}; filename="${label}-${name}.pdf"`);
+    res.setHeader('Cache-Control','no-store');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Rechnungs-PDF:', error.message);
+    if (!res.headersSent) res.status(error.status || 500).send(error.status ? error.message : 'PDF konnte nicht erstellt werden.');
   }
-});
-
-// GET: Rechnungs-PDF Download — echte PDF-Datei (Content-Disposition: attachment)
-router.get('/invoices/:id/pdf-download', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const invoiceRes = await dbQuery(`
-      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
-             d.doc_number AS invoice_number
-      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
-    const invoice = invoiceRes.rows[0];
-    if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    await generateDocumentPDF(invoice, itemsRes.rows || [], res, 'attachment');
-  } catch (err) {
-    console.error('Fehler beim PDF-Download:', err.message);
-    if (!res.headersSent) res.status(500).send('Fehler beim Erstellen des PDFs.');
-  }
-});
+}
+router.get('/invoices/:id/pdf', requireAdmin, invoicePDF);
+router.get('/invoices/:id/pdf-download', requireAdmin, invoicePDF);
 
 // ══════════════════════════════════════════════════════════════
 // KALKULATIONSVORLAGEN

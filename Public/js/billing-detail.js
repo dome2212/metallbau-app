@@ -35,3 +35,25 @@ if (additionButton)
     container.append(copy);
     copy.querySelector("input").focus();
   });
+
+// Printing the HTML detail page is also an explicit issuance action.
+let printIssuance;
+window.addEventListener("beforeprint", () => {
+  const form = document.querySelector('form[action$="/ausstellen"]');
+  if (!form) return;
+  printIssuance = fetch(form.action, { method: "POST", credentials: "same-origin", keepalive: true }).then(response => {
+    if (!response.ok || response.redirected && new URL(response.url).pathname === "/login") throw new Error("Die Rechnung konnte nicht als offen gespeichert werden. Bitte erneut als ausgestellt markieren.");
+    return response.text().then(html => new DOMParser().parseFromString(html, "text/html").querySelector(".bill-heading .bill-badge")?.textContent);
+  });
+  // Observe immediately, even while the browser print dialog is open.
+  printIssuance.catch(() => {});
+});
+window.addEventListener("afterprint", () => {
+  if (printIssuance) printIssuance.then(status => {
+    if (!status) return;
+    document.querySelector(".bill-heading .bill-badge").textContent = status;
+    document.querySelector('a[href$="/bearbeiten"]')?.remove();
+    document.querySelector('form[action$="/ausstellen"]')?.remove();
+    document.querySelector('form[action="/documents/invoices/delete"]')?.remove();
+  }).catch(error => alert(error.message));
+});

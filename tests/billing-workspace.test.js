@@ -50,6 +50,10 @@ require.cache[require.resolve("../utils/notifier")] = {
     },
   },
 };
+let failPDF = false;
+const pdfModule = require("../utils/pdfGenerator");
+const renderPDF = pdfModule.generateDocumentPDFBuffer;
+pdfModule.generateDocumentPDFBuffer = (...args) => failPDF ? Promise.reject(new Error("Synthetic PDF failure")) : renderPDF(...args);
 const router = require("../routes/documentRoutes"),
   { revision } = require("../utils/billingService");
 test("new workspace preserves data, validates and locks financial changes across legacy and new endpoints", async () => {
@@ -362,6 +366,26 @@ test("new workspace preserves data, validates and locks financial changes across
       ).rows.length,
       0,
     );
+    for (const suffix of ["pdf", "pdf-download"]) {
+      const newId = (await (await post("/belege", input)).json()).id;
+      const url = base + "/invoices/" + newId + "/" + suffix;
+      assert.equal((await fetch(url, {method:"HEAD"})).status,200);
+      assert.equal((await query("SELECT status FROM documents WHERE id=?",[newId])).rows[0].status,"ENTWURF");
+      failPDF=true;assert.equal((await fetch(url)).status,500);failPDF=false;
+      assert.equal((await query("SELECT status FROM documents WHERE id=?",[newId])).rows[0].status,"ENTWURF");
+      const pdf=await fetch(url);assert.equal(pdf.status,200);assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0,4).toString(),"%PDF");
+      assert.ok(pdf.headers.get("content-disposition").startsWith(suffix==="pdf"?"inline":"attachment"));
+      assert.equal((await query("SELECT status FROM documents WHERE id=?",[newId])).rows[0].status,"Offen");
+      assert.equal((await post("/belege/"+newId,input)).status,409);
+      for(const status of ["Bezahlt","Teilbezahlt","Storniert","Gemahnt"]) {
+        await query("UPDATE documents SET status=? WHERE id=?",[status,newId]);assert.equal((await fetch(url)).status,200);
+        assert.equal((await query("SELECT status FROM documents WHERE id=?",[newId])).rows[0].status,status);
+      }
+      await query("UPDATE documents SET doc_type='CREDIT',status='Gutschrift' WHERE id=?",[newId]);assert.equal((await fetch(url)).status,200);
+      assert.equal((await query("SELECT status FROM documents WHERE id=?",[newId])).rows[0].status,"Gutschrift");
+    }
+    assert.equal((await fetch(base+"/offers/"+offerId+"/pdf")).status,200);
+    assert.equal((await query("SELECT status FROM documents WHERE id=?",[offerId])).rows[0].status,"ANGENOMMEN");
     firma.perm_admin_money = "false";
     firma.perm_admin_documents = "false";
     assert.equal((await post("/belege", input, "ADMIN")).status, 403);

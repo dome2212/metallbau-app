@@ -230,7 +230,7 @@ async function save(input, firma, id) {
     return { id: docId, doc_type: docType, ...totals };
   });
 }
-async function issue(id) {
+async function issue(id, expectedRevision) {
   return withTransaction(async (tx) => {
     const doc = (
       await tx.query(
@@ -240,10 +240,15 @@ async function issue(id) {
       )
     ).rows[0];
     if (!doc) throw problem(404, "Rechnung nicht gefunden.");
-    if (["ENTWURF", "Entwurf"].includes(doc.status))
+    if (["ENTWURF", "Entwurf"].includes(doc.status)) {
+      if (expectedRevision) {
+        const items = (await tx.query("SELECT * FROM document_items WHERE document_id = ? ORDER BY id", [id])).rows;
+        if (revision(doc, items) !== expectedRevision) throw problem(409, "Die Rechnung wurde inzwischen geändert. Bitte das PDF erneut öffnen.");
+      }
       await tx.query("UPDATE documents SET status = 'Offen' WHERE id = ?", [
         id,
       ]);
+    }
     return doc;
   });
 }
