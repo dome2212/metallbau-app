@@ -21,7 +21,12 @@ const ROLE_LABELS = {
 
 function verifyToken(req, res, next) {
   const token = req.cookies.token;
-  if (!token) return res.redirect('/login');
+  // Bei GET merken wir uns die Ziel-Seite (z.B. gescannter Stempel-QR-Code),
+  // damit man nach dem Login direkt dort landet.
+  const loginUrl = (req.method === 'GET' && req.originalUrl && req.originalUrl !== '/' && !req.originalUrl.startsWith('/login'))
+    ? '/login?next=' + encodeURIComponent(req.originalUrl)
+    : '/login';
+  if (!token) return res.redirect(loginUrl);
   try {
     const verified = jwt.verify(token, JWT_SECRET);
     req.user = verified;
@@ -29,7 +34,7 @@ function verifyToken(req, res, next) {
     next();
   } catch (err) {
     res.clearCookie('token');
-    return res.redirect('/login');
+    return res.redirect(loginUrl);
   }
 }
 
