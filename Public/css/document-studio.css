@@ -12,3 +12,5 @@
 .dark .doc-list-search{--paper:#1e293b;--ink:#f1f5f9}.doc-accent{color:var(--studio-link)}
 
 .wz-customer-empty{padding:16px;color:#475569}.dark .wz-customer-empty{color:#cbd5e1}
+
+.doc-flow-link{color:var(--studio-link);border-color:color-mix(in srgb, var(--primary, #4f46e5) 45%, #cbd5e1)}.doc-flow-link:hover{background:color-mix(in srgb, var(--primary, #4f46e5) 10%, transparent)}

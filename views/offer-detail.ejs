@@ -25,7 +25,7 @@
         <span class="text-slate-400">→</span>
         <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
           <input type="hidden" name="offer_id" value="<%= offer.id %>">
-          <button type="submit" class="px-3 py-1 rounded-full border border-emerald-400 text-emerald-700 hover:bg-emerald-50 font-semibold">3. Rechnung</button>
+          <button type="submit" class="px-3 py-1 rounded-full border font-semibold doc-flow-link">3. Rechnung</button>
         </form>
         <% if (offer.customer_id) { %>
         <span class="text-slate-400">·</span>
@@ -60,7 +60,7 @@
       <% if (offer.status !== 'ANGENOMMEN') { %>
       <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
         <input type="hidden" name="offer_id" value="<%= offer.id %>">
-        <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6"/></svg>In Rechnung umwandeln</button>
+        <button type="submit" class="doc-action primary"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6"/></svg>In Rechnung umwandeln</button>
       </form>
       <% } %>
       <form action="/documents/offers/delete" method="POST" class="inline"
