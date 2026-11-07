@@ -16,17 +16,7 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.warn('⚠️  Web-Push: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY fehlen – Push-Benachrichtigungen deaktiviert.');
 }
 
-// ── DB helper ─────────────────────────────────────────────────────────────────
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    const pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
+const { dbQuery } = require('./db');   // gemeinsamer Helper (SQLite + PostgreSQL)
 
 /**
  * Send a push notification to all stored subscriptions.
