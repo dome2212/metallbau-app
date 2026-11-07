@@ -70,7 +70,7 @@
                     </div>
                     <div class="min-w-0">
                       <p class="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[7rem]"><%= row.user.username %></p>
-                      <p class="text-[10px] text-slate-400"><%= row.user.role === 'CHEF' ? 'Chef' : row.user.role === 'ADMIN' ? 'Admin' : 'MA' %></p>
+                      <p class="text-[10px] text-slate-400"><%= row.user.role === 'CHEF' ? 'Chef' : row.user.role === 'ADMIN' ? 'Admin' : row.user.role === 'BUERO' ? 'Büro' : 'MA' %></p>
                     </div>
                   </div>
                 </td>

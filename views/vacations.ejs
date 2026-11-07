@@ -14,13 +14,13 @@
     <div class="card card-lift p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Urlaubskonten <%= currentYear %></h2>
-        <% if (currentUser.role !== 'ADMIN' && currentUser.role !== 'CHEF') { %>
+        <% if (!['CHEF','ADMIN','BUERO'].includes(currentUser.role)) { %>
           <span class="text-xs text-slate-400">Nur dein eigenes Konto</span>
         <% } %>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <%
-          const visibleUsers = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')
+          const visibleUsers = (['CHEF','ADMIN','BUERO'].includes(currentUser.role))
             ? users
             : users.filter(u => u.id === currentUser.id);
         %>
@@ -47,7 +47,7 @@
               <span><strong class="text-slate-700 dark:text-slate-200"><%= bal.remaining %></strong> Tage übrig</span>
               <span><%= bal.used %>/<%= bal.allowance %></span>
             </div>
-            <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+            <% if (['CHEF','ADMIN','BUERO'].includes(currentUser.role)) { %>
               <form action="/vacations/set-allowance" method="POST" class="flex items-center gap-1.5">
                 <input type="hidden" name="user_id" value="<%= u.id %>">
                 <input type="number" name="vacation_allowance" value="<%= bal.allowance %>" min="0" max="365"
@@ -70,7 +70,7 @@
           Abwesenheit eintragen
         </h2>
         <form action="/vacations/add" method="POST" enctype="multipart/form-data" class="space-y-3.5">
-          <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+          <% if (['CHEF','ADMIN','BUERO'].includes(currentUser.role)) { %>
             <div>
               <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Mitarbeiter</label>
               <select name="user_id" class="input text-sm">
@@ -122,7 +122,7 @@
                 <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Typ</th>
                 <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Zeitraum</th>
                 <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                <% if (['CHEF','ADMIN','BUERO'].includes(currentUser.role)) { %>
                   <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Aktion</th>
                 <% } %>
               </tr>
@@ -146,7 +146,7 @@
                         <%= v.status %>
                       </span>
                     </td>
-                    <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                    <% if (['CHEF','ADMIN','BUERO'].includes(currentUser.role)) { %>
                       <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                           <% if (v.status === 'Beantragt') { %>
@@ -217,7 +217,7 @@
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
             <%
               const approvedVacs = vacations.filter(v => v.status === 'Genehmigt');
-              const allUsersForCal = (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') ? users : users.filter(u => u.id === currentUser.id);
+              const allUsersForCal = (['CHEF','ADMIN','BUERO'].includes(currentUser.role)) ? users : users.filter(u => u.id === currentUser.id);
             %>
             <% allUsersForCal.forEach(u => { %>
               <tr>

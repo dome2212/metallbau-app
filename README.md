@@ -434,6 +434,7 @@ Firmendaten werden über **`/admin/company-settings`** direkt in der App gepfleg
 |---|---|
 | `CHEF` | Vollzugriff inkl. Finanzen, alle Summen sichtbar, Mitarbeiterverwaltung |
 | `ADMIN` | Wie Chef, aber Geldbeträge ausgeblendet (konfigurierbar) |
+| `BUERO` | Sekretariat – Angebote & Rechnungen (inkl. Mahnwesen, Zahlungseingänge, DATEV), Kunden, Artikel, Aufträge ansehen/bearbeiten, Arbeitszeiten aller Mitarbeiter auswerten/korrigieren, Urlaub genehmigen, Kalender, Wochenplan, Aufgaben, Schwarzes Brett, eigenes Ein-/Ausstempeln (ohne GPS-Pflicht). Beträge sichtbar (abschaltbar). **Kein** Zugriff auf Mitarbeiter-Logins, Firmendaten, Admin-Panel, Backup. |
 | `EMPLOYEE` | Monteur – sieht Aufträge, Kalender, eigene Zeiterfassung, Schwarzes Brett, Urlaub |
 
 Zugriffsrechte für ADMIN und EMPLOYEE sind im Admin-Panel unter **🔐 Zugriff** feingranular konfigurierbar.

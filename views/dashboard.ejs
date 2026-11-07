@@ -39,6 +39,8 @@
           <%= new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) %>
           <% if (typeof userRole !== 'undefined' && userRole === 'CHEF') { %>
             · Betriebsübersicht inkl. Finanzen
+          <% } else if (typeof userRole !== 'undefined' && userRole === 'BUERO') { %>
+            · Büro<%= typeof canSeeMoney !== 'undefined' && canSeeMoney ? ' inkl. Beträge' : ' (ohne Geldbeträge)' %>
           <% } else if (typeof userRole !== 'undefined' && userRole === 'ADMIN') { %>
             · Verwaltung<%= typeof canSeeMoney !== 'undefined' && canSeeMoney ? ' inkl. Beträge' : ' (ohne Geldbeträge)' %>
           <% } %>

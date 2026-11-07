@@ -47,6 +47,8 @@
   const _hidden = (typeof sidebarHidden !== 'undefined' && Array.isArray(sidebarHidden)) ? sidebarHidden : [];
   const _show = key => !_hidden.includes('hide_' + key);
   const _perm = (typeof hasPerm === 'function') ? hasPerm : () => true;
+  const _isOffice = typeof currentUser !== 'undefined' && ['CHEF','ADMIN','BUERO'].includes(currentUser.role);
+  // Systembereiche (Nutzer, Firmendaten, Admin-Panel): nur Chef/Admin – nicht Büro
   const _isChef = typeof currentUser !== 'undefined' && (currentUser.role === 'CHEF' || currentUser.role === 'ADMIN');
 
   const _ico = {
@@ -96,24 +98,24 @@
     ]},
     { id: 'team', label: 'Team', items: [
       { href: '/timetracking', label: 'Zeiterfassung',        icon: 'clock', ok: _show('timetracking') && _perm('timetracking', true, true) },
+      { href: '/admin/timetracking', label: 'Arbeitszeiten-Übersicht', icon: 'sheet', ok: _isOffice && _show('admin_timetracking') },
       { href: '/vacations',    label: 'Urlaub & Abwesenheit', icon: 'sun',   ok: _show('vacations') && _perm('vacations', true, true) },
       { href: '/chat',         label: 'Team-Chat',            icon: 'chat',  ok: _show('chat') && _perm('chat', true, true) },
     ]},
     { id: 'buero', label: 'Büro', collapsed: true, items: [
       { href: '/customers',        label: 'Kunden',                icon: 'customer', ok: _show('customers') && _perm('customers', true, false) },
-      { href: '/documents/buero',  label: 'Angebote & Rechnungen', icon: 'invoice',  ok: _isChef && _show('documents') && _perm('documents', true, false) },
+      { href: '/documents/buero',  label: 'Angebote & Rechnungen', icon: 'invoice',  ok: _isOffice && _show('documents') && _perm('documents', true, false) },
       { href: '/articles',         label: 'Artikelstamm',          icon: 'article',  ok: _show('articles') && _perm('articles', true, false) },
     ]},
     { id: 'verwaltung', label: (typeof currentUser !== 'undefined' && currentUser.role === 'CHEF') ? 'Chef-Bereich' : 'Admin-Bereich', collapsed: true, items: [
       { href: '/admin/users',           label: 'Mitarbeiter-Logins',      icon: 'users',   ok: _isChef && _show('admin_users') },
-      { href: '/admin/timetracking',    label: 'Arbeitszeiten-Übersicht', icon: 'sheet',   ok: _isChef && _show('admin_timetracking') },
       { href: '/admin/company-settings', label: 'Firmendaten',            icon: 'company', ok: _isChef && _show('company_settings') },
       { href: '/admin/panel',           label: 'Admin-Panel',             icon: 'gear',    accent: true, ok: _isChef },
     ]},
   ];
 
   const _svg = (name, cls) => '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + _ico[name] + '</svg>';
-  const _roleLabel = { CHEF: 'Chef', ADMIN: 'Admin', EMPLOYEE: 'Mitarbeiter' };
+  const _roleLabel = { CHEF: 'Chef', ADMIN: 'Admin', BUERO: 'Büro', EMPLOYEE: 'Mitarbeiter' };
 %>
 
 <!-- ══════════════════════════════════════════════════════════════════════

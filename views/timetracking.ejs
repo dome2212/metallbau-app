@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
       <%
         // IN- und OUT-Einträge zu Arbeits-Sitzungen paaren, damit
         // Kommen- und Gehen-Zeit nebeneinander statt untereinander stehen.
-        const isPrivileged = typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF');
+        const isPrivileged = typeof currentUser !== 'undefined' && (['CHEF','ADMIN','BUERO'].includes(currentUser.role));
         const shortTime = (raw) => {
           const s = String(raw || '');
           const parts = s.split(':');

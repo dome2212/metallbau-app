@@ -40,7 +40,7 @@
                 <%= t.formatted_date || new Date(t.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) %>
               </p>
             </div>
-            <% if (typeof currentUser !== 'undefined' && (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF')) { %>
+            <% if (typeof currentUser !== 'undefined' && (['CHEF','ADMIN','BUERO'].includes(currentUser.role))) { %>
               <form action="/ticker/delete" method="POST" onsubmit="return confirm('Meldung wirklich löschen?');" class="shrink-0">
                 <input type="hidden" name="id" value="<%= t.id %>">
                 <button type="submit" class="btn text-xs px-3 py-1.5" style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;">
