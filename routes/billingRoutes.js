@@ -37,7 +37,7 @@ function guarded(handler, amounts = false) {
           endpoint,
           detailUrl: billing.detailUrl,
           editable,
-          forceDelete: process.env.BELEGE_LOESCHEN !== "false" && req.user.role === "ADMIN",
+          forceDelete: process.env.BELEGE_LOESCHEN !== "false" && ["CHEF", "ADMIN"].includes(req.user.role),
         });
       } catch (error) {
         console.error("Belegbereich:", error.message);
