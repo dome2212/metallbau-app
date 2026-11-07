@@ -5,22 +5,23 @@ const { requireOffice }    = require('../middleware/auth');
 const { sendWhatsApp }    = require('../utils/notifier');
 const { sendPush }        = require('../utils/webpush');
 
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    const pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
+const { dbQuery } = require('../utils/db');   // gemeinsamer Helper (SQLite + PostgreSQL)
 
 router.get('/', async (req, res) => {
-  const result = await dbQuery(
-    `SELECT tickers.*, TO_CHAR(tickers.created_at, 'DD.MM.YYYY HH24:MI') as formatted_date FROM tickers ORDER BY created_at DESC`
-  );
-  res.render('ticker', { tickers: result.rows, user: req.user });
+  try {
+    const result = await dbQuery(`SELECT tickers.* FROM tickers ORDER BY created_at DESC`);
+    // Datum in Berlin-Zeit formatieren (SQLite liefert UTC-Text, PostgreSQL ein Date)
+    const fmt = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const rows = result.rows.map(r => {
+      const v = r.created_at;
+      const d = v instanceof Date ? v : new Date(String(v).includes('T') || /[zZ+]/.test(String(v).slice(10)) ? v : String(v).replace(' ', 'T') + 'Z');
+      return { ...r, formatted_date: isNaN(d) ? '' : fmt.format(d).replace(',', '') };
+    });
+    res.render('ticker', { tickers: rows, user: req.user });
+  } catch (err) {
+    console.error('Pinnwand laden:', err.message);
+    res.status(500).send('Pinnwand konnte nicht geladen werden.');
+  }
 });
 
 router.post('/add', async (req, res) => {
@@ -28,7 +29,12 @@ router.post('/add', async (req, res) => {
   if (!message) return res.redirect('/ticker');
 
   const author = req.user?.username || 'Unbekannt';
-  await dbQuery('INSERT INTO tickers (message, author) VALUES (?, ?)', [message, author]);
+  try {
+    await dbQuery('INSERT INTO tickers (message, author) VALUES (?, ?)', [message, author]);
+  } catch (err) {
+    console.error('Pinnwand speichern:', err.message);
+    return res.status(500).send('Meldung konnte nicht gespeichert werden.');
+  }
 
   // WhatsApp-Benachrichtigung an alle Mitarbeiter mit aktiviertem Notify
   try {
@@ -56,7 +62,8 @@ router.post('/add', async (req, res) => {
 });
 
 router.post('/delete', requireOffice, async (req, res) => {
-  await dbQuery('DELETE FROM tickers WHERE id = ?', [req.body.id]);
+  try { await dbQuery('DELETE FROM tickers WHERE id = ?', [req.body.id]); }
+  catch (err) { console.error('Pinnwand löschen:', err.message); }
   const back = req.headers.referer || '/ticker';
   res.redirect(back);
 });

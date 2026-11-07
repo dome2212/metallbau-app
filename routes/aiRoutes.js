@@ -9,17 +9,7 @@ const db = require('../config/database');
 let genaiClient;
 try { genaiClient = require('../server').genaiClient; } catch (e) { genaiClient = null; }
 
-// Helper: dbQuery wie in projectRoutes.js verwenden
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
+const { dbQuery } = require('../utils/db');   // gemeinsamer Helper (SQLite + PostgreSQL)
 
 // Generierung per AI
 router.post('/:id/generate-quote', async (req, res) => {

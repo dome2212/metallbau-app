@@ -10,16 +10,7 @@ const router  = express.Router();
 const db      = require('../config/database');
 const { VAPID_PUBLIC } = require('../utils/webpush');
 
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    let i = 0;
-    const pgSql = sql.replace(/\?/g, () => `$${++i}`);
-    db.query(pgSql, params, (err, res) => {
-      if (err) return reject(err);
-      resolve({ rows: res.rows || [] });
-    });
-  });
-};
+const { dbQuery } = require('../utils/db');   // gemeinsamer Helper (SQLite + PostgreSQL)
 
 // Return the VAPID public key so the client can call pushManager.subscribe()
 router.get('/vapid-public-key', (req, res) => {
