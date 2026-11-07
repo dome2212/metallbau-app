@@ -81,7 +81,7 @@ async function checkOverdueInvoices() {
     if (overdueForAdmin.length > 0) {
       const adminRes = await dbQuery(
         `SELECT whatsapp_phone, whatsapp_api_key FROM users
-         WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true
+         WHERE role IN ('ADMIN','CHEF','BUERO') AND whatsapp_notify = true
            AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
       );
       const msg = `🧾 ${overdueForAdmin.length} überfällige Rechnung(en):\n` + overdueForAdmin.join('\n');
