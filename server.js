@@ -351,6 +351,9 @@ initChatServer(server);
 require('./utils/projectTrash').startTrashPurgeSchedule();
 ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
 
+// KI-API-Keys aus dem Admin-Panel laden (überschreiben Werte aus der .env)
+setTimeout(() => require('./utils/aiKeys').loadAiKeys(), 1500);
+
 server.listen(PORT, () => {
   console.log(`\n==================================================`);
   console.log(`🚀 Metallbau-App gestartet!`);
