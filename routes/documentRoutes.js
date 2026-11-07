@@ -16,12 +16,17 @@ const bankUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 // A single lock coordinates numbering for the wizard and offer conversion.
 async function nextDocumentNumber(tx, docType, prefix, year) {
   if (isPg) await tx.query('SELECT pg_advisory_xact_lock(1900587937)');
+  await tx.query('CREATE TABLE IF NOT EXISTS document_number_sequences (doc_type TEXT NOT NULL, prefix TEXT NOT NULL, year INTEGER NOT NULL, last_number INTEGER NOT NULL, PRIMARY KEY (doc_type,prefix,year))');
   const result = await tx.query('SELECT doc_number FROM documents WHERE doc_type = ?', [docType]);
-  const base = `${prefix}-${year}-`; let max = 0;
+  const sequence = await tx.query('SELECT last_number FROM document_number_sequences WHERE doc_type = ? AND prefix = ? AND year = ?', [docType,prefix,year]);
+  const base = `${prefix}-${year}-`; let max = Number(sequence.rows[0]?.last_number || 0);
   for (const row of result.rows) { const number = String(row.doc_number || ''); const suffix = number.startsWith(base) ? number.slice(base.length) : ''; if (/^\d+$/.test(suffix)) max = Math.max(max, Number(suffix)); }
   if (!Number.isSafeInteger(max) || max >= 999999999) throw Error('Keine freie Belegnummer verfügbar.');
-  return base + String(max + 1).padStart(4, '0');
+  const next = max + 1;
+  await tx.query('INSERT INTO document_number_sequences (doc_type,prefix,year,last_number) VALUES (?,?,?,?) ON CONFLICT (doc_type,prefix,year) DO UPDATE SET last_number = excluded.last_number', [docType,prefix,year,next]);
+  return base + String(next).padStart(4, '0');
 }
+const reserveDocumentNumber = (type,prefix,year) => withTransaction(tx => nextDocumentNumber(tx,type,prefix,year));
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
@@ -97,9 +102,7 @@ router.post('/create-offer', requireAdmin, async (req, res) => {
     const prefix   = (firma.offer_prefix || 'ANG').toUpperCase();
     const taxRate  = parseFloat(firma.default_tax_rate || 19);
     const year     = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'OFFER'`);
-    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const docNumber = `${prefix}-${year}-${nextNum}`;
+    const docNumber = await reserveDocumentNumber('OFFER', prefix, year);
 
     // Positionen aufbauen
     const titleArr    = Array.isArray(titles)    ? titles    : (titles    ? [titles]    : []);
@@ -432,9 +435,7 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
     const isKlein  = String(_firma2.kleinunternehmer || '').toLowerCase() === 'true';
     const taxRate  = isKlein ? 0 : parseFloat(_firma2.default_tax_rate || 19);
     const year     = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+    const invoiceNumber = await reserveDocumentNumber('INVOICE', invPfx, year);
 
     const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
     const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
@@ -460,7 +461,7 @@ router.post('/create-invoice', requireAdmin, async (req, res) => {
 
     const today   = new Date();
     const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + (_firma2.zahlungsfrist || 14));
+    dueDate.setDate(dueDate.getDate() + (parseInt(_firma2.zahlungsfrist, 10) || 14));
 
     const insertRes = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, invoice_subtype, discount_percent, discount_amount)
@@ -813,10 +814,8 @@ router.post('/invoices/:id/credit-note', requireAdmin, async (req, res) => {
     const inv = invRes.rows?.[0];
     if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
     const year = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'CREDIT'`);
-    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
     const prefix = (firma.credit_prefix || 'GS').toUpperCase();
-    const docNumber = `${prefix}-${year}-${nextNum}`;
+    const docNumber = await reserveDocumentNumber('CREDIT', prefix, year);
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
     const items = itemsRes.rows || [];
     let subtotal = 0;
@@ -1383,9 +1382,7 @@ router.post('/convert-to-invoice/:offerId', requireAdmin, async (req, res) => {
     if (!offer) return res.status(404).send('Angebot nicht gefunden.');
 
     const year     = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum  = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `RECH-${year}-${nextNum}`;
+    const invoiceNumber = await reserveDocumentNumber('INVOICE', 'RECH', year);
 
     await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
@@ -1457,9 +1454,7 @@ router.post('/delivery/create', requireAdmin, async (req, res) => {
     const { customer_id, project_id, related_document_id, note } = req.body;
     if (!customer_id) return res.status(400).send('customer_id erforderlich');
     const year = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'DELIVERY'`);
-    const nextNum = String((parseInt(countRes.rows[0]?.count || countRes.rows[0]?.COUNT || 0, 10)) + 1).padStart(4, '0');
-    const docNumber = `LS-${year}-${nextNum}`;
+    const docNumber = await reserveDocumentNumber('DELIVERY', 'LS', year);
     const ins = await dbQuery(
       `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, project_id, related_document_id)
        VALUES ('DELIVERY', ?, ?, 'OFFEN', 0, 0, 0, 0, ?, ?)`,
@@ -1614,9 +1609,7 @@ router.post('/invoices/:id/create-partial', requireAdmin, async (req, res) => {
     const firma = await getFirma();
     const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
     const year = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+    const invoiceNumber = await reserveDocumentNumber('INVOICE', invPfx, year);
 
     const factor = Math.min(100, Math.max(1, percent)) / 100;
     let subtotal = 0;
@@ -1675,9 +1668,7 @@ router.post('/invoices/:id/create-final', requireAdmin, async (req, res) => {
     const firma = await getFirma();
     const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
     const year = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+    const invoiceNumber = await reserveDocumentNumber('INVOICE', invPfx, year);
 
     const taxRate = parseFloat(inv.tax_rate != null ? inv.tax_rate : 19);
     // Restbetrag als eine Position
@@ -1766,9 +1757,7 @@ router.post('/recurring/:id/generate', requireAdmin, async (req, res) => {
     const firma = await getFirma();
     const invPfx = (firma.invoice_prefix || 'RECH').toUpperCase();
     const year = new Date().getFullYear();
-    const countRes = await dbQuery(`SELECT COUNT(*) as count FROM documents WHERE doc_type = 'INVOICE'`);
-    const nextNum = String((parseInt(countRes.rows[0]?.count || 0, 10)) + 1).padStart(4, '0');
-    const invoiceNumber = `${invPfx}-${year}-${nextNum}`;
+    const invoiceNumber = await reserveDocumentNumber('INVOICE', invPfx, year);
     let items = [];
     try { items = JSON.parse(r.template_json || '{}').items || []; } catch (_) {}
     let subtotal = 0;
