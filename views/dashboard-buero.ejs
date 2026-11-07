@@ -1,0 +1,227 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-24">
+
+    <!-- ── Kopf ─────────────────────────────────────────────────────────── -->
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Büro-Übersicht</h1>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Büro</span>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <%= new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) %>
+          <% if (stats.docsOk) { %>· <%= stats.moneyOk ? 'inkl. Beträge' : 'ohne Geldbeträge' %><% } %>
+        </p>
+      </div>
+
+      <!-- Stempeln -->
+      <form action="/timetracking/stamp" method="POST" class="flex items-center gap-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 shadow-sm">
+        <div>
+          <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wide">Status</p>
+          <p class="text-sm font-bold <%= stats.isStampedIn ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-300' %>">
+            <% if (stats.isStampedIn) { %><span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1 align-middle"></span><% } %>
+            <%= stats.isStampedIn ? 'Eingestempelt' : 'Nicht eingestempelt' %>
+          </p>
+        </div>
+        <input type="hidden" name="type" value="<%= stats.isStampedIn ? 'OUT' : 'IN' %>">
+        <button type="submit" class="px-4 py-2 rounded-lg text-white text-sm font-bold shadow <%= stats.isStampedIn ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700' %>">
+          <%= stats.isStampedIn ? 'Ausstempeln' : 'Einstempeln' %>
+        </button>
+      </form>
+    </div>
+
+    <!-- ── Schnellaktionen ─────────────────────────────────────────────── -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <% if (stats.docsOk) { %>
+        <a href="/documents/neu/angebot"  class="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-sm font-semibold py-3 no-underline shadow-sm">＋ Angebot</a>
+        <a href="/documents/neu/rechnung" class="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-center text-sm font-semibold py-3 no-underline shadow-sm">＋ Rechnung</a>
+      <% } %>
+      <% if (hasPerm('customers', true, false)) { %>
+        <a href="/customers" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-center text-sm font-semibold py-3 no-underline">Kunden</a>
+      <% } %>
+      <% if (hasPerm('projects', true, true)) { %>
+        <a href="/projects" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-center text-sm font-semibold py-3 no-underline">Aufträge</a>
+      <% } %>
+      <a href="/admin/timetracking" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-center text-sm font-semibold py-3 no-underline">Arbeitszeiten</a>
+      <a href="/vacations" class="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-center text-sm font-semibold py-3 no-underline">Urlaub</a>
+    </div>
+
+    <!-- ── Kennzahlen ──────────────────────────────────────────────────── -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <% if (stats.docsOk) { %>
+        <a href="/documents/offers" class="card card-lift p-4 no-underline block">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Offene Angebote</p>
+          <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><%= stats.openOffersCount %></p>
+          <% if (stats.moneyOk) { %><p class="text-xs text-slate-500 mt-1"><%= stats.openOffersSum %> €</p><% } %>
+        </a>
+        <a href="/documents/invoices?status=open" class="card card-lift p-4 no-underline block">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Offene Rechnungen</p>
+          <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><%= stats.openInvoicesCount %></p>
+          <% if (stats.moneyOk) { %><p class="text-xs text-slate-500 mt-1"><%= stats.openInvoicesSum %> €</p><% } %>
+        </a>
+        <a href="/documents/open-items" class="card card-lift p-4 no-underline block <%= stats.overdueCount > 0 ? 'ring-2 ring-red-400' : '' %>">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Überfällig</p>
+          <p class="text-3xl font-bold <%= stats.overdueCount > 0 ? 'text-red-600' : 'text-slate-800 dark:text-slate-100' %> mt-1"><%= stats.overdueCount %></p>
+          <% if (stats.moneyOk) { %><p class="text-xs text-slate-500 mt-1"><%= stats.overdueSum %> €</p><% } %>
+        </a>
+        <a href="/documents/buero" class="card card-lift p-4 no-underline block">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Entwürfe</p>
+          <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><%= stats.draftCount %></p>
+          <p class="text-xs text-slate-500 mt-1">noch nicht fertiggestellt</p>
+        </a>
+      <% } else { %>
+        <a href="/projects" class="card card-lift p-4 no-underline block">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Aktive Aufträge</p>
+          <p class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><%= stats.activeProjects %></p>
+        </a>
+      <% } %>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+      <!-- ── Linke Spalte: Belege ─────────────────────────────────────── -->
+      <div class="lg:col-span-2 space-y-4">
+
+        <% if (stats.docsOk) { %>
+        <!-- Offene Rechnungen -->
+        <section class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Offene Rechnungen</h2>
+            <a href="/documents/invoices?status=open" class="text-xs text-blue-600 hover:underline">Alle ansehen →</a>
+          </div>
+          <% if (!invoices.length) { %>
+            <p class="text-sm text-slate-400 py-4 text-center">Keine offenen Rechnungen 🎉</p>
+          <% } else { %>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-slate-400 uppercase tracking-wide border-b dark:border-slate-700">
+                  <th class="py-2 pr-3">Nr.</th><th class="py-2 pr-3">Kunde</th><th class="py-2 pr-3">Fällig</th>
+                  <% if (stats.moneyOk) { %><th class="py-2 pr-3 text-right">Betrag</th><% } %>
+                  <th class="py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y dark:divide-slate-700">
+                <% invoices.forEach(function (r) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td class="py-2 pr-3 font-medium"><a href="<%= r.url %>" class="text-blue-600 hover:underline"><%= r.number || ('#' + r.id) %></a></td>
+                  <td class="py-2 pr-3 text-slate-700 dark:text-slate-300"><%= r.customer %></td>
+                  <td class="py-2 pr-3 <%= r.overdue ? 'text-red-600 font-semibold' : 'text-slate-500' %>"><%= r.due %></td>
+                  <% if (stats.moneyOk) { %><td class="py-2 pr-3 text-right tabular-nums"><%= r.amount %> €</td><% } %>
+                  <td class="py-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full <%= r.overdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' %>">
+                      <%= r.overdue ? 'überfällig' : r.status %><%= r.dunning > 0 ? ' · Mahnstufe ' + r.dunning : '' %>
+                    </span>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </section>
+
+        <!-- Offene Angebote -->
+        <section class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Offene Angebote <span class="text-xs font-normal text-slate-400">(älteste zuerst – nachfassen)</span></h2>
+            <a href="/documents/offers" class="text-xs text-blue-600 hover:underline">Alle ansehen →</a>
+          </div>
+          <% if (!offers.length) { %>
+            <p class="text-sm text-slate-400 py-4 text-center">Keine offenen Angebote.</p>
+          <% } else { %>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-slate-400 uppercase tracking-wide border-b dark:border-slate-700">
+                  <th class="py-2 pr-3">Nr.</th><th class="py-2 pr-3">Kunde</th><th class="py-2 pr-3">Erstellt</th>
+                  <% if (stats.moneyOk) { %><th class="py-2 pr-3 text-right">Betrag</th><% } %>
+                  <th class="py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y dark:divide-slate-700">
+                <% offers.forEach(function (r) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                  <td class="py-2 pr-3 font-medium"><a href="<%= r.url %>" class="text-blue-600 hover:underline"><%= r.number || ('#' + r.id) %></a></td>
+                  <td class="py-2 pr-3 text-slate-700 dark:text-slate-300"><%= r.customer %></td>
+                  <td class="py-2 pr-3 text-slate-500"><%= r.date %></td>
+                  <% if (stats.moneyOk) { %><td class="py-2 pr-3 text-right tabular-nums"><%= r.amount %> €</td><% } %>
+                  <td class="py-2"><span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><%= r.status || 'offen' %></span></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </section>
+        <% } else { %>
+        <section class="card p-4 text-sm text-slate-500">Für den Bereich „Angebote &amp; Rechnungen“ ist dein Konto aktuell nicht freigeschaltet.</section>
+        <% } %>
+      </div>
+
+      <!-- ── Rechte Spalte: Team & Organisation ───────────────────────── -->
+      <div class="space-y-4">
+
+        <% if (stats.vacationPending > 0) { %>
+        <a href="/vacations" class="block card p-4 no-underline ring-2 ring-amber-300">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Zu genehmigen</p>
+          <p class="text-2xl font-bold text-amber-600 mt-1"><%= stats.vacationPending %> Urlaubs-/Abwesenheitsantrag<%= stats.vacationPending == 1 ? '' : 'e' %></p>
+        </a>
+        <% } %>
+
+        <section class="card p-4">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-2">Gerade eingestempelt</h2>
+          <% if (!teamIn.length) { %>
+            <p class="text-sm text-slate-400">Niemand eingestempelt.</p>
+          <% } else { %>
+            <ul class="space-y-1.5">
+              <% teamIn.forEach(function (n) { %>
+              <li class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span><%= n %></li>
+              <% }) %>
+            </ul>
+          <% } %>
+          <a href="/admin/timetracking" class="inline-block mt-3 text-xs text-blue-600 hover:underline">Arbeitszeiten auswerten →</a>
+        </section>
+
+        <section class="card p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Meine Aufgaben</h2>
+            <a href="/tasks" class="text-xs text-blue-600 hover:underline">Alle →</a>
+          </div>
+          <% if (!myTasks.length) { %>
+            <p class="text-sm text-slate-400">Keine offenen Aufgaben.</p>
+          <% } else { %>
+            <ul class="space-y-2">
+              <% myTasks.forEach(function (t) { %>
+              <li class="text-sm text-slate-700 dark:text-slate-300">
+                <%= t.title %>
+                <% if (t.due_date) { %><span class="text-xs text-slate-400"> · bis <%= String(t.due_date).slice(0, 10).split('-').reverse().join('.') %></span><% } %>
+              </li>
+              <% }) %>
+            </ul>
+          <% } %>
+        </section>
+
+        <% if (tickers && tickers.length) { %>
+        <section class="card p-4">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-2">Schwarzes Brett</h2>
+          <ul class="space-y-2">
+            <% tickers.forEach(function (t) { %>
+            <li class="text-sm text-slate-700 dark:text-slate-300">
+              <%= t.message %>
+              <span class="block text-xs text-slate-400"><%= t.author %></span>
+            </li>
+            <% }) %>
+          </ul>
+        </section>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

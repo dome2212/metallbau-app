@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { dbQuery } = require('../utils/db');
-const { isOffice } = require('../middleware/auth');
+const { isOffice, hasPerm, canSeeMoney } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -167,6 +167,93 @@ router.get('/', async (req, res) => {
         roleLabel: 'Mitarbeiter',
         todaySite,
         isStampedIn: stats.isStampedIn
+      });
+
+    } else if (userRole === 'BUERO') {
+      // ── Büro-Dashboard: offene Angebote & Rechnungen, Team-Status, Urlaubsanträge ──
+      const { getFirma: _getBueroFirma } = require('../utils/companySettings');
+      const firma    = await _getBueroFirma();
+      const docsOk   = hasPerm(req.user, 'documents', firma, true, false);
+      const moneyOk  = docsOk && canSeeMoney(req.user, firma);
+      const fmtMoney = (n) => Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtDate  = (v) => {
+        if (!v) return '–';
+        const d = new Date(v);
+        return isNaN(d) ? String(v).slice(0, 10) : d.toLocaleDateString('de-DE');
+      };
+      const todayCmp = isPg ? 'CURRENT_DATE' : "date('now')";
+      const dueCast  = isPg ? 'due_date::date' : 'due_date';
+      const recentCut = isPg ? "NOW() - INTERVAL '16 hours'" : "datetime('now','-16 hours')";
+      const safe = async (sql, params = []) => {
+        try { return (await dbQuery(sql, params)).rows || []; }
+        catch (e) { console.error('⚠️ Büro-Dashboard:', e.message); return []; }
+      };
+
+      const OFFER_OPEN   = `doc_type = 'OFFER' AND status NOT IN ('ANGENOMMEN','ABGELEHNT','Storniert','ENTWURF','Entwurf')`;
+      const INVOICE_OPEN = `doc_type = 'INVOICE' AND status NOT IN ('Bezahlt','ENTWURF','Entwurf','Storniert')`;
+      const OVERDUE      = `due_date IS NOT NULL AND due_date != '' AND ${dueCast} < ${todayCmp}`;
+
+      const [offerSum, invoiceSum, overdueSum, draftSum, offerList, invoiceList,
+             lastLog, teamIn, vacPending, myTasks, tickers, projCount] = await Promise.all([
+        docsOk ? safe(`SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS total FROM documents WHERE ${OFFER_OPEN}`) : [],
+        docsOk ? safe(`SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS total FROM documents WHERE ${INVOICE_OPEN}`) : [],
+        docsOk ? safe(`SELECT COUNT(*) AS count, COALESCE(SUM(total_amount),0) AS total FROM documents WHERE ${INVOICE_OPEN} AND ${OVERDUE}`) : [],
+        docsOk ? safe(`SELECT COUNT(*) AS count FROM documents WHERE doc_type IN ('OFFER','INVOICE') AND status IN ('ENTWURF','Entwurf')`) : [],
+        docsOk ? safe(`SELECT d.id, d.doc_number, d.doc_type, d.total_amount, d.status, d.created_at,
+                         c.company_name, c.contact_person
+                       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+                       WHERE d.doc_type = 'OFFER' AND d.status NOT IN ('ANGENOMMEN','ABGELEHNT','Storniert','ENTWURF','Entwurf')
+                       ORDER BY d.id ASC LIMIT 8`) : [],
+        docsOk ? safe(`SELECT d.id, d.doc_number, d.doc_type, d.total_amount, d.status, d.due_date, d.dunning_level,
+                         c.company_name, c.contact_person
+                       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
+                       WHERE d.doc_type = 'INVOICE' AND d.status NOT IN ('Bezahlt','ENTWURF','Entwurf','Storniert')
+                       ORDER BY CASE WHEN d.due_date IS NULL OR d.due_date = '' THEN 1 ELSE 0 END, d.due_date ASC
+                       LIMIT 8`) : [],
+        safe(`SELECT type FROM time_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1`, [userId]),
+        safe(`SELECT u.username FROM users u
+              JOIN time_logs t ON t.id = (SELECT id FROM time_logs WHERE user_id = u.id ORDER BY timestamp DESC LIMIT 1)
+              WHERE t.type = 'IN' AND t.timestamp > ${recentCut} ORDER BY u.username ASC`),
+        safe(`SELECT COUNT(*) AS count FROM vacations WHERE status = 'Beantragt'`),
+        safe(`SELECT t.id, t.title, t.due_date FROM tasks t
+              WHERE (t.assigned_to = ? OR t.assigned_to IS NULL) AND t.status = 'Offen'
+              ORDER BY CASE WHEN t.due_date IS NULL OR t.due_date = '' THEN 1 ELSE 0 END, t.due_date ASC LIMIT 5`, [userId]),
+        safe('SELECT * FROM tickers ORDER BY created_at DESC LIMIT 5'),
+        safe(`SELECT COUNT(*) AS count FROM projects WHERE status NOT IN ('Abgeschlossen') AND deleted_at IS NULL`)
+      ]);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const customerName = (r) => r.company_name || r.contact_person || 'Kein Kunde';
+      const stats = {
+        docsOk, moneyOk,
+        openOffersCount:  offerSum[0]?.count ?? 0,   openOffersSum:  fmtMoney(offerSum[0]?.total),
+        openInvoicesCount: invoiceSum[0]?.count ?? 0, openInvoicesSum: fmtMoney(invoiceSum[0]?.total),
+        overdueCount:     overdueSum[0]?.count ?? 0, overdueSum:     fmtMoney(overdueSum[0]?.total),
+        draftCount:       draftSum[0]?.count ?? 0,
+        vacationPending:  vacPending[0]?.count ?? 0,
+        activeProjects:   projCount[0]?.count ?? 0,
+        isStampedIn:      lastLog[0]?.type === 'IN',
+        monthLabel: new Date().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+      };
+      const offers = offerList.map(r => ({
+        id: r.id, number: r.doc_number, customer: customerName(r), status: r.status,
+        amount: fmtMoney(r.total_amount), date: fmtDate(r.created_at), url: `/documents/offers/${r.id}/detail`
+      }));
+      const invoices = invoiceList.map(r => {
+        const due = r.due_date ? String(r.due_date).slice(0, 10) : '';
+        return {
+          id: r.id, number: r.doc_number, customer: customerName(r), status: r.status,
+          amount: fmtMoney(r.total_amount), due: due ? fmtDate(due) : '–',
+          overdue: !!due && due < today, dunning: Number(r.dunning_level || 0),
+          url: `/documents/invoices/${r.id}`
+        };
+      });
+
+      res.render('dashboard-buero', {
+        stats, offers, invoices,
+        teamIn: teamIn.map(r => r.username),
+        myTasks, tickers,
+        roleLabel: 'Büro', userRole
       });
 
     } else {
