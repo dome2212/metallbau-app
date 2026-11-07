@@ -157,19 +157,22 @@ router.post('/offers/delete', requireAdmin, async (req, res) => {
 });
 
 // POST: Angebot → Rechnung umwandeln
-router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
+async function convertOfferToInvoice(req, res) {
   const firma = await bueroGuard(req, res);
   if (!firma) return;
   try {
     const docId = await withTransaction(async tx => {
-      const offerRes = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [req.body.offer_id]);
+      const offerRes = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'" + (isPg ? ' FOR UPDATE' : ''), [req.params.offerId || req.body.offer_id]);
       const offer = offerRes.rows[0];
       if (!offer) { const error = Error('Angebot nicht gefunden.'); error.status = 404; throw error; }
+      // Acceptance can also mean conversion to a project; track the actual invoice separately.
+      const previous = await tx.query("SELECT id FROM documents WHERE doc_type = 'INVOICE' AND related_document_id = ? ORDER BY id LIMIT 1", [offer.id]);
+      if (previous.rows.length) return previous.rows[0].id;
       const number = await nextDocumentNumber(tx, 'INVOICE', String(firma.invoice_prefix || 'RECH').toUpperCase(), new Date().getFullYear());
       const due = new Date(); due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
       const returning = isPg ? ' RETURNING id' : '';
-      const result = await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount,due_date,discount_percent,discount_amount) VALUES ('INVOICE',?,?,'ENTWURF',?,?,?,?,?,?,?)${returning}`,
-        [number,offer.customer_id,offer.tax_rate ?? 19,offer.subtotal || 0,offer.tax_amount || 0,offer.total_amount || 0,due.toISOString().slice(0,10),offer.discount_percent || 0,offer.discount_amount || 0]);
+      const result = await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount,due_date,discount_percent,discount_amount,related_document_id) VALUES ('INVOICE',?,?,'ENTWURF',?,?,?,?,?,?,?,?)${returning}`,
+        [number,offer.customer_id,offer.tax_rate ?? 19,offer.subtotal || 0,offer.tax_amount || 0,offer.total_amount || 0,due.toISOString().slice(0,10),offer.discount_percent || 0,offer.discount_amount || 0,offer.id]);
       const id = result.lastID || result.rows?.[0]?.id;
       if (!id) throw Error('Rechnungskennung konnte nicht ermittelt werden.');
       const items = await tx.query('SELECT * FROM document_items WHERE document_id = ? ORDER BY id', [offer.id]);
@@ -177,13 +180,14 @@ router.post('/offers/convert-to-invoice', requireAdmin, async (req, res) => {
       await tx.query("UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?", [offer.id]);
       return id;
     });
-    res.redirect('/documents/invoices/' + docId);
+    res.redirect(req.params.offerId ? '/documents/invoices' : '/documents/invoices/' + docId);
   } catch (err) {
     if (err.status) return res.status(err.status).send(err.message);
     console.error('Fehler beim Umwandeln Angebot→Rechnung:', err.message);
     res.status(500).send('Fehler beim Umwandeln.');
   }
-});
+}
+router.post('/offers/convert-to-invoice', requireAdmin, convertOfferToInvoice);
 
 // Edit open offers while preserving their tax and document discounts.
 router.post('/offers/:id/update', requireAdmin, async (req, res) => {
@@ -202,7 +206,7 @@ router.post('/offers/:id/update', requireAdmin, async (req, res) => {
   }
   try {
     await withTransaction(async tx => {
-      const result = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'", [req.params.id]);
+      const result = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'" + (isPg ? ' FOR UPDATE' : ''), [req.params.id]);
       const offer = result.rows[0];
       if (!offer) { const error = Error('Angebot nicht gefunden.'); error.status = 404; throw error; }
       if (offer.status === 'ANGENOMMEN') { const error = Error('Angenommene Angebote können nicht geändert werden.'); error.status = 409; throw error; }
@@ -1372,31 +1376,7 @@ router.get('/steel-prices/history/:material', requireAdmin, async (req, res) => 
 // ══════════════════════════════════════════════════════════════
 // ÄLTERE KOMPATIBILITÄTS-ROUTE (aus altem server.js)
 // ══════════════════════════════════════════════════════════════
-router.post('/convert-to-invoice/:offerId', requireAdmin, async (req, res) => {
-  req.body.offer_id = req.params.offerId;
-  // Weiterleitung an interne Logik
-  const { offerId } = req.params;
-  try {
-    const offerRes = await dbQuery(`SELECT * FROM documents WHERE id = ?`, [offerId]);
-    const offer    = offerRes.rows[0];
-    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
-
-    const year     = new Date().getFullYear();
-    const invoiceNumber = await reserveDocumentNumber('INVOICE', 'RECH', year);
-
-    await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?)`,
-      [invoiceNumber, offer.customer_id, offer.tax_rate || 19.0,
-       offer.subtotal || 0, offer.tax_amount || 0, offer.total_amount || 0]
-    );
-    await dbQuery(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?`, [offerId]);
-    res.redirect('/documents/invoices');
-  } catch (err) {
-    console.error('Fehler beim Umwandeln:', err.message);
-    res.status(500).send('Datenbankfehler beim Umwandeln des Angebots.');
-  }
-});
+router.post('/convert-to-invoice/:offerId', requireAdmin, convertOfferToInvoice);
 
 
 
