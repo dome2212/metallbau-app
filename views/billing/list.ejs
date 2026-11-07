@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+<link rel="stylesheet" href="/css/billing.css">
+<main class="flex-1 page-bg min-h-screen pt-16 bill-main">
+ <div class="bill-shell">
+  <header class="bill-heading"><div><span class="bill-eyebrow">BÜRO · BELEGE</span><h1>Angebote &amp; Rechnungen</h1><p>Vom ersten Angebot bis zum Zahlungseingang.</p></div><div class="bill-actions"><a class="bill-btn" href="/documents/neu/angebot">+ Angebot</a><a class="bill-btn bill-primary" href="/documents/neu/rechnung">+ Rechnung</a></div></header>
+  <%- include('nav',{active:viewScope}) %>
+  <% const today=new Date().toISOString().slice(0,10); const invoiceDocs=docs.filter(d=>d.doc_type==='INVOICE'); const drafts=invoiceDocs.filter(d=>['ENTWURF','Entwurf'].includes(d.status)); const outstanding=invoiceDocs.filter(d=>!['Bezahlt','Storniert','Gutschrift','ENTWURF','Entwurf'].includes(d.status) && Number(d.total_amount)-Number(d.paid_amount || 0)>0.01); const overdue=outstanding.filter(d=>d.due_date && String(d.due_date).slice(0,10)<today); %>
+  <section class="bill-stats" aria-label="Belegübersicht">
+   <a href="/documents/offers" class="bill-card"><span>Angebote in Bearbeitung</span><strong><%= docs.filter(d=>d.doc_type==='OFFER' && d.status!=='ANGENOMMEN').length %></strong><small>Angebot öffnen und weiterarbeiten</small></a>
+   <a href="/documents/invoices?status=draft" class="bill-card"><span>Rechnungsentwürfe</span><strong><%= drafts.length %></strong><small>Noch nicht versandt</small></a>
+   <a href="/documents/invoices?status=open" class="bill-card"><span>Offene Rechnungen</span><strong><%= canSeeMoney?money(outstanding.reduce((s,d)=>s+Math.max(0,Number(d.total_amount)-Number(d.paid_amount || 0)),0)):outstanding.length %></strong><small><%= outstanding.length %> Belege mit Restbetrag</small></a>
+   <a href="/documents/invoices?status=overdue" class="bill-card"><span>Überfällig</span><strong class="bill-warning-text"><%= overdue.length %></strong><small>Zahlungsziel überschritten</small></a>
+  </section>
+  <section class="bill-card bill-register">
+   <div class="bill-filter"><label class="bill-search">Belege suchen<input id="bill-search" type="search" placeholder="Belegnummer oder Kunde …" autocomplete="off"></label><label>Status<select id="bill-status"><option value="all">Alle Status</option><option value="draft">Entwurf</option><option value="open">Offen</option><option value="overdue">Überfällig</option><option value="paid">Bezahlt</option><option value="accepted">Angenommen</option><option value="cancelled">Storniert</option></select></label><label>Sortierung<select id="bill-sort"><option value="new">Neueste zuerst</option><option value="old">Älteste zuerst</option><option value="customer">Kunde A–Z</option><% if(canSeeMoney){ %><option value="amount">Höchster Betrag</option><% } %></select></label></div>
+   <div class="bill-result" id="bill-count" aria-live="polite"></div>
+   <div class="bill-table-scroll"><table class="bill-table"><thead><tr><th>Beleg / Datum</th><th>Kunde</th><th>Status</th><th>Zahlungsziel</th><% if(canSeeMoney){ %><th class="bill-number">Betrag</th><% } %><th><span class="sr-only">Öffnen</span></th></tr></thead><tbody id="bill-records">
+   <% docs.filter(d=>viewScope==='all'||d.doc_type===viewScope||(viewScope==='INVOICE'&&d.doc_type==='CREDIT')).forEach(d=>{ const draft=['ENTWURF','Entwurf'].includes(d.status),past=d.doc_type==='INVOICE'&&!draft&&!['Bezahlt','Storniert'].includes(d.status)&&Number(d.total_amount)-Number(d.paid_amount||0)>0.01&&d.due_date&&String(d.due_date).slice(0,10)<today; const state=draft?'draft':d.status==='Bezahlt'?'paid':d.status==='ANGENOMMEN'?'accepted':d.status==='Storniert'?'cancelled':past?'overdue':'open'; %>
+    <tr data-state="<%= state %>" data-search="<%= [d.doc_number,d.company_name,d.contact_person,d.status].join(' ').toLowerCase() %>" data-customer="<%= d.company_name || d.contact_person || '' %>" data-time="<%= new Date(d.created_at).getTime()||d.id %>" data-amount="<%= canSeeMoney?Number(d.total_amount):0 %>"><td><a class="bill-doc-link" href="<%= detailUrl(d) %>"><%= d.doc_number || 'Ohne Nummer' %></a><small><%= d.doc_type==='OFFER'?'Angebot':d.doc_type==='CREDIT'?'Gutschrift':'Rechnung' %> · <%= day(d.created_at) %></small></td><td><%= d.company_name || d.contact_person || 'Kunde nicht mehr vorhanden' %></td><td><span class="bill-badge <%= state==='overdue'?'bill-warn':state==='paid'||state==='accepted'?'bill-success':'' %>"><%= past?'Überfällig':d.status %></span></td><td><%= d.doc_type==='INVOICE'?day(d.due_date):'—' %></td><% if(canSeeMoney){ %><td class="bill-number"><strong><%= money(d.total_amount) %></strong><% if(Number(d.paid_amount)>0){ %><small><%= money(d.paid_amount) %> bezahlt</small><% } %></td><% } %><td><a class="bill-btn bill-small" href="<%= detailUrl(d) %>" aria-label="Beleg <%= d.doc_number %> öffnen">Öffnen ↗</a></td></tr>
+   <% }); %>
+   </tbody></table></div><div id="bill-empty" class="bill-empty" hidden><h2>Keine Belege gefunden</h2><p>Ändere die Suche oder erstelle einen neuen Beleg.</p><a class="bill-btn" href="/documents/neu/angebot">Angebot erstellen</a></div>
+  </section>
+ </div>
+</main>
+<script src="/js/billing-list.js" defer></script>
+</body></html>

@@ -11,150 +11,30 @@ const { buildXRechnungXml, validateXRechnung } = require('../utils/xrechnung');
 const { buildDatevCsv }               = require('../utils/datevExport');
 const { parseBankCsv, matchAndBookPayments } = require('../utils/bankImport');
 const multer = require('multer');
+const htmlText = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const bankUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-// A single lock coordinates numbering for the wizard and offer conversion.
-async function nextDocumentNumber(tx, docType, prefix, year) {
-  if (isPg) await tx.query('SELECT pg_advisory_xact_lock(1900587937)');
-  await tx.query('CREATE TABLE IF NOT EXISTS document_number_sequences (doc_type TEXT NOT NULL, prefix TEXT NOT NULL, year INTEGER NOT NULL, last_number INTEGER NOT NULL, PRIMARY KEY (doc_type,prefix,year))');
-  const result = await tx.query('SELECT doc_number FROM documents WHERE doc_type = ?', [docType]);
-  const sequence = await tx.query('SELECT last_number FROM document_number_sequences WHERE doc_type = ? AND prefix = ? AND year = ?', [docType,prefix,year]);
-  const base = `${prefix}-${year}-`; let max = Number(sequence.rows[0]?.last_number || 0);
-  for (const row of result.rows) { const number = String(row.doc_number || ''); const suffix = number.startsWith(base) ? number.slice(base.length) : ''; if (/^\d+$/.test(suffix)) max = Math.max(max, Number(suffix)); }
-  if (!Number.isSafeInteger(max) || max >= 999999999) throw Error('Keine freie Belegnummer verfügbar.');
-  const next = max + 1;
-  await tx.query('INSERT INTO document_number_sequences (doc_type,prefix,year,last_number) VALUES (?,?,?,?) ON CONFLICT (doc_type,prefix,year) DO UPDATE SET last_number = excluded.last_number', [docType,prefix,year,next]);
-  return base + String(next).padStart(4, '0');
-}
-const reserveDocumentNumber = (type,prefix,year) => withTransaction(tx => nextDocumentNumber(tx,type,prefix,year));
+const { nextDocumentNumber, reserveDocumentNumber } = require('../utils/documentNumbers');
+// Public supplement approvals retain their existing token access. All internal
+// document operations share the same document and amount permissions.
+router.use((req, res, next) => {
+  if (/^\/nachtrag\/approve\//.test(req.path)) return next();
+  requireAdmin(req, res, async () => {
+    try {
+      const firma = await getFirma();
+      if (!hasPerm(req.user, 'documents', firma, true, false)) return res.status(403).send('Keine Berechtigung für Belege.');
+      const financial = !['GET','HEAD'].includes(req.method) && req.path !== '/wizard/customer' || /\/(pdf|pdf-download|xrechnung|datev-export)$/.test(req.path);
+      if (financial && !canSeeMoney(req.user, firma)) return res.status(403).send('Keine Berechtigung für Beträge.');
+      next();
+    } catch (error) { next(error); }
+  });
+});
+router.use(require('./billingRoutes'));
 
 // ══════════════════════════════════════════════════════════════
 // ANGEBOTE
 // ══════════════════════════════════════════════════════════════
 
-// GET: Angebots-Übersicht
-
-async function recalcInvoicePaid(docId) {
-  const payRes = await dbQuery(
-    `SELECT COALESCE(SUM(amount), 0) AS paid FROM invoice_payments WHERE document_id = ?`,
-    [docId]
-  );
-  const paid = parseFloat(payRes.rows?.[0]?.paid || 0) || 0;
-  const invRes = await dbQuery(`SELECT total_amount, status FROM documents WHERE id = ?`, [docId]);
-  const inv = invRes.rows?.[0];
-  if (!inv) return paid;
-  const total = parseFloat(inv.total_amount || 0) || 0;
-  let status = inv.status;
-  if (status !== 'Storniert' && status !== 'Gutschrift') {
-    if (paid <= 0.001) {
-      // keep Gemahnt/Überfällig/Offen etc. unless was Bezahlt
-      if (status === 'Bezahlt' || status === 'Teilbezahlt') status = 'Offen';
-    } else if (paid + 0.01 >= total) {
-      status = 'Bezahlt';
-    } else {
-      status = 'Teilbezahlt';
-    }
-  }
-  try {
-    await dbQuery(`UPDATE documents SET paid_amount = ?, status = ? WHERE id = ?`, [paid, status, docId]);
-  } catch (_) {
-    await dbQuery(`UPDATE documents SET status = ? WHERE id = ?`, [status, docId]);
-  }
-  return paid;
-}
-
-router.get('/offers', requireAdmin, async (req, res) => {
-  const firma = await getFirma();
-  if (!hasPerm(req.user, 'documents', firma, true, false)) {
-    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
-  }
-  try {
-    const [offersRes, customersRes, articlesRes] = await Promise.all([
-      dbQuery(`
-        SELECT d.*, c.company_name, c.contact_person
-        FROM documents d
-        LEFT JOIN customers c ON d.customer_id = c.id
-        WHERE d.doc_type = 'OFFER'
-        ORDER BY d.created_at DESC`),
-      dbQuery(`SELECT id, company_name, contact_person FROM customers ORDER BY company_name ASC`),
-      dbQuery(`SELECT id, title, unit, unit_price, description FROM articles ORDER BY title ASC`)
-    ]);
-    res.render('offers', {
-      offers:      offersRes.rows    || [],
-      customers:   customersRes.rows || [],
-      articles:    articlesRes.rows  || [],
-      textSnippets: (function(){ try { return JSON.parse(firma.text_snippets||'[]'); } catch(e){ return []; } })(),
-      req,
-      canSeeMoney: canSeeMoney(req.user, firma),
-      savedMsg:    req.query.saved || null
-    });
-  } catch (err) {
-    console.error('Fehler bei GET /documents/offers:', err.message);
-    res.status(500).send('Fehler beim Laden der Angebote.');
-  }
-});
-
-// POST: Neues Angebot anlegen
-router.post('/create-offer', requireAdmin, async (req, res) => {
-  const { customer_id, title: titles, quantity: quantities, unit: units, price: prices } = req.body;
-  try {
-    const firma    = await getFirma();
-    const prefix   = (firma.offer_prefix || 'ANG').toUpperCase();
-    const taxRate  = parseFloat(firma.default_tax_rate || 19);
-    const year     = new Date().getFullYear();
-    const docNumber = await reserveDocumentNumber('OFFER', prefix, year);
-
-    // Positionen aufbauen
-    const titleArr    = Array.isArray(titles)    ? titles    : (titles    ? [titles]    : []);
-    const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
-    const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
-    const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
-
-    let subtotal = 0;
-    const items = titleArr.map((t, i) => {
-      const q = parseFloat(quantityArr[i] || 1);
-      const p = parseFloat(priceArr[i]    || 0);
-      subtotal += q * p;
-      return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p };
-    });
-    const taxAmount   = subtotal * (taxRate / 100);
-    const totalAmount = subtotal + taxAmount;
-
-    const insertRes = await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount)
-       VALUES ('OFFER', ?, ?, 'OFFEN', ?, ?, ?, ?)`,
-      [docNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount]
-    );
-    const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
-
-    // Positionen speichern
-    for (const item of items) {
-      if (!item.description?.trim()) continue;
-      await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price)
-         VALUES (?, ?, ?, ?, ?)`,
-        [docId, item.description, item.quantity, item.unit, item.price]
-      );
-    }
-    res.redirect('/documents/offers');
-  } catch (err) {
-    console.error('Fehler bei POST /documents/create-offer:', err.message);
-    res.status(500).send('Fehler beim Anlegen des Angebots.');
-  }
-});
-
-// POST: Angebot löschen
-router.post('/offers/delete', requireAdmin, async (req, res) => {
-  const { offer_id } = req.body;
-  try {
-    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [offer_id]);
-    await dbQuery(`DELETE FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
-    res.redirect('/documents/offers');
-  } catch (err) {
-    console.error('Fehler beim Löschen des Angebots:', err.message);
-    res.status(500).send('Fehler beim Löschen.');
-  }
-});
 
 // POST: Angebot → Rechnung umwandeln
 async function convertOfferToInvoice(req, res) {
@@ -189,44 +69,6 @@ async function convertOfferToInvoice(req, res) {
 }
 router.post('/offers/convert-to-invoice', requireAdmin, convertOfferToInvoice);
 
-// Edit open offers while preserving their tax and document discounts.
-router.post('/offers/:id/update', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  if (!canSeeMoney(req.user, firma)) return res.status(403).send('Keine Berechtigung für Beträge.');
-  const toArray = value => Array.isArray(value) ? value : value === undefined ? [] : [value];
-  const descriptions = toArray(req.body.description), quantities = toArray(req.body.quantity), units = toArray(req.body.unit), prices = toArray(req.body.price), discounts = toArray(req.body.discount_percent);
-  if (!descriptions.length || descriptions.length > 200) return res.status(400).send('Bitte 1 bis 200 Positionen eingeben.');
-  const items = [];
-  for (let i = 0; i < descriptions.length; i++) {
-    const description = String(descriptions[i] || '').trim(), unit = String(units[i] || '').trim();
-    const quantity = Number(quantities[i]), price = Number(prices[i]), discount = Number(discounts[i] || 0);
-    if (!description || description.length > 2000 || !unit || unit.length > 40 || quantities[i] === '' || prices[i] === '' || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000 || !Number.isFinite(price) || price < 0 || price > 10000000 || !Number.isFinite(discount) || discount < 0 || discount > 100) return res.status(400).send('Bitte Beschreibung, Menge, Preis und Rabatt prüfen.');
-    items.push({description, unit, quantity, price, discount});
-  }
-  try {
-    await withTransaction(async tx => {
-      const result = await tx.query("SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'" + (isPg ? ' FOR UPDATE' : ''), [req.params.id]);
-      const offer = result.rows[0];
-      if (!offer) { const error = Error('Angebot nicht gefunden.'); error.status = 404; throw error; }
-      if (offer.status === 'ANGENOMMEN') { const error = Error('Angenommene Angebote können nicht geändert werden.'); error.status = 409; throw error; }
-      const subtotal = Math.round(items.reduce((sum, it) => sum + it.quantity * it.price * (1 - it.discount / 100), 0) * 100) / 100;
-      if (!Number.isSafeInteger(Math.round(subtotal * 100))) { const error = Error('Der Gesamtbetrag ist zu groß.'); error.status = 400; throw error; }
-      const pct = Number(offer.discount_percent) || 0, absolute = Number(offer.discount_amount) || 0;
-      const discount = pct > 0 ? subtotal * pct / 100 : absolute;
-      const net = Math.max(0, subtotal - discount), rate = offer.tax_rate == null ? 19 : Number(offer.tax_rate);
-      const tax = Math.round(net * rate) / 100, total = Math.round((net + tax) * 100) / 100;
-      await tx.query('DELETE FROM document_items WHERE document_id = ?', [offer.id]);
-      for (const it of items) await tx.query('INSERT INTO document_items (document_id,description,quantity,unit,price,discount_percent) VALUES (?,?,?,?,?,?)', [offer.id,it.description,it.quantity,it.unit,it.price,it.discount]);
-      await tx.query('UPDATE documents SET subtotal = ?, tax_amount = ?, total_amount = ?, discount_amount = ? WHERE id = ?', [subtotal,tax,total,discount,offer.id]);
-    });
-    res.redirect('/documents/offers/' + encodeURIComponent(req.params.id) + '/detail?saved=1');
-  } catch (err) {
-    if (err.status) return res.status(err.status).send(err.message);
-    console.error('Angebot bearbeiten:', err.message);
-    res.status(500).send('Angebot konnte nicht gespeichert werden.');
-  }
-});
 
 // POST: Angebot → Projekt umwandeln
 router.post('/offers/convert-to-project', requireAdmin, async (req, res) => {
@@ -295,37 +137,6 @@ router.get('/offers/:id/pdf-download', requireAdmin, async (req, res) => {
 // RECHNUNGEN
 // ══════════════════════════════════════════════════════════════
 
-// GET: Rechnungs-Übersicht
-router.get('/invoices', requireAdmin, async (req, res) => {
-  const firma = await getFirma();
-  if (!hasPerm(req.user, 'documents', firma, true, false)) {
-    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
-  }
-  try {
-    const [invoicesRes, customersRes, articlesRes] = await Promise.all([
-      dbQuery(`
-        SELECT d.*, c.company_name, c.contact_person,
-               d.doc_number AS invoice_number
-        FROM documents d
-        LEFT JOIN customers c ON d.customer_id = c.id
-        WHERE d.doc_type = 'INVOICE'
-        ORDER BY d.created_at DESC`),
-      dbQuery(`SELECT id, company_name, contact_person FROM customers ORDER BY company_name ASC`),
-      dbQuery(`SELECT id, title, unit, unit_price, description FROM articles ORDER BY title ASC`)
-    ]);
-    let textSnippets = [];
-    try { textSnippets = JSON.parse(firma.text_snippets || '[]'); } catch (_) {}
-    res.render('invoices', {
-      invoices:  invoicesRes.rows  || [],
-      customers: customersRes.rows || [],
-      articles:  articlesRes.rows  || [],
-      textSnippets
-    });
-  } catch (err) {
-    console.error('Fehler bei GET /documents/invoices:', err.message);
-    res.status(500).send('Fehler beim Laden der Rechnungen.');
-  }
-});
 
 // GET: DATEV-Export (Buchungsstapel) für einen Zeitraum herunterladen
 router.get('/invoices/datev-export', requireAdmin, async (req, res) => {
@@ -427,107 +238,6 @@ router.post('/api/save-catalog-items', requireAdmin, async (req, res) => {
   }
 });
 
-// POST: Neue Rechnung direkt anlegen
-router.post('/create-invoice', requireAdmin, async (req, res) => {
-  const {
-    customer_id, title: titles, quantity: quantities, unit: units, price: prices,
-    discount_percent: itemDiscs, invoice_subtype, discount_percent_doc, discount_amount_doc
-  } = req.body;
-  try {
-    const _firma2  = await getFirma();
-    const invPfx   = (_firma2.invoice_prefix || 'RECH').toUpperCase();
-    const isKlein  = String(_firma2.kleinunternehmer || '').toLowerCase() === 'true';
-    const taxRate  = isKlein ? 0 : parseFloat(_firma2.default_tax_rate || 19);
-    const year     = new Date().getFullYear();
-    const invoiceNumber = await reserveDocumentNumber('INVOICE', invPfx, year);
-
-    const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
-    const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
-    const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
-    const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
-    const discArr     = Array.isArray(itemDiscs)  ? itemDiscs  : (itemDiscs  ? [itemDiscs]  : []);
-
-    let subtotal = 0;
-    const items = titleArr.map((t, i) => {
-      const q = parseFloat(quantityArr[i] || 1);
-      const p = parseFloat(priceArr[i]    || 0);
-      const d = parseFloat(discArr[i]     || 0);
-      subtotal += q * p * (1 - d / 100);
-      return { description: t, quantity: q, unit: unitArr[i] || 'Stk', price: p, discount_percent: d };
-    });
-    const docDiscPct = parseFloat(discount_percent_doc) || 0;
-    const docDiscAmt = parseFloat(discount_amount_doc) || 0;
-    const discountTotal = docDiscPct > 0 ? subtotal * (docDiscPct / 100) : docDiscAmt;
-    const netAfter = Math.max(0, subtotal - discountTotal);
-    const taxAmount   = netAfter * (taxRate / 100);
-    const totalAmount = netAfter + taxAmount;
-    const subtype = (invoice_subtype || '').toUpperCase() || null;
-
-    const today   = new Date();
-    const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + (parseInt(_firma2.zahlungsfrist, 10) || 14));
-
-    const insertRes = await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date, invoice_subtype, discount_percent, discount_amount)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [invoiceNumber, customer_id, taxRate, subtotal, taxAmount, totalAmount, dueDate.toISOString().split('T')[0], subtype, docDiscPct || 0, discountTotal || 0]
-    );
-    const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
-
-    for (const item of items) {
-      if (!item.description?.trim()) continue;
-      await dbQuery(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
-        [docId, item.description, item.quantity, item.unit, item.price, item.discount_percent || 0]
-      );
-    }
-    res.redirect('/documents/invoices/' + docId);
-  } catch (err) {
-    console.error('Fehler bei POST /documents/create-invoice:', err.message);
-    res.status(500).send('Fehler beim Anlegen der Rechnung.');
-  }
-});
-
-// POST: Rechnung löschen
-router.post('/invoices/delete', requireAdmin, async (req, res) => {
-  const { invoice_id } = req.body;
-  try {
-    const id = invoice_id;
-    try { await dbQuery(`DELETE FROM invoice_payments WHERE document_id = ?`, [id]); } catch (e) { console.error('⚠️ POST /invoices/delete:', e.message); }
-    try { await dbQuery(`DELETE FROM dunning_history WHERE document_id = ?`, [id]); } catch (e) { console.error('⚠️ POST /invoices/delete:', e.message); }
-    await dbQuery(`DELETE FROM document_items WHERE document_id = ?`, [id]);
-    await dbQuery(`DELETE FROM documents WHERE id = ?`, [id]);
-    res.redirect('/documents/invoices');
-  } catch (err) {
-    console.error('Fehler beim Löschen der Rechnung:', err.message);
-    res.status(500).send('Fehler beim Löschen: ' + err.message);
-  }
-});
-
-// POST: Rechnungs-Status aktualisieren (z.B. → Bezahlt)
-router.post('/invoices/update-status', requireAdmin, async (req, res) => {
-  const { invoice_id, status, status_note } = req.body;
-  try {
-    await dbQuery(`UPDATE documents SET status = ?, status_note = ? WHERE id = ?`,
-      [status, status_note || null, invoice_id]);
-    res.redirect('/documents/invoices');
-  } catch (err) {
-    console.error('Fehler beim Status-Update:', err.message);
-    res.status(500).send('Fehler beim Aktualisieren.');
-  }
-});
-
-// POST: Rechnungsnummer ändern
-router.post('/invoices/update-number', requireAdmin, async (req, res) => {
-  const { invoice_id, invoice_number } = req.body;
-  try {
-    await dbQuery(`UPDATE documents SET doc_number = ? WHERE id = ?`, [invoice_number, invoice_id]);
-    res.redirect(`/documents/invoices/${invoice_id}`);
-  } catch (err) {
-    console.error('Fehler beim Ändern der Rechnungsnummer:', err.message);
-    res.status(500).send('Fehler beim Aktualisieren.');
-  }
-});
 
 // POST: Mahnung erstellen (Mahnstufe + optionale Mahngebühr + PDF)
 router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
@@ -623,128 +333,13 @@ router.post('/invoices/:id/create-dunning', requireAdmin, async (req, res) => {
 });
 
 // POST: Rechnung bearbeiten (Positionen, Fälligkeit, MwSt., Status)
-router.post('/invoices/:id/update', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const {
-    title: titles, quantity: quantities, unit: units, price: prices,
-    discount_percent: itemDiscs,
-    due_date, tax_rate, status, status_note, invoice_subtype,
-    discount_percent_doc, discount_amount_doc
-  } = req.body;
 
-  try {
-    const invRes = await dbQuery(
-      `SELECT id, status FROM documents WHERE id = ? AND doc_type = 'INVOICE'`,
-      [id]
-    );
-    if (!invRes.rows?.[0]) return res.status(404).send('Rechnung nicht gefunden.');
-
-    const firma = await getFirma().catch(() => ({}));
-    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
-
-    const titleArr    = Array.isArray(titles)     ? titles     : (titles     ? [titles]     : []);
-    const quantityArr = Array.isArray(quantities) ? quantities : (quantities ? [quantities] : []);
-    const unitArr     = Array.isArray(units)      ? units      : (units      ? [units]      : []);
-    const priceArr    = Array.isArray(prices)     ? prices     : (prices     ? [prices]     : []);
-    const discArr     = Array.isArray(itemDiscs)  ? itemDiscs  : (itemDiscs  ? [itemDiscs]  : []);
-
-    const validItems = titleArr.map((title, i) => ({description: String(title || '').trim(), quantity: Number(quantityArr[i]), price: Number(priceArr[i]), discount: Number(discArr[i] || 0)})).filter(item => item.description);
-    if (!validItems.length || validItems.length > 200 || validItems.some(item => item.description.length > 2000 || !Number.isFinite(item.quantity) || item.quantity <= 0 || item.quantity > 1000000 || !Number.isFinite(item.price) || item.price < 0 || item.price > 10000000 || !Number.isFinite(item.discount) || item.discount < 0 || item.discount > 100)) return res.status(400).send('Bitte mindestens eine gültige Position mit Menge, Preis und Rabatt eingeben.');
-    const pctInput = Number(discount_percent_doc || 0), amountInput = Number(discount_amount_doc || 0), rateInput = tax_rate == null || tax_rate === '' ? 19 : Number(tax_rate);
-    if (![pctInput, amountInput, rateInput].every(Number.isFinite) || pctInput < 0 || pctInput > 100 || amountInput < 0 || rateInput < 0 || rateInput > 100) return res.status(400).send('Bitte Steuersatz und Belegrabatt prüfen.');
-    await withTransaction(async tx => {
-    await tx.query(`DELETE FROM document_items WHERE document_id = ?`, [id]);
-
-    let subtotal = 0;
-    for (let i = 0; i < titleArr.length; i++) {
-      const desc = (titleArr[i] || '').trim();
-      if (!desc) continue;
-      const q = parseFloat(quantityArr[i] || 1);
-      const p = parseFloat(priceArr[i] || 0);
-      const d = parseFloat(discArr[i] || 0);
-      subtotal += q * p * (1 - d / 100);
-      await tx.query(
-        `INSERT INTO document_items (document_id, description, quantity, unit, price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, desc, q, unitArr[i] || 'Stk', p, d || 0]
-      );
-    }
-
-    const docDiscPct = parseFloat(discount_percent_doc) || 0;
-    const docDiscAmt = parseFloat(discount_amount_doc) || 0;
-    const discountTotal = docDiscPct > 0 ? subtotal * (docDiscPct / 100) : docDiscAmt;
-    const netAfter = Math.max(0, subtotal - discountTotal);
-
-    let taxRate = parseFloat(tax_rate != null && tax_rate !== '' ? tax_rate : 19);
-    if (isKlein) taxRate = 0;
-    const taxAmount = netAfter * (taxRate / 100);
-    const totalAmount = netAfter + taxAmount;
-
-    const fields = ['subtotal = ?', 'tax_amount = ?', 'total_amount = ?', 'tax_rate = ?', 'discount_percent = ?', 'discount_amount = ?'];
-    const params = [subtotal, taxAmount, totalAmount, taxRate, docDiscPct || 0, discountTotal || 0];
-
-    if (due_date !== undefined) {
-      fields.push('due_date = ?');
-      params.push(due_date || null);
-    }
-    if (status) {
-      fields.push('status = ?');
-      params.push(status);
-    }
-    if (status_note !== undefined) {
-      fields.push('status_note = ?');
-      params.push(status_note || null);
-    }
-    if (invoice_subtype !== undefined) {
-      fields.push('invoice_subtype = ?');
-      params.push((invoice_subtype || '').toUpperCase() || null);
-    }
-    params.push(id);
-
-    await tx.query(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params);
-    });
-    res.redirect(`/documents/invoices/${id}?saved=1`);
-  } catch (err) {
-    console.error('Fehler bei POST /invoices/:id/update:', err.message);
-    res.status(500).send('Fehler beim Speichern der Rechnung.');
-  }
-});
 
 // POST: Zahlung buchen
-router.post('/invoices/:id/payments', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const amount = parseFloat(req.body.amount);
-  const payment_date = req.body.payment_date || new Date().toISOString().slice(0, 10);
-  const method = req.body.method || 'Überweisung';
-  const note = req.body.note || '';
-  try {
-    if (!amount || amount <= 0) return res.status(400).send('Betrag ungültig.');
-    const inv = (await dbQuery(`SELECT id, status FROM documents WHERE id = ? AND doc_type = 'INVOICE'`, [id])).rows?.[0];
-    if (!inv) return res.status(404).send('Rechnung nicht gefunden.');
-    if (inv.status === 'Storniert') return res.status(400).send('Stornierte Rechnung.');
-    await dbQuery(
-      `INSERT INTO invoice_payments (document_id, amount, payment_date, method, note, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, amount, payment_date, method, note, req.user?.id || null]
-    );
-    await recalcInvoicePaid(id);
-    res.redirect(`/documents/invoices/${id}?tab=zahlungen&saved=1`);
-  } catch (err) {
-    console.error('Zahlung buchen:', err.message);
-    res.status(500).send('Fehler beim Buchen der Zahlung. (Migration 16?)');
-  }
-});
+
 
 // POST: Zahlung löschen
-router.post('/invoices/:id/payments/:payId/delete', requireAdmin, async (req, res) => {
-  const { id, payId } = req.params;
-  try {
-    await dbQuery(`DELETE FROM invoice_payments WHERE id = ? AND document_id = ?`, [payId, id]);
-    await recalcInvoicePaid(id);
-    res.redirect(`/documents/invoices/${id}?tab=zahlungen&saved=1`);
-  } catch (err) {
-    console.error('Zahlung löschen:', err.message);
-    res.status(500).send('Fehler beim Löschen der Zahlung.');
-  }
-});
+
 
 // POST: Rechnung per E-Mail senden (PDF-Anhang)
 router.post('/invoices/:id/send-email', requireAdmin, async (req, res) => {
@@ -767,8 +362,8 @@ router.post('/invoices/:id/send-email', requireAdmin, async (req, res) => {
     const pdfBuf = await generateDocumentPDFBuffer(invoice, itemsRes.rows || []);
     const docLabel = invoice.doc_type === 'CREDIT' ? 'Gutschrift' : 'Rechnung';
     const docNr = invoice.invoice_number || invoice.doc_number || id;
-    const html = `<p>${(message || `Anbei erhalten Sie ${docLabel} ${docNr} als PDF.`).replace(/\n/g, '<br>')}</p>
-      <p>Mit freundlichen Grüßen<br>${firma.name || ''}</p>`;
+    const html = `<p>${htmlText(message || `Anbei erhalten Sie ${docLabel} ${docNr} als PDF.`).replace(/\n/g, '<br>')}</p>
+      <p>Mit freundlichen Grüßen<br>${htmlText(firma.name || '')}</p>`;
     const result = await sendEmail(
       emailTo,
       subject || `${docLabel} ${docNr}`,
@@ -913,71 +508,7 @@ router.get('/open-items', requireAdmin, async (req, res) => {
 
 
 // GET: Rechnungs-Detail
-router.get('/invoices/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const firma      = await getFirma();
-    const invoiceRes = await dbQuery(`
-      SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email, c.phone,
-             d.doc_number AS invoice_number
-      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type IN ('INVOICE','CREDIT')`, [id]);
-    const invoice = invoiceRes.rows[0];
-    if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    let dunningHistory = [];
-    try {
-      const histRes = await dbQuery(
-        `SELECT h.*, u.username AS created_by_name
-         FROM dunning_history h
-         LEFT JOIN users u ON h.created_by = u.id
-         WHERE h.document_id = ?
-         ORDER BY h.created_at DESC, h.id DESC`,
-        [id]
-      );
-      dunningHistory = histRes.rows || [];
-    } catch (_) {
-      dunningHistory = [];
-    }
-    let payments = [];
-    try {
-      const payRes = await dbQuery(
-        `SELECT p.*, u.username AS created_by_name
-         FROM invoice_payments p
-         LEFT JOIN users u ON p.created_by = u.id
-         WHERE p.document_id = ?
-         ORDER BY p.payment_date DESC, p.id DESC`,
-        [id]
-      );
-      payments = payRes.rows || [];
-    } catch (_) {
-      payments = [];
-    }
-    const paidSum = payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-    const totalAmt = parseFloat(invoice.total_amount || 0) || 0;
-    const openAmt = Math.max(0, totalAmt - paidSum);
-    const tabQ = req.query.tab;
-    const activeTab = ['mahnungen', 'zahlungen'].includes(tabQ) ? tabQ : 'rechnung';
-    res.render('invoice-detail', {
-      invoice,
-      items: itemsRes.rows || [],
-      firma,
-      dunningHistory,
-      payments,
-      paidSum,
-      openAmt,
-      activeTab,
-      canSeeMoney: canSeeMoney(req.user, firma),
-      mahnungOk: req.query.mahnung === '1',
-      savedOk: req.query.saved === '1',
-      sentOk: req.query.sent === '1',
-      stornoOk: req.query.storno === '1'
-    });
-  } catch (err) {
-    console.error('Fehler bei GET /documents/invoices/:id:', err.message);
-    res.status(500).send('Fehler beim Laden der Rechnung.');
-  }
-});
+
 
 // GET: Rechnungs-PDF — inline im Browser (echter PDF-Stream)
 router.get('/invoices/:id/pdf', requireAdmin, async (req, res) => {
@@ -1271,45 +802,7 @@ router.post('/nachtraege/:id/delete', requireAdmin, async (req, res) => {
 });
 
 // GET: Angebots-Detail (mit Nachträgen)
-router.get('/offers/:id/detail', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const firma     = await getFirma();
-    const offerRes  = await dbQuery(
-      `SELECT d.*, c.company_name, c.contact_person, c.street, c.zip, c.city, c.email
-       FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-       WHERE d.id = ? AND d.doc_type = 'OFFER'`, [id]
-    );
-    const offer = offerRes.rows[0];
-    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
 
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
-    const nRes     = await dbQuery(
-      `SELECT n.*, u.username as ersteller
-       FROM offer_nachtraege n LEFT JOIN users u ON n.created_by = u.id
-       WHERE n.document_id = ? ORDER BY n.created_at ASC`, [id]
-    );
-    const nachtraege = nRes.rows || [];
-    for (const n of nachtraege) {
-      const iR = await dbQuery(`SELECT * FROM offer_nachtrag_items WHERE nachtrag_id = ? ORDER BY id ASC`, [n.id]);
-      n.items = iR.rows || [];
-    }
-
-    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-
-    res.render('offer-detail', {
-      offer,
-      items:      itemsRes.rows || [],
-      nachtraege,
-      baseUrl,
-      savedMsg:   req.query.saved || null,
-      canSeeMoney: canSeeMoney(req.user, firma)
-    });
-  } catch (err) {
-    console.error('Offer-Detail Fehler:', err.message);
-    res.status(500).send('Fehler: ' + err.message);
-  }
-});
 
 // ══════════════════════════════════════════════════════════════
 // STAHLPREISE
@@ -1379,7 +872,6 @@ router.get('/steel-prices/history/:material', requireAdmin, async (req, res) => 
 router.post('/convert-to-invoice/:offerId', requireAdmin, convertOfferToInvoice);
 
 
-
 // GET: E-Rechnung XRechnung 3.0 XML
 router.get('/invoices/:id/xrechnung', requireAdmin, async (req, res) => {
   const { id } = req.params;
@@ -1422,8 +914,6 @@ router.get('/invoices/:id/xrechnung', requireAdmin, async (req, res) => {
     res.status(500).send('Fehler E-Rechnung: ' + err.message);
   }
 });
-
-
 
 
 // ==========================================
@@ -1510,8 +1000,6 @@ router.post('/delivery/:id/status', requireAdmin, async (req, res) => {
 });
 
 
-
-
 // ADMIN: Alle Belege zurücksetzen
 router.post('/admin/reset-documents', requireAdmin, async (req, res) => {
   try {
@@ -1532,8 +1020,6 @@ router.post('/admin/reset-documents', requireAdmin, async (req, res) => {
     res.status(500).send('Reset fehlgeschlagen: ' + err.message);
   }
 });
-
-
 
 
 // ══════════════════════════════════════════════════════════════
@@ -1796,176 +1282,9 @@ async function bueroGuard(req, res) {
   return firma;
 }
 
-// GET: Büro-Startseite (drei große Buttons)
-router.get('/buero', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  try {
-    const openRes = await dbQuery(`
-      SELECT d.total_amount, d.due_date, COALESCE(d.paid_amount, 0) AS paid_amount
-      FROM documents d
-      WHERE d.doc_type = 'INVOICE' AND d.status NOT IN ('Bezahlt', 'Storniert', 'Gutschrift', 'ENTWURF')`)
-      .catch(() => ({ rows: [] }));
-    const today = new Date().toISOString().slice(0, 10);
-    let openCount = 0, openSum = 0, overdueCount = 0;
-    for (const r of (openRes.rows || [])) {
-      const open = (parseFloat(r.total_amount || 0) || 0) - (parseFloat(r.paid_amount || 0) || 0);
-      if (open <= 0.01) continue;
-      openCount++; openSum += open;
-      if (r.due_date && String(r.due_date).slice(0, 10) < today) overdueCount++;
-    }
-    const draftRes = await dbQuery(`SELECT COUNT(*) AS c FROM documents WHERE doc_type = 'INVOICE' AND status = 'ENTWURF'`).catch(() => ({ rows: [{ c: 0 }] }));
-    const waitRes  = await dbQuery(`SELECT COUNT(*) AS c FROM documents WHERE doc_type = 'OFFER' AND status = 'OFFEN'`).catch(() => ({ rows: [{ c: 0 }] }));
-    const recentRes = await dbQuery(`
-      SELECT d.id, d.doc_type, d.doc_number, d.status, d.total_amount, d.created_at, c.company_name, c.contact_person
-      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.doc_type IN ('OFFER', 'INVOICE')
-      ORDER BY d.created_at DESC, d.id DESC LIMIT 6`).catch(() => ({ rows: [] }));
-    res.render('buero', {
-      firma,
-      openCount, openSum, overdueCount,
-      draftCount: parseInt(draftRes.rows?.[0]?.c || 0, 10),
-      waitingOffers: parseInt(waitRes.rows?.[0]?.c || 0, 10),
-      recent: recentRes.rows || [],
-      canSeeMoney: canSeeMoney(req.user, firma)
-    });
-  } catch (err) {
-    console.error('Büro:', err.message);
-    res.status(500).send('Fehler beim Laden der Büro-Seite.');
-  }
-});
 
-// GET: Assistent „Neues Angebot" / „Neue Rechnung"
-router.get('/neu/:type', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  const type = req.params.type === 'rechnung' ? 'rechnung' : (req.params.type === 'angebot' ? 'angebot' : null);
-  if (!type) return res.redirect('/documents/buero');
-  try {
-    const [customersRes, articlesRes] = await Promise.all([
-      dbQuery(`SELECT id, company_name, contact_person, street, zip, city FROM customers ORDER BY company_name ASC`),
-      dbQuery(`SELECT id, title, unit, unit_price FROM articles ORDER BY title ASC`).catch(() => ({ rows: [] }))
-    ]);
-    let snippets = [];
-    try { snippets = JSON.parse(firma.text_snippets || '[]'); } catch (_) { snippets = []; }
-    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
-    const taxRate = type === 'rechnung' && isKlein ? 0 : parseFloat(firma.default_tax_rate || 19);
-    res.render('doc-wizard', {
-      type,
-      customers: customersRes.rows || [],
-      articles:  articlesRes.rows  || [],
-      snippets:  Array.isArray(snippets) ? snippets : [],
-      taxRate,
-      isKlein: type === 'rechnung' && isKlein,
-      preCustomer: req.query.customer_id ? String(req.query.customer_id) : '',
-      firma
-    });
-  } catch (err) {
-    console.error('Assistent:', err.message);
-    res.status(500).send('Fehler beim Laden des Assistenten.');
-  }
-});
 
-// POST (JSON): Neuer Kunde direkt im Assistenten
-router.post('/wizard/customer', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  const b = req.body || {};
-  const name = String(b.company_name || '').trim();
-  const person = String(b.contact_person || '').trim();
-  if (!name && !person) return res.status(400).json({ ok: false, error: 'Bitte einen Namen eintragen.' });
-  try {
-    const r = await dbQuery(
-      `INSERT INTO customers (company_name, contact_person, email, phone, street, zip, city) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name || person, person || null, String(b.email || '').trim() || null, String(b.phone || '').trim() || null,
-       String(b.street || '').trim() || null, String(b.zip || '').trim() || null, String(b.city || '').trim() || null]
-    );
-    let id = r.lastID || r.rows?.[0]?.id;
-    if (!id) {
-      const f = await dbQuery(`SELECT id FROM customers WHERE company_name = ? ORDER BY id DESC LIMIT 1`, [name || person]);
-      id = f.rows?.[0]?.id;
-    }
-    res.json({ ok: true, id, label: name || person });
-  } catch (err) {
-    console.error('Wizard-Kunde:', err.message);
-    res.status(500).json({ ok: false, error: 'Kunde konnte nicht gespeichert werden.' });
-  }
-});
 
-// POST (JSON): Angebot oder Rechnung aus dem Assistenten speichern
-router.post('/wizard/save', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  const { type, customer_id, items } = req.body || {};
-  const customerId = Number(customer_id);
-  if (!['rechnung', 'angebot'].includes(type)) return res.status(400).json({ ok: false, error: 'Bitte eine gültige Belegart auswählen.' });
-  if (!Number.isSafeInteger(customerId) || customerId <= 0) return res.status(400).json({ ok: false, error: 'Bitte zuerst einen Kunden auswählen.' });
-  if (!Array.isArray(items) || items.length === 0 || items.length > 200) return res.status(400).json({ ok: false, error: 'Bitte 1 bis 200 Positionen eintragen.' });
-  const list = [];
-  for (const it of items) {
-    if (!it || typeof it !== 'object' || typeof it.description !== 'string' || typeof it.unit !== 'string') return res.status(400).json({ ok: false, error: 'Bitte die Positionsangaben prüfen.' });
-    const description = it.description.trim(), unit = it.unit.trim();
-    const quantity = Number(it.quantity), price = Number(it.price);
-    if (!description || description.length > 2000 || !unit || unit.length > 40 || it.quantity === '' || it.quantity == null || it.price === '' || it.price == null || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000 || !Number.isFinite(price) || price < 0 || price > 10000000) return res.status(400).json({ ok: false, error: 'Bitte Beschreibung, Menge und Preis aller Positionen prüfen.' });
-    list.push({ description, quantity, unit, price });
-  }
-  try {
-    const isInvoice = type === 'rechnung';
-    const isKlein = String(firma.kleinunternehmer || '').toLowerCase() === 'true';
-    const taxRate = isInvoice && isKlein ? 0 : Number(firma.default_tax_rate || 19);
-    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw Error('Ungültiger Steuersatz in Firmendaten.');
-    const prefix = String((isInvoice ? firma.invoice_prefix : firma.offer_prefix) || (isInvoice ? 'RECH' : 'ANG')).toUpperCase();
-    const year = new Date().getFullYear(), docType = isInvoice ? 'INVOICE' : 'OFFER';
-    const subtotal = Math.round(list.reduce((sum, it) => sum + it.quantity * it.price, 0) * 100) / 100;
-    if (!Number.isSafeInteger(Math.round(subtotal * 100))) return res.status(400).json({ ok: false, error: 'Der Gesamtbetrag ist zu groß.' });
-    const taxAmount = Math.round(subtotal * taxRate) / 100;
-    const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
-    const due = new Date(); due.setDate(due.getDate() + (parseInt(firma.zahlungsfrist, 10) || 14));
-    const docId = await withTransaction(async tx => {
-      const customer = await tx.query('SELECT id FROM customers WHERE id = ?', [customerId]);
-      if (!customer.rows.length) { const error = new Error('Kunde wurde nicht gefunden.'); error.status = 400; throw error; }
-      const docNumber = await nextDocumentNumber(tx, docType, prefix, year);
-      const returning = isPg ? ' RETURNING id' : '';
-      const insert = isInvoice
-        ? await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount,due_date) VALUES ('INVOICE',?,?,'ENTWURF',?,?,?,?,?)${returning}`, [docNumber,customerId,taxRate,subtotal,taxAmount,totalAmount,due.toISOString().slice(0,10)])
-        : await tx.query(`INSERT INTO documents (doc_type,doc_number,customer_id,status,tax_rate,subtotal,tax_amount,total_amount) VALUES ('OFFER',?,?,'OFFEN',?,?,?,?)${returning}`, [docNumber,customerId,taxRate,subtotal,taxAmount,totalAmount]);
-      const id = insert.lastID || insert.rows?.[0]?.id;
-      if (!id) throw Error('Belegkennung konnte nicht ermittelt werden.');
-      for (const it of list) await tx.query('INSERT INTO document_items (document_id,description,quantity,unit,price) VALUES (?,?,?,?,?)', [id,it.description,it.quantity,it.unit,it.price]);
-      return id;
-    });
-    res.json({ ok: true, id: docId, url: '/documents/fertig/' + docId });
-  } catch (err) {
-    if (err.status === 400) return res.status(400).json({ ok: false, error: err.message });
-    console.error('Wizard-Save:', err.message);
-    res.status(500).json({ ok: false, error: 'Speichern hat nicht geklappt. Bitte noch einmal versuchen.' });
-  }
-});
-
-// GET: „Fertig"-Seite nach dem Erstellen (PDF, E-Mail, nächster Schritt)
-router.get('/fertig/:id', requireAdmin, async (req, res) => {
-  const firma = await bueroGuard(req, res);
-  if (!firma) return;
-  try {
-    const dRes = await dbQuery(`
-      SELECT d.*, c.company_name, c.contact_person, c.email
-      FROM documents d LEFT JOIN customers c ON d.customer_id = c.id
-      WHERE d.id = ? AND d.doc_type IN ('OFFER','INVOICE')`, [req.params.id]);
-    const doc = dRes.rows?.[0];
-    if (!doc) return res.status(404).send('Beleg nicht gefunden.');
-    const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [doc.id]);
-    res.render('doc-done', {
-      doc,
-      items: itemsRes.rows || [],
-      firma,
-      sent: req.query.sent === '1',
-      mailError: req.query.mailerr || ''
-    });
-  } catch (err) {
-    console.error('Fertig-Seite:', err.message);
-    res.status(500).send('Fehler beim Laden.');
-  }
-});
 
 // POST: Angebot per E-Mail senden (PDF im Anhang)
 router.post('/offers/:id/send-email', requireAdmin, async (req, res) => {
@@ -1988,8 +1307,8 @@ router.post('/offers/:id/send-email', requireAdmin, async (req, res) => {
     const itemsRes = await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id ASC`, [id]);
     const pdfBuf = await generateDocumentPDFBuffer(offer, itemsRes.rows || []);
     const nr = offer.doc_number || id;
-    const html = `<p>${(message || `Anbei erhalten Sie unser Angebot ${nr} als PDF.`).replace(/\n/g, '<br>')}</p>
-      <p>Mit freundlichen Grüßen<br>${firma.name || ''}</p>`;
+    const html = `<p>${htmlText(message || `Anbei erhalten Sie unser Angebot ${nr} als PDF.`).replace(/\n/g, '<br>')}</p>
+      <p>Mit freundlichen Grüßen<br>${htmlText(firma.name || '')}</p>`;
     const result = await sendEmail(emailTo, subject || `Angebot ${nr}`, html,
       [{ filename: `Angebot-${nr}.pdf`, content: pdfBuf, contentType: 'application/pdf' }]);
     if (!result.ok) {
