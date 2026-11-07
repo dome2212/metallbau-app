@@ -4,9 +4,12 @@ const multer  = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { hasPerm }           = require('../middleware/auth');
+const { hasPerm, requirePerm }           = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { parseBuffer, rowsToCustomers, buildTemplateCsv } = require('../utils/customerImport');
+// Apply the same customer permission to reads, mutations and uploads.
+router.use(requirePerm('customers', true, false, 'die Kundenverwaltung'));
+
 const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const upload = multer({
@@ -405,7 +408,7 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
 router.post('/files/delete', async (req, res) => {
   const { file_id, customer_id } = req.body;
   try {
-    await dbQuery('DELETE FROM customer_files WHERE id = ?', [file_id]);
+    await dbQuery('DELETE FROM customer_files WHERE id = ? AND customer_id = ?', [file_id, customer_id]);
   } catch (err) {
     console.error('Fehler beim Löschen der Kundendatei:', err.message);
   }

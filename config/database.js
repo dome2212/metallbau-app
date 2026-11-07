@@ -41,11 +41,6 @@ if (process.env.DATABASE_URL) {
       console.error("❌ FEHLER beim Erstellen der users-Tabelle:", err.message);
     } else {
       console.log("✅ users-Tabelle bereit!");
-      // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
-      db.query(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
-        if (err) console.error("⚠️ Migration ADMIN→CHEF:", err.message);
-        else console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
-      });
     }
   });
 
@@ -833,10 +828,6 @@ if (process.env.DATABASE_URL) {
         )
       `);
 
-      // Bestehende ADMIN-Nutzer auf CHEF migrieren (einmalig)
-      db.run(`UPDATE users SET role = 'CHEF' WHERE role = 'ADMIN'`, (err) => {
-        if (!err) console.log("✅ Rollen-Migration ADMIN→CHEF abgeschlossen.");
-      });
       // Chef-User lokal prüfen/anlegen (nur wenn noch kein CHEF existiert)
       db.get(`SELECT id FROM users WHERE role = 'CHEF'`, (err, row) => {
         if (!row) {

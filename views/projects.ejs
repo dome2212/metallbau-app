@@ -177,7 +177,7 @@
                 </td>
 
                 <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
-                  <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
+                  <% if (canSeeMoney) { %>
                     <%= (Number(p.total_price) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2}) %> €
                   <% } else { %>
                     <span class="text-slate-400 text-xs italic">Intern</span>

@@ -42,3 +42,9 @@ test('new construction and folded reference geometry builds finite WebGL meshes 
   const g=buildGeometry(o,THREE,parts),ps=endpoints(o).flat();for(const axis of ['x','y','z']){assert.ok(Math.abs(g.boundingBox.min[axis]-Math.min(...ps.map(p=>p[axis])))<.02);assert.ok(Math.abs(g.boundingBox.max[axis]-Math.max(...ps.map(p=>p[axis])))<.02);}assert.ok([...g.attributes.position.array].every(Number.isFinite));g.dispose();
  }
 });
+test('two-hole sheets use one centred row even when the end margin exceeds half the length',()=>{
+ const c={...sheet,shape:'flat',base:200,length:30,holes:2,edge:25,diameter:12};
+ const s=api.sheet(c),objects=validate(s.objects);assert.deepEqual(objects[0].part.holes,[{x:25,y:15,d:12},{x:175,y:15,d:12}]);
+ const dxf=api.laser({...s.blank,groupId:'test',generator:{kind:'sheet',config:c}});assert.equal((dxf.match(/0\r\nCIRCLE/g)||[]).length,2);
+ assert.throws(()=>api.sheet({...c,holes:4}),/Bohrbild/);assert.throws(()=>api.sheet({...c,length:20,diameter:20}),/Bohrbild/);assert.throws(()=>api.sheet({...c,edge:96}),/Bohrbild/);
+});

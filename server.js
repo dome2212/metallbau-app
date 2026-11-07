@@ -216,6 +216,9 @@ app.get('/health', async (req, res) => {
 });
 
 app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
+// Mobile clients authenticate with Bearer tokens; no browser cookie is required.
+app.use('/api/v2/auth/login', loginLimiter);
+app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
 app.use(verifyToken);
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
@@ -293,8 +296,7 @@ app.use('/', miscRoutes);
 // ==========================================
 // MOBILE API (JSON – React Native App)
 // ==========================================
-const apiRoutes = require('./routes/apiRoutes');
-app.use('/api/v2', apiRoutes);
+
 app.use('/api', appApiRoutes);  // search, today-hours, dark-mode
 app.use('/api/rfid', rfidLimiter, rfidRoutes);
 app.use('/api/ai', aiLimiter, aiApiRoutes);
