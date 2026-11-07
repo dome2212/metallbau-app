@@ -33,7 +33,7 @@
   if(!['flat','l','u'].includes(c.shape)||!Number.isInteger(c.holes)||![0,2,4].includes(c.holes))throw Error('Blechform oder Bohrbild ungültig.');
   const n=c.shape==='flat'?0:c.shape==='l'?1:2,allowance=Math.PI/2*(r+k*t),w=base+n*(flange+allowance),offset=n?flange+allowance:0;
   const d=c.holes?number(c,'diameter',1,100):0,edge=number(c,'edge',1,1000),holes=[];
-  if(c.holes){if(edge<=d/2||2*edge+d>=Math.min(base,length))throw Error('Bohrbild passt nicht in die gerade Grundfläche.');for(const xx of [edge,base-edge])for(const yy of c.holes===2?[length/2]:[edge,length-edge])holes.push({x:offset+xx,y:yy,d});}
+  if(c.holes){if(edge<=d/2||2*edge+d>=base||(c.holes===4?2*edge+d>=length:d>=length))throw Error('Bohrbild passt nicht in die gerade Grundfläche.');for(const xx of [edge,base-edge])for(const yy of c.holes===2?[length/2]:[edge,length-edge])holes.push({x:offset+xx,y:yy,d});}
   const blank={type:'rect',x:0,y:0,z:0,w,h:length,depth:t};
   const notes=`Kantteil ${c.shape.toUpperCase()}; Abwicklung ${w.toFixed(3)} × ${length} × ${t} mm; ${n} × 90°; Innenradius ${r}; K ${k}; Biegezugabe je Kantung ${allowance.toFixed(3)} mm. Eingabemaße sind gerade Tangentenlängen. K-Faktor anhand Werkzeug/Material prüfen.`;
   blank.part=parts.validatePart({catalogId:'custom',name:'Kantblech · Abwicklung',material:c.material,finish:c.finish,lengthAxis:'plate',notes,holes,drillCount:holes.length,drillDiameter:d},blank);
