@@ -1,370 +1,540 @@
-const express      = require('express');
-const http         = require('http');
-const path         = require('path');
-const cookieParser = require('cookie-parser');
-const rateLimit    = require('express-rate-limit');
-const cors         = require('cors');
-const helmet       = require('helmet');
-const db           = require('./config/database');
-const { initChatServer, ensureChatTable } = require('./utils/chatSocket');
+const express = require('express');
+const router = express.Router();
+const { dbQuery } = require('../utils/db');
+const { requireAdmin, requirePerm, hasPerm } = require('../middleware/auth');
+const { getFirma } = require('../utils/companySettings');
 
-// ==========================================
-// ZEITZONE AUF DEUTSCHLAND FESTLEGEN
-// ==========================================
-process.env.TZ = 'Europe/Berlin';
+const isPg = !!process.env.DATABASE_URL;
 
-// PostgreSQL-Verbindung ebenfalls auf Berlin-Zeit stellen, damit
-// TIMESTAMP-Werte konsistent in der lokalen Zeit des Unternehmens landen.
-if (process.env.DATABASE_URL) {
-  db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 6371e3 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ==========================================
-// HILFSFUNKTION (SQLite & PostgreSQL)
+// STEMPELUHR-ANSICHT
 // ==========================================
-const isPg = !!process.env.DATABASE_URL;
+router.get('/', async (req, res) => {
+  const firma = await getFirma();
+  if (!hasPerm(req.user, 'timetracking', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
+  const userId = req.user.id;
+  try {
+    const sqlToday = isPg
+      ? `SELECT time_logs.*, customers.company_name, customers.contact_person,
+               projects.title as project_title,
+               TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+         FROM time_logs
+         LEFT JOIN customers ON time_logs.customer_id = customers.id
+         LEFT JOIN projects ON time_logs.project_id = projects.id
+         WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
+         ORDER BY time_logs.timestamp ASC`
+      : `SELECT time_logs.*, customers.company_name, customers.contact_person,
+               projects.title as project_title,
+               strftime('%Y-%m-%d %H:%M:%S', timestamp) as local_timestamp
+         FROM time_logs
+         LEFT JOIN customers ON time_logs.customer_id = customers.id
+         LEFT JOIN projects ON time_logs.project_id = projects.id
+         WHERE time_logs.user_id = ? AND date(timestamp) = date('now')
+         ORDER BY time_logs.timestamp ASC`;
 
-const dbQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    if (process.env.DATABASE_URL) {
-      let i = 0;
-      let pgSql = sql.replace(/\?/g, () => `$${++i}`);
-      if (pgSql.trim().toUpperCase().startsWith('INSERT') && !pgSql.toUpperCase().includes('RETURNING')) {
-        pgSql += ' RETURNING id';
-      }
-      db.query(pgSql, params, (err, res) => {
-        if (err) return reject(err);
-        const rows   = res.rows || [];
-        const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
-        resolve({ rows, lastID });
-      });
-    } else {
-      const trimmed = sql.trim().toUpperCase();
-      if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
-        db.all(sql, params, function(err, rows) {
-          if (err) return reject(err);
-          resolve({ rows: rows || [], lastID: null });
-        });
+    const result = await dbQuery(sqlToday, [userId]);
+    const todayLogs = result.rows;
+    const lastLog = todayLogs.length > 0 ? todayLogs[todayLogs.length - 1] : null;
+    const isStampedIn = lastLog && lastLog.type === 'IN';
+
+    let lastStampTime = '';
+    if (isStampedIn && lastLog.local_timestamp) {
+      const parts = lastLog.local_timestamp.split(' ')[1].split(':');
+      lastStampTime = `${parts[0]}:${parts[1]}`;
+    }
+
+    let totalMilliseconds = 0;
+    const now = new Date();
+    for (let i = 0; i < todayLogs.length; i++) {
+      if (!todayLogs[i].local_timestamp) continue;
+      if (todayLogs[i].type !== 'IN') continue;
+      const start = new Date(todayLogs[i].local_timestamp.replace(' ', 'T')).getTime();
+      const next = todayLogs[i + 1];
+      let end;
+      if (next && next.type === 'OUT' && next.local_timestamp) {
+        end = new Date(next.local_timestamp.replace(' ', 'T')).getTime();
+      } else if (i === todayLogs.length - 1 && isStampedIn) {
+        end = now.getTime();
       } else {
-        db.run(sql, params, function(err) {
-          if (err) return reject(err);
-          resolve({ rows: [], lastID: this.lastID });
-        });
+        end = start;
+      }
+      if (end > start) totalMilliseconds += (end - start);
+    }
+    const todayTotalHours = (totalMilliseconds / 3600000).toFixed(2);
+
+    const projectsRes = await dbQuery(`
+      SELECT projects.id, projects.title, projects.status,
+             projects.site_lat, projects.site_lng, projects.site_radius,
+             customers.id as customer_id, customers.company_name, customers.contact_person
+      FROM projects
+      LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.status != 'Abgeschlossen' AND projects.deleted_at IS NULL
+      ORDER BY projects.title ASC
+    `);
+    const firma = await getFirma().catch(() => ({}));
+    const stampAllowProject  = firma.stamp_allow_project    !== 'false';
+    const stampGeofence      = firma.stamp_geofence_enabled !== 'false';
+
+    const allProjects = projectsRes.rows || [];
+    // Projekte nur übergeben wenn Baustellen-Stempeln aktiviert
+    const visibleProjects = stampAllowProject ? allProjects : [];
+    // Geo-Fencing nur wenn aktiviert
+    const geoProjects = stampGeofence ? allProjects.filter(p => p.site_lat && p.site_lng) : [];
+    const activeProjectId    = isStampedIn && lastLog ? (lastLog.project_id    || null) : null;
+    const activeProjectTitle = isStampedIn && lastLog ? (lastLog.project_title || null) : null;
+    // Wenn gerade NICHT eingestempelt: zuletzt genutztes Projekt vorschlagen,
+    // damit man beim erneuten Einstempeln nicht jedes Mal neu auswählen muss.
+    const defaultProjectId = isStampedIn ? activeProjectId : (lastLog ? (lastLog.project_id || null) : null);
+    const lastStampEpoch = lastLog && lastLog.local_timestamp
+      ? new Date(lastLog.local_timestamp.replace(' ', 'T')).getTime()
+      : null;
+
+    const formattedLogs = todayLogs.map(log => ({
+      ...log,
+      display_time: log.local_timestamp ? log.local_timestamp.split(' ')[1].substring(0, 5) : ''
+    }));
+
+    res.render('timetracking', {
+      todayLogs: formattedLogs,
+      isStampedIn,
+      lastStampTime,
+      todayTotalHours,
+      projects: visibleProjects,
+      geoProjects,
+      activeProjectId,
+      activeProjectTitle,
+      defaultProjectId,
+      lastStampEpoch,
+      stampSettings: {
+        allowProject:  stampAllowProject,
+        allowNote:     firma.stamp_allow_note    !== 'false',
+        allowSwitch:   firma.stamp_allow_switch  !== 'false',
+        geofence:      stampGeofence,
+      }
+    });
+  } catch (err) {
+    console.error('Fehler beim Laden der Zeiterfassung:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
+// QR-SCAN: Baustelle per QR-Code ein-/ausstempeln
+// (QR-Code steht auf dem Auftrags-Zettel, siehe /projects/:id/stempel-qr)
+// ==========================================
+router.get('/scan/:projectId', async (req, res) => {
+  const firma = await getFirma().catch(() => ({}));
+  if (!hasPerm(req.user, 'timetracking', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
+  if (!/^\d+$/.test(String(req.params.projectId))) return res.status(404).send('Auftrag nicht gefunden');
+  try {
+    const pRes = await dbQuery(`
+      SELECT projects.id, projects.title, projects.status, projects.deleted_at, projects.site_note,
+             customers.company_name, customers.contact_person, customers.street, customers.zip, customers.city
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [req.params.projectId]);
+    const project = pRes.rows[0];
+    if (!project || project.deleted_at) return res.status(404).send('Auftrag nicht gefunden');
+
+    const lastRes = await dbQuery(
+      isPg
+        ? `SELECT time_logs.type, time_logs.project_id, projects.title as project_title,
+                  TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'HH24:MI') as hhmm
+           FROM time_logs LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
+           ORDER BY time_logs.timestamp DESC, time_logs.id DESC LIMIT 1`
+        : `SELECT time_logs.type, time_logs.project_id, projects.title as project_title,
+                  strftime('%H:%M', time_logs.timestamp) as hhmm
+           FROM time_logs LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND date(time_logs.timestamp) = date('now')
+           ORDER BY time_logs.timestamp DESC, time_logs.id DESC LIMIT 1`,
+      [req.user.id]);
+    const last = lastRes.rows[0] || null;
+    const isStampedIn = !!(last && last.type === 'IN');
+    const sameProject = isStampedIn && last.project_id && String(last.project_id) === String(project.id);
+
+    res.render('stamp-scan', {
+      project,
+      isStampedIn,
+      sameProject,
+      activeProjectId: isStampedIn ? last.project_id : null,
+      activeProjectTitle: isStampedIn ? last.project_title : null,
+      since: isStampedIn ? last.hhmm : null,
+      allowSwitch: firma.stamp_allow_switch !== 'false',
+      needsGps: firma.stamp_require_gps !== 'false'
+                && !((req.user.role === 'ADMIN' || req.user.role === 'CHEF') && firma.stamp_admin_no_gps !== 'false'),
+    });
+  } catch (err) {
+    console.error('Fehler beim QR-Scan:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
+// EINSTEMPELN / AUSSTEMPELN / WECHSELN
+// ==========================================
+router.post('/stamp', requirePerm('timetracking', true, true), async (req, res) => {
+  const userId   = req.user.id;
+  const userRole = req.user.role;
+  let { type, note, project_id, latitude, longitude } = req.body;
+
+  const switching = type === 'SWITCH';
+  if (!['IN', 'OUT', 'SWITCH'].includes(type)) return res.status(400).send('Ungültiger Stempel-Typ');
+
+  if (type === 'IN' || switching) {
+    const firma = await getFirma().catch(() => ({}));
+
+    // GPS-Pflicht: deaktivierbar über Admin-Panel (stamp_require_gps)
+    const gpsRequired  = firma.stamp_require_gps  !== 'false';
+    // Admins ausgenommen: konfigurierbar (stamp_admin_no_gps)
+    const adminNoGps   = firma.stamp_admin_no_gps !== 'false';
+    const isAdmin      = userRole === 'ADMIN' || userRole === 'CHEF';
+    const skipGps      = isAdmin && adminNoGps;
+
+    if (gpsRequired && !skipGps) {
+      if (latitude == null || latitude === '' || longitude == null || longitude === '' || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180) {
+        return res.status(400).send('Standort konnte nicht ermittelt werden. GPS ist für das Einstempeln erforderlich.');
+      }
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const FIRM_LAT    = parseFloat(process.env.FIRM_LAT || firma.firm_lat || '51.3069467');
+      const FIRM_LNG    = parseFloat(process.env.FIRM_LNG || firma.firm_lng || '6.9483845');
+      const FIRM_RADIUS = parseInt(process.env.FIRM_RADIUS_METERS || firma.firm_radius || '300', 10);
+      const distFirm    = getDistanceFromLatLonInMeters(lat, lng, FIRM_LAT, FIRM_LNG);
+      const atFirm      = distFirm <= FIRM_RADIUS;
+
+      let atSite = false;
+      if (!atFirm) {
+        const siteRes = await dbQuery(`
+          SELECT id, site_lat, site_lng, site_radius FROM projects
+          WHERE site_lat IS NOT NULL AND site_lng IS NOT NULL AND status != 'Abgeschlossen' AND deleted_at IS NULL
+        `);
+        for (const proj of (siteRes.rows || [])) {
+          const d = getDistanceFromLatLonInMeters(lat, lng, parseFloat(proj.site_lat), parseFloat(proj.site_lng));
+          if (d <= (proj.site_radius || 200)) { atSite = true; break; }
+        }
+      }
+
+      if (!atFirm && !atSite) {
+        return res.status(400).send(`Einstempeln verweigert: Du befindest dich weder an der Firma noch auf einer bekannten Baustelle (ca. ${Math.round(distFirm)} m von der Firma entfernt).`);
       }
     }
-  });
-};
+  }
 
-// ==========================================
-// DATENBANK-MIGRATIONEN
-// Alle Schema-Definitionen leben in utils/migrations.js.
-// Dort neue Tabellen oder Spalten hinzufügen – nicht hier.
-// ==========================================
-const { runMigrations } = require('./utils/migrations');
-runMigrations().catch(err => {
-  console.error('❌ Datenbank-Migration fehlgeschlagen:', err.message);
-  process.exit(1);
-});
+  let assignedProjectId  = project_id && project_id !== '' ? parseInt(project_id, 10) : null;
+  let assignedCustomerId = null;
+  if (assignedProjectId) {
+    try {
+      const pRes = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [assignedProjectId]);
+      assignedCustomerId = pRes.rows[0]?.customer_id || null;
+    } catch (e) { console.error('⚠️ POST /stamp:', e.message); }
+  }
 
-// Bereinigung alter lokaler Upload-Pfade
-dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
-dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
-
-// ==========================================
-// CLOUDINARY (wird von Route-Dateien benötigt)
-// ==========================================
-const { v2: cloudinary } = require('cloudinary');
-cloudinary.config({
-  cloud_name:  process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:     process.env.CLOUDINARY_API_KEY,
-  api_secret:  process.env.CLOUDINARY_API_SECRET
-});
-
-// ==========================================
-// MIDDLEWARE & ROUTEN
-// ==========================================
-const { verifyToken, requireAdmin } = require('./middleware/auth');
-const authRoutes         = require('./routes/authRoutes');
-const documentRoutes     = require('./routes/documentRoutes');
-const dashboardRoutes    = require('./routes/dashboardRoutes');
-const projectRoutes      = require('./routes/projectRoutes');
-const customerRoutes     = require('./routes/customerRoutes');
-const calendarRoutes     = require('./routes/calendarRoutes');
-const timetrackingRoutes = require('./routes/timetrackingRoutes');
-const vacationRoutes     = require('./routes/vacationRoutes');
-const adminRoutes              = require('./routes/adminRoutes');
-const articleRoutes            = require('./routes/articleRoutes');
-const companySettingsRoutes    = require('./routes/companySettingsRoutes');
-const reportsRoutes            = require('./routes/reportsRoutes');
-const tickerRoutes             = require('./routes/tickerRoutes');
-const lagerRoutes              = require('./routes/lagerRoutes');
-const schnittlisteRoutes        = require('./routes/schnittlisteRoutes');
-const colorsRoutes              = require('./routes/colorsRoutes');
-const pushRoutes                = require('./routes/pushRoutes');
-const taskRoutes                = require('./routes/taskRoutes');
-const chatRoutes                = require('./routes/chatRoutes');
-const miscRoutes                = require('./routes/miscRoutes');
-const appApiRoutes              = require('./routes/appApiRoutes');
-const rfidRoutes                = require('./routes/rfidRoutes');
-const aiApiRoutes               = require('./routes/aiApiRoutes');
-const { startBackupCron } = require('./utils/backup');
-const { startRetentionCron } = require('./utils/dataRetention');
-const { startStampReminderCron } = require('./utils/stampReminder');
-const { startDunningCron } = require('./utils/dunning');
-const { startLagerAlertCron } = require('./utils/lagerAlert');
-const app  = express();
-const PORT = process.env.PORT || 3000;
-
-// Trust the first proxy (Render / reverse-proxy environments) so that
-// express-rate-limit can read the real client IP from X-Forwarded-For.
-app.set('trust proxy', 1);
-
-// ==========================================
-// SECURITY HEADERS (helmet)
-// CSP bewusst gelockert: Inline-Scripts/Styles + Fonts/CDN für EJS-UI
-// ==========================================
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
-}));
-
-// ==========================================
-// CORS (für React Native Android-App)
-// ==========================================
-app.use(cors({
-  origin: true,           // Alle Origins erlaubt (App sendet keine Origin)
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
-app.use(express.json({ limit: '15mb' }));
-app.use(cookieParser());
-app.use('/cad/vendor/three', express.static(path.join(__dirname, 'node_modules/three/build'), { fallthrough: false }));
-app.use('/cad/vendor/three-controls', express.static(path.join(__dirname, 'node_modules/three/examples/jsm/controls'), { fallthrough: false }));
-app.use(express.static(path.join(__dirname, 'Public')));
-
-// UTF-8 Charset für alle HTML-Antworten erzwingen
-app.use((req, res, next) => {
-  const origRender = res.render.bind(res);
-  res.render = function(view, options, callback) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return origRender(view, options, callback);
-  };
-  next();
-});
-
-// ==========================================
-// RATE LIMITING
-// ==========================================
-// Login: max. 10 Versuche pro 15 Minuten je IP
-const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 15 Minuten
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Zu viele Anmeldeversuche. Bitte warte 5 Minuten und versuche es erneut.'
-});
-app.use('/login', loginLimiter);
-
-// API: max. 200 Anfragen pro Minute je IP (verhindert Scraping/KI-Missbrauch)
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 Minute
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Zu viele Anfragen. Bitte kurz warten.'
-});
-app.use('/api/', apiLimiter);
-
-const aiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Zu viele KI-Anfragen. Bitte kurz warten.' }
-});
-const rfidLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, error: 'Zu viele RFID-Anfragen.' }
-});
-
-
-// ==========================================
-// ÖFFENTLICHE ROUTEN (Login / Logout)
-// ==========================================
-app.use('/', authRoutes);
-
-// ==========================================
-// ALLE FOLGENDEN ROUTEN ERFORDERN LOGIN
-// ==========================================
-
-// Health-Check für Render / Monitoring (ohne Auth)
-app.get('/health', async (req, res) => {
   try {
-    await dbQuery('SELECT 1 AS ok');
-    res.json({ ok: true, db: 'up', ts: new Date().toISOString() });
+    const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
+    if (switching) await dbQuery(
+      `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,'OUT',?,NULL,NULL,?,?,${tsExpr}),(?,'IN',?,?,?,?,?,${tsExpr})`,
+      [userId,'Baustelle gewechselt',latitude??null,longitude??null,userId,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
+    );
+    else await dbQuery(
+      `INSERT INTO time_logs (user_id,type,note,project_id,customer_id,latitude,longitude,timestamp) VALUES (?,?,?,?,?,?,?,${tsExpr})`,
+      [userId,type,note||null,assignedProjectId,assignedCustomerId,latitude??null,longitude??null]
+    );
+    res.redirect('/timetracking');
   } catch (err) {
-    res.status(503).json({ ok: false, db: 'down', error: err.message });
+    if (switching) return res.status(500).send('Fehler beim Speichern des Baustellenwechsels');
+    try {
+      const tsExpr = isPg ? `NOW()` : `CURRENT_TIMESTAMP`;
+      await dbQuery(
+        `INSERT INTO time_logs (user_id, type, note, project_id, customer_id, timestamp) VALUES (?, ?, ?, ?, ?, ${tsExpr})`,
+        [userId, type, note || null, assignedProjectId, assignedCustomerId]
+      );
+      res.redirect('/timetracking');
+    } catch (fallbackErr) {
+      console.error('Fehler beim Stempeln:', fallbackErr.message);
+      res.status(500).send('Fehler beim Speichern der Stempelzeit');
+    }
   }
 });
 
-app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
-// Mobile clients authenticate with Bearer tokens; no browser cookie is required.
-app.use('/api/v2/auth/login', loginLimiter);
-app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
-app.use(verifyToken);
-
-// Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
-const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
-const { canSeeMoney: _canSeeMoney, hasPerm: _hasPerm } = require('./middleware/auth');
-app.use(async (req, res, next) => {
+// ==========================================
+// MONATSAUSWERTUNG (Mitarbeiter)
+// ==========================================
+router.get('/admin/monthly', async (req, res) => {
   try {
-    res.locals.firma = await _getFirmaLocals();
-  } catch (_) {
-    res.locals.firma = require('./utils/companySettings').DEFAULTS;
-  }
-  if (req.user && ['CHEF','ADMIN'].includes(req.user.role)) res.locals.backupStatus = require('./utils/backupStatus').summary(res.locals.firma);
-  // canSeeMoney als Helper für alle EJS-Views verfügbar machen
-  res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user, res.locals.firma) : false;
-  // hasPerm als Helper-Funktion für alle EJS-Views (Sidebar, Seiten)
-  res.locals.hasPerm = (area, adminDef, employeeDef) =>
-    _hasPerm(req.user, area, res.locals.firma, adminDef, employeeDef);
-  // Sidebar-Einstellungen aus Cookie für EJS verfügbar machen
-  try {
-    const raw = req.cookies && req.cookies.sidebar_hidden;
-    res.locals.sidebarHidden = raw ? JSON.parse(raw) : [];
-  } catch (_) {
-    res.locals.sidebarHidden = [];
-  }
-  next();
-});
+    const userId = req.user.id;
+    const role   = req.user.role;
+    const month  = req.query.month || new Date().toISOString().slice(0, 7);
 
-// Dokument-Routen (Angebote → Projekt / Rechnung)
-app.use('/documents', documentRoutes);
+    let users = [];
+    if (role === 'ADMIN' || role === 'CHEF') {
+      const userRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
+      users = userRes.rows;
+    }
 
-// Dashboard & Widget-Einstellungen
-app.use('/', dashboardRoutes);
+    const targetUserId = req.query.user_id || userId;
+    if (req.query.user_id && String(req.query.user_id) !== String(userId)) {
+      if (role !== 'ADMIN' && role !== 'CHEF') {
+        return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Sie dürfen nur Ihre eigenen Zeitdaten abrufen.</p><a href="/">← Zurück</a>');
+      }
+    }
+    const entriesRes   = await dbQuery(
+      isPg
+        ? `SELECT time_logs.*, projects.title as project_title,
+                  TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs
+           LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY time_logs.timestamp ASC`
+        : `SELECT time_logs.*, projects.title as project_title,
+                  strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp) as local_timestamp
+           FROM time_logs
+           LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND strftime('%Y-%m', time_logs.timestamp) = ?
+           ORDER BY time_logs.timestamp ASC`,
+      [targetUserId, month]
+    );
+    const entries = (entriesRes.rows || []).map(e => ({ ...e, timestamp: e.local_timestamp || e.timestamp }));
 
-// Aufträge & Baustellen
-app.use('/auftragszentrale', require('./routes/workflowRoutes'));
-app.use('/projects', projectRoutes);
+    let workedMs = 0;
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].type !== 'IN') continue;
+      const start = new Date(entries[i].timestamp).getTime();
+      const next  = entries[i + 1];
+      if (next && next.type === 'OUT') {
+        const end = new Date(next.timestamp).getTime();
+        if (end > start) workedMs += (end - start);
+      }
+    }
+    const workedHours = workedMs / 3600000;
 
-// Kunden
-app.use('/customers', customerRoutes);
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdaysInMonth++;
+    }
+    const dailyHours   = parseFloat(req.query.daily_hours || '8');
+    const targetHours  = workdaysInMonth * dailyHours;
+    const overtimeHours = workedHours - targetHours;
 
-// Kalender & Termine & Wetter-API
-app.use('/',              calendarRoutes);
-
-// Zeiterfassung
-app.use('/timetracking', timetrackingRoutes);
-
-// Urlaub & Abwesenheit
-app.use('/vacations', vacationRoutes);
-
-// Admin-Bereich (Zeiterfassung-Übersicht, Mitarbeiter, Ticker, PDF)
-app.use('/admin',   adminRoutes);
-app.use('/admin',   companySettingsRoutes);
-
-// Artikel-Stamm
-app.use('/articles', articleRoutes);
-
-// Berichte & Auswertungen
-app.use('/reports', reportsRoutes);
-app.use('/ticker',  tickerRoutes);
-
-// Lagerliste (Baustahl & Edelstahl)
-app.use('/lager', lagerRoutes);
-
-// Schnittliste (Baustahl/Edelstahl-Zuschnitt: Upload, PDF-Export, Bild-Erkennung)
-app.use('/schnittliste', schnittlisteRoutes);
-app.use('/farben', colorsRoutes);
-
-// Push-Benachrichtigungen (Subscription verwalten)
-app.use('/push', pushRoutes);
-
-app.use('/tasks', taskRoutes);
-
-app.use('/chat', chatRoutes);
-app.use('/', miscRoutes);
-
-// Baustellenkarte (Leaflet)
-// ==========================================
-// MOBILE API (JSON – React Native App)
-// ==========================================
-
-app.use('/api', appApiRoutes);  // search, today-hours, dark-mode
-app.use('/api/rfid', rfidLimiter, rfidRoutes);
-app.use('/api/ai', aiLimiter, aiApiRoutes);
-
-
-// ==========================================
-// API: HEUTE GEARBEITETE STUNDEN (für Mitarbeiter-Dashboard)
-// ==========================================
-// ==========================================
-// RFID-STEMPEL (Raspberry Pi Lesegerät)
-// Kein JWT – gesichert per RFID_API_KEY in .env
-// ==========================================
-
-
-
-// ==========================================
-// ERROR PAGES
-// ==========================================
-app.use((req, res) => {
-  res.status(404).render('error', {
-    status: 404,
-    title: 'Seite nicht gefunden',
-    message: 'Die angeforderte Seite existiert nicht oder wurde verschoben.'
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error('[ERROR]', err && err.stack ? err.stack : err);
-  const status = err.status || err.statusCode || 500;
-  if (req.accepts('html')) {
-    return res.status(status).render('error', {
-      status,
-      title: status === 403 ? 'Zugriff verweigert' : 'Serverfehler',
-      message: process.env.NODE_ENV === 'production'
-        ? 'Ein interner Fehler ist aufgetreten. Bitte später erneut versuchen.'
-        : (err.message || 'Unbekannter Fehler')
+    res.render('time-monthly', {
+      currentUser: req.user,
+      users,
+      entries,
+      selectedMonth:   month,
+      selectedUserId:  targetUserId,
+      workedHours:     workedHours.toFixed(2),
+      targetHours:     targetHours.toFixed(2),
+      overtimeHours:   overtimeHours.toFixed(2),
+      dailyHours
     });
+  } catch (err) {
+    console.error('Fehler bei Monatsauswertung:', err);
+    res.status(500).send('Interner Serverfehler');
   }
-  res.status(status).json({ error: err.message || 'Internal Server Error' });
 });
 
 // ==========================================
-// SERVER START
+// CSV-EXPORT
 // ==========================================
-// http.createServer statt app.listen direkt, damit der WebSocket-Server
-// (Echtzeit-Chat) sich an denselben HTTP-Server anhängen kann (nötig für
-// den "upgrade"-Handshake von WebSocket-Verbindungen).
-const server = http.createServer(app);
-initChatServer(server);
-require('./utils/projectTrash').startTrashPurgeSchedule();
-ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
+router.get('/admin/export-csv', async (req, res) => {
+  try {
+    const targetUserId = req.query.user_id || req.user.id;
+    if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+        return res.status(403).json({ error: 'Zugriff verweigert' });
+      }
+    }
+    const month        = req.query.month   || new Date().toISOString().slice(0, 7);
 
-server.listen(PORT, () => {
-  console.log(`\n==================================================`);
-  console.log(`🚀 Metallbau-App gestartet!`);
-  console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
-  console.log(`==================================================\n`);
-  // Automatisches Datenbank-Backup täglich um Mitternacht
-  startBackupCron();
-  // Automatische Löschung alter Zeiterfassungs-Einträge nach Aufbewahrungsfrist (täglich 01:00 Uhr)
-  startRetentionCron();
-  // Erinnerung bei vergessenem Ausstempeln (alle 30 Minuten)
-  startStampReminderCron();
-  // Automatisches Mahnwesen bei überfälligen Rechnungen (täglich 08:00 Uhr)
-  startDunningCron();
-  // Proaktive Lagerbestand-Warnung (täglich 07:00 Uhr)
-  startLagerAlertCron();
+    const logsRes = await dbQuery(
+      isPg
+        ? `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+           FROM time_logs t JOIN users u ON t.user_id = u.id
+           WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+           ORDER BY t.timestamp ASC`
+        : `SELECT t.*, u.username, strftime('%Y-%m-%d %H:%M:%S', t.timestamp) as local_timestamp
+           FROM time_logs t JOIN users u ON t.user_id = u.id
+           WHERE t.user_id = ? AND strftime('%Y-%m', t.timestamp) = ?
+           ORDER BY t.timestamp ASC`,
+      [targetUserId, month]
+    );
+    const entries = logsRes.rows || [];
+
+    let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt\n';
+    entries.forEach(e => {
+      const dateObj = new Date(e.local_timestamp || e.timestamp);
+      const dateStr = dateObj.toLocaleDateString('de-DE');
+      const timeStr = dateObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const typeStr = e.type === 'IN' ? 'Kommen (IN)' : 'Gehen (OUT)';
+      csv += `"${e.username}","${dateStr}","${typeStr}","${e.note || ''}","${timeStr}"\n`;
+    });
+
+    res.header('Content-Type', 'text/csv; charset=utf-8');
+    res.attachment(`Zeiterfassung_${month}.csv`);
+    res.send(csv);
+  } catch (err) {
+    console.error('Fehler beim CSV-Export:', err);
+    res.status(500).send('Fehler beim Generieren der CSV-Datei.');
+  }
 });
+
+// ==========================================
+// PDF-EXPORT STUNDENZETTEL
+// ==========================================
+router.get('/admin/export-pdf', async (req, res) => {
+  try {
+    const targetUserId = req.query.user_id || req.user.id;
+    if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
+      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+        return res.status(403).json({ error: 'Zugriff verweigert' });
+      }
+    }
+    const month        = req.query.month   || new Date().toISOString().slice(0, 7);
+    const dailyHours   = parseFloat(req.query.daily_hours || '8');
+
+    const [logsRes, userRes] = await Promise.all([
+      dbQuery(
+        isPg
+          ? `SELECT t.*, u.username, projects.title as project_title,
+                    TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+             FROM time_logs t
+             JOIN users u ON t.user_id = u.id
+             LEFT JOIN projects ON t.project_id = projects.id
+             WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
+             ORDER BY t.timestamp ASC`
+          : `SELECT t.*, u.username, projects.title as project_title,
+                    strftime('%Y-%m-%d %H:%M:%S', t.timestamp) as local_timestamp
+             FROM time_logs t
+             JOIN users u ON t.user_id = u.id
+             LEFT JOIN projects ON t.project_id = projects.id
+             WHERE t.user_id = ? AND strftime('%Y-%m', t.timestamp) = ?
+             ORDER BY t.timestamp ASC`,
+        [targetUserId, month]
+      ),
+      dbQuery('SELECT username FROM users WHERE id = ?', [targetUserId])
+    ]);
+
+    const entries  = logsRes.rows || [];
+    const username = userRes.rows[0]?.username || 'Mitarbeiter';
+
+    // Stunden berechnen
+    let totalMs = 0;
+    const pairs = [];
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].type !== 'IN') continue;
+      const inEntry  = entries[i];
+      const outEntry = entries[i + 1] && entries[i + 1].type === 'OUT' ? entries[i + 1] : null;
+      const inTime   = new Date((inEntry.local_timestamp || inEntry.timestamp).replace(' ', 'T'));
+      const outTime  = outEntry ? new Date((outEntry.local_timestamp || outEntry.timestamp).replace(' ', 'T')) : null;
+      const ms       = outTime ? outTime - inTime : 0;
+      if (ms > 0) totalMs += ms;
+      pairs.push({ inTime, outTime, ms, note: inEntry.note, project: inEntry.project_title });
+    }
+
+    const workedH = Math.floor(totalMs / 3600000);
+    const workedM = Math.floor((totalMs % 3600000) / 60000);
+
+    // Soll-Stunden
+    const [yyyy, mm] = month.split('-').map(Number);
+    const daysInMonth = new Date(yyyy, mm, 0).getDate();
+    let workdays = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(yyyy, mm - 1, d).getDay();
+      if (dow !== 0 && dow !== 6) workdays++;
+    }
+    const targetH = workdays * dailyHours;
+    const diffH   = (totalMs / 3600000 - targetH).toFixed(2);
+
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Stundenzettel_${username}_${month}.pdf"`);
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(18).font('Helvetica-Bold').text('Stundenzettel', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(12).font('Helvetica').text(`Mitarbeiter: ${username}`, { align: 'center' });
+    doc.fontSize(11).text(`Monat: ${new Date(yyyy, mm - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}`, { align: 'center' });
+    doc.moveDown(1);
+
+    // Zusammenfassung
+    doc.rect(50, doc.y, 495, 60).fill('#f1f5f9').stroke('#e2e8f0');
+    const summaryY = doc.y + 8;
+    doc.fill('#1e293b').font('Helvetica-Bold').fontSize(10);
+    doc.text(`Gearbeitet: ${workedH} Std. ${workedM} Min.`, 70, summaryY);
+    doc.text(`Soll: ${targetH} Std.  (${dailyHours} h/Tag × ${workdays} Werktage)`, 70, summaryY + 16);
+    doc.text(`Differenz: ${parseFloat(diffH) >= 0 ? '+' : ''}${diffH} Std.`, 70, summaryY + 32);
+    doc.moveDown(4);
+
+    // Tabellen-Header
+    doc.fill('#334155').font('Helvetica-Bold').fontSize(9);
+    const col = { date: 50, in: 130, out: 200, dur: 270, proj: 340, note: 430 };
+    doc.text('Datum',     col.date, doc.y);
+    doc.text('Kommen',    col.in,   doc.y);
+    doc.text('Gehen',     col.out,  doc.y);
+    doc.text('Dauer',     col.dur,  doc.y);
+    doc.text('Projekt',   col.proj, doc.y);
+    doc.text('Notiz',     col.note, doc.y);
+    doc.moveDown(0.4);
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#cbd5e1').stroke();
+    doc.moveDown(0.3);
+
+    // Zeilen
+    doc.font('Helvetica').fontSize(8.5).fill('#334155');
+    let rowY = doc.y;
+    pairs.forEach((p, idx) => {
+      if (rowY > 740) { doc.addPage(); rowY = 50; }
+      const bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
+      doc.rect(50, rowY - 2, 495, 16).fill(bg).stroke('white');
+      doc.fill('#334155');
+      const fmt = (d) => d ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
+      const fmtDate = (d) => d ? d.toLocaleDateString('de-DE') : '–';
+      const dur = p.ms > 0 ? `${Math.floor(p.ms/3600000)}h ${Math.floor((p.ms%3600000)/60000)}min` : '–';
+      doc.text(fmtDate(p.inTime), col.date, rowY, { width: 75 });
+      doc.text(fmt(p.inTime),     col.in,   rowY, { width: 65 });
+      doc.text(fmt(p.outTime),    col.out,  rowY, { width: 65 });
+      doc.text(dur,               col.dur,  rowY, { width: 65 });
+      doc.text((p.project || '–').substring(0, 18), col.proj, rowY, { width: 85 });
+      doc.text((p.note    || '–').substring(0, 18), col.note, rowY, { width: 115 });
+      rowY += 16;
+      doc.y = rowY;
+    });
+
+    if (pairs.length === 0) {
+      doc.text('Keine Einträge für diesen Monat.', { align: 'center' });
+    }
+
+    // Unterschriften-Block
+    doc.moveDown(3);
+    doc.moveTo(50, doc.y).lineTo(220, doc.y).strokeColor('#94a3b8').stroke();
+    doc.text('Mitarbeiter (Unterschrift)', 50, doc.y + 4);
+    doc.moveTo(325, doc.y - 4).lineTo(495, doc.y - 4).strokeColor('#94a3b8').stroke();
+    doc.text('Arbeitgeber (Unterschrift)', 325, doc.y + 4);
+
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim PDF-Export:', err);
+    res.status(500).send('Fehler beim Erstellen des PDFs.');
+  }
+});
+
+module.exports = router;
