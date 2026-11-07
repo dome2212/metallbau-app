@@ -18,7 +18,7 @@ async function hardDeleteProject(id) {
   await withTransaction(async (tx) => {
     for (const t of ['project_tasks', 'project_notes', 'project_photos', 'project_measurements',
                      'project_sketches', 'project_files', 'project_status_log', 'lager_entnahmen',
-                     'staff_assignments']) {
+                     'staff_assignments', 'project_workflow']) {
       await tx.query(`DELETE FROM ${t} WHERE project_id = ?`, [id]);
     }
     // Stunden, Termine und Belege bleiben erhalten – nur die Verknüpfung wird gelöst

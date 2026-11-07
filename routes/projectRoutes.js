@@ -6,7 +6,7 @@ const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { hardDeleteProject, RETENTION_DAYS } = require('../utils/projectTrash');
 const { logAudit, redirectWith }   = require('../utils/audit');
-const { requireAdmin, hasPerm, canSeeMoney } = require('../middleware/auth');
+const { requireAdmin, requirePerm, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
@@ -479,12 +479,12 @@ router.get('/:id', async (req, res) => {
       dbQuery('SELECT id, username FROM users ORDER BY username ASC'),
       dbQuery(
         isPg
-          ? `SELECT u.username, tl.type, tl.note,
+          ? `SELECT u.username, tl.user_id, tl.id, tl.timestamp, tl.type, tl.note,
                     TO_CHAR(tl.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_ts
              FROM time_logs tl JOIN users u ON tl.user_id = u.id
              WHERE tl.project_id = ?
              ORDER BY tl.timestamp ASC`
-          : `SELECT u.username, tl.type, tl.note,
+          : `SELECT u.username, tl.user_id, tl.id, tl.timestamp, tl.type, tl.note,
                     strftime('%Y-%m-%d %H:%M:%S', tl.timestamp) as local_ts
              FROM time_logs tl JOIN users u ON tl.user_id = u.id
              WHERE tl.project_id = ?
@@ -510,21 +510,9 @@ router.get('/:id', async (req, res) => {
     // Stunden pro Mitarbeiter berechnen (IN/OUT-Paar-Logik)
     const hoursLogs = hoursRes.rows || [];
     const hoursPerUser = {};
-    for (let i = 0; i < hoursLogs.length; i++) {
-      const log = hoursLogs[i];
-      if (log.type !== 'IN') continue;
-      const start = new Date((log.local_ts || '').replace(' ', 'T')).getTime();
-      const next  = hoursLogs[i + 1];
-      let end;
-      if (next && next.type === 'OUT' && next.username === log.username) {
-        end = new Date((next.local_ts || '').replace(' ', 'T')).getTime();
-      } else {
-        end = start; // offenes IN ohne OUT → nicht zählen
-      }
-      if (end > start) {
-        hoursPerUser[log.username] = (hoursPerUser[log.username] || 0) + (end - start);
-      }
-    }
+    const logsByUser = new Map();
+    for(const log of hoursLogs){if(!logsByUser.has(log.user_id))logsByUser.set(log.user_id,[]);logsByUser.get(log.user_id).push(log);}
+    for(const logs of logsByUser.values()) hoursPerUser[logs[0].username] = require('../utils/projectWorkflow').workedHours(logs) * 3600000;
     const projectHours = Object.entries(hoursPerUser).map(([username, ms]) => ({
       username,
       hours: (ms / 3600000).toFixed(2)
@@ -542,17 +530,8 @@ router.get('/:id', async (req, res) => {
         const oRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [project.offer_id]);
         linkedOffer = oRes.rows?.[0] || null;
       }
-      if (!linkedOffer && project.customer_id) {
-        const oRes = await dbQuery(
-          `SELECT * FROM documents WHERE customer_id = ? AND doc_type = 'OFFER'
-           AND UPPER(COALESCE(status,'')) IN ('ANGENOMMEN','OFFEN','ANGENOMMEN')
-           ORDER BY created_at DESC LIMIT 1`,
-          [project.customer_id]
-        );
-        linkedOffer = oRes.rows?.[0] || null;
-      }
     } catch (e) { console.error('Verknüpftes Angebot nicht geladen:', e.message); }
-    const offerNet = linkedOffer ? parseFloat(linkedOffer.subtotal || linkedOffer.total_amount || 0) : 0;
+    const offerNet = linkedOffer ? (parseFloat(linkedOffer.subtotal || 0) - parseFloat(linkedOffer.discount_amount || 0)) : 0;
     const offerGross = linkedOffer ? parseFloat(linkedOffer.total_amount || 0) : 0;
     const plannedHours = project.planned_hours != null ? parseFloat(project.planned_hours) : null;
     const profitNet = offerNet - actualCost;
@@ -587,11 +566,11 @@ router.get('/:id', async (req, res) => {
         `SELECT id, doc_number, status, total_amount, paid_amount, due_date, invoice_subtype
          FROM documents
          WHERE doc_type = 'INVOICE'
-           AND status NOT IN ('Bezahlt','Storniert','Gutschrift')
-           AND (project_id = ? OR customer_id = ?)
+           AND status NOT IN ('Bezahlt','Storniert','Gutschrift','ENTWURF','Entwurf')
+           AND project_id = ?
          ORDER BY due_date ASC NULLS LAST
          LIMIT 10`,
-        [id, project.customer_id]
+        [id]
       );
       openInvoices = invQ.rows || [];
     } catch (_) {
@@ -600,11 +579,11 @@ router.get('/:id', async (req, res) => {
           `SELECT id, doc_number, status, total_amount, paid_amount, due_date, invoice_subtype
            FROM documents
            WHERE doc_type = 'INVOICE'
-             AND status NOT IN ('Bezahlt','Storniert','Gutschrift')
-             AND (project_id = ? OR customer_id = ?)
+             AND status NOT IN ('Bezahlt','Storniert','Gutschrift','ENTWURF','Entwurf')
+             AND project_id = ?
            ORDER BY due_date ASC
            LIMIT 10`,
-          [id, project.customer_id]
+          [id]
         );
         openInvoices = invQ.rows || [];
       } catch (__) {}
@@ -645,17 +624,18 @@ router.get('/:id', async (req, res) => {
 // ==========================================
 // FOTOS HOCHLADEN / LÖSCHEN
 // ==========================================
-router.post('/:id/photos/upload', upload.single('photo'), async (req, res) => {
+router.post('/:id/photos/upload', requirePerm('projects',true,true), upload.single('photo'), async (req, res) => {
   const projectId = req.params.id;
   if (!req.file) return res.redirect(`/projects/${projectId}`);
+  const destination = req.body.return_to === 'montage' ? `/auftragszentrale/${projectId}/montage?saved=1#fotos` : `/projects/${projectId}`;
   const caption = (req.body.caption || '').trim() || null;
   try {
     await dbQuery(
       `INSERT INTO project_photos (project_id, file_url, original_name, caption) VALUES (?, ?, ?, ?)`,
       [projectId, req.file.path, req.file.originalname, caption]
     );
-  } catch (err) { console.error('Fehler beim Foto-Upload:', err.message); }
-  res.redirect(`/projects/${projectId}`);
+  } catch (err) { console.error('Fehler beim Foto-Upload:', err.message); return res.status(500).send('Foto konnte nicht gespeichert werden. Bitte erneut versuchen.'); }
+  res.redirect(303, destination);
 });
 
 router.post('/photos/caption', async (req, res) => {

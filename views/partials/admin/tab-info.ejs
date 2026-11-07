@@ -36,6 +36,13 @@
             const _backupEmail = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
             const _smtpUser    = process.env.SMTP_USER    || firma.smtp_user         || '';
           %>
+          <% const bs=typeof backupStatus!=='undefined'?backupStatus:{warning:true,message:'Backupstatus noch nicht verfügbar.'}; %>
+          <div role="status" class="p-4 mb-4 rounded-lg border <%= bs.warning?'border-amber-400':'border-green-400' %>">
+            <p><strong><%= bs.message %></strong></p>
+            <p class="text-xs mt-2">Letzter erfolgreicher E-Mail-Versand: <%= bs.mail_success_at?new Date(bs.mail_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %></p>
+            <p class="text-xs mt-1">Letzte Sicherungsdatei erstellt: <%= bs.file_success_at?new Date(bs.file_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %><%= bs.file_result==='failed'?' · letzter Dateiversuch fehlgeschlagen':'' %></p>
+            <p class="text-xs mt-1">Dateierstellung bestätigt keine externe Aufbewahrung oder Wiederherstellbarkeit. Downloads separat sicher ablegen.</p>
+          </div>
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
             <div class="flex-1 text-sm text-slate-500 dark:text-slate-400">
               <% if (!_backupEmail || !_smtpUser) { %>

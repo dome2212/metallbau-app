@@ -23,7 +23,7 @@ router.use((req, res, next) => {
     try {
       const firma = await getFirma();
       if (!hasPerm(req.user, 'documents', firma, true, false)) return res.status(403).send('Keine Berechtigung für Belege.');
-      const financial = !['GET','HEAD'].includes(req.method) && req.path !== '/wizard/customer' || /\/(pdf|pdf-download|xrechnung|datev-export)$/.test(req.path);
+      const financial = !['GET','HEAD'].includes(req.method) && req.path !== '/wizard/customer' || /\/(pdf|pdf-download|pdf-preview|xrechnung|datev-export)$/.test(req.path);
       if (financial && !canSeeMoney(req.user, firma)) return res.status(403).send('Keine Berechtigung für Beträge.');
       next();
     } catch (error) { next(error); }
@@ -71,28 +71,20 @@ router.post('/offers/convert-to-invoice', requireAdmin, convertOfferToInvoice);
 
 
 // POST: Angebot → Projekt umwandeln
-router.post('/offers/convert-to-project', requireAdmin, async (req, res) => {
-  const { offer_id } = req.body;
+router.post('/offers/convert-to-project', requireAdmin, async (req,res) => {
   try {
-    const offerRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [offer_id]);
-    const offer    = offerRes.rows[0];
-    if (!offer) return res.status(404).send('Angebot nicht gefunden.');
-
-    const custRes      = await dbQuery(`SELECT company_name, contact_person FROM customers WHERE id = ?`, [offer.customer_id]);
-    const cust         = custRes.rows[0];
-    const customerName = (cust && (cust.company_name || cust.contact_person)) || 'Unbekannter Kunde';
-
-    await dbQuery(
-      `INSERT INTO projects (customer_id, title, description, total_price, status) VALUES (?, ?, ?, ?, 'In Planung')`,
-      [offer.customer_id, `Auftrag aus ${offer.doc_number} – ${customerName}`,
-       `Erstellt aus Angebot ${offer.doc_number}`, offer.total_amount || 0]
-    );
-    await dbQuery(`UPDATE documents SET status = 'ANGENOMMEN' WHERE id = ?`, [offer_id]);
-    res.redirect('/projects');
-  } catch (err) {
-    console.error('Fehler beim Umwandeln Angebot→Projekt:', err.message);
-    res.status(500).send('Fehler beim Erstellen des Projekts.');
-  }
+    const id=await withTransaction(async tx=>{
+      const offer=(await tx.query("SELECT * FROM documents WHERE id=? AND doc_type='OFFER'"+(isPg?' FOR UPDATE':''),[req.body.offer_id])).rows[0];
+      if(!offer)throw Object.assign(Error('Angebot nicht gefunden.'),{status:404});
+      const existing=(await tx.query('SELECT id FROM projects WHERE offer_id=? AND deleted_at IS NULL ORDER BY id LIMIT 1',[offer.id])).rows[0];
+      if(existing)return existing.id;
+      const customer=(await tx.query('SELECT company_name,contact_person FROM customers WHERE id=?',[offer.customer_id])).rows[0];
+      const result=await tx.query("INSERT INTO projects(customer_id,title,description,total_price,status,offer_id) VALUES(?,?,?,?,'In Planung',?)"+(isPg?' RETURNING id':''),[offer.customer_id,`Auftrag aus ${offer.doc_number} – ${customer?.company_name||customer?.contact_person||'Kunde'}`,`Erstellt aus Angebot ${offer.doc_number}`,offer.total_amount||0,offer.id]);
+      await tx.query("UPDATE documents SET status='ANGENOMMEN' WHERE id=?",[offer.id]);
+      return result.lastID||result.rows[0].id;
+    });
+    res.redirect('/auftragszentrale/'+id);
+  } catch(e) { console.error('Angebot → Auftrag:',e.message); res.status(e.status||500).send(e.status?e.message:'Auftrag konnte nicht angelegt werden.'); }
 });
 
 // GET: Angebots-PDF — inline im Browser (echter PDF-Stream)
@@ -519,8 +511,9 @@ async function invoicePDF(req, res) {
     const invoice = result.rows[0];
     if (!invoice) return res.status(404).send('Rechnung nicht gefunden.');
     const items = (await dbQuery('SELECT * FROM document_items WHERE document_id=? ORDER BY id', [invoice.id])).rows;
-    const buffer = await generateDocumentPDFBuffer(invoice, items);
-    if (req.method === 'GET' && invoice.doc_type === 'INVOICE') {
+    const preview = req.path.endsWith('/pdf-preview');
+    const buffer = await generateDocumentPDFBuffer(preview ? {...invoice, preview:true} : invoice, items);
+    if (req.method === 'GET' && !preview && invoice.doc_type === 'INVOICE') {
       const billing = require('../utils/billingService');
       await billing.issue(invoice.id, billing.revision(invoice, items));
     }
@@ -535,6 +528,7 @@ async function invoicePDF(req, res) {
     if (!res.headersSent) res.status(error.status || 500).send(error.status ? error.message : 'PDF konnte nicht erstellt werden.');
   }
 }
+router.get('/invoices/:id/pdf-preview', requireAdmin, invoicePDF);
 router.get('/invoices/:id/pdf', requireAdmin, invoicePDF);
 router.get('/invoices/:id/pdf-download', requireAdmin, invoicePDF);
 

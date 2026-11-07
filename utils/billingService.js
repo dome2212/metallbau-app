@@ -121,11 +121,11 @@ async function save(input, firma, id) {
     )
       throw problem(400, "Bitte einen vorhandenen Kunden auswählen.");
     const klein = String(firma.kleinunternehmer).toLowerCase() === "true";
-    // Preserve existing offer tax settings. Historical PDFs apply the company exemption separately.
+    // Existing offers keep their agreed tax settings; new exempt offers and invoices use zero tax.
     const taxRate =
       docType === "OFFER" && original
         ? (original.tax_rate ?? 19)
-        : docType === "INVOICE" && klein
+        : klein
           ? 0
           : (input.tax_rate ??
             original?.tax_rate ??

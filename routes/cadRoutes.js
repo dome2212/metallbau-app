@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const {dbQuery, withTransaction} = require('../utils/db');
-const {requirePerm, hasPerm} = require('../middleware/auth');
+const {requirePerm, hasPerm, canSeeMoney} = require('../middleware/auth');
 const {getFirma} = require('../utils/companySettings');
 const {validate} = require('../Public/js/cad-document');
 const {workshop} = require('../utils/cadWorkshop');
@@ -62,18 +62,54 @@ router.post('/documents/:id/access',async(req,res,next)=>{try{const row=await ac
 router.get('/templates',async(req,res,next)=>{try{res.json((await dbQuery('SELECT id,name FROM cad_templates WHERE owner_id = ? ORDER BY name',[user(req)])).rows);}catch(e){next(e);}});
 router.get('/templates/:id',async(req,res,next)=>{try{const row=(await dbQuery('SELECT document FROM cad_templates WHERE id = ? AND owner_id = ?',[req.params.id,user(req)])).rows[0];if(!row)return res.status(404).json({error:'Vorlage nicht gefunden.'});res.json(JSON.parse(row.document));}catch(e){next(e);}});
 router.post('/templates',async(req,res,next)=>{let doc;try{doc=validate(req.body.document);if(JSON.stringify(doc).length>2000000)throw Error('Vorlage zu groß.');}catch(e){return res.status(400).json({error:e.message});}try{const id=crypto.randomUUID();await dbQuery('INSERT INTO cad_templates(id,owner_id,name,document) VALUES(?,?,?,?)',[id,user(req),doc.name,JSON.stringify(doc)]);res.json({id});}catch(e){next(e);}});
+router.get('/documents/:id/approval-offers',async(req,res,next)=>{try{
+ const row=await accessible(req),firma=await getFirma();
+ if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});
+ if(!['ADMIN','CHEF'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
+ if(!row.project_id)return res.status(400).json({error:'Zeichnung zuerst einem Auftrag zuordnen.'});
+ const project=(await dbQuery('SELECT customer_id FROM projects WHERE id=? AND deleted_at IS NULL',[row.project_id])).rows[0];
+ res.json(project?(await dbQuery("SELECT id,doc_number,status FROM documents WHERE doc_type='OFFER' AND customer_id=? ORDER BY id DESC",[project.customer_id])).rows:[]);
+ }catch(e){next(e);}});
 // Customer approvals refer to an immutable PDF generated from a saved revision.
 router.post('/documents/:id/customer-approvals',async(req,res,next)=>{try{
  const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});
  if(row.revision!==req.body.revision)return res.status(409).json({error:'Die gespeicherte Revision hat sich geändert. Bitte erneut öffnen.'});
  if(!approval.validPassword(req.body.password))return res.status(400).json({error:'Passwort mit 12 bis 128 Zeichen eingeben.'});
  const doc=validate(req.body.document);if(JSON.stringify(doc)!==row.document)return res.status(409).json({error:'Bitte zuerst den aktuellen Zeichnungsstand auf dem Server speichern.'});
+ let offer,offerItems,offerPdf,offerRevision;
+ if(req.body.offerId){
+  const firma=await getFirma();
+  if(!['ADMIN','CHEF'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
+  if(!row.project_id)return res.status(400).json({error:'Zeichnung zuerst einem Auftrag zuordnen.'});
+  offer=(await dbQuery("SELECT d.*,c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone FROM documents d JOIN customers c ON c.id=d.customer_id JOIN projects p ON p.customer_id=d.customer_id WHERE d.id=? AND d.doc_type='OFFER' AND p.id=? AND p.deleted_at IS NULL",[req.body.offerId,row.project_id])).rows[0];
+  if(!offer)return res.status(400).json({error:'Angebot gehört nicht zum Auftrag oder Kunden.'});
+  offerItems=(await dbQuery('SELECT * FROM document_items WHERE document_id=? ORDER BY id',[offer.id])).rows;
+  offerRevision=require('../utils/billingService').revision(offer,offerItems);
+  offerPdf=await require('../utils/pdfGenerator').generateDocumentPDFBuffer(offer,offerItems);
+ }
  const passwordHash=await approval.hashPassword(req.body.password),token=crypto.randomBytes(32).toString('base64url'),id=crypto.randomUUID(),pdf=await approval.createPdf(doc),now=new Date(),expires=new Date(now.getTime()+7*86400000).toISOString(),digest=approval.hash(pdf);
- await dbQuery('INSERT INTO cad_customer_approvals(id,document_id,revision,token_hash,pdf,pdf_hash,created_at,expires_at,password_hash) VALUES(?,?,?,?,?,?,?,?,?)',[id,row.id,row.revision,approval.hash(token),pdf.toString('base64'),digest,now.toISOString(),expires,passwordHash]);
+ await withTransaction(async tx=>{
+  const current=(await tx.query('SELECT * FROM cad_documents WHERE id=?'+(process.env.DATABASE_URL?' FOR UPDATE':''),[row.id])).rows[0];
+  if(!current||current.revision!==row.revision||current.document!==row.document||current.project_id!==row.project_id)throw Object.assign(Error('Zeichnungsstand wurde geändert. Bitte neu laden.'),{status:409});
+  if(offer){
+   const latest=(await tx.query('SELECT * FROM documents WHERE id=?'+(process.env.DATABASE_URL?' FOR UPDATE':''),[offer.id])).rows[0],latestItems=(await tx.query('SELECT * FROM document_items WHERE document_id=? ORDER BY id',[offer.id])).rows;
+   if(!latest||require('../utils/billingService').revision(latest,latestItems)!==offerRevision)throw Object.assign(Error('Angebotsstand wurde geändert. Bitte neu laden.'),{status:409});
+  }
+  await tx.query('INSERT INTO cad_customer_approvals(id,document_id,revision,token_hash,pdf,pdf_hash,created_at,expires_at,password_hash,offer_id,offer_revision,offer_number,offer_pdf,offer_hash) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[id,row.id,row.revision,approval.hash(token),pdf.toString('base64'),digest,now.toISOString(),expires,passwordHash,offer?.id||null,offerRevision||null,offer?.doc_number||null,offerPdf?.toString('base64')||null,offerPdf?approval.hash(offerPdf):null]);
+ });
  res.json({id,revision:row.revision,hash:digest,expires,path:'/cad-approval/'+token});
  }catch(e){next(e);}});
-router.get('/documents/:id/customer-approvals',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});res.json((await dbQuery('SELECT id,revision,pdf_hash,created_at,expires_at,approved_at,signer,signature,revoked_at,CASE WHEN password_hash IS NULL THEN 0 ELSE 1 END AS has_password FROM cad_customer_approvals WHERE document_id = ? ORDER BY created_at DESC',[row.id])).rows);}catch(e){next(e);}});
+router.get('/documents/:id/customer-approvals',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});const rows=(await dbQuery('SELECT id,revision,pdf_hash,created_at,expires_at,approved_at,signer,signature,revoked_at,offer_id,offer_revision,offer_number,offer_hash,CASE WHEN password_hash IS NULL THEN 0 ELSE 1 END AS has_password FROM cad_customer_approvals WHERE document_id = ? ORDER BY created_at DESC',[row.id])).rows;
+ for(const a of rows)if(a.offer_id){const current=(await dbQuery('SELECT * FROM documents WHERE id=?',[a.offer_id])).rows[0];const items=(await dbQuery('SELECT * FROM document_items WHERE document_id=? ORDER BY id',[a.offer_id])).rows;a.offer_outdated=!current||require('../utils/billingService').revision(current,items)!==a.offer_revision;}
+ res.json(rows);}catch(e){next(e);}});
 router.get('/documents/:id/customer-approvals/:approvalId/pdf',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});const a=(await dbQuery('SELECT pdf FROM cad_customer_approvals WHERE id = ? AND document_id = ?',[req.params.approvalId,row.id])).rows[0];if(!a)return res.status(404).end();res.type('application/pdf').set('Cache-Control','no-store').set('Content-Disposition','attachment; filename="freigabe.pdf"').send(Buffer.from(a.pdf,'base64'));}catch(e){next(e);}});
+router.get('/documents/:id/customer-approvals/:approvalId/offer.pdf',async(req,res,next)=>{try{
+ const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).end();
+ const firma=await getFirma();if(!['CHEF','ADMIN'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).end();
+ const a=(await dbQuery('SELECT offer_pdf FROM cad_customer_approvals WHERE id=? AND document_id=?',[req.params.approvalId,row.id])).rows[0];if(!a?.offer_pdf)return res.status(404).end();
+ res.type('application/pdf').set('Cache-Control','no-store').set('Content-Disposition','attachment; filename="freigabe-angebot.pdf"').send(Buffer.from(a.offer_pdf,'base64'));
+ }catch(e){next(e);}});
 router.post('/documents/:id/customer-approvals/:approvalId/revoke',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});await dbQuery('UPDATE cad_customer_approvals SET revoked_at = ? WHERE id = ? AND document_id = ?',[new Date().toISOString(),req.params.approvalId,row.id]);res.json({ok:true});}catch(e){next(e);}});
 router.post('/workshop',(req,res)=>{try{const doc=validate(req.body);if(JSON.stringify(doc).length>2000000)throw Error('Zeichnung zu groß.');const options=req.body.output||{};if(!['workshop','customer','labels','installation','parts'].includes(options.kind||'workshop')||![0,1,2,5,10,20,50].includes(options.scale||0))throw Error('Ungültige PDF-Auswahl.');workshop(doc,res,options);}catch(e){if(!res.headersSent)res.status(400).json({error:e.message});else res.destroy();}});
+router.initialize=init;
 module.exports=router;
