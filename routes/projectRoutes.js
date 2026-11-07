@@ -911,7 +911,7 @@ router.get('/:id/stempel-qr', async (req, res) => {
     const project = projRes.rows[0];
     if (!project) return res.status(404).send('Auftrag nicht gefunden');
     const firma = await getFirma().catch(() => ({}));
-    const base = (process.env.APP_URL || (req.protocol + '://' + req.get('host'))).replace(/\/+$/, '');
+    const base = (req.protocol + '://' + req.get('host')).replace(/\/+$/, '');   // Adresse, unter der die Seite gerade geöffnet ist (nicht APP_URL – die steht in der .env auf localhost)
     const scanUrl = base + '/timetracking/scan/' + project.id;
     const { toSvg } = require('../utils/qrcode');
     res.render('project-stamp-sheet', { project, firma, scanUrl, qrSvg: toSvg(scanUrl, { size: 320 }) });
