@@ -1,8 +1,10 @@
 <%- include('partials/header') %>
 
 <%- include('partials/sidebar') %>
+<link rel="stylesheet" href="/css/document-studio.css">
 
 <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+    <div class="doc-list-intro"><a href="/documents/buero">← Büroübersicht</a> · <a href="/documents/offers">Angebote</a> · <a href="/documents/invoices">Rechnungen</a> · <a href="/documents/open-items">Offene Posten</a></div>
     <!-- Header-Bereich -->
     <div class="px-4 md:px-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -74,6 +76,7 @@
       </div>
     </div>
 
+    <div class="doc-list-search"><label class="sr-only" for="invSearch">Rechnungen suchen</label><input class="doc-search" type="search" id="invSearch" placeholder="Rechnungsnummer, Kunde oder Status suchen"></div>
     <!-- Filter -->
     <div class="px-4 md:px-6 w-full max-w-7xl mx-auto mb-3">
       <div class="seg" id="inv-seg">
@@ -430,6 +433,8 @@
         let show = true;
         if (filter === 'open') show = st !== 'bezahlt';
         if (filter === 'paid') show = st === 'bezahlt';
+        const query = document.getElementById('invSearch').value.trim().toLocaleLowerCase('de');
+        show = show && el.textContent.toLocaleLowerCase('de').includes(query);
         el.classList.toggle('hidden', !show);
       });
     }
@@ -440,6 +445,7 @@
         apply(btn.dataset.filter);
       });
     });
+    document.getElementById('invSearch').addEventListener('input', () => apply(seg.querySelector('.active').dataset.filter));
     apply('open');
   })();
 </script>
