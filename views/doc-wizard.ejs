@@ -4,7 +4,6 @@
 <%
   const isInv = type === 'rechnung';
   const word = isInv ? 'Rechnung' : 'Angebot';
-  const accent = isInv ? '#059669' : '#2563eb';
 %>
 
 <style>
@@ -12,7 +11,7 @@
   .wz h1 { font-size:1.5rem; font-weight: 700; }
   .wz-steps { display: flex; gap: 8px; margin: 12px 0 16px; flex-wrap: wrap; }
   .wz-step { flex: 1 1 120px; padding: 7px 10px; border-radius: 10px; background: #e2e8f0; color: #475569; font-weight: 700; text-align: center; font-size:.875rem; }
-  .wz-step.on { background: <%= accent %>; color: #fff; }
+  .wz-step.on { background: var(--primary, #4f46e5); color: #fff; }
   .wz-step.done { background: #bbf7d0; color: #14532d; }
   .wz-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; }
   .dark .wz-card { background: #1e293b; border-color: #334155; }
@@ -20,10 +19,10 @@
   .wz-hint { color: #64748b; font-size:.875rem; margin-bottom: 14px; }
   .wz input, .wz select, .wz textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size:.875rem; background: #fff; color: #0f172a; }
   .dark .wz input, .dark .wz select, .dark .wz textarea { background: #0f172a; color: #f1f5f9; border-color: #475569; }
-  .wz input:focus, .wz select:focus, .wz textarea:focus { outline: 3px solid <%= accent %>55; border-color: <%= accent %>; }
+  .wz input:focus, .wz select:focus, .wz textarea:focus { outline: 3px solid color-mix(in srgb, var(--primary, #4f46e5) 35%, transparent); border-color: var(--primary, #4f46e5); }
   .wz-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: 0;
     font-size:.875rem; font-weight: 700; cursor: pointer; background: #e2e8f0; color: #0f172a; }
-  .wz-btn.main { background: <%= accent %>; color: #fff; }
+  .wz-btn.main { background: var(--primary, #4f46e5); color: #fff; }
   .wz-btn.big { font-size:.9rem; padding: 11px 22px; }
   .wz-btn:disabled { opacity: .45; cursor: not-allowed; }
   .wz-btn:focus-visible { outline: 4px solid #fde047; outline-offset: 2px; }
@@ -35,7 +34,7 @@
   .wz-cust small { display: block; color: #64748b; font-size:.75rem; }
   .wz-cust:hover { background: #f1f5f9; }
   .dark .wz-cust:hover { background: #0f172a; }
-  .wz-cust.sel { background: <%= accent %>; color: #fff; }
+  .wz-cust.sel { background: var(--primary, #4f46e5); color: #fff; }
   .wz-cust.sel small { color: #e2e8f0; }
   .wz-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 640px) { .wz-grid2 { grid-template-columns: 1fr; } }
@@ -170,7 +169,7 @@
     <!-- ── Schritt 3: Prüfen ────────────────────────────────────── -->
     <section id="step3" class="wz-card" style="display:none">
       <div class="wz-q">Bitte prüfen</div>
-      <div class="wz-hint">Stimmt alles? Dann unten auf den grünen Knopf drücken.</div>
+      <div class="wz-hint">Stimmt alles? Dann das Dokument erstellen.</div>
       <% if (!isInv && String(firma.kleinunternehmer || '').toLowerCase() === 'true') { %><div class="wz-tax-warning" role="alert">Die Firmeneinstellung Kleinunternehmer ist aktiv. Die Angebotsberechnung und das PDF verwenden derzeit unterschiedliche Steuersätze. Bitte das PDF vor dem Versand prüfen.</div><% } %>
       <p style="font-size:.9rem"><strong>Für:</strong> <span id="revCust"></span></p>
       <div class="wz-review-scroll"><table class="wz-rev-table">
@@ -221,7 +220,7 @@
       html += '<button type="button" class="wz-cust' + (selected && String(selected.id) === String(c.id) ? ' sel' : '') + '" data-id="' + esc(c.id) + '">' +
         esc(custLabel(c)) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>';
     });
-    $('custList').innerHTML = html || '<p style="padding:16px;color:#64748b">Keinen Kunden gefunden. Legen Sie unten einen neuen an.</p>';
+    $('custList').innerHTML = html || '<p class="wz-customer-empty">Keinen Kunden gefunden. Legen Sie unten einen neuen an.</p>';
   };
   $('custList').addEventListener('click', function (e) {
     var b = e.target.closest('.wz-cust'); if (!b) return;

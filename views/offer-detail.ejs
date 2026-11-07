@@ -7,7 +7,7 @@
             onsubmit="return confirm('Aus diesem Angebot jetzt die Rechnung erstellen? Alle Positionen werden übernommen.');">
         <input type="hidden" name="offer_id" value="<%= offer.id %>">
         <button type="submit"
-          style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 24px;border:0;border-radius:16px;background:#059669;color:#fff;font-size:1.4rem;font-weight:800;cursor:pointer">
+          style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 24px;border:0;border-radius:16px;background:var(--primary, #4f46e5);color:#fff;font-size:1.4rem;font-weight:800;cursor:pointer">
           <span style="font-size:1.8rem">🧾</span> Rechnung erstellen
         </button>
       </form>
@@ -25,7 +25,7 @@
         <span class="text-slate-400">→</span>
         <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
           <input type="hidden" name="offer_id" value="<%= offer.id %>">
-          <button type="submit" class="px-3 py-1 rounded-full border border-emerald-400 text-emerald-700 hover:bg-emerald-50 font-semibold">3. Rechnung</button>
+          <button type="submit" class="px-3 py-1 rounded-full border font-semibold doc-flow-link">3. Rechnung</button>
         </form>
         <% if (offer.customer_id) { %>
         <span class="text-slate-400">·</span>
@@ -60,7 +60,7 @@
       <% if (offer.status !== 'ANGENOMMEN') { %>
       <form action="/documents/offers/convert-to-invoice" method="POST" class="inline">
         <input type="hidden" name="offer_id" value="<%= offer.id %>">
-        <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6"/></svg>In Rechnung umwandeln</button>
+        <button type="submit" class="doc-action primary"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z"/><path d="M9 7h6M9 11h6"/></svg>In Rechnung umwandeln</button>
       </form>
       <% } %>
       <form action="/documents/offers/delete" method="POST" class="inline"
@@ -150,7 +150,7 @@
     </div>
 
     <% if (canSeeMoney && offer.status !== 'ANGENOMMEN') { %>
-    <details class="bg-white dark:bg-slate-800 rounded-xl shadow p-5" id="offer-edit"><summary class="font-semibold cursor-pointer text-teal-700 dark:text-teal-300">Positionen bearbeiten</summary>
+    <details class="bg-white dark:bg-slate-800 rounded-xl shadow p-5" id="offer-edit"><summary class="font-semibold cursor-pointer doc-accent">Positionen bearbeiten</summary>
       <form action="/documents/offers/<%= offer.id %>/update" method="POST" class="space-y-3 mt-4" id="offer-edit-form">
         <p class="text-sm text-slate-500 dark:text-slate-300">Beschreibung, Menge, Einheit und Nettopreis anpassen. Steuersatz und Belegrabatt bleiben erhalten.</p>
         <div id="offer-edit-rows">
