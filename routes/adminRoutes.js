@@ -593,15 +593,15 @@ router.post('/users/set-rfid', requireAdmin, async (req, res) => {
 // ==========================================
 // BACKUP
 // ==========================================
-const { runBackup, createBackupFile, restoreBackupFile } = require('../utils/backup');
+const { runBackup, createBackupFile, cleanupBackup, restoreBackupFile } = require('../utils/backup');
 const multer = require('multer');
 const uploadBackup = multer({ dest: '/tmp/', limits: { fileSize: 80 * 1024 * 1024 } });
 const fs = require('fs');
 
 router.post('/backup/run', requireAdmin, async (req, res) => {
   try {
-    await runBackup();
-    res.redirect('/admin/panel?tab=info&msg=backup_ok');
+    const result=await runBackup();
+    res.redirect('/admin/panel?tab=info&msg='+(result.ok?'backup_ok':result.skipped?'backup_skipped':'backup_failed'));
   } catch (err) {
     res.status(500).send('Backup fehlgeschlagen: ' + err.message);
   }
@@ -611,7 +611,7 @@ router.get('/backup/download', requireAdmin, async (req, res) => {
   try {
     const { path: filePath, name } = await createBackupFile();
     res.download(filePath, name, (err) => {
-      try { fs.unlinkSync(filePath); } catch (e) { console.error('⚠️ GET /backup/download:', e.message); }
+      cleanupBackup(filePath).catch(() => {});
       if (err && !res.headersSent) {
         res.status(500).send('Download fehlgeschlagen: ' + (err.message || 'Unbekannt'));
       }

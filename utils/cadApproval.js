@@ -7,7 +7,7 @@ const { workshop } = require('./cadWorkshop');
 let ready;
 async function init(){
  if(!ready)ready=(async()=>{await dbQuery('CREATE TABLE IF NOT EXISTS cad_customer_approvals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, revision INTEGER NOT NULL, token_hash TEXT NOT NULL UNIQUE, pdf TEXT NOT NULL, pdf_hash TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, approved_at TEXT, signer TEXT, signature TEXT, revoked_at TEXT)');
-  try{await dbQuery('ALTER TABLE cad_customer_approvals ADD COLUMN password_hash TEXT');}catch(e){if(e.code!=='42701'&&!(e.code==='SQLITE_ERROR'&&/duplicate column name/i.test(e.message)))throw e;}
+  for(const [column,type] of [['password_hash','TEXT'],['offer_id','INTEGER'],['offer_revision','TEXT'],['offer_number','TEXT'],['offer_pdf','TEXT'],['offer_hash','TEXT']])try{await dbQuery('ALTER TABLE cad_customer_approvals ADD COLUMN '+column+' '+type);}catch(e){if(e.code!=='42701'&&!(e.code==='SQLITE_ERROR'&&/duplicate column name/i.test(e.message)))throw e;}
  })().catch(e=>{ready=null;throw e;});
  await ready;
 }

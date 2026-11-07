@@ -13,21 +13,25 @@
  *   SMTP_PASS      – Passwort / App-Passwort
  */
 
-const nodemailer = require('nodemailer');
-const { exec }   = require('child_process');
-const fs         = require('fs');
-const path       = require('path');
-const { getFirma } = require('./companySettings');
+const nodemailer = require("nodemailer");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+const runFile = promisify(execFile);
+const os = require("os");
+const status = require("./backupStatus");
+const fs = require("fs");
+const path = require("path");
+const { getFirma } = require("./companySettings");
 
 const isPg = !!process.env.DATABASE_URL;
 
 // ── Transporter ──────────────────────────────────────────────────────────────
 async function getTransporter() {
   const firma = await getFirma().catch(() => ({}));
-  const host  = process.env.SMTP_HOST || firma.smtp_host || 'smtp.gmail.com';
-  const port  = parseInt(process.env.SMTP_PORT || firma.smtp_port || '587', 10);
-  const user  = process.env.SMTP_USER || firma.smtp_user || '';
-  const pass  = process.env.SMTP_PASS || firma.smtp_pass || '';
+  const host = process.env.SMTP_HOST || firma.smtp_host || "smtp.gmail.com";
+  const port = parseInt(process.env.SMTP_PORT || firma.smtp_port || "587", 10);
+  const user = process.env.SMTP_USER || firma.smtp_user || "";
+  const pass = process.env.SMTP_PASS || firma.smtp_pass || "";
   return nodemailer.createTransport({
     host,
     port,
@@ -37,193 +41,202 @@ async function getTransporter() {
 }
 
 // ── Backup erstellen & versenden ─────────────────────────────────────────────
+let activeBackup;
 async function runBackup() {
-  const firma = await getFirma().catch(() => ({}));
-  const to    = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
-  if (!to) {
-    console.log('[Backup] BACKUP_EMAIL nicht gesetzt – Backup übersprungen.');
-    return;
+  if (activeBackup) return activeBackup;
+  activeBackup = sendBackup().finally(() => {
+    activeBackup = null;
+  });
+  return activeBackup;
+}
+async function sendBackup() {
+  const firma = await getFirma();
+  const to = process.env.BACKUP_EMAIL || firma.smtp_backup_email || "";
+  const smtpUser = process.env.SMTP_USER || firma.smtp_user || "";
+  const smtpPass = process.env.SMTP_PASS || firma.smtp_pass || "";
+  const attempt = new Date().toISOString();
+  await status.record({ mail_attempt_at: attempt, mail_result: "running" });
+  if (!to || !smtpUser || !smtpPass) {
+    await status.record({ mail_result: "skipped" });
+    return { ok: false, skipped: true };
   }
-  const smtpUser = process.env.SMTP_USER || firma.smtp_user || '';
-  const smtpPass = process.env.SMTP_PASS || firma.smtp_pass || '';
-  if (!smtpUser || !smtpPass) {
-    console.log('[Backup] SMTP nicht konfiguriert – Backup übersprungen.');
-    return;
-  }
-
-  const firmaInfo = firma.name ? firma : await getFirma().catch(() => ({ name: 'Metallbau' }));
-  const dateStr  = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
-  const timeStr  = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }).replace(':', '-');
-  const filename = `backup_${dateStr}_${timeStr}`;
-
+  let file;
   try {
-    let attachmentPath, attachmentName;
-
-    if (isPg) {
-      // ── PostgreSQL: pg_dump ───────────────────────────────────────────────
-      attachmentPath = path.join('/tmp', `${filename}.sql`);
-      attachmentName = `${filename}.sql`;
-
-      await new Promise((resolve, reject) => {
-        // DATABASE_URL enthält alle Verbindungsdaten
-        const cmd = `pg_dump "${process.env.DATABASE_URL}" --no-password -F p -f "${attachmentPath}"`;
-        exec(cmd, (err, stdout, stderr) => {
-          if (err) return reject(new Error(stderr || err.message));
-          resolve();
-        });
-      });
-    } else {
-      // ── SQLite: Datei direkt anhängen ─────────────────────────────────────
-      const dbPath   = path.join(__dirname, '..', 'database.sqlite');
-      attachmentPath = path.join('/tmp', `${filename}.sqlite`);
-      attachmentName = `${filename}.sqlite`;
-      fs.copyFileSync(dbPath, attachmentPath);
-    }
-
-    // ── E-Mail versenden ─────────────────────────────────────────────────────
+    file = await createBackupFile(false);
     const transporter = await getTransporter();
-    const fileSize    = (fs.statSync(attachmentPath).size / 1024).toFixed(1);
-
     await transporter.sendMail({
-      from:    `"${firmaInfo.name} Backup" <${smtpUser}>`,
+      from: smtpUser,
       to,
-      subject: `🗄️ Datenbank-Backup ${dateStr} – ${firmaInfo.nameKurz || firmaInfo.name}`,
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:500px;color:#1f2328">
-          <h2 style="color:#3b82d4">🗄️ Automatisches Datenbank-Backup</h2>
-          <p>Das tägliche Backup der App-Datenbank wurde erfolgreich erstellt.</p>
-          <table style="border-collapse:collapse;width:100%;margin:16px 0">
-            <tr style="background:#f7f8fa">
-              <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Firma</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${firmaInfo.name}</td>
-            </tr>
-            <tr>
-              <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Datum</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${dateStr}</td>
-            </tr>
-            <tr style="background:#f7f8fa">
-              <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Datei</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${attachmentName}</td>
-            </tr>
-            <tr>
-              <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Größe</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${fileSize} KB</td>
-            </tr>
-            <tr style="background:#f7f8fa">
-              <td style="padding:8px 12px;font-weight:600;border:1px solid #e5e7eb">Typ</td>
-              <td style="padding:8px 12px;border:1px solid #e5e7eb">${isPg ? 'PostgreSQL (pg_dump)' : 'SQLite'}</td>
-            </tr>
-          </table>
-          <p style="color:#57606a;font-size:13px">
-            Diese E-Mail wurde automatisch generiert. Bitte Anhang sicher aufbewahren.
-          </p>
-        </div>`,
-      attachments: [{ filename: attachmentName, path: attachmentPath }],
+      subject: "Datenbank-Backup – " + (firma.name || "Metallbau"),
+      text:
+        "Datenbanksicherung vom " +
+        attempt +
+        ". Den Anhang bitte sicher aufbewahren.",
+      attachments: [{ filename: file.name, path: file.path }],
     });
-
-    console.log(`[Backup] ✅ Backup erfolgreich an ${to} gesendet (${fileSize} KB)`);
-
-    // Temp-Datei aufräumen
-    fs.unlink(attachmentPath, () => {});
-
-  } catch (err) {
-    console.error('[Backup] ❌ Fehler beim Backup:', err.message);
-    // Fehler-E-Mail an Admin schicken
-    try {
-      const transporter = await getTransporter();
-      await transporter.sendMail({
-        from:    `"${firmaInfo.name} Backup" <${smtpUser}>`,
-        to,
-        subject: `❌ Backup FEHLGESCHLAGEN ${dateStr} – ${firmaInfo.nameKurz || firmaInfo.name}`,
-        text:    `Das automatische Backup ist fehlgeschlagen:\n\n${err.message}`,
-      });
-    } catch (e) { console.error('⚠️ runBackup:', e.message); }
+    await status.record({
+      mail_result: "success",
+      mail_success_at: new Date().toISOString(),
+    });
+    return { ok: true };
+  } catch (error) {
+    // Status is intentionally generic: database/tool errors may contain connection details.
+    await status.record({ mail_result: "failed" });
+    console.error("[Backup] Sicherung oder Versand fehlgeschlagen.");
+    return { ok: false, failed: true };
+  } finally {
+    if (file) await cleanupBackup(file.path);
   }
+}
+async function cleanupBackup(filePath) {
+  if (path.basename(path.dirname(filePath)).startsWith("metallbau-backup-"))
+    await fs.promises.rm(path.dirname(filePath), {
+      recursive: true,
+      force: true,
+    });
 }
 
 // ── Cron-Job: täglich um 00:00 Europe/Berlin ─────────────────────────────────
 function startBackupCron() {
   function msUntilMidnight() {
-    const now     = new Date();
-    const next    = new Date(now);
+    const now = new Date();
+    const next = new Date(now);
     next.setHours(24, 0, 0, 0); // nächste Mitternacht (lokal, Prozess läuft auf Europe/Berlin)
     return next.getTime() - now.getTime();
   }
 
   function schedule() {
     const delay = msUntilMidnight();
-    const hh    = Math.floor(delay / 3600000);
-    const mm    = Math.floor((delay % 3600000) / 60000);
+    const hh = Math.floor(delay / 3600000);
+    const mm = Math.floor((delay % 3600000) / 60000);
     console.log(`[Backup] Nächstes Backup in ${hh}h ${mm}min`);
 
     setTimeout(async () => {
-      await runBackup();
-      // Danach täglich wiederholen
-      setInterval(runBackup, 24 * 60 * 60 * 1000);
+      const execute = () =>
+        runBackup().catch(() =>
+          console.error("[Backup] Status konnte nicht gespeichert werden."),
+        );
+      await execute();
+      // Recalculate midnight after each run, including daylight-saving transitions.
+      schedule();
     }, delay);
   }
 
   schedule();
 }
 
-
 // ── Backup-Datei erzeugen (ohne E-Mail) – für Download im Admin ──────────────
-async function createBackupFile() {
-  const dateStr  = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
-  const timeStr  = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }).replace(':', '-');
-  const filename = `backup_${dateStr}_${timeStr}`;
-
-  if (isPg) {
-    const attachmentPath = path.join('/tmp', `${filename}.sql`);
-    await new Promise((resolve, reject) => {
-      const cmd = `pg_dump "${process.env.DATABASE_URL}" --no-password -F p -f "${attachmentPath}"`;
-      exec(cmd, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr || err.message));
-        resolve();
+async function createBackupFile(track = true) {
+  const folder = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "metallbau-backup-"),
+  );
+  const name =
+    "backup_" +
+    new Date().toISOString().replace(/[:.]/g, "-") +
+    (isPg ? ".sql" : ".sqlite");
+  const target = path.join(folder, name);
+  try {
+    if (isPg) {
+      await runFile(
+        "pg_dump",
+        [
+          "--dbname",
+          process.env.DATABASE_URL,
+          "--no-password",
+          "-F",
+          "p",
+          "-f",
+          target,
+        ],
+        { timeout: 120000, maxBuffer: 1024 * 1024 },
+      );
+    } else {
+      // sqlite3_backup includes committed WAL pages; copying the database file alone does not.
+      const db = require("../config/database");
+      await new Promise((resolve, reject) => {
+        const backup = db.backup(target, (error) => {
+          if (error) return reject(error);
+          backup.step(-1, (error) =>
+            backup.finish((finishError) =>
+              error || finishError ? reject(error || finishError) : resolve(),
+            ),
+          );
+        });
       });
-    });
-    return { path: attachmentPath, name: `${filename}.sql` };
+    }
+    const stat = await fs.promises.stat(target);
+    if (!stat.size) throw new Error("Leere Sicherung.");
+    await fs.promises.chmod(target, 0o600);
+    if (track)
+      await status.record({
+        file_success_at: new Date().toISOString(),
+        file_result: "success",
+      });
+    return { path: target, name };
+  } catch (error) {
+    await cleanupBackup(target);
+    if (track) await status.record({ file_result: "failed" });
+    throw new Error(
+      "Die Sicherungsdatei konnte nicht erstellt werden. Bitte Datenbank und Backupwerkzeuge prüfen.",
+    );
   }
-
-  const dbPath   = path.join(__dirname, '..', 'database.sqlite');
-  const attachmentPath = path.join('/tmp', `${filename}.sqlite`);
-  if (!fs.existsSync(dbPath)) {
-    throw new Error('SQLite-Datei nicht gefunden: ' + dbPath);
-  }
-  fs.copyFileSync(dbPath, attachmentPath);
-  return { path: attachmentPath, name: `${filename}.sqlite` };
 }
-
 
 // ── Backup wiederherstellen (Datei-Upload) ───────────────────────────────────
 // SQLite: ersetzt database.sqlite
 // PostgreSQL: führt .sql per psql aus (DATABASE_URL muss gesetzt sein)
 async function restoreBackupFile(uploadedPath, originalName) {
-  const lower = (originalName || '').toLowerCase();
+  const lower = (originalName || "").toLowerCase();
   if (isPg) {
-    if (!lower.endsWith('.sql')) {
-      throw new Error('Für PostgreSQL bitte eine .sql-Datei (pg_dump) hochladen.');
+    if (!lower.endsWith(".sql")) {
+      throw new Error(
+        "Für PostgreSQL bitte eine .sql-Datei (pg_dump) hochladen.",
+      );
     }
-    await new Promise((resolve, reject) => {
-      const cmd = `psql "${process.env.DATABASE_URL}" --no-password -v ON_ERROR_STOP=1 -f "${uploadedPath}"`;
-      exec(cmd, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr || err.message));
-        resolve();
-      });
-    });
-    return { type: 'postgres', message: 'PostgreSQL-Backup eingespielt.' };
+    await runFile(
+      "psql",
+      [
+        "--dbname",
+        process.env.DATABASE_URL,
+        "--no-password",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        uploadedPath,
+      ],
+      { timeout: 120000, maxBuffer: 50 * 1024 * 1024 },
+    );
+    return { type: "postgres", message: "PostgreSQL-Backup eingespielt." };
   }
 
-  if (!lower.endsWith('.sqlite') && !lower.endsWith('.db') && !lower.endsWith('.sqlite3')) {
-    throw new Error('Für SQLite bitte eine .sqlite-Datei hochladen.');
+  if (
+    !lower.endsWith(".sqlite") &&
+    !lower.endsWith(".db") &&
+    !lower.endsWith(".sqlite3")
+  ) {
+    throw new Error("Für SQLite bitte eine .sqlite-Datei hochladen.");
   }
-  const dbPath = path.join(__dirname, '..', 'database.sqlite');
-  const bakPath = path.join(__dirname, '..', `database.sqlite.bak-${Date.now()}`);
+  const dbPath = path.join(__dirname, "..", "database.sqlite");
+  const bakPath = path.join(
+    __dirname,
+    "..",
+    `database.sqlite.bak-${Date.now()}`,
+  );
   if (fs.existsSync(dbPath)) {
     fs.copyFileSync(dbPath, bakPath);
   }
   fs.copyFileSync(uploadedPath, dbPath);
-  return { type: 'sqlite', message: 'SQLite-Backup wiederhergestellt. Server ggf. neu starten.', backupOfOld: bakPath };
+  return {
+    type: "sqlite",
+    message: "SQLite-Backup wiederhergestellt. Server ggf. neu starten.",
+    backupOfOld: bakPath,
+  };
 }
 
-module.exports = { startBackupCron, runBackup, createBackupFile, restoreBackupFile };
+module.exports = {
+  startBackupCron,
+  runBackup,
+  createBackupFile,
+  cleanupBackup,
+  restoreBackupFile,
+};

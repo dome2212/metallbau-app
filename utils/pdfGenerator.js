@@ -75,27 +75,21 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
   }
   const docLabel  = baseLabel;
   const docNr     = invoice.invoice_number || invoice.doc_number || '';
-  const isKleinunternehmer = String(firma.kleinunternehmer || '').toLowerCase() === 'true'
-    || parseFloat(invoice.tax_rate) === 0;
-  const taxRate   = isKleinunternehmer ? 0 : parseFloat(invoice.tax_rate != null ? invoice.tax_rate : (firma.default_tax_rate || 19));
-
-  // Positionssummen inkl. optionalem Positions-Rabatt
-  const lineNet = (it) => {
-    const qty = parseFloat(it.quantity) || 0;
-    const price = parseFloat(it.price) || 0;
-    const disc = parseFloat(it.discount_percent) || 0;
-    const raw = qty * price;
-    return raw * (1 - disc / 100);
-  };
-  let subtotal = (items || []).reduce((s, i) => s + lineNet(i), 0);
-  const docDiscPct = parseFloat(invoice.discount_percent) || 0;
-  const docDiscAmt = parseFloat(invoice.discount_amount) || 0;
-  let discountTotal = 0;
-  if (docDiscPct > 0) discountTotal = subtotal * (docDiscPct / 100);
-  else if (docDiscAmt > 0) discountTotal = docDiscAmt;
-  const netAfterDiscount = Math.max(0, subtotal - discountTotal);
-  const tax   = netAfterDiscount * (taxRate / 100);
-  const total = netAfterDiscount + tax;
+  // A saved document is the accounting source of truth. Later company settings must not
+  // change an already agreed or issued amount when it is printed again.
+  const storedRate = invoice.tax_rate != null ? Number(invoice.tax_rate) : null;
+  const taxRate = storedRate ?? (String(firma.kleinunternehmer).toLowerCase() === 'true' ? 0 : Number(firma.default_tax_rate || 19));
+  const isKleinunternehmer = taxRate === 0;
+  const round = require('../Public/js/billing-math').round;
+  const lineNet = it => Number(it.quantity || 0) * Number(it.price || 0) * (1 - Number(it.discount_percent || 0) / 100);
+  const savedNumber = (value, fallback) => value != null && Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const subtotal = savedNumber(invoice.subtotal, round((items || []).reduce((s, it) => s + lineNet(it), 0)));
+  const docDiscPct = Number(invoice.discount_percent || 0);
+  const docDiscAmt = Number(invoice.discount_amount || 0);
+  const discountTotal = savedNumber(invoice.discount_amount, round(docDiscPct > 0 ? subtotal * docDiscPct / 100 : docDiscAmt));
+  const netAfterDiscount = round(subtotal - discountTotal);
+  const tax = savedNumber(invoice.tax_amount, round(netAfterDiscount * taxRate / 100));
+  const total = savedNumber(invoice.total_amount, round(netAfterDiscount + tax));
 
   const fmt = n =>
     Number(n || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -672,7 +666,7 @@ async function generateDocumentPDF(invoice, items, res, disposition = 'attachmen
        .lineWidth(0.3).strokeColor(grayBorder).stroke();
     doc.fontSize(7).fillColor('#9ca3af').font('Helvetica')
        .text(
-         `Seite ${i + 1} von ${totalPages}  ·  ${docLabel} ${docNr}  ·  ${firma.name || ''}`,
+         `${invoice.preview ? 'VORSCHAU · ' : ''}Seite ${i + 1} von ${totalPages}  ·  ${docLabel} ${docNr}  ·  ${firma.name || ''}`,
          ML, footY + 4,
          { width: PAGE_W, align: 'center' }
        );

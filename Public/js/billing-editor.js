@@ -142,7 +142,7 @@
     if (s.revision) data.revision = s.revision;
     $("bill-customer").value = String(s.customer_id || "");
     $("bill-tax").value =
-      (data.type === "rechnung" && data.klein) ||
+      data.klein ||
       (data.type === "angebot" && data.doc)
         ? data.taxRate
         : (s.tax_rate ?? data.taxRate);

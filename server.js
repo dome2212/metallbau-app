@@ -230,6 +230,7 @@ app.use(async (req, res, next) => {
   } catch (_) {
     res.locals.firma = require('./utils/companySettings').DEFAULTS;
   }
+  if (req.user && ['CHEF','ADMIN'].includes(req.user.role)) res.locals.backupStatus = require('./utils/backupStatus').summary(res.locals.firma);
   // canSeeMoney als Helper für alle EJS-Views verfügbar machen
   res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user, res.locals.firma) : false;
   // hasPerm als Helper-Funktion für alle EJS-Views (Sidebar, Seiten)
@@ -252,6 +253,7 @@ app.use('/documents', documentRoutes);
 app.use('/', dashboardRoutes);
 
 // Aufträge & Baustellen
+app.use('/auftragszentrale', require('./routes/workflowRoutes'));
 app.use('/projects', projectRoutes);
 
 // Kunden

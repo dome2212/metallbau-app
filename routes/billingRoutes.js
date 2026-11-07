@@ -60,6 +60,18 @@ const list = (viewScope) =>
     ).rows;
     res.render("billing/list", { ...locals, docs, viewScope });
   });
+router.get(
+  "/forderungen",
+  ...guarded(async (req, res, locals) => {
+    const docs = (
+      await dbQuery(
+        "SELECT d.*,c.company_name,c.contact_person,c.email FROM documents d LEFT JOIN customers c ON c.id=d.customer_id WHERE d.doc_type='INVOICE'",
+      )
+    ).rows;
+    const invoices = require("../utils/receivables").prepare(docs);
+    res.render("billing/receivables", { ...locals, invoices });
+  }, true),
+);
 router.get("/buero", ...list("all"));
 router.get("/offers", ...list("OFFER"));
 router.get("/invoices", ...list("INVOICE"));
@@ -118,12 +130,12 @@ async function editor(req, res, locals) {
   try {
     snippets = JSON.parse(locals.firma.text_snippets || "[]");
   } catch (_) {}
+  const klein = String(locals.firma.kleinunternehmer).toLowerCase() === "true";
   const taxRate =
-    existing.doc?.tax_rate ??
-    (type === "rechnung" &&
-    String(locals.firma.kleinunternehmer).toLowerCase() === "true"
+    type === "rechnung" && klein
       ? 0
-      : Number(locals.firma.default_tax_rate ?? 19));
+      : (existing.doc?.tax_rate ??
+        (klein ? 0 : Number(locals.firma.default_tax_rate ?? 19)));
   res.render("billing/editor", {
     ...locals,
     ...existing,

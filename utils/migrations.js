@@ -793,6 +793,13 @@ const MIGRATIONS = [
     }
   },
 
+  {
+    id: 26,
+    description: 'Auftragszentrale: Planwerte, Materialzuordnung und Montagecheckliste',
+    async up() {
+      await raw('CREATE TABLE IF NOT EXISTS project_workflow (project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE, data TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1)');
+    }
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

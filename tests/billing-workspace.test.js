@@ -366,6 +366,11 @@ test("new workspace preserves data, validates and locks financial changes across
       ).rows.length,
       0,
     );
+    const previewCreated=await (await post('/belege',{...input,type:'rechnung'})).json();
+    const previewResponse=await fetch(base+'/invoices/'+previewCreated.id+'/pdf-preview');
+    assert.equal(previewResponse.status,200);assert.equal(Buffer.from(await previewResponse.arrayBuffer()).subarray(0,4).toString(),'%PDF');
+    assert.equal((await query('SELECT status FROM documents WHERE id=?',[previewCreated.id])).rows[0].status,'ENTWURF');
+    assert.equal((await fetch(base+'/invoices/'+previewCreated.id+'/pdf-preview',{headers:{'x-role':'ADMIN'}})).status,403);
     for (const suffix of ["pdf", "pdf-download"]) {
       const newId = (await (await post("/belege", input)).json()).id;
       const url = base + "/invoices/" + newId + "/" + suffix;

@@ -3,4 +3,4 @@
   <a href="/documents/offers" <%- active === 'OFFER' ? 'aria-current="page"' : '' %>>Angebote</a>
   <a href="/documents/invoices" <%- active === 'INVOICE' ? 'aria-current="page"' : '' %>>Rechnungen</a>
   <details class="bill-tools"><summary>Weitere Werkzeuge</summary><div><a href="/documents/open-items">Offene Posten</a><a href="/documents/recurring">Wiederkehrende Rechnungen</a><a href="/documents/bank-import">Bank-Import</a><a href="/documents/invoices/datev-export">DATEV · aktueller Monat</a><form action="/documents/invoices/datev-export" method="GET" class="bill-action-form" style="padding:10px"><label class="bill-field">DATEV ab<input type="date" name="von" required></label><label class="bill-field">bis<input type="date" name="bis" required></label><button class="bill-btn bill-small">Zeitraum exportieren</button></form><a href="/documents/templates">Belegvorlagen</a><a href="/customers">Kunden</a><a href="/articles">Artikelstamm</a></div></details>
-</nav>
+<% if(canSeeMoney){ %><a href="/documents/forderungen" <%= active==='receivables'?'aria-current=page':'' %>>Zahlungseingänge</a><% } %></nav>
