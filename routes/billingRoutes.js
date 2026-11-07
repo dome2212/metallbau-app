@@ -37,6 +37,7 @@ function guarded(handler, amounts = false) {
           endpoint,
           detailUrl: billing.detailUrl,
           editable,
+          forceDelete: process.env.BELEGE_LOESCHEN !== "false" && req.user.role === "ADMIN",
         });
       } catch (error) {
         console.error("Belegbereich:", error.message);
@@ -58,7 +59,7 @@ const list = (viewScope) =>
         `SELECT d.*, c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON c.id=d.customer_id WHERE d.doc_type IN ('OFFER','INVOICE','CREDIT') ORDER BY d.created_at DESC,d.id DESC`,
       )
     ).rows;
-    res.render("billing/list", { ...locals, docs, viewScope });
+    res.render("billing/list", { ...locals, docs, viewScope, query: req.query });
   });
 router.get(
   "/forderungen",
@@ -302,6 +303,21 @@ for (const [route, type, field] of [
       res.redirect("/documents/" + route);
     }, true),
   );
+// Testphase: beliebige Belege (auch versandte/bezahlte Rechnungen) endgültig löschen.
+// Zum Sperren (Produktivbetrieb) in der .env  BELEGE_LOESCHEN=false  setzen.
+const forceDeleteAllowed = () => process.env.BELEGE_LOESCHEN !== "false";
+router.post(
+  "/belege/loeschen",
+  ...guarded(async (req, res) => {
+    if (!forceDeleteAllowed())
+      throw billing.problem(403, "Löschen von Belegen ist deaktiviert (BELEGE_LOESCHEN=false).");
+    const raw = [].concat(req.body.ids || req.body.id || []);
+    const ids = [...new Set(raw.map((v) => String(v)).filter((v) => /^\d+$/.test(v)))].slice(0, 500);
+    let n = 0;
+    for (const id of ids) if (await billing.forceRemove(id)) n++;
+    res.redirect("/documents/buero?geloescht=" + n);
+  }, true),
+);
 router.post(
   "/invoices/:id/payments",
   ...guarded(async (req, res) => {

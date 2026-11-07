@@ -304,6 +304,26 @@ async function remove(id, docType) {
     await tx.query("DELETE FROM documents WHERE id = ?", [id]);
   });
 }
+// Endgültiges Löschen beliebiger Belege (nur Testphase, siehe BELEGE_LOESCHEN in routes/billingRoutes.js).
+// Verknüpfte andere Belege bleiben bestehen, ihre Verweise werden nur gelöst.
+async function forceRemove(id) {
+  return withTransaction(async (tx) => {
+    const doc = (await tx.query("SELECT id FROM documents WHERE id = ?", [id])).rows[0];
+    if (!doc) return false;
+    await tx.query("UPDATE documents SET related_document_id = NULL WHERE related_document_id = ?", [id]);
+    await tx.query("UPDATE documents SET parent_document_id = NULL WHERE parent_document_id = ?", [id]);
+    try { await tx.query("UPDATE projects SET offer_id = NULL WHERE offer_id = ?", [id]); } catch (_) {}
+    await tx.query("DELETE FROM invoice_payments WHERE document_id = ?", [id]);
+    await tx.query("DELETE FROM dunning_history WHERE document_id = ?", [id]);
+    const additions = (await tx.query("SELECT id FROM offer_nachtraege WHERE document_id = ?", [id])).rows;
+    for (const n of additions)
+      await tx.query("DELETE FROM offer_nachtrag_items WHERE nachtrag_id = ?", [n.id]);
+    await tx.query("DELETE FROM offer_nachtraege WHERE document_id = ?", [id]);
+    await tx.query("DELETE FROM document_items WHERE document_id = ?", [id]);
+    await tx.query("DELETE FROM documents WHERE id = ?", [id]);
+    return true;
+  });
+}
 async function payment(id, input, userId, removeId) {
   return withTransaction(async (tx) => {
     const doc = (
@@ -373,5 +393,6 @@ module.exports = {
   revision,
   issue,
   remove,
+  forceRemove,
   payment,
 };
