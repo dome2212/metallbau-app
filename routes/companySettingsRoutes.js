@@ -328,7 +328,7 @@ router.post('/panel/access', requireAdmin, async (req, res) => {
                    'customers','documents','articles','map','lager','schnittliste','cad','reports',
                    'money','stamp_edit'];
     for (const key of areas) {
-      for (const role of ['admin','employee']) {
+      for (const role of ['admin','buero','employee']) {
         const fieldName = `perm_${role}_${key}`;
         const raw = req.body[fieldName];
         const checked = Array.isArray(raw) ? raw.includes('true') : raw === 'true';

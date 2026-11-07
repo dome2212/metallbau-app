@@ -2,7 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const { dbQuery }      = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireOffice } = require('../middleware/auth');
 const { FIRMA }        = require('../utils/firma');
 const { sendWhatsApp } = require('../utils/notifier');
 
@@ -29,7 +29,7 @@ router.post('/users/add', requireAdmin, async (req, res) => {
   const { username, password, role, whatsapp_phone } = req.body;
   if (!username || !password) return res.status(400).send('Benutzername und Passwort erforderlich');
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const allowedRoles = ['CHEF', 'ADMIN', 'BUERO', 'EMPLOYEE'];
   const userRole = allowedRoles.includes(role) ? role : 'EMPLOYEE';
   const phone    = (whatsapp_phone || '').trim() || null;
   try {
@@ -82,7 +82,7 @@ router.post('/users/change-password', requireAdmin, async (req, res) => {
 
 router.post('/users/change-role', requireAdmin, async (req, res) => {
   const { user_id, role } = req.body;
-  const allowedRoles = ['CHEF', 'ADMIN', 'EMPLOYEE'];
+  const allowedRoles = ['CHEF', 'ADMIN', 'BUERO', 'EMPLOYEE'];
   if (!allowedRoles.includes(role)) return res.status(400).send('Ungültige Rolle.');
   // Eigene Chef-Rolle darf nicht selbst entzogen werden
   if (parseInt(user_id) === req.user.id && role !== 'CHEF') {
@@ -112,7 +112,7 @@ router.post('/users/delete', requireAdmin, async (req, res) => {
 // ==========================================
 // ADMIN ZEITERFASSUNG
 // ==========================================
-router.get('/timetracking', requireAdmin, async (req, res) => {
+router.get('/timetracking', requireOffice, async (req, res) => {
   try {
     const activeTab      = req.query.tab || 'daily';
     const selectedDate   = req.query.date || '';
@@ -189,7 +189,7 @@ router.get('/timetracking', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/timetracking/add', requireAdmin, async (req, res) => {
+router.post('/timetracking/add', requireOffice, async (req, res) => {
   const { user_id, type, date, time, note } = req.body;
   if (!user_id || !type || !date || !time) {
     return res.status(400).send('Alle Pflichtfelder müssen ausgefüllt werden.');
@@ -221,7 +221,7 @@ router.post('/timetracking/add', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/timetracking/delete', requireAdmin, async (req, res) => {
+router.post('/timetracking/delete', requireOffice, async (req, res) => {
   const { log_id } = req.body;
   try {
     await dbQuery('DELETE FROM time_logs WHERE id = ?', [log_id]);
@@ -232,7 +232,7 @@ router.post('/timetracking/delete', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
+router.get('/timetracking/pdf', requireOffice, async (req, res) => {
   const { user_id, date } = req.query;
   try {
     const tsColPdf = isPg
@@ -349,7 +349,7 @@ router.get('/timetracking/pdf', requireAdmin, async (req, res) => {
 // ==========================================
 // MONATLICHER ÜBERSTUNDEN-BERICHT (PDF)
 // ==========================================
-router.get('/timetracking/overtime-pdf', requireAdmin, async (req, res) => {
+router.get('/timetracking/overtime-pdf', requireOffice, async (req, res) => {
   const { month, user_id } = req.query;
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return res.status(400).send('Bitte einen gültigen Monat im Format YYYY-MM angeben.');
@@ -470,7 +470,7 @@ router.get('/timetracking/overtime-pdf', requireAdmin, async (req, res) => {
 // ==========================================
 // SCHWARZES BRETT (TICKER)
 // ==========================================
-router.post('/add', requireAdmin, async (req, res) => {
+router.post('/add', requireOffice, async (req, res) => {
   const { message } = req.body;
   if (!message || message.trim() === '') return res.redirect('/');
   try {
@@ -490,7 +490,7 @@ router.post('/add', requireAdmin, async (req, res) => {
   res.redirect('/');
 });
 
-router.post('/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireOffice, async (req, res) => {
   const { id } = req.body;
   try {
     await dbQuery('DELETE FROM tickers WHERE id = ?', [id]);
@@ -503,12 +503,12 @@ router.post('/delete', requireAdmin, async (req, res) => {
 // ==========================================
 // PERSONALPLANUNG – Wochenplan
 // ==========================================
-router.get('/staffplan', requireAdmin, async (req, res) => {
+router.get('/staffplan', requireOffice, async (req, res) => {
   const week = req.query.week ? ('?week=' + encodeURIComponent(req.query.week)) : '';
   return res.redirect('/montageplan' + week);
 });
 
-router.post('/staffplan/save', requireAdmin, async (req, res) => {
+router.post('/staffplan/save', requireOffice, async (req, res) => {
   try {
     const { user_id, date, project_id, project_ids, note, assignments } = req.body;
     if (!user_id || !date) return res.status(400).json({ ok: false, error: 'Fehlende Daten' });

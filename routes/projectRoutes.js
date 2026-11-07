@@ -6,10 +6,11 @@ const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { hardDeleteProject, RETENTION_DAYS } = require('../utils/projectTrash');
 const { logAudit, redirectWith }   = require('../utils/audit');
-const { requireAdmin, requirePerm, hasPerm, canSeeMoney } = require('../middleware/auth');
+const { requireOffice, requirePerm, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
+const { isOffice } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -19,7 +20,7 @@ router.param('id', async (req, res, next, id) => {
   try {
     const r = await dbQuery('SELECT deleted_at FROM projects WHERE id = ?', [id]);
     if (r.rows[0] && r.rows[0].deleted_at) {
-      const isAdm = req.user && (req.user.role === 'ADMIN' || req.user.role === 'CHEF');
+      const isAdm = req.user && isOffice(req.user);
       if (req.method === 'GET') {
         return isAdm ? res.redirect('/projects/trash')
                      : redirectWith(res, '/projects', 'error', 'Dieser Auftrag wurde gelöscht.');
@@ -282,7 +283,7 @@ router.get('/', async (req, res) => {
     `);
     const custRes = await dbQuery('SELECT * FROM customers ORDER BY company_name ASC, contact_person ASC');
     let trashCount = 0;
-    if (req.user.role === 'ADMIN' || req.user.role === 'CHEF') {
+    if (isOffice(req.user)) {
       try {
         const t = await dbQuery('SELECT COUNT(*) AS c FROM projects WHERE deleted_at IS NOT NULL');
         trashCount = Number(t.rows[0] && t.rows[0].c) || 0;
@@ -299,7 +300,7 @@ router.get('/', async (req, res) => {
 // PROJEKT ANLEGEN
 // ==========================================
 router.post('/add', async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
+  if (!isOffice(req.user)) return res.status(403).send('Zugriff verweigert');
   const { customer_id, title, description, total_price, status } = req.body;
   const firma = await getFirma();
   const parsedPrice = canSeeMoney(req.user, firma) ? (parseFloat(String(total_price || '0').replace(',', '.')) || 0) : 0;
@@ -335,7 +336,7 @@ router.post('/add', async (req, res) => {
 // STATUS SCHNELL ÄNDERN
 // ==========================================
 router.post('/update-status', async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
+  if (!isOffice(req.user)) return res.status(403).send('Zugriff verweigert');
   const { id, status } = req.body;
   try {
     const cur = await dbQuery('SELECT status FROM projects WHERE id = ?', [id]);
@@ -357,7 +358,7 @@ router.post('/update-status', async (req, res) => {
 // PROJEKT BEARBEITEN
 // ==========================================
 router.post('/:id/edit', async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
+  if (!isOffice(req.user)) return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
   const { title, description, total_price, status } = req.body;
   const firma = await getFirma();
@@ -384,7 +385,7 @@ router.post('/:id/edit', async (req, res) => {
 // ==========================================
 // PROJEKT LÖSCHEN → PAPIERKORB (wiederherstellbar)
 // ==========================================
-function _isAdm(req) { return req.user && (req.user.role === 'ADMIN' || req.user.role === 'CHEF'); }
+function _isAdm(req) { return req.user && isOffice(req.user); }
 
 router.post('/delete', async (req, res) => {
   if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
@@ -877,7 +878,7 @@ router.post('/files/delete', async (req, res) => {
 // GEO-FENCING KOORDINATEN SETZEN
 // ==========================================
 router.post('/:id/set-location', async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).send('Zugriff verweigert');
+  if (!isOffice(req.user)) return res.status(403).send('Zugriff verweigert');
   const { id } = req.params;
   const { site_lat, site_lng, site_radius, site_note } = req.body;
   try {
@@ -1099,9 +1100,9 @@ router.get('/:id/pdf', async (req, res) => {
 // ==========================================
 // RECHNUNG AUS AUFTRAG ERSTELLEN
 // ==========================================
-router.get('/:id/create-invoice', requireAdmin, (req,res) => res.redirect('/documents/neu/rechnung?project_id='+encodeURIComponent(req.params.id)));
+router.get('/:id/create-invoice', requireOffice, (req,res) => res.redirect('/documents/neu/rechnung?project_id='+encodeURIComponent(req.params.id)));
 // Old project forms also use the common transaction, tax and numbering engine.
-router.post('/:id/create-invoice', requireAdmin, async (req,res) => {
+router.post('/:id/create-invoice', requireOffice, async (req,res) => {
   try {
     const firma = await getFirma();
     if (!hasPerm(req.user,'documents',firma,true,false) || !canSeeMoney(req.user,firma)) return res.status(403).send('Keine Berechtigung für Rechnungen.');

@@ -4,11 +4,12 @@ const multer  = require('multer');
 const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
 const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
-const { requireAdmin, hasPerm } = require('../middleware/auth');
+const { requireOffice, hasPerm } = require('../middleware/auth');
 const { sendWhatsApp }      = require('../utils/notifier');
 const { sendPush }          = require('../utils/webpush');
 const { isNRWHoliday }      = require('../utils/holidays');
 const { getFirma }          = require('../utils/companySettings');
+const { isOffice, OFFICE_ROLES } = require('../middleware/auth');
 
 const upload = multer({
   storage: new CloudinaryStorage({
@@ -30,7 +31,7 @@ router.get('/', async (req, res) => {
   const userRole = req.user.role;
   try {
     let vacationsRes;
-    if (userRole === 'ADMIN' || userRole === 'CHEF') {
+    if (OFFICE_ROLES.includes(userRole)) {
       vacationsRes = await dbQuery(`
         SELECT vacations.*, users.username
         FROM vacations
@@ -98,7 +99,7 @@ router.post('/add', upload.single('document'), async (req, res) => {
   try {
     const { type, start_date, end_date, reason, user_id } = req.body;
     // Chef/Admin dürfen für einen anderen Mitarbeiter eintragen
-    const userId = (['ADMIN', 'CHEF'].includes(req.user.role) && user_id) ? Number(user_id) : req.user.id;
+    const userId = (isOffice(req.user) && user_id) ? Number(user_id) : req.user.id;
     const fileUrl                     = req.file ? req.file.path : null;
 
     await dbQuery(
@@ -108,7 +109,7 @@ router.post('/add', upload.single('document'), async (req, res) => {
 
     // WhatsApp-Benachrichtigung an alle Admins UND Chefs
     const adminsRes = await dbQuery(
-      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+      `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF','BUERO') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
     );
     const msg = `📅 Neuer ${type || 'Urlaub'}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
     for (const admin of (adminsRes.rows || [])) {
@@ -116,7 +117,7 @@ router.post('/add', upload.single('document'), async (req, res) => {
     }
 
     // Push-Benachrichtigung an alle Admins UND Chefs
-    const adminIdsRes = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF')`);
+    const adminIdsRes = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF','BUERO')`);
     const pushMsg = `${req.user.username}: ${type || 'Urlaub'}, ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
     for (const admin of (adminIdsRes.rows || [])) {
       sendPush({ title: `📅 Neuer ${type || 'Urlaub'}-Antrag`, body: pushMsg, url: '/vacations' }, admin.id).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
@@ -132,7 +133,7 @@ router.post('/add', upload.single('document'), async (req, res) => {
 // ==========================================
 // STATUS ÄNDERN (nur Admin)
 // ==========================================
-router.post('/status', requireAdmin, async (req, res) => {
+router.post('/status', requireOffice, async (req, res) => {
   const { id, status } = req.body;
   try {
     await dbQuery('UPDATE vacations SET status = ? WHERE id = ?', [status, id]);
@@ -167,7 +168,7 @@ router.post('/status', requireAdmin, async (req, res) => {
 // ==========================================
 // URLAUBSANTRAG LÖSCHEN (nur Admin)
 // ==========================================
-router.post('/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireOffice, async (req, res) => {
   const { id } = req.body;
   try {
     await dbQuery('DELETE FROM vacations WHERE id = ?', [id]);
@@ -181,7 +182,7 @@ router.post('/delete', requireAdmin, async (req, res) => {
 // ==========================================
 // JAHRESANSPRUCH SETZEN (nur Admin)
 // ==========================================
-router.post('/set-allowance', requireAdmin, async (req, res) => {
+router.post('/set-allowance', requireOffice, async (req, res) => {
   const { user_id, vacation_allowance } = req.body;
   const days = parseInt(vacation_allowance || '30', 10);
   try {

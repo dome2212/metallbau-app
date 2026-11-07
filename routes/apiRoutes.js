@@ -14,6 +14,7 @@ const jwt          = require('jsonwebtoken');
 const { dbQuery } = require('../utils/db');
 const { JWT_SECRET, hasPerm, canSeeMoney } = require('../middleware/auth');
 const { getFirma } = require('../utils/companySettings');
+const { isOffice, OFFICE_ROLES } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -112,7 +113,7 @@ router.get('/dashboard', apiAuth, async (req, res) => {
   const userRole = req.user.role;
 
   try {
-    if (userRole !== 'ADMIN' && userRole !== 'CHEF') {
+    if (!OFFICE_ROLES.includes(userRole)) {
       // Mitarbeiter-Dashboard
       const now        = new Date();
       const curYear    = now.getFullYear();
@@ -261,7 +262,7 @@ router.get('/projects/:id', apiAuth, async (req, res) => {
 
 // POST /api/v2/projects  (nur ADMIN)
 router.post('/projects', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { customer_id, title, description, total_price, status } = req.body;
   if (!title) return res.status(400).json({ error: 'Titel erforderlich' });
   const parsedPrice = canSeeMoney(req.user, req.apiFirma) ? (parseFloat(String(total_price || '0').replace(',', '.')) || 0) : 0;
@@ -278,7 +279,7 @@ router.post('/projects', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/projects/:id/status  (nur ADMIN)
 router.patch('/projects/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!status) return res.status(400).json({ error: 'Status fehlt' });
   try {
@@ -320,7 +321,7 @@ router.get('/customers', apiAuth, async (req, res) => {
 
 // POST /api/v2/customers  (nur ADMIN)
 router.post('/customers', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
   try {
     const r = await dbQuery(
@@ -335,7 +336,7 @@ router.post('/customers', apiAuth, async (req, res) => {
 
 // PUT /api/v2/customers/:id  (nur ADMIN)
 router.put('/customers/:id', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { company_name, contact_person, email, phone, street, zip, city } = req.body;
   try {
     await dbQuery(
@@ -417,7 +418,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
     const switching = type === 'SWITCH';
     if (type === 'IN' || switching) {
       const firma = req.apiFirma;
-      const skipGps = (userRole === 'ADMIN' || userRole === 'CHEF') && firma.stamp_admin_no_gps !== 'false';
+      const skipGps = (OFFICE_ROLES.includes(userRole)) && firma.stamp_admin_no_gps !== 'false';
       if (firma.stamp_require_gps !== 'false' && !skipGps) {
         const lat = Number(latitude), lng = Number(longitude);
         if (latitude == null || latitude === '' || longitude == null || longitude === '' || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) {
@@ -466,7 +467,7 @@ router.post('/timetracking/stamp', apiAuth, async (req, res) => {
 router.get('/appointments', apiAuth, async (req, res) => {
   try {
     const userId  = req.user.id;
-    const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+    const isAdmin = isOffice(req.user);
     const rows = (await dbQuery(`
       SELECT a.id, a.title, a.start_date, a.end_date, a.description,
              c.company_name, c.contact_person
@@ -498,7 +499,7 @@ router.get('/appointments', apiAuth, async (req, res) => {
 // GET /api/v2/vacations
 router.get('/vacations', apiAuth, async (req, res) => {
   const userId  = req.user.id;
-  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+  const isAdmin = isOffice(req.user);
   try {
     const sql = isAdmin
       ? `SELECT v.*, u.username FROM vacations v LEFT JOIN users u ON v.user_id=u.id ORDER BY v.start_date DESC`
@@ -544,10 +545,10 @@ router.post('/vacations', apiAuth, async (req, res) => {
       const t   = type || 'Urlaub';
       const msg = `📅 Neuer ${t}-Antrag von ${req.user.username}: ${start_date} bis ${end_date}${reason ? ' – ' + reason : ''}`;
       const wa = await dbQuery(
-        `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
+        `SELECT whatsapp_phone, whatsapp_api_key FROM users WHERE role IN ('ADMIN','CHEF','BUERO') AND whatsapp_notify = true AND whatsapp_phone IS NOT NULL AND whatsapp_api_key IS NOT NULL`
       );
       for (const a of (wa.rows || [])) sendWhatsApp(a.whatsapp_phone, msg, a.whatsapp_api_key).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
-      const ids = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF')`);
+      const ids = await dbQuery(`SELECT id FROM users WHERE role IN ('ADMIN','CHEF','BUERO')`);
       for (const a of (ids.rows || [])) {
         sendPush({ title: `📅 Neuer ${t}-Antrag`, body: msg, url: '/vacations' }, a.id).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
       }
@@ -560,7 +561,7 @@ router.post('/vacations', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/vacations/:id/status  (nur ADMIN)
 router.patch('/vacations/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!['Genehmigt', 'Abgelehnt'].includes(status)) return res.status(400).json({ error: 'Ungültiger Status' });
   try {
@@ -754,7 +755,7 @@ router.post('/ai/image', apiAuth, imageUploadMemory.single('image'), async (req,
 
 // GET /api/v2/documents?type=OFFER|INVOICE
 router.get('/documents', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Nur für Admins.' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Nur für Admins.' });
   const type = req.query.type; // OFFER oder INVOICE
   const sql  = type
     ? `SELECT d.*,c.company_name,c.contact_person FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.doc_type=? ORDER BY d.id DESC LIMIT 50`
@@ -769,7 +770,7 @@ router.get('/documents', apiAuth, async (req, res) => {
 
 // GET /api/v2/documents/:id  – Detail mit Positionen
 router.get('/documents/:id', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Nur für Admins.' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Nur für Admins.' });
   try {
     const docRes   = await dbQuery(`SELECT d.*,c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone FROM documents d LEFT JOIN customers c ON d.customer_id=c.id WHERE d.id=?`, [req.params.id]);
     const doc      = docRes.rows[0];
@@ -784,7 +785,7 @@ router.get('/documents/:id', apiAuth, async (req, res) => {
 
 // PATCH /api/v2/documents/:id/status  (nur ADMIN)
 router.patch('/documents/:id/status', apiAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') return res.status(403).json({ error: 'Zugriff verweigert' });
+  if (!isOffice(req.user)) return res.status(403).json({ error: 'Zugriff verweigert' });
   const { status } = req.body;
   if (!status) return res.status(400).json({ error: 'Status fehlt' });
   try {

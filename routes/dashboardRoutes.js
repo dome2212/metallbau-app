@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { dbQuery } = require('../utils/db');
+const { isOffice } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -243,7 +244,7 @@ router.get('/', async (req, res) => {
       }
 
       const lowStockItems = lowStockRes.rows || [];
-      const roleLabel = userRole === 'CHEF' ? 'Chef' : (userRole === 'ADMIN' ? 'Admin' : userRole);
+      const roleLabel = userRole === 'CHEF' ? 'Chef' : (userRole === 'ADMIN' ? 'Admin' : (userRole === 'BUERO' ? 'Büro' : userRole));
       res.render('dashboard', {
         stats,
         recentDocs: formattedDocs,
@@ -293,7 +294,7 @@ router.post('/api/user-settings', async (req, res) => {
 // das kommt dem Widget-Gefühl am nächsten.
 router.get('/heute', async (req, res) => {
   const userId = req.user.id;
-  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+  const isAdmin = isOffice(req.user);
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
 

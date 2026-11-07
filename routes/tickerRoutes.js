@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../config/database');
-const { requireAdmin }    = require('../middleware/auth');
+const { requireOffice }    = require('../middleware/auth');
 const { sendWhatsApp }    = require('../utils/notifier');
 const { sendPush }        = require('../utils/webpush');
 
@@ -55,7 +55,7 @@ router.post('/add', async (req, res) => {
   res.redirect(back);
 });
 
-router.post('/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireOffice, async (req, res) => {
   await dbQuery('DELETE FROM tickers WHERE id = ?', [req.body.id]);
   const back = req.headers.referer || '/ticker';
   res.redirect(back);

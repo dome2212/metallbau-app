@@ -5,8 +5,9 @@ const { dbQuery }        = require('../utils/db');
 const { sendWhatsApp }   = require('../utils/notifier');
 const { sendPush }       = require('../utils/webpush');
 const { getNRWHolidays, isNRWHoliday } = require('../utils/holidays');
-const { hasPerm, requireAdmin } = require('../middleware/auth');
+const { hasPerm, requireOffice } = require('../middleware/auth');
 const { getFirma }       = require('../utils/companySettings');
+const { isOffice } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -335,7 +336,7 @@ router.get('/api/holidays', async (req, res) => {
 router.get('/api/appointments', async (req, res) => {
   try {
     const userId  = req.user.id;
-    const isAdmin = req.user.role === 'ADMIN';
+    const isAdmin = isOffice(req.user);
 
     // Alle Termine laden (mit Kunden- und Geo-Daten)
     const baseQuery = `
@@ -434,7 +435,7 @@ router.get('/api/appointments', async (req, res) => {
 // ==========================================
 // TERMIN ANLEGEN (mit optionaler Mitarbeiter-Zuweisung)
 // ==========================================
-router.post('/api/appointments/add', requireAdmin, async (req, res) => {
+router.post('/api/appointments/add', requireOffice, async (req, res) => {
   const { title, customer_id, project_id, start_date, end_date, description } = req.body;
   // user_ids kommt als Array oder einzelner Wert (Checkboxen)
   let userIds = req.body.user_ids;
@@ -488,7 +489,7 @@ router.post('/api/appointments/add', requireAdmin, async (req, res) => {
 // ==========================================
 // TERMIN LÖSCHEN (bereinigt Join-Tabelle)
 // ==========================================
-router.post('/api/appointments/delete/:id', requireAdmin, async (req, res) => {
+router.post('/api/appointments/delete/:id', requireOffice, async (req, res) => {
   const { id } = req.params;
   try {
     await dbQuery('DELETE FROM appointment_users WHERE appointment_id = ?', [id]);
@@ -533,7 +534,7 @@ router.get('/montageplan', async (req, res) => {
         WHERE a.start_date >= ? AND a.start_date <= ?
         ORDER BY a.start_date ASC
       `, [startStr + 'T00:00:00', endStr + 'T23:59:59']),
-      dbQuery(`SELECT id, username, role FROM users WHERE role IN ('EMPLOYEE','CHEF','ADMIN') ORDER BY username ASC`),
+      dbQuery(`SELECT id, username, role FROM users WHERE role IN ('EMPLOYEE','CHEF','ADMIN','BUERO') ORDER BY username ASC`),
       dbQuery(`
         SELECT v.*, u.username
         FROM vacations v
@@ -716,7 +717,7 @@ router.get('/montageplan', async (req, res) => {
       return { user: u, cells };
     });
 
-    const canEdit = req.user && ['CHEF', 'ADMIN'].includes(req.user.role);
+    const canEdit = req.user && isOffice(req.user);
 
     res.render('montageplan', {
       days,

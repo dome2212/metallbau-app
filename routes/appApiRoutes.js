@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { dbQuery } = require('../utils/db');
+const { isOffice } = require('../middleware/auth');
 const isPg = !!process.env.DATABASE_URL;
 
 router.get('/search', async (req, res) => {
@@ -8,7 +9,7 @@ router.get('/search', async (req, res) => {
   if (q.length < 2) return res.json({ results: [] });
 
   const like   = `%${q}%`;
-  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'CHEF';
+  const isAdmin = isOffice(req.user);
   const likeOp  = isPg ? 'ILIKE' : 'LIKE';
 
   try {

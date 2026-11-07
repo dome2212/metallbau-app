@@ -6,6 +6,7 @@ const {getFirma} = require('../utils/companySettings');
 const {validate} = require('../Public/js/cad-document');
 const {workshop} = require('../utils/cadWorkshop');
 const approval = require('../utils/cadApproval');
+const { isOffice } = require('../middleware/auth');
 const router = express.Router();
 router.use(requirePerm('cad', true, false, 'CAD Studio'));
 router.use((req,res,next)=>req.method==='POST'&&!req.is('application/json')?res.status(415).json({error:'JSON erforderlich.'}):next());
@@ -65,7 +66,7 @@ router.post('/templates',async(req,res,next)=>{let doc;try{doc=validate(req.body
 router.get('/documents/:id/approval-offers',async(req,res,next)=>{try{
  const row=await accessible(req),firma=await getFirma();
  if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});
- if(!['ADMIN','CHEF'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
+ if(!isOffice(req.user)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
  if(!row.project_id)return res.status(400).json({error:'Zeichnung zuerst einem Auftrag zuordnen.'});
  const project=(await dbQuery('SELECT customer_id FROM projects WHERE id=? AND deleted_at IS NULL',[row.project_id])).rows[0];
  res.json(project?(await dbQuery("SELECT id,doc_number,status FROM documents WHERE doc_type='OFFER' AND customer_id=? ORDER BY id DESC",[project.customer_id])).rows:[]);
@@ -79,7 +80,7 @@ router.post('/documents/:id/customer-approvals',async(req,res,next)=>{try{
  let offer,offerItems,offerPdf,offerRevision;
  if(req.body.offerId){
   const firma=await getFirma();
-  if(!['ADMIN','CHEF'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
+  if(!isOffice(req.user)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).json({error:'Berechtigung für Angebote und Beträge erforderlich.'});
   if(!row.project_id)return res.status(400).json({error:'Zeichnung zuerst einem Auftrag zuordnen.'});
   offer=(await dbQuery("SELECT d.*,c.company_name,c.contact_person,c.street,c.zip,c.city,c.email,c.phone FROM documents d JOIN customers c ON c.id=d.customer_id JOIN projects p ON p.customer_id=d.customer_id WHERE d.id=? AND d.doc_type='OFFER' AND p.id=? AND p.deleted_at IS NULL",[req.body.offerId,row.project_id])).rows[0];
   if(!offer)return res.status(400).json({error:'Angebot gehört nicht zum Auftrag oder Kunden.'});
@@ -105,7 +106,7 @@ router.get('/documents/:id/customer-approvals',async(req,res,next)=>{try{const r
 router.get('/documents/:id/customer-approvals/:approvalId/pdf',async(req,res,next)=>{try{const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).json({error:'Eigene Zeichnung erforderlich.'});const a=(await dbQuery('SELECT pdf FROM cad_customer_approvals WHERE id = ? AND document_id = ?',[req.params.approvalId,row.id])).rows[0];if(!a)return res.status(404).end();res.type('application/pdf').set('Cache-Control','no-store').set('Content-Disposition','attachment; filename="freigabe.pdf"').send(Buffer.from(a.pdf,'base64'));}catch(e){next(e);}});
 router.get('/documents/:id/customer-approvals/:approvalId/offer.pdf',async(req,res,next)=>{try{
  const row=await accessible(req);if(!row||row.owner_id!==user(req))return res.status(404).end();
- const firma=await getFirma();if(!['CHEF','ADMIN'].includes(req.user.role)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).end();
+ const firma=await getFirma();if(!isOffice(req.user)||!hasPerm(req.user,'documents',firma,true,false)||!canSeeMoney(req.user,firma))return res.status(403).end();
  const a=(await dbQuery('SELECT offer_pdf FROM cad_customer_approvals WHERE id=? AND document_id=?',[req.params.approvalId,row.id])).rows[0];if(!a?.offer_pdf)return res.status(404).end();
  res.type('application/pdf').set('Cache-Control','no-store').set('Content-Disposition','attachment; filename="freigabe-angebot.pdf"').send(Buffer.from(a.offer_pdf,'base64'));
  }catch(e){next(e);}});

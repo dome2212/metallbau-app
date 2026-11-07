@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { dbQuery } = require("../utils/db");
-const { requireAdmin, hasPerm, canSeeMoney } = require("../middleware/auth");
+const { requireOffice, hasPerm, canSeeMoney } = require("../middleware/auth");
 const { getFirma } = require("../utils/companySettings");
 const billing = require("../utils/billingService");
 const money = (n) =>
@@ -18,7 +18,7 @@ const editable = (d) =>
     : d.doc_type === "INVOICE" && ["ENTWURF", "Entwurf"].includes(d.status);
 function guarded(handler, amounts = false) {
   return [
-    requireAdmin,
+    requireOffice,
     async (req, res, next) => {
       try {
         const firma = await getFirma();

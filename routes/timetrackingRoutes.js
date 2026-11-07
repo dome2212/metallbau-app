@@ -3,6 +3,7 @@ const router = express.Router();
 const { dbQuery } = require('../utils/db');
 const { requireAdmin, requirePerm, hasPerm } = require('../middleware/auth');
 const { getFirma } = require('../utils/companySettings');
+const { isOffice, OFFICE_ROLES } = require('../middleware/auth');
 
 const isPg = !!process.env.DATABASE_URL;
 
@@ -176,7 +177,7 @@ router.get('/scan/:projectId', async (req, res) => {
       since: isStampedIn ? last.hhmm : null,
       allowSwitch: firma.stamp_allow_switch !== 'false',
       needsGps: firma.stamp_require_gps !== 'false'
-                && !((req.user.role === 'ADMIN' || req.user.role === 'CHEF') && firma.stamp_admin_no_gps !== 'false'),
+                && !(isOffice(req.user) && firma.stamp_admin_no_gps !== 'false'),
     });
   } catch (err) {
     console.error('Fehler beim QR-Scan:', err.message);
@@ -202,7 +203,7 @@ router.post('/stamp', requirePerm('timetracking', true, true), async (req, res) 
     const gpsRequired  = firma.stamp_require_gps  !== 'false';
     // Admins ausgenommen: konfigurierbar (stamp_admin_no_gps)
     const adminNoGps   = firma.stamp_admin_no_gps !== 'false';
-    const isAdmin      = userRole === 'ADMIN' || userRole === 'CHEF';
+    const isAdmin      = OFFICE_ROLES.includes(userRole);
     const skipGps      = isAdmin && adminNoGps;
 
     if (gpsRequired && !skipGps) {
@@ -281,14 +282,14 @@ router.get('/admin/monthly', async (req, res) => {
     const month  = req.query.month || new Date().toISOString().slice(0, 7);
 
     let users = [];
-    if (role === 'ADMIN' || role === 'CHEF') {
+    if (OFFICE_ROLES.includes(role)) {
       const userRes = await dbQuery('SELECT id, username FROM users ORDER BY username ASC');
       users = userRes.rows;
     }
 
     const targetUserId = req.query.user_id || userId;
     if (req.query.user_id && String(req.query.user_id) !== String(userId)) {
-      if (role !== 'ADMIN' && role !== 'CHEF') {
+      if (!OFFICE_ROLES.includes(role)) {
         return res.status(403).send('<h1>403 – Zugriff verweigert</h1><p>Sie dürfen nur Ihre eigenen Zeitdaten abrufen.</p><a href="/">← Zurück</a>');
       }
     }
@@ -357,7 +358,7 @@ router.get('/admin/export-csv', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
     if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+      if (!isOffice(req.user)) {
         return res.status(403).json({ error: 'Zugriff verweigert' });
       }
     }
@@ -402,7 +403,7 @@ router.get('/admin/export-pdf', async (req, res) => {
   try {
     const targetUserId = req.query.user_id || req.user.id;
     if (req.query.user_id && String(req.query.user_id) !== String(req.user.id)) {
-      if (req.user.role !== 'ADMIN' && req.user.role !== 'CHEF') {
+      if (!isOffice(req.user)) {
         return res.status(403).json({ error: 'Zugriff verweigert' });
       }
     }

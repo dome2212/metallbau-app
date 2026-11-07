@@ -5,6 +5,7 @@ const { requirePerm, hasPerm, canSeeMoney } = require("../middleware/auth");
 const flow = require("../utils/projectWorkflow");
 const billing = require("../utils/billingService");
 const approval = require("../utils/cadApproval");
+const { isOffice } = require('../middleware/auth');
 const money = (n) =>
   n == null
     ? "—"
@@ -42,11 +43,11 @@ async function permissions(req) {
     firma,
     amounts: canSeeMoney(req.user, firma),
     documents:
-      ["CHEF", "ADMIN"].includes(req.user.role) &&
+      isOffice(req.user) &&
       hasPerm(req.user, "documents", firma, true, false),
     cad: hasPerm(req.user, "cad", firma, true, false),
     stock: hasPerm(req.user, "lager", firma, true, false),
-    admin: ["CHEF", "ADMIN"].includes(req.user.role),
+    admin: isOffice(req.user),
   };
 }
 function requireAccess(p, area) {

@@ -6,8 +6,9 @@ const { requirePerm } = require('../middleware/auth');
 router.use(requirePerm('tasks', true, true, 'Aufgaben'));
 
 const { dbQuery }      = require('../utils/db');
-const { requireAdmin } = require('../middleware/auth');
+const { requireOffice } = require('../middleware/auth');
 const { sendPush }     = require('../utils/webpush');
+const { isOffice, OFFICE_ROLES } = require('../middleware/auth');
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -39,7 +40,7 @@ router.get('/', async (req, res) => {
 
   try {
     let tasksRes;
-    if (userRole === 'CHEF' || userRole === 'ADMIN') {
+    if (OFFICE_ROLES.includes(userRole)) {
       // Chef/Admin sehen alle Aufgaben
       tasksRes = await dbQuery(`
         SELECT t.*, u1.username as assigned_to_name, u2.username as assigned_by_name
@@ -93,7 +94,7 @@ router.get('/', async (req, res) => {
 // ==========================================
 // AUFGABE ANLEGEN (nur Chef/Admin)
 // ==========================================
-router.post('/add', requireAdmin, async (req, res) => {
+router.post('/add', requireOffice, async (req, res) => {
   try {
     const { title, description, category, assigned_to, due_date, priority } = req.body;
     if (!title || !title.trim()) {
@@ -153,7 +154,7 @@ router.post('/status', async (req, res) => {
     if (!task) return res.status(404).send('Aufgabe nicht gefunden');
 
     const isOwner = task.assigned_to == req.user.id || task.assigned_to === null || task.assigned_to === undefined;
-    const isBoss  = req.user.role === 'CHEF' || req.user.role === 'ADMIN';
+    const isBoss  = isOffice(req.user);
     if (!isOwner && !isBoss) {
       return res.status(403).send('Keine Berechtigung für diese Aufgabe');
     }
@@ -163,7 +164,7 @@ router.post('/status', async (req, res) => {
 
     // Chef/Admin informieren, wenn ein Mitarbeiter eine Aufgabe erledigt
     if (status === 'Erledigt' && !isBoss) {
-      const adminsRes = await dbQuery(`SELECT id FROM users WHERE role IN ('CHEF','ADMIN')`);
+      const adminsRes = await dbQuery(`SELECT id FROM users WHERE role IN ('CHEF','ADMIN','BUERO')`);
       for (const admin of (adminsRes.rows || [])) {
         sendPush({
           title: `✅ Aufgabe erledigt`,
@@ -183,7 +184,7 @@ router.post('/status', async (req, res) => {
 // ==========================================
 // AUFGABE LÖSCHEN (nur Chef/Admin)
 // ==========================================
-router.post('/delete', requireAdmin, async (req, res) => {
+router.post('/delete', requireOffice, async (req, res) => {
   try {
     const { id } = req.body;
     await dbQuery('DELETE FROM tasks WHERE id = ?', [id]);
@@ -204,7 +205,7 @@ router.post('/delete', requireAdmin, async (req, res) => {
 router.get('/putzplan', async (req, res) => {
   try {
     const usersRes = await dbQuery(
-      `SELECT id, username, role FROM users WHERE role IN ('EMPLOYEE','CHEF','ADMIN') ORDER BY username ASC`
+      `SELECT id, username, role FROM users WHERE role IN ('EMPLOYEE','CHEF','ADMIN','BUERO') ORDER BY username ASC`
     );
     let items = [];
     let logsToday = [];
@@ -259,7 +260,7 @@ router.get('/putzplan', async (req, res) => {
   }
 });
 
-router.post('/putzplan/add', requireAdmin, async (req, res) => {
+router.post('/putzplan/add', requireOffice, async (req, res) => {
   try {
     const { title, area, frequency, weekday, assigned_to } = req.body;
     if (!title || !title.trim()) return res.status(400).send('Titel erforderlich');
@@ -277,7 +278,7 @@ router.post('/putzplan/add', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/putzplan/delete', requireAdmin, async (req, res) => {
+router.post('/putzplan/delete', requireOffice, async (req, res) => {
   try {
     const { id } = req.body;
     await dbQuery(`UPDATE cleaning_plan SET active = 0 WHERE id = ?`, [id]);
