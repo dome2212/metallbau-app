@@ -4,6 +4,24 @@
  */
 const db = require('../config/database');
 
+// SQLite speichert time_logs.timestamp in UTC (CURRENT_TIMESTAMP). Für Anzeige und
+// "heute"-Filter wird hier direkt im SQL nach Berlin-Zeit umgerechnet (MEZ/MESZ nach EU-Regel:
+// Sommerzeit von letztem Sonntag im März 01:00 UTC bis letztem Sonntag im Oktober 01:00 UTC).
+// Das ist unabhängig von Zeitzonen-Dateien im Docker-Container.
+// (PostgreSQL macht das in den Queries selbst per AT TIME ZONE.)
+function berlinSql(c) {
+  return `datetime(${c}, CASE WHEN datetime(${c}) >= datetime(date(strftime('%Y', ${c}) || '-04-01', 'weekday 0', '-7 days') || ' 01:00:00') ` +
+         `AND datetime(${c}) < datetime(date(strftime('%Y', ${c}) || '-11-01', 'weekday 0', '-7 days') || ' 01:00:00') THEN '+2 hours' ELSE '+1 hour' END)`;
+}
+function localizeSqliteTimes(sql) {
+  if (!/timestamp/.test(sql)) return sql;
+  let out = sql
+    .replace(/strftime\(\s*('[^']*')\s*,\s*([\w.]*timestamp)\s*\)/g, (m, f, c) => `strftime(${f}, ${berlinSql(c)})`)
+    .replace(/date\(\s*([\w.]*timestamp)\s*\)/g, (m, c) => `date(${berlinSql(c)})`);
+  if (/time_logs/.test(out)) out = out.replace(/date\('now'\)/g, () => `date(${berlinSql("'now'")})`);
+  return out;
+}
+
 const dbQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     if (process.env.DATABASE_URL) {
@@ -28,6 +46,7 @@ const dbQuery = (sql, params = []) => {
         resolve({ rows, lastID });
       });
     } else {
+      sql = localizeSqliteTimes(sql);
       const trimmed = sql.trim().toUpperCase();
       if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
         // SELECT: db.all() liefert Zeilen
