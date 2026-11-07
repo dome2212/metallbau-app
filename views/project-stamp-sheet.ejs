@@ -1,0 +1,118 @@
+<%
+  const kunde = project.company_name || project.contact_person || '';
+  const kontakt = project.company_name && project.contact_person ? project.contact_person : '';
+  const strasse = project.street || '';
+  const ort = [project.zip, project.city].filter(Boolean).join(' ');
+  const heute = new Date().toLocaleDateString('de-DE');
+%><!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stempel-Zettel – <%= project.title %></title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;background:#e5e7eb;color:#111;font-family:Inter,"Segoe UI",Arial,sans-serif}
+    .toolbar{position:sticky;top:0;background:#1e293b;color:#fff;padding:10px 16px;display:flex;gap:12px;align-items:center;justify-content:space-between;z-index:5}
+    .toolbar a,.toolbar button{font:inherit;font-size:14px;color:#fff;background:#4f46e5;border:0;border-radius:8px;padding:8px 16px;cursor:pointer;text-decoration:none}
+    .toolbar a.ghost{background:transparent;border:1px solid #64748b}
+    .page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;padding:14mm 15mm;box-shadow:0 4px 24px rgba(0,0,0,.15);display:flex;flex-direction:column}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:8px}
+    .head .firma{font-size:12px;line-height:1.4;text-align:right;color:#444}
+    .head .firma b{font-size:14px;color:#111}
+    .kicker{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#444}
+    h1{font-size:30px;line-height:1.15;margin:4px 0 0}
+    .nr{font-size:14px;color:#555;margin-top:2px}
+    .info{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin:14px 0 6px}
+    .info div span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#777;margin-bottom:1px}
+    .info div p{margin:0;font-size:16px;line-height:1.35}
+    .info .wide{grid-column:1 / -1}
+    .qrbox{display:flex;gap:8mm;align-items:center;border:3px solid #111;border-radius:6mm;padding:7mm;margin:8px 0}
+    .qrbox svg{width:78mm;height:78mm;flex:none}
+    .steps h2{font-size:22px;margin:0 0 8px}
+    .steps ol{margin:0;padding-left:22px;font-size:17px;line-height:1.5}
+    .steps .url{margin-top:10px;font-size:10.5px;color:#666;word-break:break-all}
+    .manual{margin-top:auto;padding-top:6px}
+    .manual h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin:0 0 4px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border:1px solid #888;padding:0 6px;height:8.2mm;text-align:left}
+    th{background:#f1f5f9;height:7mm;font-weight:600}
+    .foot{margin-top:6px;font-size:10px;color:#777;display:flex;justify-content:space-between}
+    @media print{
+      html,body{background:#fff}
+      .toolbar{display:none}
+      .page{margin:0;box-shadow:none;width:auto;min-height:0;height:277mm;padding:0}
+      @page{size:A4;margin:10mm 12mm}
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a class="ghost" href="/projects/<%= project.id %>">← Zurück zum Auftrag</a>
+    <span style="font-size:13px;color:#cbd5e1">Ausdrucken und auf der Baustelle aufhängen / dem Team mitgeben</span>
+    <button onclick="window.print()">🖨️ Drucken</button>
+  </div>
+
+  <div class="page">
+    <div class="head">
+      <div>
+        <div class="kicker">Baustellen-Stempelzettel</div>
+        <h1><%= project.title %></h1>
+        <div class="nr">Auftrag Nr. <%= project.id %></div>
+      </div>
+      <div class="firma">
+        <b><%= firma.name || firma.nameKurz || '' %></b><br>
+        <% if (firma.strasse) { %><%= firma.strasse %><br><% } %>
+        <% if (firma.plzOrt) { %><%= firma.plzOrt %><br><% } %>
+        <% if (firma.tel) { %>Tel. <%= firma.tel %><% } %>
+      </div>
+    </div>
+
+    <div class="info">
+      <div>
+        <span>Kunde</span>
+        <p><%= kunde || '–' %><% if (kontakt) { %><br><small style="color:#555">Ansprechpartner: <%= kontakt %></small><% } %></p>
+      </div>
+      <div>
+        <span>Baustellen-Adresse</span>
+        <p><%= strasse || '–' %><% if (ort) { %><br><%= ort %><% } %></p>
+      </div>
+      <% if (project.phone) { %>
+      <div><span>Telefon Kunde</span><p><%= project.phone %></p></div>
+      <% } %>
+      <div><span>Status</span><p><%= project.status || '–' %></p></div>
+      <% if (project.site_note) { %>
+      <div class="wide"><span>Hinweis zur Baustelle</span><p><%= project.site_note %></p></div>
+      <% } %>
+      <% if (project.description) { %>
+      <div class="wide"><span>Beschreibung</span><p style="font-size:14px;white-space:pre-line"><%= String(project.description).slice(0, 400) %></p></div>
+      <% } %>
+    </div>
+
+    <div class="qrbox">
+      <%- qrSvg %>
+      <div class="steps">
+        <h2>Zeit buchen per QR-Code</h2>
+        <ol>
+          <li>Handy-Kamera auf den Code halten</li>
+          <li>Anmelden (falls nötig)</li>
+          <li><b>Einstempeln</b> beim Ankommen,<br><b>Ausstempeln</b> beim Gehen</li>
+        </ol>
+        <div class="url">Falls der Scan nicht klappt:<br><%= scanUrl %></div>
+      </div>
+    </div>
+
+    <div class="manual">
+      <h3>Notfall – handschriftlich (falls kein Empfang / Handy leer)</h3>
+      <table>
+        <thead><tr><th style="width:24%">Datum</th><th>Name</th><th style="width:14%">Von</th><th style="width:14%">Bis</th><th style="width:14%">Pause</th></tr></thead>
+        <tbody>
+          <% for (let i = 0; i < 6; i++) { %><tr><td></td><td></td><td></td><td></td><td></td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="foot"><span><%= firma.nameKurz || firma.name || '' %></span><span>Gedruckt am <%= heute %></span></div>
+  </div>
+</body>
+</html>

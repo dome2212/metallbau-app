@@ -1,0 +1,100 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<%
+  const addr = [project.street, [project.zip, project.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const kunde = project.company_name || project.contact_person || '';
+  const done = project.status === 'Abgeschlossen';
+%>
+
+<main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
+  <div class="px-4 md:px-6 max-w-lg mx-auto w-full py-4 space-y-4">
+
+    <!-- Auftrag -->
+    <div class="card p-5 text-center">
+      <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Baustelle · Auftrag #<%= project.id %></p>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-gray-100 leading-tight"><%= project.title %></h1>
+      <% if (kunde) { %><p class="text-sm text-slate-600 dark:text-slate-300 mt-1"><%= kunde %></p><% } %>
+      <% if (addr) { %><p class="text-sm text-slate-500 dark:text-slate-400">📍 <%= addr %></p><% } %>
+      <% if (project.site_note) { %><p class="text-xs text-slate-500 mt-1"><%= project.site_note %></p><% } %>
+      <% if (done) { %>
+        <p class="mt-3 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Achtung: Dieser Auftrag ist bereits abgeschlossen.
+        </p>
+      <% } %>
+    </div>
+
+    <!-- Status -->
+    <div class="card p-4 text-center">
+      <% if (isStampedIn && sameProject) { %>
+        <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">● Du bist auf dieser Baustelle eingestempelt seit <%= since %> Uhr</p>
+      <% } else if (isStampedIn) { %>
+        <p class="text-sm font-semibold text-amber-700 dark:text-amber-300">● Du bist eingestempelt seit <%= since %> Uhr<%= activeProjectTitle ? ' auf „' + activeProjectTitle + '“' : ' (Werkstatt / allgemein)' %></p>
+      <% } else { %>
+        <p class="text-sm font-semibold text-slate-500">Du bist gerade nicht eingestempelt</p>
+      <% } %>
+    </div>
+
+    <!-- Stempeln -->
+    <%
+      const actions = [];
+      if (!isStampedIn) actions.push({ type: 'IN', pid: project.id, label: '✔ Auf diese Baustelle einstempeln', bg: '#16a34a', sh: '22,163,74' });
+      else if (sameProject) actions.push({ type: 'OUT', pid: project.id, label: '■ Von dieser Baustelle ausstempeln', bg: '#dc2626', sh: '220,38,38' });
+      else {
+        if (allowSwitch) actions.push({ type: 'SWITCH', pid: project.id, label: '🔄 Hierher wechseln', bg: '#f59e0b', sh: '245,158,11' });
+        actions.push({ type: 'OUT', pid: activeProjectId || '', label: '■ Ausstempeln', bg: '#dc2626', sh: '220,38,38' });
+      }
+    %>
+    <div class="space-y-3">
+      <% actions.forEach(a => { %>
+      <form action="/timetracking/stamp" method="POST" class="scan-form"
+            data-offline="true" data-offline-label="Stempelzeit" data-offline-redirect="/timetracking">
+        <input type="hidden" name="latitude" class="gps-lat">
+        <input type="hidden" name="longitude" class="gps-lng">
+        <input type="hidden" name="project_id" value="<%= a.pid %>">
+        <input type="hidden" name="type" value="<%= a.type %>">
+        <button type="submit" class="scan-btn" style="background:<%= a.bg %>;box-shadow:0 8px 24px rgba(<%= a.sh %>,.35)"><%= a.label %></button>
+      </form>
+      <% }) %>
+      <% if (needsGps && actions.some(a => a.type !== 'OUT')) { %>
+      <p id="gps-status" class="text-xs text-slate-400 italic text-center">📡 Standort wird ermittelt…</p>
+      <% } %>
+    </div>
+
+    <p class="text-center"><a href="/timetracking" class="text-xs text-blue-600 hover:underline">Zur Stempeluhr</a></p>
+  </div>
+</main>
+
+<style>
+  .scan-btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:4.25rem;border:0;border-radius:1.1rem;color:#fff;font-weight:700;font-size:1.1rem;padding:.75rem 1rem;cursor:pointer}
+  .scan-btn:disabled{opacity:.6}
+</style>
+
+<script>
+(function () {
+  const status = document.getElementById('gps-status');
+  function setPos(pos) {
+    document.querySelectorAll('.gps-lat').forEach(i => { i.value = pos.coords.latitude; });
+    document.querySelectorAll('.gps-lng').forEach(i => { i.value = pos.coords.longitude; });
+    if (status) { status.textContent = '📍 Standort erfasst.'; status.className = 'text-xs text-green-600 italic text-center'; }
+  }
+  function gpsFail() {
+    if (status) { status.textContent = '⚠️ Standort konnte nicht ermittelt werden.'; status.className = 'text-xs text-orange-500 italic text-center'; }
+  }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(setPos, gpsFail, { timeout: 10000, enableHighAccuracy: true });
+  } else { gpsFail(); }
+
+  // Doppel-Tipp verhindern
+  let submitted = false;
+  document.querySelectorAll('.scan-form').forEach(f => f.addEventListener('submit', function (e) {
+    if (submitted) { e.preventDefault(); return; }
+    submitted = true;
+    if (navigator.vibrate) navigator.vibrate(12);
+    setTimeout(() => document.querySelectorAll('.scan-btn').forEach(b => { b.disabled = true; }), 0);
+  }));
+})();
+</script>
+
+</body>
+</html>

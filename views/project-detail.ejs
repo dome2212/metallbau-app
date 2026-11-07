@@ -25,6 +25,9 @@
           class="btn btn-ghost text-xs">
           📱 QR-Code
         </button>
+        <a href="/projects/<%= project.id %>/stempel-qr" target="_blank" class="btn btn-ghost text-xs" title="Zettel mit QR-Code zum Ein-/Ausstempeln auf der Baustelle">
+          🖨️ Stempel-Zettel
+        </a>
         <% if (currentUser.role === 'ADMIN' || currentUser.role === 'CHEF') { %>
           <button onclick="document.getElementById('editProjectModal').classList.remove('hidden')"
             class="btn btn-ghost text-xs" style="color:#b45309;border-color:#fde68a;background:#fffbeb">
