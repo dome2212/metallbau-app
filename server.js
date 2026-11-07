@@ -1,27 +1,31 @@
-const express      = require('express');
-const http         = require('http');
-const path         = require('path');
+const express = require('express');
+const http = require('http');
+const path = require('path');
 const cookieParser = require('cookie-parser');
-const rateLimit    = require('express-rate-limit');
-const cors         = require('cors');
-const helmet       = require('helmet');
-const db           = require('./config/database');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+const helmet = require('helmet');
+const db = require('./config/database');
 const { initChatServer, ensureChatTable } = require('./utils/chatSocket');
 
-// ==========================================
-// ZEITZONE AUF DEUTSCHLAND FESTLEGEN
-// ==========================================
 process.env.TZ = 'Europe/Berlin';
 
-// PostgreSQL-Verbindung auf UTC halten
 if (process.env.DATABASE_URL) {
-  db.query("SET timezone = 'UTC';").catch(() => {});
+  db.query("SET timezone = 'Europe/Berlin';").catch(() => {});
 }
 
-// ==========================================
-// HILFSFUNKTION (SQLite & PostgreSQL)
-// ==========================================
 const isPg = !!process.env.DATABASE_URL;
+
+function parseBerlinDate(value) {
+  if (!value) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const normalized = s.includes('T') ? s : s.replace(' ', 'T');
+  if (/[zZ]$/.test(normalized) || /[+-]\d{2}:?\d{2}$/.test(normalized)) {
+    return new Date(normalized);
+  }
+  return new Date(normalized + '+01:00');
+}
 
 const dbQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
@@ -33,19 +37,19 @@ const dbQuery = (sql, params = []) => {
       }
       db.query(pgSql, params, (err, res) => {
         if (err) return reject(err);
-        const rows   = res.rows || [];
+        const rows = res.rows || [];
         const lastID = rows.length > 0 && rows[0].id ? rows[0].id : null;
         resolve({ rows, lastID });
       });
     } else {
       const trimmed = sql.trim().toUpperCase();
       if (trimmed.startsWith('SELECT') || trimmed.startsWith('WITH')) {
-        db.all(sql, params, function(err, rows) {
+        db.all(sql, params, function (err, rows) {
           if (err) return reject(err);
           resolve({ rows: rows || [], lastID: null });
         });
       } else {
-        db.run(sql, params, function(err) {
+        db.run(sql, params, function (err) {
           if (err) return reject(err);
           resolve({ rows: [], lastID: this.lastID });
         });
@@ -54,85 +58,64 @@ const dbQuery = (sql, params = []) => {
   });
 };
 
-// ==========================================
-// DATENBANK-MIGRATIONEN
-// Alle Schema-Definitionen leben in utils/migrations.js.
-// Dort neue Tabellen oder Spalten hinzufügen – nicht hier.
-// ==========================================
 const { runMigrations } = require('./utils/migrations');
 runMigrations().catch(err => {
   console.error('❌ Datenbank-Migration fehlgeschlagen:', err.message);
   process.exit(1);
 });
 
-// Bereinigung alter lokaler Upload-Pfade
 dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
 dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
 
-// ==========================================
-// CLOUDINARY (wird von Route-Dateien benötigt)
-// ==========================================
 const { v2: cloudinary } = require('cloudinary');
 cloudinary.config({
-  cloud_name:  process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:     process.env.CLOUDINARY_API_KEY,
-  api_secret:  process.env.CLOUDINARY_API_SECRET
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// ==========================================
-// MIDDLEWARE & ROUTEN
-// ==========================================
 const { verifyToken, requireAdmin } = require('./middleware/auth');
-const authRoutes         = require('./routes/authRoutes');
-const documentRoutes     = require('./routes/documentRoutes');
-const dashboardRoutes    = require('./routes/dashboardRoutes');
-const projectRoutes      = require('./routes/projectRoutes');
-const customerRoutes     = require('./routes/customerRoutes');
-const calendarRoutes     = require('./routes/calendarRoutes');
+const authRoutes = require('./routes/authRoutes');
+const documentRoutes = require('./routes/documentRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 const timetrackingRoutes = require('./routes/timetrackingRoutes');
-const vacationRoutes     = require('./routes/vacationRoutes');
-const adminRoutes              = require('./routes/adminRoutes');
-const articleRoutes            = require('./routes/articleRoutes');
-const companySettingsRoutes    = require('./routes/companySettingsRoutes');
-const reportsRoutes            = require('./routes/reportsRoutes');
-const tickerRoutes             = require('./routes/tickerRoutes');
-const lagerRoutes              = require('./routes/lagerRoutes');
-const schnittlisteRoutes        = require('./routes/schnittlisteRoutes');
-const colorsRoutes              = require('./routes/colorsRoutes');
-const pushRoutes                = require('./routes/pushRoutes');
-const taskRoutes                = require('./routes/taskRoutes');
-const chatRoutes                = require('./routes/chatRoutes');
-const miscRoutes                = require('./routes/miscRoutes');
-const appApiRoutes              = require('./routes/appApiRoutes');
-const rfidRoutes                = require('./routes/rfidRoutes');
-const aiApiRoutes               = require('./routes/aiApiRoutes');
+const vacationRoutes = require('./routes/vacationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const articleRoutes = require('./routes/articleRoutes');
+const companySettingsRoutes = require('./routes/companySettingsRoutes');
+const reportsRoutes = require('./routes/reportsRoutes');
+const tickerRoutes = require('./routes/tickerRoutes');
+const lagerRoutes = require('./routes/lagerRoutes');
+const schnittlisteRoutes = require('./routes/schnittlisteRoutes');
+const colorsRoutes = require('./routes/colorsRoutes');
+const pushRoutes = require('./routes/pushRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const miscRoutes = require('./routes/miscRoutes');
+const appApiRoutes = require('./routes/appApiRoutes');
+const rfidRoutes = require('./routes/rfidRoutes');
+const aiApiRoutes = require('./routes/aiApiRoutes');
 const { startBackupCron } = require('./utils/backup');
 const { startRetentionCron } = require('./utils/dataRetention');
 const { startStampReminderCron } = require('./utils/stampReminder');
 const { startDunningCron } = require('./utils/dunning');
 const { startLagerAlertCron } = require('./utils/lagerAlert');
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust the first proxy (Render / reverse-proxy environments) so that
-// express-rate-limit can read the real client IP from X-Forwarded-For.
 app.set('trust proxy', 1);
 
-// ==========================================
-// SECURITY HEADERS (helmet)
-// CSP bewusst gelockert: Inline-Scripts/Styles + Fonts/CDN für EJS-UI
-// ==========================================
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
-// ==========================================
-// CORS (für React Native Android-App)
-// ==========================================
 app.use(cors({
-  origin: true,           // Alle Origins erlaubt (App sendet keine Origin)
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -147,22 +130,17 @@ app.use('/cad/vendor/three', express.static(path.join(__dirname, 'node_modules/t
 app.use('/cad/vendor/three-controls', express.static(path.join(__dirname, 'node_modules/three/examples/jsm/controls'), { fallthrough: false }));
 app.use(express.static(path.join(__dirname, 'Public')));
 
-// UTF-8 Charset für alle HTML-Antworten erzwingen
 app.use((req, res, next) => {
   const origRender = res.render.bind(res);
-  res.render = function(view, options, callback) {
+  res.render = function (view, options, callback) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return origRender(view, options, callback);
   };
   next();
 });
 
-// ==========================================
-// RATE LIMITING
-// ==========================================
-// Login: max. 10 Versuche pro 15 Minuten je IP
 const loginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 15 Minuten
+  windowMs: 5 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -170,9 +148,8 @@ const loginLimiter = rateLimit({
 });
 app.use('/login', loginLimiter);
 
-// API: max. 200 Anfragen pro Minute je IP (verhindert Scraping/KI-Missbrauch)
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 Minute
+  windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
@@ -195,17 +172,7 @@ const rfidLimiter = rateLimit({
   message: { ok: false, error: 'Zu viele RFID-Anfragen.' }
 });
 
-
-// ==========================================
-// ÖFFENTLICHE ROUTEN (Login / Logout)
-// ==========================================
 app.use('/', authRoutes);
-
-// ==========================================
-// ALLE FOLGENDEN ROUTEN ERFORDERN LOGIN
-// ==========================================
-
-// Health-Check für Render / Monitoring (ohne Auth)
 app.get('/health', async (req, res) => {
   try {
     await dbQuery('SELECT 1 AS ok');
@@ -216,12 +183,10 @@ app.get('/health', async (req, res) => {
 });
 
 app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
-// Mobile clients authenticate with Bearer tokens; no browser cookie is required.
 app.use('/api/v2/auth/login', loginLimiter);
 app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
 app.use(verifyToken);
 
-// Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
 const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
 const { canSeeMoney: _canSeeMoney, hasPerm: _hasPerm } = require('./middleware/auth');
 app.use(async (req, res, next) => {
@@ -230,13 +195,10 @@ app.use(async (req, res, next) => {
   } catch (_) {
     res.locals.firma = require('./utils/companySettings').DEFAULTS;
   }
-  if (req.user && ['CHEF','ADMIN'].includes(req.user.role)) res.locals.backupStatus = require('./utils/backupStatus').summary(res.locals.firma);
-  // canSeeMoney als Helper für alle EJS-Views verfügbar machen
+  if (req.user && ['CHEF', 'ADMIN'].includes(req.user.role)) res.locals.backupStatus = require('./utils/backupStatus').summary(res.locals.firma);
   res.locals.canSeeMoney = req.user ? _canSeeMoney(req.user, res.locals.firma) : false;
-  // hasPerm als Helper-Funktion für alle EJS-Views (Sidebar, Seiten)
   res.locals.hasPerm = (area, adminDef, employeeDef) =>
     _hasPerm(req.user, area, res.locals.firma, adminDef, employeeDef);
-  // Sidebar-Einstellungen aus Cookie für EJS verfügbar machen
   try {
     const raw = req.cookies && req.cookies.sidebar_hidden;
     res.locals.sidebarHidden = raw ? JSON.parse(raw) : [];
@@ -246,77 +208,30 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Dokument-Routen (Angebote → Projekt / Rechnung)
 app.use('/documents', documentRoutes);
-
-// Dashboard & Widget-Einstellungen
 app.use('/', dashboardRoutes);
-
-// Aufträge & Baustellen
 app.use('/auftragszentrale', require('./routes/workflowRoutes'));
 app.use('/projects', projectRoutes);
-
-// Kunden
 app.use('/customers', customerRoutes);
-
-// Kalender & Termine & Wetter-API
-app.use('/',              calendarRoutes);
-
-// Zeiterfassung
+app.use('/', calendarRoutes);
 app.use('/timetracking', timetrackingRoutes);
-
-// Urlaub & Abwesenheit
 app.use('/vacations', vacationRoutes);
-
-// Admin-Bereich (Zeiterfassung-Übersicht, Mitarbeiter, Ticker, PDF)
-app.use('/admin',   adminRoutes);
-app.use('/admin',   companySettingsRoutes);
-
-// Artikel-Stamm
+app.use('/admin', adminRoutes);
+app.use('/admin', companySettingsRoutes);
 app.use('/articles', articleRoutes);
-
-// Berichte & Auswertungen
 app.use('/reports', reportsRoutes);
-app.use('/ticker',  tickerRoutes);
-
-// Lagerliste (Baustahl & Edelstahl)
+app.use('/ticker', tickerRoutes);
 app.use('/lager', lagerRoutes);
-
-// Schnittliste (Baustahl/Edelstahl-Zuschnitt: Upload, PDF-Export, Bild-Erkennung)
 app.use('/schnittliste', schnittlisteRoutes);
 app.use('/farben', colorsRoutes);
-
-// Push-Benachrichtigungen (Subscription verwalten)
 app.use('/push', pushRoutes);
-
 app.use('/tasks', taskRoutes);
-
 app.use('/chat', chatRoutes);
 app.use('/', miscRoutes);
-
-// Baustellenkarte (Leaflet)
-// ==========================================
-// MOBILE API (JSON – React Native App)
-// ==========================================
-
-app.use('/api', appApiRoutes);  // search, today-hours, dark-mode
+app.use('/api', appApiRoutes);
 app.use('/api/rfid', rfidLimiter, rfidRoutes);
 app.use('/api/ai', aiLimiter, aiApiRoutes);
 
-
-// ==========================================
-// API: HEUTE GEARBEITETE STUNDEN (für Mitarbeiter-Dashboard)
-// ==========================================
-// ==========================================
-// RFID-STEMPEL (Raspberry Pi Lesegerät)
-// Kein JWT – gesichert per RFID_API_KEY in .env
-// ==========================================
-
-
-
-// ==========================================
-// ERROR PAGES
-// ==========================================
 app.use((req, res) => {
   res.status(404).render('error', {
     status: 404,
@@ -340,30 +255,19 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: err.message || 'Internal Server Error' });
 });
 
-// ==========================================
-// SERVER START
-// ==========================================
-// http.createServer statt app.listen direkt, damit der WebSocket-Server
-// (Echtzeit-Chat) sich an denselben HTTP-Server anhängen kann (nötig für
-// den "upgrade"-Handshake von WebSocket-Verbindungen).
 const server = http.createServer(app);
 initChatServer(server);
 require('./utils/projectTrash').startTrashPurgeSchedule();
-ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
+ensureChatTable();
 
 server.listen(PORT, () => {
   console.log(`\n==================================================`);
   console.log(`🚀 Metallbau-App gestartet!`);
   console.log(`👉 Öffne im Browser: http://localhost:${PORT}`);
   console.log(`==================================================\n`);
-  // Automatisches Datenbank-Backup täglich um Mitternacht
   startBackupCron();
-  // Automatische Löschung alter Zeiterfassungs-Einträge nach Aufbewahrungsfrist (täglich 01:00 Uhr)
   startRetentionCron();
-  // Erinnerung bei vergessenem Ausstempeln (alle 30 Minuten)
   startStampReminderCron();
-  // Automatisches Mahnwesen bei überfälligen Rechnungen (täglich 08:00 Uhr)
   startDunningCron();
-  // Proaktive Lagerbestand-Warnung (täglich 07:00 Uhr)
   startLagerAlertCron();
 });
