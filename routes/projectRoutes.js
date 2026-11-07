@@ -1096,119 +1096,20 @@ router.get('/:id/pdf', async (req, res) => {
 // ==========================================
 // RECHNUNG AUS AUFTRAG ERSTELLEN
 // ==========================================
-router.get('/:id/create-invoice', requireAdmin, async (req, res) => {
-  const { id } = req.params;
+router.get('/:id/create-invoice', requireAdmin, (req,res) => res.redirect('/documents/neu/rechnung?project_id='+encodeURIComponent(req.params.id)));
+// Old project forms also use the common transaction, tax and numbering engine.
+router.post('/:id/create-invoice', requireAdmin, async (req,res) => {
   try {
-    const projRes = await dbQuery(`
-      SELECT projects.*, customers.company_name, customers.contact_person,
-             customers.email, customers.phone, customers.street, customers.zip, customers.city
-      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
-      WHERE projects.id = ?`, [id]);
-    const project = projRes.rows[0];
-    if (!project) return res.status(404).send('Projekt nicht gefunden');
-
-    const hoursRes = await (isPg
-      ? dbQuery(`
-          SELECT users.username,
-                 SUM(CASE WHEN tl_in.type = 'IN' THEN EXTRACT(EPOCH FROM (tl_out.ts - tl_in.timestamp)) / 3600 ELSE 0 END) AS hours
-          FROM time_logs tl_in
-          JOIN users ON tl_in.user_id = users.id
-          LEFT JOIN LATERAL (
-            SELECT timestamp AS ts FROM time_logs
-            WHERE user_id = tl_in.user_id AND project_id = tl_in.project_id
-              AND type = 'OUT' AND timestamp > tl_in.timestamp
-            ORDER BY timestamp ASC LIMIT 1
-          ) tl_out ON true
-          WHERE tl_in.project_id = $1 AND tl_in.type = 'IN'
-          GROUP BY users.username
-        `, [id])
-      : dbQuery(`
-          SELECT u.username,
-                 SUM(
-                   CASE WHEN tl_in.type = 'IN' THEN
-                     (JULIANDAY((
-                       SELECT tl_out.timestamp FROM time_logs tl_out
-                       WHERE tl_out.user_id = tl_in.user_id
-                         AND tl_out.project_id = tl_in.project_id
-                         AND tl_out.type = 'OUT'
-                         AND tl_out.timestamp > tl_in.timestamp
-                       ORDER BY tl_out.timestamp ASC LIMIT 1
-                     )) - JULIANDAY(tl_in.timestamp)) * 24
-                   ELSE 0 END
-                 ) AS hours
-          FROM time_logs tl_in
-          JOIN users u ON tl_in.user_id = u.id
-          WHERE tl_in.project_id = ? AND tl_in.type = 'IN'
-          GROUP BY u.username
-        `, [id])
-    ).catch(() => ({ rows: [] }));
-
-    let hourRows = (hoursRes.rows || [])
-      .filter(r => parseFloat(r.hours) > 0)
-      .map(r => ({ ...r, hours: Math.round(parseFloat(r.hours) * 100) / 100 }));
-
-    const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const articlesRes = await dbQuery(`SELECT id, title, unit, unit_price, description FROM articles ORDER BY title ASC`).catch(() => ({ rows: [] }));
-    res.render('project-invoice-create', { project, hourRows, invoiceNumber, articles: articlesRes.rows || [] });
-  } catch (err) {
-    console.error('Fehler bei Rechnungsvorschau:', err.message);
-    res.status(500).send('Fehler beim Laden der Rechnungsvorschau');
-  }
-});
-
-router.post('/:id/create-invoice', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { invoice_number, due_days, description, quantity, unit, price } = req.body;
-
-  const descs  = Array.isArray(description) ? description : (description ? [description] : []);
-  const qtys   = Array.isArray(quantity)    ? quantity    : (quantity    ? [quantity]    : []);
-  const units  = Array.isArray(unit)        ? unit        : (unit        ? [unit]        : []);
-  const prices = Array.isArray(price)       ? price       : (price       ? [price]       : []);
-
-  const itemsToInsert = [];
-  let subtotal = 0;
-  for (let i = 0; i < descs.length; i++) {
-    if (!descs[i] || descs[i].trim() === '') continue;
-    const qty = parseFloat(String(qtys[i]   || '1').replace(',', '.')) || 1;
-    const prc = parseFloat(String(prices[i] || '0').replace(',', '.')) || 0;
-    subtotal += qty * prc;
-    itemsToInsert.push({ description: descs[i].trim(), quantity: qty, unit: units[i] || 'Psch', price: prc });
-  }
-
-  const _firma  = await getFirma();
-  const days    = parseInt(due_days || String(_firma.zahlungsfrist), 10);
-  const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() + days);
-
-  const taxRate    = parseFloat(_firma.default_tax_rate || 19);
-  const taxAmount  = subtotal * (taxRate / 100);
-  const totalGross = subtotal + taxAmount;
-
-  try {
-    const projRes    = await dbQuery('SELECT customer_id FROM projects WHERE id = ?', [id]);
-    const customerId = projRes.rows[0]?.customer_id || null;
-
-    // Rechnung im selben "documents"-System anlegen wie Angebote & direkt erstellte
-    // Rechnungen (doc_type = 'INVOICE'), damit sie überall konsistent auftaucht
-    // (Liste, PDF, DATEV-Export, Mahnwesen) und die Weiterleitung danach funktioniert.
-    const insertRes = await dbQuery(
-      `INSERT INTO documents (doc_type, doc_number, customer_id, status, tax_rate, subtotal, tax_amount, total_amount, due_date)
-       VALUES ('INVOICE', ?, ?, 'ENTWURF', ?, ?, ?, ?, ?)`,
-      [invoice_number, customerId, taxRate, subtotal, taxAmount, totalGross, dueDate.toISOString().split('T')[0]]
-    );
-    const docId = insertRes.lastID || insertRes.rows?.[0]?.id;
-
-    for (const item of itemsToInsert) {
-      await dbQuery('INSERT INTO document_items (document_id, description, quantity, unit, price) VALUES (?, ?, ?, ?, ?)',
-        [docId, item.description, item.quantity, item.unit, item.price]);
-    }
-    await dbQuery("UPDATE projects SET status = 'Abgeschlossen' WHERE id = ?", [id])
-      .catch(e => console.error('Auftragsstatus nach Rechnungserstellung nicht gesetzt:', e.message));
-    res.redirect('/documents/invoices/' + docId);
-  } catch (err) {
-    console.error('Fehler beim Erstellen der Rechnung aus Auftrag:', err.message);
-    res.status(500).send('Fehler beim Erstellen der Rechnung');
-  }
+    const firma = await getFirma();
+    if (!hasPerm(req.user,'documents',firma,true,false) || !canSeeMoney(req.user,firma)) return res.status(403).send('Keine Berechtigung für Rechnungen.');
+    const arr=v=>Array.isArray(v)?v:v===undefined?[]:[v];
+    const descriptions=arr(req.body.description),quantities=arr(req.body.quantity),units=arr(req.body.unit),prices=arr(req.body.price);
+    const days=Number(req.body.due_days || firma.zahlungsfrist || 14);
+    if (!Number.isSafeInteger(days) || days<1 || days>365) return res.status(400).send('Ungültiges Zahlungsziel.');
+    const due=new Date();due.setDate(due.getDate()+days);
+    const doc=await require('../utils/billingService').save({type:'rechnung',project_id:req.params.id,due_date:due.toISOString().slice(0,10),items:descriptions.map((description,i)=>({description,quantity:quantities[i],unit:units[i]||'Std',price:prices[i]}))},firma);
+    res.redirect('/documents/invoices/'+doc.id);
+  } catch(error) { res.status(error.status || 500).send(error.status?error.message:'Rechnung konnte nicht gespeichert werden.'); }
 });
 
 // ==========================================
