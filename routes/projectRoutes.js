@@ -898,6 +898,29 @@ router.post('/:id/set-location', async (req, res) => {
 // ==========================================
 // LIEFERSCHEIN / STUNDENNACHWEIS PDF
 // ==========================================
+// ==========================================
+// Stempel-QR-Zettel (druckbar): QR-Code → Baustelle ein-/ausstempeln
+// ==========================================
+router.get('/:id/stempel-qr', async (req, res) => {
+  try {
+    const projRes = await dbQuery(`
+      SELECT projects.*, customers.company_name, customers.contact_person, customers.phone,
+             customers.street, customers.zip, customers.city
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [req.params.id]);
+    const project = projRes.rows[0];
+    if (!project) return res.status(404).send('Auftrag nicht gefunden');
+    const firma = await getFirma().catch(() => ({}));
+    const base = (process.env.APP_URL || (req.protocol + '://' + req.get('host'))).replace(/\/+$/, '');
+    const scanUrl = base + '/timetracking/scan/' + project.id;
+    const { toSvg } = require('../utils/qrcode');
+    res.render('project-stamp-sheet', { project, firma, scanUrl, qrSvg: toSvg(scanUrl, { size: 320 }) });
+  } catch (err) {
+    console.error('Fehler Stempel-QR:', err.message);
+    res.status(500).send('Fehler beim Erstellen des QR-Zettels');
+  }
+});
+
 router.get('/:id/pdf', async (req, res) => {
   const { id } = req.params;
   try {

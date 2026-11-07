@@ -34,26 +34,33 @@ async function createDefaultAdmin() {
 createDefaultAdmin();
 
 // GET: Login-Seite anzeigen
+// Nur interne Pfade erlauben (kein Open-Redirect)
+function safeNext(v) {
+  v = String(v || '');
+  return (v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/\\') && !v.startsWith('/login')) ? v : '/';
+}
+
 router.get('/login', (req, res) => {
-  res.render('login', { error: null });
+  res.render('login', { error: null, next: safeNext(req.query.next) });
 });
 
 // POST: Login verarbeiten
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  const nextUrl = safeNext(req.body.next);
 
   try {
     const result = await dbQuery(`SELECT * FROM users WHERE username = ?`, [username]);
     const user = result.rows[0];
 
     if (!user) {
-      return res.render('login', { error: 'Ungültiger Benutzername oder Passwort' });
+      return res.render('login', { error: 'Ungültiger Benutzername oder Passwort', next: nextUrl });
     }
 
     // Passwort vergleichen
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return res.render('login', { error: 'Ungültiger Benutzername oder Passwort' });
+      return res.render('login', { error: 'Ungültiger Benutzername oder Passwort', next: nextUrl });
     }
 
     // JWT-Token erstellen (8 Stunden Schichtdauer)
@@ -71,10 +78,10 @@ router.post('/login', async (req, res) => {
       maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
     });
 
-    res.redirect('/');
+    res.redirect(nextUrl);
   } catch (error) {
     console.error('❌ Login-Fehler:', error.message);
-    res.render('login', { error: 'Fehler bei der Anmeldung. Bitte erneut versuchen.' });
+    res.render('login', { error: 'Fehler bei der Anmeldung. Bitte erneut versuchen.', next: nextUrl });
   }
 });
 

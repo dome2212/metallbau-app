@@ -132,6 +132,59 @@ router.get('/', async (req, res) => {
 });
 
 // ==========================================
+// QR-SCAN: Baustelle per QR-Code ein-/ausstempeln
+// (QR-Code steht auf dem Auftrags-Zettel, siehe /projects/:id/stempel-qr)
+// ==========================================
+router.get('/scan/:projectId', async (req, res) => {
+  const firma = await getFirma().catch(() => ({}));
+  if (!hasPerm(req.user, 'timetracking', firma, true, true)) {
+    return res.status(403).send('<h1>403 – Zugriff verweigert</h1><a href="/">← Zurück</a>');
+  }
+  if (!/^\d+$/.test(String(req.params.projectId))) return res.status(404).send('Auftrag nicht gefunden');
+  try {
+    const pRes = await dbQuery(`
+      SELECT projects.id, projects.title, projects.status, projects.deleted_at, projects.site_note,
+             customers.company_name, customers.contact_person, customers.street, customers.zip, customers.city
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.id = ?`, [req.params.projectId]);
+    const project = pRes.rows[0];
+    if (!project || project.deleted_at) return res.status(404).send('Auftrag nicht gefunden');
+
+    const lastRes = await dbQuery(
+      isPg
+        ? `SELECT time_logs.type, time_logs.project_id, projects.title as project_title,
+                  TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'HH24:MI') as hhmm
+           FROM time_logs LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin') = CURRENT_DATE
+           ORDER BY time_logs.timestamp DESC, time_logs.id DESC LIMIT 1`
+        : `SELECT time_logs.type, time_logs.project_id, projects.title as project_title,
+                  strftime('%H:%M', time_logs.timestamp) as hhmm
+           FROM time_logs LEFT JOIN projects ON time_logs.project_id = projects.id
+           WHERE time_logs.user_id = ? AND date(time_logs.timestamp) = date('now')
+           ORDER BY time_logs.timestamp DESC, time_logs.id DESC LIMIT 1`,
+      [req.user.id]);
+    const last = lastRes.rows[0] || null;
+    const isStampedIn = !!(last && last.type === 'IN');
+    const sameProject = isStampedIn && last.project_id && String(last.project_id) === String(project.id);
+
+    res.render('stamp-scan', {
+      project,
+      isStampedIn,
+      sameProject,
+      activeProjectId: isStampedIn ? last.project_id : null,
+      activeProjectTitle: isStampedIn ? last.project_title : null,
+      since: isStampedIn ? last.hhmm : null,
+      allowSwitch: firma.stamp_allow_switch !== 'false',
+      needsGps: firma.stamp_require_gps !== 'false'
+                && !((req.user.role === 'ADMIN' || req.user.role === 'CHEF') && firma.stamp_admin_no_gps !== 'false'),
+    });
+  } catch (err) {
+    console.error('Fehler beim QR-Scan:', err.message);
+    res.status(500).send('Datenbankfehler');
+  }
+});
+
+// ==========================================
 // EINSTEMPELN / AUSSTEMPELN / WECHSELN
 // ==========================================
 router.post('/stamp', requirePerm('timetracking', true, true), async (req, res) => {
