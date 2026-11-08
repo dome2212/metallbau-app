@@ -800,6 +800,69 @@ const MIGRATIONS = [
       await raw('CREATE TABLE IF NOT EXISTS project_workflow (project_id INTEGER PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE, data TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1)');
     }
   },
+
+  // ── 027 ── Lieferanten, Bestellungen, Wareneingang, Angebots-Freigabe ───────
+  {
+    id: 27,
+    description: 'Lieferanten, Bestellungen, Wareneingang, document_share_tokens',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS suppliers (
+        id          ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        name        TEXT NOT NULL,
+        contact     TEXT,
+        email       TEXT,
+        phone       TEXT,
+        address     TEXT,
+        notes       TEXT,
+        active      ${isPg ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${isPg ? 'TRUE' : '1'},
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      await safeRaw(`CREATE TABLE IF NOT EXISTS purchase_orders (
+        id            ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        supplier_id   INT,
+        project_id    INT,
+        order_number  TEXT,
+        status        TEXT NOT NULL DEFAULT 'ENTWURF',
+        ordered_at    TEXT,
+        expected_at   TEXT,
+        received_at   TEXT,
+        notes         TEXT,
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      await safeRaw(`CREATE TABLE IF NOT EXISTS purchase_order_items (
+        id                  ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        purchase_order_id   INT NOT NULL,
+        description         TEXT NOT NULL,
+        quantity            NUMERIC(12,3) NOT NULL DEFAULT 1,
+        unit                TEXT DEFAULT 'Stk',
+        unit_price          NUMERIC(12,2) NOT NULL DEFAULT 0,
+        lager_item_id       INT,
+        received_qty        NUMERIC(12,3) DEFAULT 0
+      )`);
+
+      await safeRaw(`CREATE TABLE IF NOT EXISTS document_share_tokens (
+        id            ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        document_id   INT NOT NULL,
+        token_hash    TEXT NOT NULL UNIQUE,
+        token_hint    TEXT,
+        expires_at    TEXT,
+        approved_at   TEXT,
+        rejected_at   TEXT,
+        signer_name   TEXT,
+        signer_note   TEXT,
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        revoked_at    TEXT
+      )`);
+
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_po_supplier ON purchase_orders(supplier_id)`); } catch (_) {}
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_po_project ON purchase_orders(project_id)`); } catch (_) {}
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_share_doc ON document_share_tokens(document_id)`); } catch (_) {}
+    }
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
