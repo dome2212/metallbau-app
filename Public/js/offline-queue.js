@@ -130,35 +130,62 @@
     return params;
   }
 
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function buildPayload(form, submitter) {
+    const useJson = form.dataset.offlineJson === 'true';
+    const data = serializeForm(form, submitter);
+    if (!useJson) return { contentType: 'application/x-www-form-urlencoded', body: data, json: false };
+
+    // Datei-Inputs → base64 dataUrl (für Offline-Fotos)
+    const fileInput = form.querySelector('input[type="file"]');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      if (file.size > 6 * 1024 * 1024) throw new Error('Datei zu groß (max. 6 MB offline)');
+      data.dataUrl = await fileToDataUrl(file);
+      data.filename = file.name || 'foto.jpg';
+      delete data[fileInput.name];
+    }
+    return { contentType: 'application/json', body: data, json: true };
+  }
+
   async function handleOfflineForm(e) {
     const form = e.target;
     if (form.dataset.offline !== 'true') return;
 
-    // Immer abfangen und selbst per fetch senden – „navigator.onLine“
-    // erkennt nur die Netzwerkschnittstelle, nicht ob wirklich eine Verbindung
-    // zum Server besteht (typisch auf der Baustelle: WLAN zeigt „verbunden“,
-    // kommt aber nichts durch). Nur so wird die Eingabe in JEDEM Fall gesichert.
     e.preventDefault();
-    const data = serializeForm(form, e.submitter);
     const url = form.action || window.location.href;
     const method = (form.method || 'POST').toUpperCase();
     const label = form.dataset.offlineLabel || 'Eintrag';
 
-    // Wenn der Browser sicher weiß, dass kein Netz da ist: direkt in die
-    // Warteschlange legen, ohne den (sicher erfolglosen) Versuch zu senden.
+    let payload;
+    try {
+      payload = await buildPayload(form, e.submitter);
+    } catch (err) {
+      toast('❌ ' + err.message, 'error');
+      return;
+    }
+
     if (!navigator.onLine) {
-      return queueAndNotify(form, url, method, data, label);
+      return queueAndNotify(form, url, method, payload, label);
     }
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       let res;
       try {
         res = await fetch(url, {
           method,
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: toUrlEncoded(data),
+          headers: { 'Content-Type': payload.contentType },
+          body: payload.json ? JSON.stringify(payload.body) : toUrlEncoded(payload.body),
           credentials: 'same-origin',
           signal: controller.signal
         });
@@ -167,32 +194,37 @@
       }
 
       if (res.ok) {
-        // Erfolgreich gesendet → wie beim normalen Formular weiterleiten
-        window.location.href = res.url || form.dataset.offlineRedirect || window.location.href;
+        if (form.dataset.offlineRedirect) {
+          window.location.href = form.dataset.offlineRedirect;
+        } else if (payload.json) {
+          toast('✅ ' + label + ' gespeichert', 'success');
+          if (typeof form.reset === 'function') form.reset();
+          setTimeout(() => window.location.reload(), 600);
+        } else {
+          window.location.href = res.url || window.location.href;
+        }
         return;
       }
 
-      if (res.status >= 500) {
-        // Serverfehler → kann an einem vorübergehenden Problem liegen, später erneut versuchen
-        throw new Error('Serverfehler ' + res.status);
-      }
+      if (res.status >= 500) throw new Error('Serverfehler ' + res.status);
 
-      // 4xx: Der Server hat die Anfrage inhaltlich abgelehnt (z.B. fehlendes GPS,
-      // zu weit von der Baustelle entfernt). Ein erneuter Versuch würde am selben
-      // Problem scheitern – deshalb NICHT zwischenspeichern, sondern die echte
-      // Fehlermeldung sofort anzeigen, damit der Nutzer weiß, woran es liegt.
       let errText = '';
       try { errText = await res.text(); } catch (_) {}
       toast('❌ ' + (errText && errText.length < 200 ? errText : ('Fehler ' + res.status)), 'error');
     } catch (err) {
-      // Echter Netzwerkfehler (Timeout, keine Verbindung) → nichts verloren gehen
-      // lassen, sondern in die Warteschlange legen
-      await queueAndNotify(form, url, method, data, label);
+      await queueAndNotify(form, url, method, payload, label);
     }
   }
 
-  async function queueAndNotify(form, url, method, data, label) {
-    const entry = { url, method, body: data, createdAt: new Date().toISOString(), label };
+  async function queueAndNotify(form, url, method, payload, label) {
+    const entry = {
+      url, method,
+      body: payload.body,
+      contentType: payload.contentType || 'application/x-www-form-urlencoded',
+      json: !!payload.json,
+      createdAt: new Date().toISOString(),
+      label
+    };
     try {
       await queueRequest(entry);
       await refreshBadge();
@@ -223,10 +255,12 @@
       let rejected = 0;
       for (const entry of queue) {
         try {
+          const isJson = entry.json || (entry.contentType || '').indexOf('json') !== -1;
           const res = await fetch(entry.url, {
             method: entry.method,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: toUrlEncoded(entry.body)
+            headers: { 'Content-Type': entry.contentType || 'application/x-www-form-urlencoded' },
+            body: isJson ? JSON.stringify(entry.body) : toUrlEncoded(entry.body),
+            credentials: 'same-origin'
           });
           if (res.ok) {
             await removeFromQueue(entry.id);
