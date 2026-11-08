@@ -47,17 +47,22 @@
 
   <div class="space-y-2">
     <% (orders || []).forEach(function(o) { %>
-    <a href="/einkauf/orders/<%= o.id %>" class="block bg-white dark:bg-slate-800 rounded-xl shadow p-4 hover:ring-2 hover:ring-blue-400 transition">
-      <div class="flex justify-between gap-2">
-        <div>
-          <p class="font-semibold text-slate-800 dark:text-slate-100">#<%= o.id %> <%= o.order_number || '' %>
-            <span class="text-xs font-medium text-slate-500"><%= o.status %></span>
-          </p>
-          <p class="text-xs text-slate-500"><%= o.supplier_name || 'ohne Lieferant' %><%= o.project_title ? ' · ' + o.project_title : '' %></p>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 hover:ring-2 hover:ring-blue-400 transition">
+      <a href="/einkauf/orders/<%= o.id %>" class="block">
+        <div class="flex justify-between gap-2">
+          <div>
+            <p class="font-semibold text-slate-800 dark:text-slate-100">#<%= o.id %> <%= o.order_number || '' %>
+              <span class="text-xs font-medium text-slate-500"><%= o.status %></span>
+            </p>
+            <p class="text-xs text-slate-500"><%= o.supplier_name || 'ohne Lieferant' %><%= o.project_title ? ' · ' + o.project_title : '' %></p>
+          </div>
+          <p class="text-sm font-semibold tabular-nums"><%= Number(o.total_net || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</p>
         </div>
-        <p class="text-sm font-semibold tabular-nums"><%= Number(o.total_net || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</p>
-      </div>
-    </a>
+      </a>
+      <form method="POST" action="/einkauf/orders/<%= o.id %>/delete" class="mt-2 text-right" onsubmit="return confirm('Bestellung #<%= o.id %> löschen?');">
+        <button type="submit" class="text-xs text-red-600 font-semibold">Löschen</button>
+      </form>
+    </div>
     <% }) %>
     <% if (!(orders || []).length) { %>
     <p class="text-center text-slate-500 py-10 text-sm">Keine Bestellungen.</p>
