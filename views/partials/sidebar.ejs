@@ -194,7 +194,8 @@
     <button type="button" class="foot-btn" onclick="openSidebarSettings()" title="Menü anpassen" aria-label="Menü anpassen"><%- _svg('gear', 'foot-ico') %></button>
     <a href="/logout" class="foot-btn foot-btn--logout" title="Abmelden" aria-label="Abmelden"><%- _svg('logout', 'foot-ico') %></a>
   </div>
-  <p class="side-credit select-none"><%= _f.sidebar_footer_text || '@Domenic Rosic' %></p>
+  <% const _credit = (_f.sidebar_footer_text != null && String(_f.sidebar_footer_text).trim() !== '') ? String(_f.sidebar_footer_text).trim() : ''; %>
+  <% if (_credit) { %><p class="side-credit select-none"><%= _credit %></p><% } %>
 </aside>
 
 <!-- Spacer für die fixierte Top-Bar -->
