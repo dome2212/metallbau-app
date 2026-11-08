@@ -747,6 +747,23 @@ router.post('/backup/run', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/backup/testmail', requireAdmin, async (req, res) => {
+  try {
+    const mailer = require('../utils/mailer');
+    const { getFirma } = require('../utils/companySettings');
+    const firma = await getFirma();
+    const to = (process.env.BACKUP_EMAIL || firma.smtp_backup_email || '').trim();
+    const cfg = await mailer.getConfig();
+    const missing = mailer.missingParts(cfg);
+    if (!to) missing.unshift('Backup-E-Mail (Empfänger)');
+    if (missing.length) return res.redirect('/admin/panel?tab=info&msg=mail_missing&detail=' + encodeURIComponent(missing.join(', ')));
+    const r = await mailer.sendMail({ to, subject: 'Test-E-Mail – ' + (firma.name || 'Metallbau'), text: 'Der E-Mail-Versand funktioniert.' });
+    res.redirect('/admin/panel?tab=info&msg=' + (r.ok ? 'mail_ok' : 'mail_failed') + (r.ok ? '' : '&detail=' + encodeURIComponent(r.error || '')));
+  } catch (err) {
+    res.redirect('/admin/panel?tab=info&msg=mail_failed&detail=' + encodeURIComponent('Unerwarteter Fehler.'));
+  }
+});
+
 router.get('/backup/download', requireAdmin, async (req, res) => {
   try {
     const { path: filePath, name } = await createBackupFile();
@@ -768,6 +785,7 @@ router.post('/backup/restore', requireAdmin, uploadBackup.single('backup'), asyn
     const result = await restoreBackupFile(req.file.path, req.file.originalname);
     try { fs.unlinkSync(req.file.path); } catch (e) { console.error('⚠️ POST /backup/restore:', e.message); }
     res.redirect('/admin/panel?tab=info&msg=restore_ok');
+    if (result && result.restart) setTimeout(() => process.exit(0), 1500);
   } catch (err) {
     try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) { console.error('⚠️ POST /backup/restore:', e.message); }
     res.status(500).send('Restore fehlgeschlagen: ' + err.message);

@@ -348,7 +348,7 @@ router.post('/panel/notifications', requireAdmin, async (req, res) => {
     await saveFields(req.body, ['smtp_backup_email','smtp_host','smtp_port','smtp_user']);
     // Passwort nur speichern wenn ein neuer Wert eingegeben wurde
     const pass = (req.body.smtp_pass || '').trim();
-    if (pass) await setFirmaValue('smtp_pass', pass);
+    if (pass) await setFirmaValue('smtp_pass', require('../utils/secretBox').encrypt(pass));
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);

@@ -8,7 +8,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../config/database');
-const { VAPID_PUBLIC } = require('../utils/webpush');
+const { VAPID_PUBLIC, sendPush } = require('../utils/webpush');
 
 const { dbQuery } = require('../utils/db');   // gemeinsamer Helper (SQLite + PostgreSQL)
 
@@ -55,6 +55,16 @@ router.post('/unsubscribe', async (req, res) => {
     } catch (e) { /* ignore */ }
   }
   res.json({ ok: true });
+});
+
+// Test-Benachrichtigung an die eigenen Geräte
+router.post('/test', async (req, res) => {
+  if (!VAPID_PUBLIC) return res.json({ ok: false, error: 'Push ist serverseitig nicht konfiguriert (VAPID-Schlüssel fehlen in der .env).' });
+  const userId = req.user ? req.user.id : null;
+  const r = await sendPush({ title: 'Test', body: 'Push-Benachrichtigungen funktionieren ✅', url: '/' }, userId);
+  if (!r.total) return res.json({ ok: false, error: 'Kein Gerät registriert. Bitte Push zuerst aktivieren.' });
+  if (!r.sent) return res.json({ ok: false, error: 'Zustellung fehlgeschlagen – Abo war veraltet und wurde entfernt. Push bitte erneut aktivieren.' });
+  res.json({ ok: true, sent: r.sent });
 });
 
 module.exports = router;
