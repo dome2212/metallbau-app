@@ -6,6 +6,136 @@ const router = express.Router();
 const { requireOffice, requireAdmin } = require('../middleware/auth');
 const { dbQuery } = require('../utils/db');
 const { getFirma } = require('../utils/companySettings');
+const multer = require('multer');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Nur Bilddateien erlaubt.'));
+  }
+});
+
+async function callGeminiVision(systemPrompt, b64, mimeType) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error('GEMINI_API_KEY nicht konfiguriert.');
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
+  let lastErr;
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { text: systemPrompt },
+              { inline_data: { mime_type: mimeType, data: b64 } }
+            ]}],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+          })
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) { lastErr = data; continue; }
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } catch (err) { lastErr = err; }
+  }
+  throw new Error('Gemini Vision fehlgeschlagen: ' + JSON.stringify(lastErr));
+}
+
+async function callOpenRouterVision(systemPrompt, b64, mimeType) {
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (!orKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + orKey,
+      'HTTP-Referer': process.env.APP_URL || 'https://localhost',
+      'X-Title': 'Metallbau App'
+    },
+    body: JSON.stringify({
+      model: 'google/gemma-3-27b-it:free',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: systemPrompt },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+        ]
+      }],
+      temperature: 0.2,
+      max_tokens: 4096
+    })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(JSON.stringify(data));
+  return data?.choices?.[0]?.message?.content || '';
+}
+
+async function callVision(systemPrompt, b64, mimeType) {
+  let lastError;
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + process.env.GROQ_API_KEY
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+            ]
+          }],
+          temperature: 0.2,
+          max_tokens: 4096
+        })
+      });
+      const data = await response.json();
+      if (response.ok) return data?.choices?.[0]?.message?.content || '';
+      lastError = data;
+    } catch (err) { lastError = err; }
+  }
+  if (process.env.GEMINI_API_KEY) {
+    try { return await callGeminiVision(systemPrompt, b64, mimeType); } catch (err) { lastError = err; }
+  }
+  if (process.env.OPENROUTER_API_KEY) {
+    return await callOpenRouterVision(systemPrompt, b64, mimeType);
+  }
+  throw new Error('Kein Vision-API-Key (GROQ/GEMINI/OPENROUTER). Letzter Fehler: ' + JSON.stringify(lastError));
+}
+
+function parseItemsJson(reply) {
+  let jsonStr = String(reply || '')
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+  const start = jsonStr.indexOf('[');
+  if (start === -1) return [];
+  jsonStr = jsonStr.slice(start);
+  let end = jsonStr.lastIndexOf(']');
+  if (end === -1) {
+    const lastClose = jsonStr.lastIndexOf('}');
+    if (lastClose === -1) return [];
+    jsonStr = jsonStr.slice(0, lastClose + 1) + ']';
+  } else {
+    jsonStr = jsonStr.slice(0, end + 1);
+  }
+  try {
+    const items = JSON.parse(jsonStr);
+    return Array.isArray(items) ? items : [items];
+  } catch (_) {
+    return [];
+  }
+}
+
 
 function num(v, fallback = 0) {
   const n = parseFloat(String(v ?? '').replace(',', '.'));
@@ -251,6 +381,142 @@ router.post('/orders/:id/receive', requireOffice, async (req, res) => {
   } catch (err) {
     console.error('Wareneingang:', err.message);
     res.status(500).send('Fehler: ' + err.message);
+  }
+});
+
+
+// ── Bestellung löschen ───────────────────────────────────────────────────────
+router.post('/orders/:id/delete', requireOffice, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await dbQuery(`DELETE FROM purchase_order_items WHERE purchase_order_id = ?`, [id]);
+    await dbQuery(`DELETE FROM purchase_orders WHERE id = ?`, [id]);
+    res.redirect('/einkauf/orders?saved=1');
+  } catch (err) {
+    console.error('Bestellung löschen:', err.message);
+    res.status(500).send('Fehler beim Löschen: ' + err.message);
+  }
+});
+
+/**
+ * Lieferschein fotografieren / aus Galerie – KI füllt Positionen vor.
+ * POST multipart field "image"
+ */
+router.post('/orders/:id/scan-lieferschein', requireOffice, upload.single('image'), async (req, res) => {
+  try {
+    if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'Kein KI-API-Key konfiguriert (Gemini / Groq / OpenRouter).' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Kein Bild übermittelt.' });
+
+    const b64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
+
+    const systemPrompt = `Du bist Experte für Lieferscheine im deutschen Metallbau / Stahlhandel.
+Extrahiere ALLE Positionen aus dem Lieferschein-Bild.
+
+Antworte AUSSCHLIESSLICH mit einem JSON-Array (kein Markdown).
+Schema je Position:
+{"description":"string","quantity":number,"unit":"Stk|m|kg|Paket|lfm","unit_price":number|null,"lieferschein_nr":"string|null","lieferdatum":"YYYY-MM-DD|null","supplier_name":"string|null"}
+
+Regeln:
+1. description: klare deutsche Bezeichnung inkl. Profil/Abmessung wenn sichtbar (z.B. "IPE 200 S235 12m", "Flachstahl 40x5 6000mm")
+2. quantity: nur Zahl
+3. unit_price: Einzelpreis netto wenn auf dem Beleg, sonst null
+4. Eine Tabellenzeile = eine Position
+5. Lieferscheinnummer, Datum, Lieferant wenn sichtbar
+6. Nichts erfinden; unleserlich = null
+
+Beispiel:
+[{"description":"IPE 200 S235 L=12000mm","quantity":6,"unit":"Stk","unit_price":89.50,"lieferschein_nr":"LS-10482","lieferdatum":"2026-03-12","supplier_name":"Stahlhandel Muster GmbH"}]`;
+
+    const reply = await callVision(systemPrompt, b64, mimeType);
+    const items = parseItemsJson(reply).map((it) => ({
+      description: String(it.description || it.bezeichnung || '').trim(),
+      quantity: num(it.quantity || it.menge, 1),
+      unit: String(it.unit || it.einheit || 'Stk').trim() || 'Stk',
+      unit_price: it.unit_price != null ? num(it.unit_price) : (it.preis != null ? num(it.preis) : 0),
+      lieferschein_nr: it.lieferschein_nr || null,
+      lieferdatum: it.lieferdatum || null,
+      supplier_name: it.supplier_name || null
+    })).filter((it) => it.description);
+
+    const meta = items[0] || {};
+    res.json({
+      items,
+      meta: {
+        lieferschein_nr: meta.lieferschein_nr || null,
+        lieferdatum: meta.lieferdatum || null,
+        supplier_name: meta.supplier_name || null
+      },
+      raw: items.length ? undefined : reply
+    });
+  } catch (err) {
+    console.error('PO Lieferschein-Scan:', err.message);
+    res.status(500).json({ error: 'KI-Analyse fehlgeschlagen: ' + (err.message || 'Unbekannt') });
+  }
+});
+
+/**
+ * Gescannte Positionen in die Bestellung übernehmen
+ * Body: { items: [...], replace: true|false, order_number?, notes? }
+ */
+router.post('/orders/:id/apply-scan', requireOffice, async (req, res) => {
+  try {
+    const poId = req.params.id;
+    const po = (await dbQuery(`SELECT * FROM purchase_orders WHERE id = ?`, [poId])).rows?.[0];
+    if (!po) return res.status(404).json({ error: 'Bestellung nicht gefunden' });
+
+    let items = req.body.items;
+    if (typeof items === 'string') {
+      try { items = JSON.parse(items); } catch (_) { items = []; }
+    }
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ error: 'Keine Positionen' });
+    }
+
+    if (req.body.replace === true || req.body.replace === '1' || req.body.replace === 'true') {
+      await dbQuery(`DELETE FROM purchase_order_items WHERE purchase_order_id = ?`, [poId]);
+    }
+
+    for (const it of items) {
+      const desc = String(it.description || '').trim();
+      if (!desc) continue;
+      await dbQuery(
+        `INSERT INTO purchase_order_items (purchase_order_id, description, quantity, unit, unit_price)
+         VALUES (?, ?, ?, ?, ?)`,
+        [poId, desc, num(it.quantity, 1), String(it.unit || 'Stk').trim() || 'Stk', num(it.unit_price)]
+      );
+    }
+
+    const orderNumber = (req.body.order_number || req.body.lieferschein_nr || '').trim();
+    const notesExtra = (req.body.notes || '').trim();
+    if (orderNumber || notesExtra) {
+      const noteVal = notesExtra
+        ? ((po.notes ? String(po.notes) + '\n' : '') + notesExtra)
+        : po.notes;
+      await dbQuery(
+        `UPDATE purchase_orders SET
+           order_number = COALESCE(NULLIF(?, ''), order_number),
+           notes = ?,
+           status = CASE WHEN status = 'ENTWURF' THEN 'BESTELLT' ELSE status END
+         WHERE id = ?`,
+        [orderNumber || null, noteVal, poId]
+      );
+    } else {
+      await dbQuery(
+        `UPDATE purchase_orders SET status = CASE WHEN status = 'ENTWURF' THEN 'BESTELLT' ELSE status END WHERE id = ?`,
+        [poId]
+      );
+    }
+
+    if (req.accepts('html') && !String(req.headers.accept || '').includes('application/json')) {
+      return res.redirect('/einkauf/orders/' + poId + '?saved=1');
+    }
+    res.json({ ok: true, count: items.length });
+  } catch (err) {
+    console.error('apply-scan:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
