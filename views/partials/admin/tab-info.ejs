@@ -83,8 +83,8 @@
           <div role="status" class="p-4 mb-4 rounded-lg border <%= bs.warning?'border-amber-400':'border-green-400' %>">
             <p><strong><%= bs.message %></strong></p>
             <% if (bs.reason) { %><p class="text-sm mt-2 text-amber-700 dark:text-amber-300">Grund: <%= bs.reason %></p><% } %>
-            <p class="text-xs mt-2">Letzter erfolgreicher E-Mail-Versand: <%= bs.mail_success_at?new Date(bs.mail_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %></p>
-            <p class="text-xs mt-1">Letzte Sicherungsdatei erstellt: <%= bs.file_success_at?new Date(bs.file_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %><%= bs.file_result==='failed'?' · letzter Dateiversuch fehlgeschlagen':'' %></p>
+            <p class="text-xs mt-2">Letzter erfolgreicher E-Mail-Versand: <%= bs.mail_success_at?new Date(bs.mail_success_at).toLocaleString('de-DE',{timeZone:'Europe/Berlin'}):'Noch nicht bestätigt' %></p>
+            <p class="text-xs mt-1">Letzte Sicherungsdatei erstellt: <%= bs.file_success_at?new Date(bs.file_success_at).toLocaleString('de-DE',{timeZone:'Europe/Berlin'}):'Noch nicht bestätigt' %><%= bs.file_result==='failed'?' · letzter Dateiversuch fehlgeschlagen':'' %></p>
             <p class="text-xs mt-1">Dateierstellung bestätigt keine externe Aufbewahrung oder Wiederherstellbarkeit. Downloads separat sicher ablegen.</p>
           </div>
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
