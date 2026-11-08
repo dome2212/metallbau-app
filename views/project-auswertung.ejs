@@ -1,0 +1,78 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+<%
+  const h = (v) => Number(v || 0).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const eur = (v) => Number(v || 0).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+  const chips = [['laufend', 'Laufende Aufträge'], ['ueberschritten', 'Stunden überschritten'], ['alle', 'Alle']];
+%>
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 space-y-4">
+
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Auftrags-Auswertung</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Geplante gegen gebuchte Stunden – wo wird es knapp?</p>
+      </div>
+      <a href="/projects" class="btn btn-ghost text-xs px-3 py-2">← Aufträge</a>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3">
+      <div class="card p-3"><p class="text-[10px] uppercase text-slate-400 font-semibold">Geplant</p><p class="text-xl font-bold tabular-nums"><%= h(totals.planned) %> h</p></div>
+      <div class="card p-3"><p class="text-[10px] uppercase text-slate-400 font-semibold">Gebucht</p><p class="text-xl font-bold tabular-nums"><%= h(totals.actual) %> h</p></div>
+      <div class="card p-3"><p class="text-[10px] uppercase text-slate-400 font-semibold">Überschritten</p><p class="text-xl font-bold tabular-nums <%= totals.over ? 'text-red-600' : '' %>"><%= totals.over %></p></div>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <% chips.forEach(([key, label]) => { %>
+        <a href="/projects/auswertung?f=<%= key %>" class="px-3 py-1.5 rounded-full text-xs font-semibold border <%= filter === key ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300' %>"><%= label %></a>
+      <% }) %>
+    </div>
+
+    <div class="card p-0 overflow-x-auto">
+      <% if (!items.length) { %>
+        <p class="text-sm text-slate-400 text-center py-10 px-4">Keine Aufträge mit Stunden oder Planwerten. Geplante Stunden trägst du in der Auftragszentrale unter „Planwerte“ ein.</p>
+      <% } else { %>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[11px] uppercase text-slate-400 border-b dark:border-slate-700">
+            <th class="p-3">Auftrag</th>
+            <th class="p-3 text-right">Geplant</th>
+            <th class="p-3 text-right">Gebucht</th>
+            <th class="p-3 w-48">Auslastung</th>
+            <% if (showMoney) { %><th class="p-3 text-right">Kosten</th><th class="p-3 text-right">Ergebnis</th><% } %>
+          </tr>
+        </thead>
+        <tbody>
+        <% items.forEach(i => {
+             const over = i.pct != null && i.pct > 100;
+             const warn = i.pct != null && i.pct > 85 && !over;
+             const color = over ? '#dc2626' : warn ? '#f59e0b' : '#16a34a';
+        %>
+          <tr class="border-b last:border-0 dark:border-slate-700">
+            <td class="p-3">
+              <a href="/projects/<%= i.id %>" class="font-semibold text-slate-800 dark:text-slate-100 hover:underline"><%= i.title %></a>
+              <div class="text-xs text-slate-400"><%= i.customer %><%= i.customer && i.status ? ' · ' : '' %><%= i.status %></div>
+            </td>
+            <td class="p-3 text-right tabular-nums"><%= i.planned != null ? h(i.planned) + ' h' : '—' %></td>
+            <td class="p-3 text-right tabular-nums font-semibold"><%= h(i.actual) %> h</td>
+            <td class="p-3">
+              <% if (i.pct != null) { %>
+                <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden"><div style="width:<%= Math.min(100, i.pct).toFixed(0) %>%;background:<%= color %>;height:100%"></div></div>
+                <div class="text-[11px] mt-1 tabular-nums" style="color:<%= color %>"><%= i.pct.toFixed(0) %> %<%= over ? ' · ' + h(i.diff) + ' h drüber' : '' %></div>
+              <% } else { %><span class="text-xs text-slate-400">kein Plan hinterlegt</span><% } %>
+            </td>
+            <% if (showMoney) { %>
+              <td class="p-3 text-right tabular-nums"><%= eur(i.cost) %></td>
+              <td class="p-3 text-right tabular-nums font-semibold <%= i.result != null && i.result < 0 ? 'text-red-600' : '' %>"><%= i.result != null ? (i.result >= 0 ? '+' : '') + eur(i.result) : '—' %></td>
+            <% } %>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+    <% if (showMoney) { %><p class="text-[11px] text-slate-400">Kosten = gebuchte Stunden × Stundensatz (<%= eur(rate) %>) + Lagermaterial. Ergebnis = Angebot netto − Kosten (nur bei verknüpftem Angebot).</p><% } %>
+  </div>
+</main>
+</body>
+</html>

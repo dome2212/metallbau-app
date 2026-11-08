@@ -12,6 +12,7 @@
       </div>
       <div class="flex items-center gap-2">
         <% if (typeof currentUser !== 'undefined' && (['CHEF','ADMIN','BUERO'].includes(currentUser.role))) { %>
+          <a href="/projects/auswertung" class="btn btn-ghost text-xs px-3 py-2">📊 Auswertung</a>
           <a href="/projects/trash" class="btn btn-ghost text-xs px-3 py-2">
             🗑️ Papierkorb<% if (typeof trashCount !== 'undefined' && trashCount > 0) { %> (<%= trashCount %>)<% } %>
           </a>
