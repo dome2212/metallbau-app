@@ -1,5 +1,13 @@
       <% if (tab === 'info') { %>
-      <div class="space-y-4">
+      <style>
+        .tab-info-root, .tab-info-root > div { min-width:0; max-width:100%; }
+        .tab-info-root p, .tab-info-root dd, .tab-info-root dt, .tab-info-root label { overflow-wrap:anywhere; }
+        .tab-info-root input:not([type=checkbox]):not([type=radio]) { max-width:100%; min-width:0; box-sizing:border-box; }
+        .tab-info-root input[type=file] { width:100%; }
+        .tab-info-root form { min-width:0; max-width:100%; }
+        .tab-info-root .grid > * { min-width:0; }
+      </style>
+      <div class="space-y-4 tab-info-root">
 
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5">
           <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-4 border-b dark:border-slate-700 pb-2">ℹ️ System-Information</h2>
