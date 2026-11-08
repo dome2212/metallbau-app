@@ -347,6 +347,146 @@ router.get('/timetracking/pdf', requireOffice, async (req, res) => {
 });
 
 // ==========================================
+// STUNDENZETTEL (PDF) – Woche oder Monat, je Mitarbeiter mit Baustellen-Summen
+//   /admin/timetracking/stundenzettel?scope=week|month&date=YYYY-MM-DD&month=YYYY-MM&user_id=
+// ==========================================
+router.get('/timetracking/stundenzettel', requireOffice, async (req, res) => {
+  try {
+    if (!PDFKit) return res.status(500).send('PDF-Generator nicht geladen.');
+    const scope = req.query.scope === 'week' ? 'week' : 'month';
+    const isoDate = (d) => d.toISOString().slice(0, 10);
+    const todayB = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date());   // YYYY-MM-DD
+
+    let from, to, label;
+    if (scope === 'week') {
+      const ref = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : todayB;
+      const d = new Date(ref + 'T12:00:00Z');
+      const dow = (d.getUTCDay() + 6) % 7;                    // Montag = 0
+      const mon = new Date(d.getTime() - dow * 86400000), sun = new Date(mon.getTime() + 6 * 86400000);
+      from = isoDate(mon); to = isoDate(sun);
+      const f = (x) => x.split('-').reverse().join('.');
+      label = `Woche ${f(from)} – ${f(to)}`;
+    } else {
+      const month = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : todayB.slice(0, 7);
+      const [y, m] = month.split('-').map(Number);
+      from = `${month}-01`;
+      to = isoDate(new Date(Date.UTC(y, m, 0)));
+      label = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    const tsCol = isPg
+      ? `TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS')`
+      : `strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp)`;
+    const dayCol = isPg
+      ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
+      : `date(time_logs.timestamp)`;
+
+    const params = [from, to];
+    let userFilter = '';
+    if (/^\d+$/.test(String(req.query.user_id || ''))) { userFilter = ' AND time_logs.user_id = ?'; params.push(req.query.user_id); }
+
+    // Nur Einträge im Zeitraum (Schichten, die über die Zeitraumgrenze laufen, erscheinen im Folgezeitraum nicht doppelt)
+    const rows = (await dbQuery(
+      `SELECT time_logs.id, time_logs.user_id, time_logs.type, time_logs.project_id, users.username,
+              ${tsCol} AS local_ts, projects.title AS project_title
+       FROM time_logs
+       JOIN users ON users.id = time_logs.user_id
+       LEFT JOIN projects ON projects.id = time_logs.project_id
+       WHERE ${dayCol} >= ? AND ${dayCol} <= ?${userFilter}
+       ORDER BY users.username ASC, time_logs.timestamp ASC, time_logs.id ASC`, params)).rows || [];
+
+    // Je Mitarbeiter IN→OUT paaren
+    const byUser = new Map();
+    for (const r of rows) {
+      if (!byUser.has(r.user_id)) byUser.set(r.user_id, { name: r.username, logs: [] });
+      byUser.get(r.user_id).logs.push(r);
+    }
+    const toDate = (s) => new Date(String(s).replace(' ', 'T'));       // lokale Berliner Zeit, nur für Differenzen
+    const people = [];
+    for (const { name, logs } of byUser.values()) {
+      const sessions = [];
+      let open = null;
+      for (const l of logs) {
+        if (l.type === 'IN') { open = l; }
+        else if (l.type === 'OUT' && open) {
+          const ms = toDate(l.local_ts) - toDate(open.local_ts);
+          if (ms > 0) sessions.push({ inTs: open.local_ts, outTs: l.local_ts, ms, project: open.project_title || 'Werkstatt / allgemein' });
+          open = null;
+        }
+      }
+      if (sessions.length) people.push({ name, sessions });
+    }
+    if (!people.length) return res.status(404).send('Für diesen Zeitraum gibt es keine abgeschlossenen Stempelzeiten.');
+
+    const hh = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`; };
+    const dDe = (s) => s.slice(0, 10).split('-').reverse().join('.');
+    const doc = new PDFKit({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Stundenzettel_${scope === 'week' ? from : from.slice(0, 7)}.pdf`);
+    doc.pipe(res);
+
+    people.forEach((p, idx) => {
+      if (idx > 0) doc.addPage();
+      doc.font('Helvetica-Bold').fontSize(18).text('Stundenzettel');
+      doc.font('Helvetica').fontSize(11).text(`${FIRMA.name || ''}`);
+      doc.moveDown(0.3).fontSize(12).font('Helvetica-Bold').text(`Mitarbeiter: ${p.name}`);
+      doc.font('Helvetica').fontSize(11).text(`Zeitraum: ${label}`);
+      doc.moveDown(0.6);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.4);
+
+      const col = { date: 50, in: 130, out: 190, dur: 250, proj: 320 };
+      const head = () => {
+        const y = doc.y;
+        doc.font('Helvetica-Bold').fontSize(9);
+        doc.text('Datum', col.date, y, { width: 75 }); doc.text('Kommen', col.in, y, { width: 55 });
+        doc.text('Gehen', col.out, y, { width: 55 }); doc.text('Dauer', col.dur, y, { width: 65 });
+        doc.text('Baustelle', col.proj, y, { width: 225 });
+        doc.moveDown(0.8); doc.font('Helvetica').fontSize(9);
+      };
+      head();
+      const perProject = new Map();
+      let total = 0;
+      for (const s of p.sessions) {
+        if (doc.y > 740) { doc.addPage(); head(); }
+        const y = doc.y;
+        doc.text(dDe(s.inTs), col.date, y, { width: 75, lineBreak: false });
+        doc.text(s.inTs.slice(11, 16), col.in, y, { width: 55, lineBreak: false });
+        doc.text(s.outTs.slice(11, 16), col.out, y, { width: 55, lineBreak: false });
+        doc.text(hh(s.ms), col.dur, y, { width: 65, lineBreak: false });
+        doc.text(s.project, col.proj, y, { width: 225, lineBreak: false, ellipsis: true });
+        doc.moveDown(0.9);
+        total += s.ms;
+        perProject.set(s.project, (perProject.get(s.project) || 0) + s.ms);
+      }
+
+      if (doc.y > 600) doc.addPage();
+      doc.moveDown(0.5); doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke(); doc.moveDown(0.6);
+      doc.font('Helvetica-Bold').fontSize(11).text('Summe je Baustelle', 50);
+      doc.moveDown(0.3).font('Helvetica').fontSize(10);
+      [...perProject.entries()].sort((a, b) => b[1] - a[1]).forEach(([name, ms]) => {
+        const y = doc.y;
+        doc.text(name, 50, y, { width: 330, lineBreak: false, ellipsis: true });
+        doc.text(hh(ms), 400, y, { width: 100, align: 'right' });
+        doc.moveDown(0.3);
+      });
+      doc.moveDown(0.3).font('Helvetica-Bold').fontSize(11);
+      const ty = doc.y;
+      doc.text('Gesamt', 50, ty); doc.text(hh(total), 400, ty, { width: 100, align: 'right' });
+
+      doc.moveDown(3).font('Helvetica').fontSize(9);
+      const sy = doc.y;
+      doc.moveTo(50, sy).lineTo(230, sy).stroke(); doc.moveTo(330, sy).lineTo(510, sy).stroke();
+      doc.text('Datum, Unterschrift Mitarbeiter', 50, sy + 4); doc.text('Datum, Unterschrift Betrieb', 330, sy + 4);
+    });
+    doc.end();
+  } catch (err) {
+    console.error('Fehler beim Stundenzettel-PDF:', err.message);
+    if (!res.headersSent) res.status(500).send('Fehler beim Generieren der PDF.');
+  }
+});
+
+// ==========================================
 // MONATLICHER ÜBERSTUNDEN-BERICHT (PDF)
 // ==========================================
 router.get('/timetracking/overtime-pdf', requireOffice, async (req, res) => {

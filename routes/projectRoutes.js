@@ -405,6 +405,88 @@ router.post('/delete', async (req, res) => {
   }
 });
 
+// ==========================================
+// AUFTRAGS-AUSWERTUNG: Soll/Ist-Stunden aller Aufträge im Überblick
+// ==========================================
+router.get('/auswertung', requireOffice, async (req, res) => {
+  try {
+    const firma = await getFirma().catch(() => ({}));
+    const showMoney = canSeeMoney(req.user, firma);
+    const rate = parseFloat(firma.hourly_rate || 55) || 55;
+    const { workedHours } = require('../utils/projectWorkflow');
+
+    const projects = (await dbQuery(`
+      SELECT projects.id, projects.title, projects.status, projects.planned_hours, projects.offer_id,
+             customers.company_name, customers.contact_person
+      FROM projects LEFT JOIN customers ON projects.customer_id = customers.id
+      WHERE projects.deleted_at IS NULL`)).rows;
+
+    const logs = (await dbQuery(`
+      SELECT id, project_id, user_id, type, timestamp FROM time_logs
+      WHERE project_id IS NOT NULL ORDER BY timestamp ASC, id ASC`)).rows;
+    const logsByProject = new Map();
+    for (const l of logs) {
+      if (!logsByProject.has(String(l.project_id))) logsByProject.set(String(l.project_id), []);
+      logsByProject.get(String(l.project_id)).push(l);
+    }
+
+    let planByProject = new Map();
+    try {
+      const rows = (await dbQuery('SELECT project_id, data FROM project_workflow')).rows;
+      for (const r of rows) { try { planByProject.set(String(r.project_id), (JSON.parse(r.data).plan) || {}); } catch (_) {} }
+    } catch (_) { /* Tabelle noch nicht angelegt */ }
+
+    const materialByProject = new Map();
+    try {
+      const rows = (await dbQuery('SELECT project_id, SUM(gesamtpreis) AS total FROM lager_entnahmen GROUP BY project_id')).rows;
+      for (const r of rows) materialByProject.set(String(r.project_id), parseFloat(r.total) || 0);
+    } catch (_) {}
+
+    const offerNet = new Map();
+    try {
+      const rows = (await dbQuery("SELECT id, subtotal, discount_amount FROM documents WHERE doc_type = 'OFFER'")).rows;
+      for (const r of rows) offerNet.set(String(r.id), (parseFloat(r.subtotal) || 0) - (parseFloat(r.discount_amount) || 0));
+    } catch (_) {}
+
+    const items = projects.map(p => {
+      const plan = planByProject.get(String(p.id)) || {};
+      const planned = plan.hours != null ? Number(plan.hours) : (p.planned_hours != null ? Number(p.planned_hours) : null);
+      const actual = workedHours(logsByProject.get(String(p.id)) || []);
+      const pct = planned > 0 ? (actual / planned) * 100 : null;
+      const labor = actual * (plan.hourlyRate != null ? Number(plan.hourlyRate) : rate);
+      const material = materialByProject.get(String(p.id)) || 0;
+      const revenue = p.offer_id ? (offerNet.get(String(p.offer_id)) ?? null) : null;
+      return {
+        id: p.id, title: p.title, status: p.status,
+        customer: p.company_name || p.contact_person || '',
+        planned, actual, pct,
+        diff: planned != null ? actual - planned : null,
+        cost: labor + material,
+        revenue,
+        result: revenue != null ? revenue - (labor + material) : null,
+      };
+    }).filter(i => i.actual > 0 || i.planned != null);
+
+    const filter = ['alle', 'laufend', 'ueberschritten'].includes(req.query.f) ? req.query.f : 'laufend';
+    let list = items;
+    if (filter === 'laufend') list = items.filter(i => i.status !== 'Abgeschlossen');
+    if (filter === 'ueberschritten') list = items.filter(i => i.pct != null && i.pct > 100);
+    list.sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1) || b.actual - a.actual);
+
+    res.render('project-auswertung', {
+      items: list, filter, showMoney, rate,
+      totals: {
+        planned: list.reduce((s, i) => s + (i.planned || 0), 0),
+        actual: list.reduce((s, i) => s + i.actual, 0),
+        over: items.filter(i => i.pct != null && i.pct > 100 && i.status !== 'Abgeschlossen').length,
+      },
+    });
+  } catch (err) {
+    console.error('Auftrags-Auswertung:', err.message);
+    res.status(500).send('Auswertung konnte nicht geladen werden.');
+  }
+});
+
 router.get('/trash', async (req, res) => {
   if (!_isAdm(req)) return res.status(403).send('Zugriff verweigert');
   try {
