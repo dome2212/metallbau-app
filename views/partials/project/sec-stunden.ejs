@@ -11,6 +11,14 @@
             <span class="text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-full"><%= projectTotalHours %> Std.</span>
           <% } %>
         </div>
+        <% if (typeof nachkalk !== 'undefined' && nachkalk && nachkalk.plannedHours > 0) {
+             const _pl = nachkalk.plannedHours, _ist = parseFloat(projectTotalHours || 0), _pc = (_ist / _pl) * 100;
+             const _col = _pc > 100 ? '#dc2626' : _pc > 85 ? '#f59e0b' : '#16a34a'; %>
+          <div class="mb-3">
+            <div class="flex justify-between text-xs text-slate-500 mb-1"><span>Soll <%= _pl.toFixed(1) %> h</span><span style="color:<%= _col %>;font-weight:600">Ist <%= _ist.toFixed(1) %> h · <%= _pc.toFixed(0) %> %</span></div>
+            <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden"><div style="width:<%= Math.min(100, _pc).toFixed(0) %>%;background:<%= _col %>;height:100%"></div></div>
+          </div>
+        <% } %>
         <% if (typeof projectHours !== 'undefined' && projectHours.length > 0) { %>
           <ul class="divide-y divide-slate-100 dark:divide-slate-700">
             <% projectHours.forEach(row => {
