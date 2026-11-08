@@ -105,7 +105,7 @@ const DEFAULTS = {
   kpi_tasks_danger:    '10',       // Ab X offenen Aufgaben: rot
 
   // ── Sidebar & App ──────────────────────────────────────────────
-  sidebar_footer_text: '@Domenic Rosic', // Fußzeile der Sidebar
+  sidebar_footer_text: '', // Fußzeile der Sidebar (leer = aus)
 
   // ── Stempeluhr: Erinnerung bei vergessenem Ausstempeln ──────────
   stamp_reminder_time:  '18:30',  // Feierabend-Erinnerung (Uhrzeit, leer = aus)
