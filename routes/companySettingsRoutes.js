@@ -162,8 +162,9 @@ router.get('/panel', requireAdmin, async (req, res) => {
     const firma   = await getFirma();
     const success = req.query.saved === '1';
     const tab     = req.query.tab || 'design';
-    const aiKeys  = tab === 'info' ? await require('../utils/aiKeys').status() : [];
-    res.render('admin-panel', { firma, success, tab, aiKeys });
+    const aiKeys         = tab === 'info' ? await require('../utils/aiKeys').status() : [];
+    const cloudinaryKeys = tab === 'info' ? await require('../utils/cloudinaryKeys').status() : [];
+    res.render('admin-panel', { firma, success, tab, aiKeys, cloudinaryKeys });
   } catch (err) {
     console.error('Fehler beim Laden des Admin-Panels:', err.message);
     res.status(500).send('Datenbankfehler');
@@ -364,6 +365,21 @@ router.post('/panel/ai-keys', requireChef, async (req, res) => {
       else await ai.saveKey(k.env, req.body[k.env], false);
     }
     await ai.loadAiKeys();
+    res.redirect('/admin/panel?tab=info&saved=1');
+  } catch (err) {
+    res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
+  }
+});
+
+// ── POST: Cloudinary-Zugangsdaten ────────────────────────────────────────────
+router.post('/panel/cloudinary-keys', requireChef, async (req, res) => {
+  try {
+    const ck = require('../utils/cloudinaryKeys');
+    for (const k of ck.KEYS) {
+      if (req.body['remove_' + k.env]) await ck.saveKey(k.env, '', true);
+      else await ck.saveKey(k.env, req.body[k.env], false);
+    }
+    await ck.loadCloudinaryKeys();
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
