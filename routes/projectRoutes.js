@@ -605,13 +605,36 @@ router.get('/:id', async (req, res) => {
     const firma = await getFirma().catch(() => ({}));
     const hourlyRate = parseFloat(firma.hourly_rate || 55) || 55;
     const materialCost = (entnahmenRes.rows || []).reduce((s, e) => s + (parseFloat(e.gesamtpreis) || 0), 0);
+    // Direkteinkauf (Bestellungen) diesem Auftrag zuordnen – EK-Preise aus Bestellpositionen
+    let purchaseCost = 0;
+    let purchaseOrders = [];
+    try {
+      purchaseOrders = (await dbQuery(
+        `SELECT po.id, po.order_number, po.status, s.name AS supplier_name,
+                (SELECT COALESCE(SUM(i.received_qty * i.unit_price),0) FROM purchase_order_items i WHERE i.purchase_order_id = po.id) AS received_value,
+                (SELECT COALESCE(SUM(i.quantity * i.unit_price),0) FROM purchase_order_items i WHERE i.purchase_order_id = po.id) AS ordered_value
+         FROM purchase_orders po
+         LEFT JOIN suppliers s ON s.id = po.supplier_id
+         WHERE po.project_id = ?
+         ORDER BY po.created_at DESC`,
+        [id]
+      )).rows || [];
+      purchaseCost = purchaseOrders.reduce((s, p) => s + (parseFloat(p.received_value) || 0), 0);
+    } catch (e) { /* Tabelle ggf. noch nicht migriert */ }
     const laborCost = parseFloat(projectTotalHours) * hourlyRate;
-    const actualCost = materialCost + laborCost;
+    // Ist-Kosten: Lohn + Materialentnahme (EK) + Wareneingang auf diesen Auftrag
+    // Materialentnahme und Bestellung können sich überlappen – wir zählen Bestell-Wareneingang
+    // separat, Entnahme bleibt EK aus Lager.
+    const actualCost = materialCost + laborCost + purchaseCost;
     let linkedOffer = null;
+    let offerItems = [];
     try {
       if (project.offer_id) {
         const oRes = await dbQuery(`SELECT * FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [project.offer_id]);
         linkedOffer = oRes.rows?.[0] || null;
+        if (linkedOffer) {
+          offerItems = (await dbQuery(`SELECT * FROM document_items WHERE document_id = ? ORDER BY id`, [linkedOffer.id])).rows || [];
+        }
       }
     } catch (e) { console.error('Verknüpftes Angebot nicht geladen:', e.message); }
     const offerNet = linkedOffer ? (parseFloat(linkedOffer.subtotal || 0) - parseFloat(linkedOffer.discount_amount || 0)) : 0;
@@ -619,13 +642,16 @@ router.get('/:id', async (req, res) => {
     const plannedHours = project.planned_hours != null ? parseFloat(project.planned_hours) : null;
     const profitNet = offerNet - actualCost;
     const nachkalk = {
-      hourlyRate, materialCost, laborCost, actualCost, offerNet, offerGross,
+      hourlyRate, materialCost, purchaseCost, laborCost, actualCost, offerNet, offerGross,
       offerNumber: linkedOffer ? (linkedOffer.doc_number || linkedOffer.id) : null,
       offerId: linkedOffer ? linkedOffer.id : null,
+      offerItems,
+      purchaseOrders,
       plannedHours,
       hoursDiff: plannedHours != null ? parseFloat(projectTotalHours) - plannedHours : null,
       profitNet,
-      marginPct: offerNet > 0 ? (profitNet / offerNet) * 100 : null
+      marginPct: offerNet > 0 ? (profitNet / offerNet) * 100 : null,
+      totalHours: parseFloat(projectTotalHours)
     };
 
     const FIRM_LAT = parseFloat(process.env.FIRM_LAT || '51.3069467');
@@ -719,6 +745,72 @@ router.post('/:id/photos/upload', requirePerm('projects',true,true), upload.sing
     );
   } catch (err) { console.error('Fehler beim Foto-Upload:', err.message); return res.status(500).send('Foto konnte nicht gespeichert werden. Bitte erneut versuchen.'); }
   res.redirect(303, destination);
+});
+
+/**
+ * Offline-fähige JSON-APIs für Baustelle (Foto / Aufmaß / Notiz).
+ * Client: offline-queue.js mit data-offline-json + optional base64 photo.
+ */
+router.post('/:id/offline/photo', requirePerm('projects', true, true), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { caption, dataUrl, filename } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Kein Bild (dataUrl) übergeben.' });
+    }
+    if (dataUrl.length > 8_000_000) return res.status(400).json({ error: 'Bild zu groß (max. ~6 MB).' });
+
+    const { v2: cloudinary } = require('cloudinary');
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(dataUrl, { folder: 'project_photos', resource_type: 'image' }, (err, r) => {
+        if (err) reject(err); else resolve(r);
+      });
+    });
+    await dbQuery(
+      `INSERT INTO project_photos (project_id, file_url, original_name, caption) VALUES (?, ?, ?, ?)`,
+      [projectId, result.secure_url, (filename || 'offline-foto.jpg').slice(0, 180), (caption || '').trim() || null]
+    );
+    res.json({ ok: true, url: result.secure_url });
+  } catch (err) {
+    console.error('offline/photo:', err.message);
+    res.status(500).json({ error: err.message || 'Upload fehlgeschlagen' });
+  }
+});
+
+router.post('/:id/offline/measurement', requirePerm('projects', true, true), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { component_name, width, height, angle, quantity, note } = req.body || {};
+    if (!(component_name || '').trim()) return res.status(400).json({ error: 'Bauteilname fehlt' });
+    await dbQuery(
+      `INSERT INTO project_measurements (project_id, component_name, width, height, angle, quantity, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [projectId, component_name.trim(), width || null, height || null, angle || null, parseInt(quantity || '1', 10) || 1, note || null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/offline/note', requirePerm('projects', true, true), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const text = (req.body?.text || req.body?.note || '').trim();
+    if (!text) return res.status(400).json({ error: 'Notiztext fehlt' });
+    // Schema: project_notes – gängige Spalten text/content/note
+    try {
+      await dbQuery(`INSERT INTO project_notes (project_id, note, created_by) VALUES (?, ?, ?)`, [projectId, text, req.user?.id || null]);
+    } catch (_) {
+      try {
+        await dbQuery(`INSERT INTO project_notes (project_id, content) VALUES (?, ?)`, [projectId, text]);
+      } catch (e2) {
+        await dbQuery(`INSERT INTO project_notes (project_id, text) VALUES (?, ?)`, [projectId, text]);
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/photos/caption', async (req, res) => {

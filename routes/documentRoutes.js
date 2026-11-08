@@ -1307,4 +1307,69 @@ router.post('/offers/:id/send-email', requireOffice, async (req, res) => {
 });
 
 
+// ── Kunden-Freigabe-Link für Angebot ─────────────────────────────────────────
+router.post('/offers/:id/share-link', requireOffice, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const offer = (await dbQuery(`SELECT id, doc_type FROM documents WHERE id = ? AND doc_type = 'OFFER'`, [id])).rows?.[0];
+    if (!offer) return res.status(404).json({ error: 'Angebot nicht gefunden' });
+
+    const rawToken = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const days = Math.min(90, Math.max(1, parseInt(req.body.expires_days, 10) || 30));
+    const expires = new Date(Date.now() + days * 86400000).toISOString();
+
+    await dbQuery(
+      `INSERT INTO document_share_tokens (document_id, token_hash, token_hint, expires_at, created_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, tokenHash, rawToken.slice(-6), expires, req.user?.id || null]
+    );
+
+    const base = (process.env.APP_URL || '').replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+    const url = `${base}/angebot-freigabe/${rawToken}`;
+
+    if (req.accepts('html') && !req.xhr && !String(req.headers.accept || '').includes('application/json')) {
+      return res.send(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Freigabe-Link</title>
+        <style>body{font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 16px}
+        input{width:100%;padding:12px;font-size:14px;border:1px solid #cbd5e1;border-radius:8px}
+        a{color:#2563eb}</style></head><body>
+        <h1>Kunden-Freigabe-Link</h1>
+        <p>Gültig ${days} Tage. Link einmal kopieren – der Token wird nicht erneut angezeigt.</p>
+        <input readonly value="${url.replace(/"/g, '&quot;')}" onclick="this.select()">
+        <p style="margin-top:1.5rem"><a href="/documents/offers/${id}/detail">← Zurück zum Angebot</a></p>
+        </body></html>`);
+    }
+    res.json({ url, expires_at: expires, hint: rawToken.slice(-6) });
+  } catch (err) {
+    console.error('share-link:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/offers/:id/share-links', requireOffice, async (req, res) => {
+  try {
+    const rows = (await dbQuery(
+      `SELECT id, token_hint, expires_at, approved_at, rejected_at, signer_name, created_at, revoked_at
+       FROM document_share_tokens WHERE document_id = ? ORDER BY created_at DESC`,
+      [req.params.id]
+    )).rows || [];
+    res.json({ links: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/offers/:id/share-links/:shareId/revoke', requireOffice, async (req, res) => {
+  try {
+    await dbQuery(
+      `UPDATE document_share_tokens SET revoked_at = ? WHERE id = ? AND document_id = ?`,
+      [new Date().toISOString(), req.params.shareId, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
