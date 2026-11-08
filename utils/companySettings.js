@@ -108,6 +108,7 @@ const DEFAULTS = {
   sidebar_footer_text: '@Domenic Rosic', // Fußzeile der Sidebar
 
   // ── Stempeluhr: Erinnerung bei vergessenem Ausstempeln ──────────
+  stamp_reminder_time:  '18:30',  // Feierabend-Erinnerung (Uhrzeit, leer = aus)
   stamp_reminder_hours: '10',     // WhatsApp-Erinnerung nach X Std. eingestempelt (0 = deaktiviert)
 
   // ── Lager-Tabs ─────────────────────────────────────────────────
