@@ -1366,6 +1366,9 @@ router.post('/offers/:id/share-links/:shareId/revoke', requireOffice, async (req
       `UPDATE document_share_tokens SET revoked_at = ? WHERE id = ? AND document_id = ?`,
       [new Date().toISOString(), req.params.shareId, req.params.id]
     );
+    if (req.accepts('html') && !String(req.headers.accept || '').includes('application/json')) {
+      return res.redirect(`/documents/offers/${req.params.id}/detail?saved=1`);
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

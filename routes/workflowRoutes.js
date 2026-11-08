@@ -433,6 +433,19 @@ router.get(
         [pr.id],
       )
     ).rows;
+    let notes = [], measurements = [];
+    try {
+      notes = (await dbQuery(
+        "SELECT * FROM project_notes WHERE project_id=? ORDER BY created_at DESC",
+        [pr.id],
+      )).rows || [];
+    } catch (_) {}
+    try {
+      measurements = (await dbQuery(
+        "SELECT * FROM project_measurements WHERE project_id=? ORDER BY created_at DESC",
+        [pr.id],
+      )).rows || [];
+    } catch (_) {}
     const checklist =
       current.data.checklist ||
       flow.defaultChecklist.map((text) => ({ text, done: false }));
@@ -443,6 +456,8 @@ router.get(
       ...md,
       photos,
       files,
+      notes,
+      measurements,
       checklist,
       num,
       saved: req.query.saved === "1",

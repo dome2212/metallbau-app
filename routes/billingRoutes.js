@@ -194,6 +194,17 @@ async function detail(req, res, locals) {
         )
       ).rows;
   }
+  let shareLinks = [];
+  if (data.doc.doc_type === "OFFER") {
+    try {
+      shareLinks = (
+        await dbQuery(
+          "SELECT id, token_hint, expires_at, approved_at, rejected_at, signer_name, created_at, revoked_at FROM document_share_tokens WHERE document_id=? ORDER BY created_at DESC",
+          [data.doc.id],
+        )
+      ).rows || [];
+    } catch (_) { shareLinks = []; }
+  }
   const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
   res.render("billing/detail", {
     ...locals,
@@ -201,6 +212,7 @@ async function detail(req, res, locals) {
     payments,
     history,
     additions,
+    shareLinks,
     paid,
     open: Math.max(0, Number(data.doc.total_amount) - paid),
     saved: !!req.query.saved,

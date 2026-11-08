@@ -795,18 +795,9 @@ router.post('/:id/offline/measurement', requirePerm('projects', true, true), asy
 router.post('/:id/offline/note', requirePerm('projects', true, true), async (req, res) => {
   try {
     const projectId = req.params.id;
-    const text = (req.body?.text || req.body?.note || '').trim();
+    const text = (req.body?.text || req.body?.note || req.body?.note_text || '').trim();
     if (!text) return res.status(400).json({ error: 'Notiztext fehlt' });
-    // Schema: project_notes – gängige Spalten text/content/note
-    try {
-      await dbQuery(`INSERT INTO project_notes (project_id, note, created_by) VALUES (?, ?, ?)`, [projectId, text, req.user?.id || null]);
-    } catch (_) {
-      try {
-        await dbQuery(`INSERT INTO project_notes (project_id, content) VALUES (?, ?)`, [projectId, text]);
-      } catch (e2) {
-        await dbQuery(`INSERT INTO project_notes (project_id, text) VALUES (?, ?)`, [projectId, text]);
-      }
-    }
+    await dbQuery(`INSERT INTO project_notes (project_id, note_text) VALUES (?, ?)`, [projectId, text]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
