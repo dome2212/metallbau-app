@@ -89,6 +89,9 @@
       <button id="push-toggle-btn" type="button" class="btn btn-primary w-full justify-center" disabled>
         Wird geladen…
       </button>
+      <button id="push-test-btn" type="button" class="btn w-full justify-center mt-2 hidden bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200">
+        🔔 Test-Benachrichtigung senden
+      </button>
     </div>
 
   </div>
@@ -98,6 +101,7 @@
   (function() {
     const statusEl = document.getElementById('push-status');
     const btn      = document.getElementById('push-toggle-btn');
+    const testBtn  = document.getElementById('push-test-btn');
 
     function setStatus(text, ok) {
       statusEl.textContent = text;
@@ -116,10 +120,12 @@
       const subscribed = await isPushSubscribed();
       if (subscribed) {
         setStatus('Push-Benachrichtigungen sind aktiviert.', true);
+        testBtn.classList.remove('hidden');
         btn.textContent = 'Deaktivieren';
         btn.className = 'btn w-full justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200';
       } else {
         setStatus('Push-Benachrichtigungen sind noch nicht aktiviert.', false);
+        testBtn.classList.add('hidden');
         btn.textContent = 'Benachrichtigungen aktivieren';
         btn.className = 'btn btn-primary w-full justify-center';
       }
@@ -139,6 +145,17 @@
       } catch (err) {
         showToast(err.message || 'Fehler bei Push-Benachrichtigungen', 'error');
       }
+      await refresh();
+    });
+
+    testBtn.addEventListener('click', async () => {
+      testBtn.disabled = true;
+      try {
+        const r = await fetch('/push/test', { method: 'POST' });
+        const j = await r.json();
+        showToast(j.ok ? 'Test gesendet – Benachrichtigung sollte gleich erscheinen' : (j.error || 'Test fehlgeschlagen'), j.ok ? 'success' : 'error');
+      } catch (e) { showToast('Test fehlgeschlagen', 'error'); }
+      testBtn.disabled = false;
       await refresh();
     });
 
