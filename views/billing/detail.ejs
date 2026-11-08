@@ -25,7 +25,33 @@
  <% if(canSeeMoney){ %><details class="bill-disclosure"><summary>Nachtrag erstellen</summary><form method="POST" action="<%= base %>/nachtraege/create" class="bill-action-form"><label class="bill-field">Titel<input name="titel" required maxlength="200"></label><label class="bill-field">Begründung<textarea name="beschreibung" rows="2"></textarea></label><div id="bill-addition-items"><div class="bill-grid"><label class="bill-field bill-wide">Leistung<input name="item_beschreibung" required></label><label class="bill-field">Menge<input type="number" name="item_menge" min="0.001" step="any" value="1" required></label><label class="bill-field">Einheit<input name="item_einheit" value="Stk" required></label><label class="bill-field">Einzelpreis €<input type="number" name="item_preis" min="0" step="0.01" required></label></div></div><button type="button" class="bill-btn" id="bill-addition-add">+ Nachtragsposition</button><button class="bill-btn bill-primary">Nachtrag speichern</button></form></details><% } %></section><% } %>
  </div><aside class="bill-stack"><section class="bill-card"><h2>Nächste Schritte</h2><p class="bill-hint"><%= offer?'Angebot prüfen und an den Kunden senden.':credit?'Gutschrift prüfen und als PDF bereitstellen.':'Die PDF-Vorschau ändert den Status nicht. PDF herunterladen oder Drucken stellt die Rechnung als offen aus – auch für den Postversand. Anschließend Zahlungseingänge buchen.' %></p>
  <% if(canSeeMoney){ %><div class="bill-stack" style="gap:10px;margin-top:16px"><a class="bill-btn bill-detail-action" href="<%= base %>/pdf-download" download>PDF herunterladen</a><a class="bill-btn bill-detail-action" href="<%= base %>/pdf" target="_blank" rel="noopener">PDF zum Drucken öffnen ↗</a>
- <% if(offer){ %><form action="/documents/offers/convert-to-invoice" method="POST" data-confirm="Angebot in eine Rechnung übernehmen? Eine vorhandene Rechnung wird wieder geöffnet."><input type="hidden" name="offer_id" value="<%= doc.id %>"><button class="bill-btn bill-primary bill-detail-action">In Rechnung übernehmen →</button></form><form action="/documents/offers/convert-to-project" method="POST" data-confirm="Auftrag aus diesem Angebot erstellen?"><input type="hidden" name="offer_id" value="<%= doc.id %>"><button class="bill-btn bill-detail-action">Als Auftrag anlegen</button></form><% } %>
+ <% if(offer){ %>
+<details class="bill-disclosure" open id="kunden-freigabe"><summary>Kunden-Freigabe (Link)</summary>
+<p class="bill-hint">Erzeugt einen öffentlichen Link. Der Kunde sieht das Angebot und kann freigeben oder ablehnen – ohne Login.</p>
+<form action="/documents/offers/<%= doc.id %>/share-link" method="POST" class="bill-action-form">
+  <label class="bill-field">Gültigkeit (Tage)
+    <input type="number" name="expires_days" min="1" max="90" value="30">
+  </label>
+  <button class="bill-btn bill-primary">Freigabe-Link erzeugen</button>
+</form>
+<% if (typeof shareLinks !== 'undefined' && shareLinks && shareLinks.length) { %>
+<div class="bill-table-scroll" style="margin-top:12px">
+<table class="bill-table"><thead><tr><th>Erstellt</th><th>Hinweis</th><th>Status</th><th>Aktion</th></tr></thead><tbody>
+<% shareLinks.forEach(function(l){ 
+  var st = l.revoked_at ? 'Widerrufen' : (l.approved_at ? 'Freigegeben' + (l.signer_name ? ' ('+l.signer_name+')' : '') : (l.rejected_at ? 'Abgelehnt' : (l.expires_at && new Date(l.expires_at) < new Date() ? 'Abgelaufen' : 'Offen')));
+%>
+<tr>
+  <td><%= day(l.created_at) %></td>
+  <td>…<%= l.token_hint || '' %></td>
+  <td><%= st %></td>
+  <td><% if(!l.revoked_at && !l.approved_at && !l.rejected_at){ %><form method="POST" action="/documents/offers/<%= doc.id %>/share-links/<%= l.id %>/revoke" onsubmit="return confirm('Link widerrufen?')"><button class="bill-btn bill-small bill-danger">Widerrufen</button></form><% } else { %>—<% } %></td>
+</tr>
+<% }) %>
+</tbody></table>
+</div>
+<% } %>
+</details>
+<form action="/documents/offers/convert-to-invoice" method="POST" data-confirm="Angebot in eine Rechnung übernehmen? Eine vorhandene Rechnung wird wieder geöffnet."><input type="hidden" name="offer_id" value="<%= doc.id %>"><button class="bill-btn bill-primary bill-detail-action">In Rechnung übernehmen →</button></form><form action="/documents/offers/convert-to-project" method="POST" data-confirm="Auftrag aus diesem Angebot erstellen?"><input type="hidden" name="offer_id" value="<%= doc.id %>"><button class="bill-btn bill-detail-action">Als Auftrag anlegen</button></form><% } %>
  </div><details class="bill-disclosure"><summary>Per E-Mail versenden</summary><form action="<%= base %>/send-email" method="POST" class="bill-action-form"><label class="bill-field">Empfänger<input type="email" name="to" value="<%= doc.email||'' %>" required></label><label class="bill-field">Betreff<input name="subject" value="<%= label+' '+doc.doc_number %>" required></label><label class="bill-field">Nachricht<textarea name="message" rows="4">Anbei erhalten Sie <%= label %> <%= doc.doc_number %> als PDF.</textarea></label><button class="bill-btn bill-primary">E-Mail mit PDF senden</button></form></details>
  <% if(!offer&&!credit&&['ENTWURF','Entwurf'].includes(doc.status)){ %><form action="/documents/belege/<%= doc.id %>/ausstellen" method="POST" data-confirm="Rechnung ausstellen und gegen nachträgliche Bearbeitung schützen?" style="margin-top:14px"><button class="bill-btn bill-detail-action">Als ausgestellt markieren</button></form><% } %>
  <% if(!offer&&!credit&&doc.status!=='Storniert'){ %><details class="bill-disclosure"><summary>Zahlung buchen</summary><form method="POST" action="<%= base %>/payments" class="bill-action-form"><label class="bill-field">Betrag €<input type="number" name="amount" min="0.01" step="0.01" value="<%= open.toFixed(2) %>" required></label><label class="bill-field">Zahlungsdatum<input name="payment_date" type="date" value="<%= new Date().toISOString().slice(0,10) %>" required></label><label class="bill-field">Zahlungsart<select name="method"><option>Überweisung</option><option>Bar</option><option>Lastschrift</option><option>Sonstige</option></select></label><label class="bill-field">Notiz<input name="note"></label><button class="bill-btn bill-primary">Zahlung speichern</button></form></details>
