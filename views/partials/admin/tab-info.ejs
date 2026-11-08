@@ -68,18 +68,30 @@
             const _backupEmail = process.env.BACKUP_EMAIL || firma.smtp_backup_email || '';
             const _smtpUser    = process.env.SMTP_USER    || firma.smtp_user         || '';
           %>
+          <div id="flash-msg" class="hidden p-3 mb-4 rounded-lg border text-sm"></div>
+          <script>
+          (function(){
+            var q=new URLSearchParams(location.search), m=q.get('msg'), d=q.get('detail')||'';
+            var T={backup_ok:['ok','Backup wurde per E-Mail versendet.'],backup_skipped:['warn','Backup wurde erstellt und lokal gespeichert, aber nicht per E-Mail versendet (E-Mail nicht eingerichtet).'],backup_failed:['err','Backup-Versand fehlgeschlagen – Grund siehe Statusfeld unten.'],mail_ok:['ok','Test-E-Mail wurde versendet. Bitte Postfach (auch Spam) prüfen.'],mail_failed:['err','Test-E-Mail fehlgeschlagen. '],mail_missing:['warn','Es fehlt noch: '],restore_ok:['ok','Backup eingespielt. Die App startet neu – bitte in einigen Sekunden neu laden.']};
+            if(!m||!T[m])return; var el=document.getElementById('flash-msg'); if(!el)return;
+            var C={ok:'border-green-400 bg-green-50 text-green-800',warn:'border-amber-400 bg-amber-50 text-amber-800',err:'border-red-400 bg-red-50 text-red-800'};
+            el.className='p-3 mb-4 rounded-lg border text-sm '+C[T[m][0]];
+            el.textContent=T[m][1]+(m==='mail_failed'||m==='mail_missing'?d:'');
+          })();
+          </script>
           <% const bs=typeof backupStatus!=='undefined'?backupStatus:{warning:true,message:'Backupstatus noch nicht verfügbar.'}; %>
           <div role="status" class="p-4 mb-4 rounded-lg border <%= bs.warning?'border-amber-400':'border-green-400' %>">
             <p><strong><%= bs.message %></strong></p>
+            <% if (bs.reason) { %><p class="text-sm mt-2 text-amber-700 dark:text-amber-300">Grund: <%= bs.reason %></p><% } %>
             <p class="text-xs mt-2">Letzter erfolgreicher E-Mail-Versand: <%= bs.mail_success_at?new Date(bs.mail_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %></p>
             <p class="text-xs mt-1">Letzte Sicherungsdatei erstellt: <%= bs.file_success_at?new Date(bs.file_success_at).toLocaleString('de-DE'):'Noch nicht bestätigt' %><%= bs.file_result==='failed'?' · letzter Dateiversuch fehlgeschlagen':'' %></p>
             <p class="text-xs mt-1">Dateierstellung bestätigt keine externe Aufbewahrung oder Wiederherstellbarkeit. Downloads separat sicher ablegen.</p>
           </div>
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center mb-4">
             <div class="flex-1 text-sm text-slate-500 dark:text-slate-400">
-              <% if (!_backupEmail || !_smtpUser) { %>
+              <% if (!_backupEmail || !bs.configured) { %>
                 <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 rounded-lg px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
-                  ⚠️ <strong>BACKUP_EMAIL</strong> oder <strong>SMTP_USER / SMTP_PASS</strong> nicht gesetzt – Backup deaktiviert.
+                  ⚠️ E-Mail-Versand nicht vollständig eingerichtet (Empfänger, SMTP-Benutzername und Passwort nötig). Das Backup wird trotzdem täglich lokal auf dem Server gesichert.
                 </div>
               <% } else { %>
                 <div class="bg-green-50 dark:bg-green-900/20 border border-green-300 rounded-lg px-4 py-2.5 text-xs text-green-800 dark:text-green-300">
@@ -94,6 +106,9 @@
                   class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
                   🗄️ Backup per E-Mail
                 </button>
+              </form>
+              <form action="/admin/backup/testmail" method="POST">
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">✉️ Test-E-Mail senden</button>
               </form>
               <a href="/admin/backup/download"
                 class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">
@@ -135,7 +150,7 @@
               <div>
                 <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Host</label>
                 <input type="text" name="smtp_host" value="<%= firma.smtp_host || '' %>"
-                  placeholder="smtp.gmail.com"
+                  placeholder="leer = automatisch (web.de, GMX, Gmail …)"
                   class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
@@ -147,16 +162,16 @@
               <div>
                 <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Benutzername <span class="text-slate-400">(Absender)</span></label>
                 <input type="email" name="smtp_user" value="<%= firma.smtp_user || '' %>"
-                  placeholder="absender@gmail.com"
+                  placeholder="vollständige Adresse, z.B. name@web.de"
                   class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
               <div class="sm:col-span-2">
                 <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">SMTP-Passwort <span class="text-slate-400">(App-Passwort)</span></label>
-                <input type="password" name="smtp_pass" value="<%= firma.smtp_pass || '' %>"
-                  placeholder="Leer lassen um nicht zu ändern"
+                <input type="password" name="smtp_pass" value=""
+                  placeholder="<%= firma.smtp_pass ? '•••••••• gespeichert – leer lassen zum Beibehalten' : 'Passwort eingeben' %>"
                   autocomplete="new-password"
                   class="w-full border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
-                <p class="text-xs text-slate-400 mt-1">Leer lassen, um das gespeicherte Passwort beizubehalten.</p>
+                <p class="text-xs text-slate-400 mt-1">Leer lassen, um das gespeicherte Passwort beizubehalten. Bei web.de/GMX: im Postfach unter Einstellungen den Abruf per POP3/IMAP/SMTP erlauben; bei Gmail ein App-Passwort verwenden. Nach dem Speichern „Test-E-Mail senden“ klicken.</p>
               </div>
             </div>
             <div class="flex justify-end">
