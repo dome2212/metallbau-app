@@ -216,6 +216,7 @@ app.get('/health', async (req, res) => {
 });
 
 app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
+app.use('/angebot-freigabe', require('./routes/offerShareRoutes').router);
 // Mobile clients authenticate with Bearer tokens; no browser cookie is required.
 app.use('/api/v2/auth/login', loginLimiter);
 app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
@@ -281,6 +282,7 @@ app.use('/ticker',  tickerRoutes);
 
 // Lagerliste (Baustahl & Edelstahl)
 app.use('/lager', lagerRoutes);
+app.use('/einkauf', require('./routes/purchaseRoutes'));
 
 // Schnittliste (Baustahl/Edelstahl-Zuschnitt: Upload, PDF-Export, Bild-Erkennung)
 app.use('/schnittliste', schnittlisteRoutes);
@@ -351,11 +353,8 @@ initChatServer(server);
 require('./utils/projectTrash').startTrashPurgeSchedule();
 ensureChatTable(); // sofort beim Start prüfen/anlegen, sichtbar in den Start-Logs
 
-// KI- und Cloudinary-Keys aus dem Admin-Panel laden (überschreiben Werte aus der .env)
-setTimeout(() => {
-  require('./utils/aiKeys').loadAiKeys();
-  require('./utils/cloudinaryKeys').loadCloudinaryKeys();
-}, 1500);
+// KI-API-Keys aus dem Admin-Panel laden (überschreiben Werte aus der .env)
+setTimeout(() => require('./utils/aiKeys').loadAiKeys(), 1500);
 
 server.listen(PORT, () => {
   console.log(`\n==================================================`);
