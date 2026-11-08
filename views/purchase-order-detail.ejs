@@ -21,19 +21,26 @@
   <!-- Lieferschein scannen -->
   <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4" id="lieferschein-scan">
     <h2 class="text-sm font-semibold mb-1">Lieferschein scannen</h2>
-    <p class="text-xs text-slate-500 mb-3">Foto aufnehmen oder aus der Galerie wählen – die KI liest Positionen und füllt die Bestellung aus.</p>
+    <p class="text-xs text-slate-500 mb-3">Galerie oder Kamera – die KI liest die Positionen und füllt die Bestellung.</p>
     <div class="flex flex-wrap gap-2 items-center">
-      <input type="file" id="ls-file" accept="image/*" capture="environment"
-             class="text-sm max-w-full">
-      <button type="button" id="ls-scan-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">
-        📷 Einscannen
+      <input type="file" id="ls-file" accept="image/*" class="hidden">
+      <input type="file" id="ls-file-camera" accept="image/*" capture="environment" class="hidden">
+      <button type="button" id="ls-gallery-btn" class="px-4 py-2.5 rounded-lg border dark:border-slate-600 text-sm font-semibold bg-slate-50 dark:bg-slate-700">
+        🖼️ Galerie
+      </button>
+      <button type="button" id="ls-camera-btn" class="px-4 py-2.5 rounded-lg border dark:border-slate-600 text-sm font-semibold bg-slate-50 dark:bg-slate-700">
+        📷 Kamera
+      </button>
+      <button type="button" id="ls-scan-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm">
+        Einscannen
       </button>
     </div>
+    <p id="ls-filename" class="text-xs text-slate-400 mt-2">Keine Datei gewählt</p>
     <p id="ls-status" class="text-xs text-slate-500 mt-2 hidden"></p>
     <div id="ls-preview" class="mt-3 hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm" id="ls-table">
-          <thead><tr class="text-left text-xs text-slate-500 border-b"><th>Beschreibung</th><th>Menge</th><th>Einh.</th><th>EK €</th></tr></thead>
+          <thead><tr class="text-left text-xs text-slate-500 border-b dark:border-slate-600"><th>Beschreibung</th><th>Menge</th><th>Einh.</th><th>EK €</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -129,3 +136,135 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  var poId = <%= po.id %>;
+  var fileInput = document.getElementById('ls-file');
+  var cameraInput = document.getElementById('ls-file-camera');
+  var activeInput = null;
+  var scanBtn = document.getElementById('ls-scan-btn');
+  var galleryBtn = document.getElementById('ls-gallery-btn');
+  var cameraBtn = document.getElementById('ls-camera-btn');
+  var applyBtn = document.getElementById('ls-apply-btn');
+  var statusEl = document.getElementById('ls-status');
+  var nameEl = document.getElementById('ls-filename');
+  var preview = document.getElementById('ls-preview');
+  var tbody = document.querySelector('#ls-table tbody');
+  var scanned = [];
+  var meta = {};
+
+  function setStatus(msg, show) {
+    if (!statusEl) return;
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('hidden', !show);
+  }
+
+  function onFilePicked(inp) {
+    activeInput = inp;
+    var f = inp && inp.files && inp.files[0];
+    if (nameEl) nameEl.textContent = f ? (f.name + ' (' + Math.round(f.size / 1024) + ' KB)') : 'Keine Datei gewählt';
+  }
+
+  if (fileInput) fileInput.addEventListener('change', function () { onFilePicked(fileInput); });
+  if (cameraInput) cameraInput.addEventListener('change', function () { onFilePicked(cameraInput); });
+  if (galleryBtn) galleryBtn.addEventListener('click', function () {
+    if (fileInput) { fileInput.value = ''; fileInput.click(); }
+  });
+  if (cameraBtn) cameraBtn.addEventListener('click', function () {
+    if (cameraInput) { cameraInput.value = ''; cameraInput.click(); }
+  });
+
+  function renderItems(items) {
+    scanned = items || [];
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    scanned.forEach(function (it, idx) {
+      var tr = document.createElement('tr');
+      tr.className = 'border-b dark:border-slate-700';
+      function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+      tr.innerHTML =
+        '<td class="py-1.5 pr-2"><input data-i="' + idx + '" data-f="description" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded p-1 text-sm" value="' + esc(it.description) + '"></td>' +
+        '<td><input data-i="' + idx + '" data-f="quantity" type="number" step="any" class="w-20 border dark:border-slate-600 dark:bg-slate-700 rounded p-1 text-sm" value="' + (it.quantity || 1) + '"></td>' +
+        '<td><input data-i="' + idx + '" data-f="unit" class="w-16 border dark:border-slate-600 dark:bg-slate-700 rounded p-1 text-sm" value="' + esc(it.unit || 'Stk') + '"></td>' +
+        '<td><input data-i="' + idx + '" data-f="unit_price" type="number" step="0.01" class="w-24 border dark:border-slate-600 dark:bg-slate-700 rounded p-1 text-sm" value="' + (it.unit_price != null ? it.unit_price : 0) + '"></td>';
+      tbody.appendChild(tr);
+    });
+    if (preview) preview.classList.toggle('hidden', !scanned.length);
+  }
+
+  function collectItems() {
+    var out = scanned.map(function (it) { return Object.assign({}, it); });
+    if (tbody) tbody.querySelectorAll('input[data-i]').forEach(function (inp) {
+      var i = Number(inp.getAttribute('data-i'));
+      var f = inp.getAttribute('data-f');
+      if (!out[i]) return;
+      out[i][f] = (f === 'quantity' || f === 'unit_price') ? Number(inp.value) : inp.value;
+    });
+    return out.filter(function (it) { return String(it.description || '').trim(); });
+  }
+
+  if (scanBtn) scanBtn.addEventListener('click', async function () {
+    var src = activeInput;
+    if (!src || !src.files || !src.files[0]) {
+      setStatus('Bitte zuerst Galerie oder Kamera tippen und ein Bild wählen.', true);
+      return;
+    }
+    setStatus('KI liest den Lieferschein …', true);
+    scanBtn.disabled = true;
+    try {
+      var fd = new FormData();
+      fd.append('image', src.files[0]);
+      var res = await fetch('/einkauf/orders/' + poId + '/scan-lieferschein', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin'
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.error || ('Fehler ' + res.status));
+      meta = data.meta || {};
+      renderItems(data.items || []);
+      if (!(data.items || []).length) {
+        setStatus('Keine Positionen erkannt. Anderes Foto versuchen.', true);
+      } else {
+        var m = [];
+        if (meta.lieferschein_nr) m.push('LS ' + meta.lieferschein_nr);
+        if (meta.lieferdatum) m.push(meta.lieferdatum);
+        if (meta.supplier_name) m.push(meta.supplier_name);
+        setStatus(data.items.length + ' Position(en) erkannt' + (m.length ? ' · ' + m.join(' · ') : '') + '. Prüfen und übernehmen.', true);
+      }
+    } catch (err) {
+      setStatus(err.message || 'Scan fehlgeschlagen', true);
+    } finally {
+      scanBtn.disabled = false;
+    }
+  });
+
+  if (applyBtn) applyBtn.addEventListener('click', async function () {
+    var items = collectItems();
+    if (!items.length) return setStatus('Keine Positionen zum Übernehmen.', true);
+    applyBtn.disabled = true;
+    setStatus('Übernehme Positionen …', true);
+    try {
+      var res = await fetch('/einkauf/orders/' + poId + '/apply-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          items: items,
+          replace: document.getElementById('ls-replace').checked,
+          order_number: meta.lieferschein_nr || '',
+          notes: meta.lieferschein_nr ? ('Lieferschein ' + meta.lieferschein_nr + (meta.lieferdatum ? ' vom ' + meta.lieferdatum : '')) : ''
+        })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || ('Fehler ' + res.status));
+      window.location.href = '/einkauf/orders/' + poId + '?saved=1';
+    } catch (err) {
+      setStatus(err.message || 'Übernehmen fehlgeschlagen', true);
+      applyBtn.disabled = false;
+    }
+  });
+})();
+</script>
+
