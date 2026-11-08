@@ -20,7 +20,14 @@ const upload = multer({
 async function callGeminiVision(systemPrompt, b64, mimeType) {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new Error('GEMINI_API_KEY nicht konfiguriert.');
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
+  // Reihenfolge: stabile Flash-Modelle zuerst
+  const models = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-2.5-flash'
+  ];
   let lastErr;
   for (const model of models) {
     try {
@@ -40,53 +47,33 @@ async function callGeminiVision(systemPrompt, b64, mimeType) {
       );
       const data = await response.json();
       if (!response.ok) { lastErr = data; continue; }
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (text) return text;
+      lastErr = data;
     } catch (err) { lastErr = err; }
   }
-  throw new Error('Gemini Vision fehlgeschlagen: ' + JSON.stringify(lastErr));
+  throw new Error('Gemini Vision fehlgeschlagen');
 }
 
-async function callOpenRouterVision(systemPrompt, b64, mimeType) {
-  const orKey = process.env.OPENROUTER_API_KEY;
-  if (!orKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + orKey,
-      'HTTP-Referer': process.env.APP_URL || 'https://localhost',
-      'X-Title': 'Metallbau App'
-    },
-    body: JSON.stringify({
-      model: 'google/gemma-3-27b-it:free',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: systemPrompt },
-          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
-        ]
-      }],
-      temperature: 0.2,
-      max_tokens: 4096
-    })
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(JSON.stringify(data));
-  return data?.choices?.[0]?.message?.content || '';
-}
-
-async function callVision(systemPrompt, b64, mimeType) {
-  let lastError;
-  if (process.env.GROQ_API_KEY) {
+async function callGroqVision(systemPrompt, b64, mimeType) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY nicht konfiguriert.');
+  const models = [
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'llama-3.2-90b-vision-preview',
+    'llama-3.2-11b-vision-preview'
+  ];
+  let lastErr;
+  for (const model of models) {
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + process.env.GROQ_API_KEY
+          'Authorization': 'Bearer ' + apiKey
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model,
           messages: [{
             role: 'user',
             content: [
@@ -99,17 +86,85 @@ async function callVision(systemPrompt, b64, mimeType) {
         })
       });
       const data = await response.json();
-      if (response.ok) return data?.choices?.[0]?.message?.content || '';
-      lastError = data;
-    } catch (err) { lastError = err; }
+      if (!response.ok) { lastErr = data; continue; }
+      const text = data?.choices?.[0]?.message?.content || '';
+      if (text) return text;
+      lastErr = data;
+    } catch (err) { lastErr = err; }
   }
+  throw new Error('Groq Vision fehlgeschlagen');
+}
+
+async function callOpenRouterVision(systemPrompt, b64, mimeType) {
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (!orKey) throw new Error('OPENROUTER_API_KEY nicht konfiguriert.');
+  // Mehrere Free-/Vision-Modelle durchprobieren (Namen ändern sich oft)
+  const models = [
+    'google/gemma-3-27b-it:free',
+    'google/gemma-3-27b-it',
+    'google/gemma-4-26b-a4b-it:free',
+    'meta-llama/llama-3.2-90b-vision-instruct',
+    'qwen/qwen2.5-vl-72b-instruct:free',
+    'qwen/qwen2.5-vl-32b-instruct:free'
+  ];
+  let lastErr;
+  for (const model of models) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + orKey,
+          'HTTP-Referer': process.env.APP_URL || 'https://localhost',
+          'X-Title': 'Metallbau App'
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: systemPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${b64}` } }
+            ]
+          }],
+          temperature: 0.2,
+          max_tokens: 4096
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) { lastErr = data; continue; }
+      const text = data?.choices?.[0]?.message?.content || '';
+      if (text) return text;
+      lastErr = data;
+    } catch (err) { lastErr = err; }
+  }
+  const msg = lastErr && lastErr.error && lastErr.error.message
+    ? lastErr.error.message
+    : 'OpenRouter Vision fehlgeschlagen';
+  throw new Error(msg);
+}
+
+/** Gemini zuerst (zuverlässig), dann Groq, dann OpenRouter. */
+async function callVision(systemPrompt, b64, mimeType) {
+  const errors = [];
   if (process.env.GEMINI_API_KEY) {
-    try { return await callGeminiVision(systemPrompt, b64, mimeType); } catch (err) { lastError = err; }
+    try { return await callGeminiVision(systemPrompt, b64, mimeType); }
+    catch (err) { errors.push('Gemini: ' + (err.message || err)); }
+  }
+  if (process.env.GROQ_API_KEY) {
+    try { return await callGroqVision(systemPrompt, b64, mimeType); }
+    catch (err) { errors.push('Groq: ' + (err.message || err)); }
   }
   if (process.env.OPENROUTER_API_KEY) {
-    return await callOpenRouterVision(systemPrompt, b64, mimeType);
+    try { return await callOpenRouterVision(systemPrompt, b64, mimeType); }
+    catch (err) { errors.push('OpenRouter: ' + (err.message || err)); }
   }
-  throw new Error('Kein Vision-API-Key (GROQ/GEMINI/OPENROUTER). Letzter Fehler: ' + JSON.stringify(lastError));
+  if (!errors.length) {
+    throw new Error('Kein KI-API-Key gesetzt. Bitte unter Admin → System Gemini-, Groq- oder OpenRouter-Key eintragen.');
+  }
+  // Kurze, lesbare Meldung statt riesigem JSON
+  const short = errors.join(' | ').slice(0, 280);
+  throw new Error('KI-Vision nicht verfügbar. ' + short);
 }
 
 function parseItemsJson(reply) {
@@ -117,9 +172,9 @@ function parseItemsJson(reply) {
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
-  const start = jsonStr.indexOf('[');
-  if (start === -1) return [];
-  jsonStr = jsonStr.slice(start);
+  const startIdx = jsonStr.indexOf('[');
+  if (startIdx === -1) return [];
+  jsonStr = jsonStr.slice(startIdx);
   let end = jsonStr.lastIndexOf(']');
   if (end === -1) {
     const lastClose = jsonStr.lastIndexOf('}');
@@ -135,7 +190,6 @@ function parseItemsJson(reply) {
     return [];
   }
 }
-
 
 function num(v, fallback = 0) {
   const n = parseFloat(String(v ?? '').replace(',', '.'));
@@ -453,7 +507,7 @@ Beispiel:
     });
   } catch (err) {
     console.error('PO Lieferschein-Scan:', err.message);
-    res.status(500).json({ error: 'KI-Analyse fehlgeschlagen: ' + (err.message || 'Unbekannt') });
+    res.status(500).json({ error: err.message || 'KI-Analyse fehlgeschlagen' });
   }
 });
 
