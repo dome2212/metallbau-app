@@ -54,9 +54,9 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5">
           <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">⏰ Erinnerung bei vergessenem Ausstempeln</h2>
           <p class="text-xs text-slate-400 mb-4">
-            Ist ein Mitarbeiter länger als diese Anzahl Stunden am Stück eingestempelt, bekommt er automatisch
-            eine WhatsApp-Erinnerung (sofern WhatsApp-Benachrichtigungen für ihn aktiviert und Telefonnummer +
-            API-Key im Mitarbeiter-Profil hinterlegt sind). Die Prüfung läuft alle 30 Minuten im Hintergrund.
+            Ist ein Mitarbeiter noch eingestempelt (zu viele Stunden am Stück oder nach der Feierabend-Uhrzeit),
+            bekommt er eine Push-Nachricht aufs Handy (Benachrichtigungen im Profil aktivieren) und zusätzlich eine
+            WhatsApp-Nachricht, falls dort eingerichtet. Die Prüfung läuft alle 30 Minuten im Hintergrund.
           </p>
           <div>
             <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
@@ -64,6 +64,13 @@
             </label>
             <input type="number" name="stamp_reminder_hours" value="<%= firma.stamp_reminder_hours || 10 %>"
               min="0" max="24" step="0.5"
+              class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="mt-4">
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Feierabend-Erinnerung um (Uhrzeit) <span class="text-slate-400 font-normal">(leer = deaktiviert)</span>
+            </label>
+            <input type="time" name="stamp_reminder_time" value="<%= firma.stamp_reminder_time === undefined ? '18:30' : firma.stamp_reminder_time %>"
               class="w-full sm:w-48 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500">
           </div>
         </div>
