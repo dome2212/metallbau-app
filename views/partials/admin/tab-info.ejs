@@ -32,6 +32,36 @@
           </dl>
         </div>
 
+        <!-- Cloudinary -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5">
+          <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">☁️ Cloudinary (Bild-/Datei-Uploads)</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Hier eingetragene Zugangsdaten gelten sofort (kein Neustart nötig) und haben Vorrang vor der <code>.env</code>. Secrets werden verschlüsselt gespeichert und nie wieder angezeigt. Kostenloser Account: <a href="https://cloudinary.com" target="_blank" rel="noopener" class="text-blue-600 hover:underline">cloudinary.com</a></p>
+          <form action="/admin/panel/cloudinary-keys" method="POST" autocomplete="off" class="space-y-4">
+            <% (typeof cloudinaryKeys !== 'undefined' ? cloudinaryKeys : []).forEach(k => { %>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                <%= k.label %> <span class="text-slate-400 font-mono">(<%= k.env %>)</span>
+                <% if (k.source === 'panel') { %><span class="ml-2 text-green-600">✅ im Panel gespeichert <%= k.tail %></span>
+                <% } else if (k.source === 'env') { %><span class="ml-2 text-blue-600">ℹ️ aus .env <%= k.tail %></span>
+                <% } else { %><span class="ml-2 text-red-500">❌ nicht gesetzt</span><% } %>
+              </label>
+              <div class="flex gap-2">
+                <input type="password" name="<%= k.env %>" placeholder="<%= k.source === 'none' ? 'Wert hier einfügen' : 'Neuen Wert einfügen zum Ersetzen (leer = unverändert)' %>"
+                  autocomplete="new-password" spellcheck="false"
+                  class="flex-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-blue-500">
+                <% if (k.source === 'panel') { %>
+                <label class="flex items-center gap-1 text-xs text-red-600 whitespace-nowrap"><input type="checkbox" name="remove_<%= k.env %>" value="1"> löschen</label>
+                <% } %>
+              </div>
+              <p class="text-xs text-slate-400 mt-1"><%= k.hint %></p>
+            </div>
+            <% }) %>
+            <div class="flex justify-end">
+              <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow transition">💾 Cloudinary speichern</button>
+            </div>
+          </form>
+        </div>
+
         <!-- KI-API-Keys -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5">
           <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100 mb-1 border-b dark:border-slate-700 pb-2">🤖 KI-API-Keys</h2>
