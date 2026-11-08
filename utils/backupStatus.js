@@ -20,12 +20,13 @@ function record(patch) {
   return task;
 }
 function summary(firma, now = Date.now()) {
-  const state = parse(firma),
-    configured = Boolean(
-      (process.env.BACKUP_EMAIL || firma.smtp_backup_email) &&
-        (process.env.SMTP_USER || firma.smtp_user) &&
-        (process.env.SMTP_PASS || firma.smtp_pass),
-    );
+  const state = parse(firma);
+  const mailer = require("./mailer");
+  const cfg = mailer.configSync ? mailer.configSync(firma) : null;
+  const configured = Boolean(
+    (process.env.BACKUP_EMAIL || firma.smtp_backup_email) &&
+      cfg && mailer.missingParts(cfg).length === 0,
+  );
   const stale =
     !state.mail_success_at ||
     !Number.isFinite(Date.parse(state.mail_success_at)) ||
@@ -53,6 +54,7 @@ function summary(firma, now = Date.now()) {
             : running
               ? "Backup wird gerade erstellt."
               : "Automatisches Backup zuletzt erfolgreich versandt.";
-  return { ...state, configured, warning, message };
+  const reason = state.mail_reason && ["failed", "skipped"].includes(state.mail_result) ? state.mail_reason : "";
+  return { ...state, configured, warning, message, reason };
 }
 module.exports = { record, summary };

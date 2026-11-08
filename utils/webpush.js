@@ -26,7 +26,8 @@ const { dbQuery } = require('./db');   // gemeinsamer Helper (SQLite + PostgreSQ
  * @param {number|null} userId  If set, only notify this user; otherwise all.
  */
 async function sendPush(payload, userId = null) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return { sent: 0, failed: 0, total: 0, configured: false };
+  const result = { sent: 0, failed: 0, total: 0, configured: true };
 
   let query = 'SELECT * FROM push_subscriptions';
   const params = [];
@@ -40,8 +41,9 @@ async function sendPush(payload, userId = null) {
     subs = (await dbQuery(query, params)).rows;
   } catch (e) {
     console.error('sendPush: DB-Fehler beim Laden der Subscriptions:', e.message);
-    return;
+    return result;
   }
+  result.total = subs.length;
 
   const notification = JSON.stringify({
     title: payload.title || 'Metallbau-App',
@@ -61,8 +63,10 @@ async function sendPush(payload, userId = null) {
         }
       };
       await webpush.sendNotification(subscription, notification);
+      result.sent++;
     } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
+      result.failed++;
+      if ([410, 404, 401, 403].includes(err.statusCode)) {
         // Subscription expired – clean up
         try { await dbQuery('DELETE FROM push_subscriptions WHERE endpoint = ?', [sub.endpoint]); } catch (e) { console.error('⚠️ sendPush:', e.message); }
       } else {
@@ -70,6 +74,7 @@ async function sendPush(payload, userId = null) {
       }
     }
   }
+  return result;
 }
 
 module.exports = { sendPush, VAPID_PUBLIC };

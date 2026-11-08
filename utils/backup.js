@@ -13,7 +13,6 @@
  *   SMTP_PASS      – Passwort / App-Passwort
  */
 
-const nodemailer = require("nodemailer");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const runFile = promisify(execFile);
@@ -22,22 +21,26 @@ const status = require("./backupStatus");
 const fs = require("fs");
 const path = require("path");
 const { getFirma } = require("./companySettings");
+const mailer = require("./mailer");
 
 const isPg = !!process.env.DATABASE_URL;
 
-// ── Transporter ──────────────────────────────────────────────────────────────
-async function getTransporter() {
-  const firma = await getFirma().catch(() => ({}));
-  const host = process.env.SMTP_HOST || firma.smtp_host || "smtp.gmail.com";
-  const port = parseInt(process.env.SMTP_PORT || firma.smtp_port || "587", 10);
-  const user = process.env.SMTP_USER || firma.smtp_user || "";
-  const pass = process.env.SMTP_PASS || firma.smtp_pass || "";
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
+// Lokale Sicherungen auf dem Server (unabhängig vom E-Mail-Versand).
+// Damit sie einen Neustart/Neubau des Containers überleben, muss der Ordner als
+// Volume eingebunden sein, z.B. in docker-compose.yml:  ./data/backups:/srv/app/app/data/backups
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, "..", "data", "backups");
+const KEEP_LOCAL = parseInt(process.env.BACKUP_KEEP || "14", 10);
+
+async function saveLocalCopy(file) {
+  await fs.promises.mkdir(BACKUP_DIR, { recursive: true });
+  await fs.promises.copyFile(file.path, path.join(BACKUP_DIR, file.name));
+  await fs.promises.chmod(path.join(BACKUP_DIR, file.name), 0o600).catch(() => {});
+  const all = (await fs.promises.readdir(BACKUP_DIR))
+    .filter((n) => /^backup_.*\.(sqlite|sql)$/.test(n))
+    .sort();
+  for (const old of all.slice(0, Math.max(0, all.length - KEEP_LOCAL)))
+    await fs.promises.rm(path.join(BACKUP_DIR, old), { force: true });
+  return all.length;
 }
 
 // ── Backup erstellen & versenden ─────────────────────────────────────────────
@@ -51,39 +54,52 @@ async function runBackup() {
 }
 async function sendBackup() {
   const firma = await getFirma();
-  const to = process.env.BACKUP_EMAIL || firma.smtp_backup_email || "";
-  const smtpUser = process.env.SMTP_USER || firma.smtp_user || "";
-  const smtpPass = process.env.SMTP_PASS || firma.smtp_pass || "";
+  const to = (process.env.BACKUP_EMAIL || firma.smtp_backup_email || "").trim();
   const attempt = new Date().toISOString();
-  await status.record({ mail_attempt_at: attempt, mail_result: "running" });
-  if (!to || !smtpUser || !smtpPass) {
-    await status.record({ mail_result: "skipped" });
-    return { ok: false, skipped: true };
-  }
+  await status.record({ mail_attempt_at: attempt, mail_result: "running", mail_reason: "" });
   let file;
   try {
     file = await createBackupFile(false);
-    const transporter = await getTransporter();
-    await transporter.sendMail({
-      from: smtpUser,
+  } catch (error) {
+    await status.record({ mail_result: "failed", file_result: "failed", mail_reason: "Sicherungsdatei konnte nicht erstellt werden." });
+    console.error("[Backup] Sicherungsdatei konnte nicht erstellt werden.");
+    return { ok: false, failed: true, reason: "Sicherungsdatei konnte nicht erstellt werden." };
+  }
+  try {
+    // 1) Lokale Kopie auf dem Server – klappt auch ohne E-Mail
+    try {
+      await saveLocalCopy(file);
+      await status.record({ local_success_at: new Date().toISOString(), file_success_at: new Date().toISOString(), file_result: "success" });
+    } catch (e) {
+      console.error("[Backup] Lokale Kopie nicht möglich:", e.code || e.message);
+    }
+
+    // 2) Per E-Mail versenden
+    const cfg = await mailer.getConfig();
+    const missing = mailer.missingParts(cfg);
+    if (!to) missing.unshift("Backup-E-Mail (Empfänger)");
+    if (missing.length) {
+      const reason = "Nicht eingerichtet – es fehlt: " + missing.join(", ") + ".";
+      await status.record({ mail_result: "skipped", mail_reason: reason });
+      return { ok: false, skipped: true, reason };
+    }
+    const result = await mailer.sendMail({
       to,
       subject: "Datenbank-Backup – " + (firma.name || "Metallbau"),
-      text:
-        "Datenbanksicherung vom " +
-        attempt +
-        ". Den Anhang bitte sicher aufbewahren.",
+      text: "Datenbanksicherung vom " + new Date(attempt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }) + ". Den Anhang bitte sicher aufbewahren.",
       attachments: [{ filename: file.name, path: file.path }],
     });
-    await status.record({
-      mail_result: "success",
-      mail_success_at: new Date().toISOString(),
-    });
+    if (!result.ok) {
+      await status.record({ mail_result: "failed", mail_reason: result.error });
+      return { ok: false, failed: true, reason: result.error };
+    }
+    await status.record({ mail_result: "success", mail_success_at: new Date().toISOString(), mail_reason: "" });
     return { ok: true };
   } catch (error) {
-    // Status is intentionally generic: database/tool errors may contain connection details.
-    await status.record({ mail_result: "failed" });
-    console.error("[Backup] Sicherung oder Versand fehlgeschlagen.");
-    return { ok: false, failed: true };
+    // Status bewusst allgemein: Datenbank-/Tool-Fehler können Verbindungsdaten enthalten.
+    await status.record({ mail_result: "failed", mail_reason: "Unerwarteter Fehler beim Backup." });
+    console.error("[Backup] Sicherung oder Versand fehlgeschlagen.", error && error.code ? error.code : "");
+    return { ok: false, failed: true, reason: "Unerwarteter Fehler beim Backup." };
   } finally {
     if (file) await cleanupBackup(file.path);
   }
@@ -216,6 +232,12 @@ async function restoreBackupFile(uploadedPath, originalName) {
   ) {
     throw new Error("Für SQLite bitte eine .sqlite-Datei hochladen.");
   }
+  // Nur echte SQLite-Dateien einspielen (Kopfzeile prüfen), sonst würde die Datenbank zerstört.
+  const head = Buffer.alloc(16);
+  const fd = fs.openSync(uploadedPath, "r");
+  try { fs.readSync(fd, head, 0, 16, 0); } finally { fs.closeSync(fd); }
+  if (head.toString("latin1") !== "SQLite format 3\u0000")
+    throw new Error("Die Datei ist keine gültige SQLite-Datenbank.");
   const dbPath = path.join(__dirname, "..", "database.sqlite");
   const bakPath = path.join(
     __dirname,
@@ -226,9 +248,11 @@ async function restoreBackupFile(uploadedPath, originalName) {
     fs.copyFileSync(dbPath, bakPath);
   }
   fs.copyFileSync(uploadedPath, dbPath);
+  for (const ext of ["-wal", "-shm"]) { try { fs.rmSync(dbPath + ext, { force: true }); } catch (_) {} }
   return {
     type: "sqlite",
-    message: "SQLite-Backup wiederhergestellt. Server ggf. neu starten.",
+    message: "SQLite-Backup wiederhergestellt. Die App startet neu.",
+    restart: true,
     backupOfOld: bakPath,
   };
 }

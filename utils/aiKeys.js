@@ -5,7 +5,6 @@
  * der restliche Code (process.env.GEMINI_API_KEY usw.) funktioniert dadurch unverändert.
  * Ein im Panel gespeicherter Key hat Vorrang vor der .env; wird er gelöscht, gilt wieder die .env.
  */
-const crypto = require('crypto');
 const { dbQuery } = require('./db');
 const { setFirmaValue } = require('./companySettings');
 
@@ -19,25 +18,7 @@ for (const k of KEYS) ORIGINAL[k.env] = process.env[k.env];
 
 const dbKey = (env) => 'ai_key_' + env.toLowerCase();
 
-function secret() {
-  const { JWT_SECRET } = require('../middleware/auth');
-  return crypto.createHash('sha256').update(String(JWT_SECRET)).digest();
-}
-function encrypt(plain) {
-  const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv('aes-256-gcm', secret(), iv);
-  const data = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
-  return 'enc:v1:' + [iv, c.getAuthTag(), data].map(b => b.toString('base64')).join('.');
-}
-function decrypt(stored) {
-  if (!stored || !String(stored).startsWith('enc:v1:')) return '';
-  try {
-    const [iv, tag, data] = String(stored).slice(7).split('.').map(s => Buffer.from(s, 'base64'));
-    const d = crypto.createDecipheriv('aes-256-gcm', secret(), iv);
-    d.setAuthTag(tag);
-    return Buffer.concat([d.update(data), d.final()]).toString('utf8');
-  } catch (_) { return ''; }
-}
+const { encrypt, decrypt } = require('./secretBox');
 
 /** Gespeicherte Keys aus der DB in process.env übernehmen. */
 async function loadAiKeys() {

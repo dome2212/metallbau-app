@@ -1,48 +1,20 @@
-const nodemailer = require('nodemailer');
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.example.com',
-    port: parseInt(process.env.SMTP_PORT || '465', 10),
-    secure: String(process.env.SMTP_SECURE || 'true') !== 'false',
-    auth: {
-      user: process.env.SMTP_USER || 'dein-benutzer@example.com',
-      pass: process.env.SMTP_PASS || 'dein-passwort'
-    }
-  });
-}
+const mailer = require('./mailer');
 
 /**
- * E-Mail senden.
- * @param {string} to
- * @param {string} subject
- * @param {string} htmlContent
- * @param {Array<{filename:string, content:Buffer, contentType?:string}>} [attachments]
+ * E-Mail senden (nutzt die SMTP-Einstellungen aus dem Admin-Panel bzw. .env).
+ * @returns {Promise<{ok:boolean,error?:string}>}
  */
 async function sendEmail(to, subject, htmlContent, attachments) {
-  try {
-    if (!to) return { ok: false, error: 'Keine Empfänger-Adresse' };
-    const transporter = createTransporter();
-    const mail = {
-      from: process.env.SMTP_FROM || '"Metallbau Management" <noreply@metallbau-management.de>',
-      to,
-      subject,
-      html: htmlContent
-    };
-    if (attachments && attachments.length) {
-      mail.attachments = attachments.map(a => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType || 'application/pdf'
-      }));
-    }
-    await transporter.sendMail(mail);
-    console.log(`📧 E-Mail erfolgreich gesendet an: ${to}`);
-    return { ok: true };
-  } catch (error) {
-    console.error('Fehler beim E-Mail-Versand:', error);
-    return { ok: false, error: error.message };
-  }
+  if (!to) return { ok: false, error: 'Keine Empfänger-Adresse' };
+  const r = await mailer.sendMail({
+    to, subject, html: htmlContent,
+    attachments: (attachments || []).map(a => ({
+      filename: a.filename, content: a.content, contentType: a.contentType || 'application/pdf'
+    }))
+  });
+  if (r.ok) console.log('📧 E-Mail gesendet an: ' + to);
+  else console.error('E-Mail-Versand fehlgeschlagen:', r.error);
+  return r;
 }
 
 async function sendWhatsApp(toPhone, message, apiKey) {
