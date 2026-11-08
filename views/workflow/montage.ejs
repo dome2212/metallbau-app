@@ -1,15 +1,111 @@
-<%- include('../partials/header') %><%- include('../partials/sidebar') %>
-<link rel="stylesheet" href="/css/billing.css"><link rel="stylesheet" href="/css/workflow.css">
-<% const safeUrl=v=>typeof v==='string'&&/^https?:\/\//i.test(v)?v:'#'; %>
-<main class="flex-1 page-bg min-h-screen pt-16 bill-main"><div class="bill-shell"><a class="bill-back" href="/auftragszentrale/<%= project.id %>">← Auftrag</a><header class="bill-heading"><div><span class="bill-eyebrow">MOBILE MONTAGE</span><h1><%= project.title %></h1><p><%= project.status %> · alles für den Einsatz vor Ort</p></div><a class="bill-btn" href="/projects/<%= project.id %>">Auftragsakte</a></header>
-<% if(saved){ %><p class="bill-alert bill-success-note" role="status">Gespeichert.</p><% } %>
-<nav class="bill-tabs"><a href="#kontakt">Kontakt</a><a href="#unterlagen">Unterlagen</a><a href="#montagematerial">Material</a><a href="#checkliste">Checkliste</a><a href="#fotos">Fotos</a><a href="#abnahme">Abnahme</a></nav>
-<section class="bill-card" id="kontakt"><h2>Adresse &amp; Kontakt</h2><div class="flow-grid"><div><strong><%= project.company_name||project.contact_person||'Kein Kunde zugeordnet' %></strong><p class="bill-hint flow-address"><%= project.contact_person||'' %>
-<%= project.street||'' %>
-<%= [project.zip,project.city].filter(Boolean).join(' ') %></p><p class="bill-hint">Kundenadresse · abweichende Baustelle im Baustellenhinweis beachten.</p></div><div class="flow-links"><% if(project.phone){ %><a class="bill-btn" href="tel:<%= String(project.phone).replace(/[^\d+]/g,'') %>">Anrufen</a><% } %><% if(project.street||project.site_lat&&project.site_lng){ const address=project.site_lat&&project.site_lng?[project.site_lat,project.site_lng].join(','):[project.street,project.zip,project.city].filter(Boolean).join(' '); %><a class="bill-btn" href="https://www.google.com/maps/search/?api=1&amp;query=<%= encodeURIComponent(address) %>" target="_blank" rel="noopener noreferrer">Navigation starten ↗</a><% } %></div></div><% if(project.site_note){ %><p class="bill-alert"><strong>Baustellenhinweis:</strong> <%= project.site_note %></p><% } %><% if(project.description){ %><p class="bill-hint"><%= project.description %></p><% } %></section>
-<section class="bill-card" id="unterlagen"><h2>Zeichnungen &amp; Unterlagen</h2><p class="bill-hint">Aktuell gespeicherte Zeichnungen. Vor der Fertigung den freigegebenen Stand in der CAD-Freigabe prüfen.</p><div class="flow-links"><% drawings.forEach(d=>{ %><a class="bill-btn" target="_blank" rel="noopener" href="/auftragszentrale/<%= project.id %>/zeichnungen/<%= d.id %>.pdf"><%= d.name %> · Rev. <%= d.revision %> ↗</a><% }); %><% files.forEach(f=>{ %><a class="bill-btn" href="<%= safeUrl(f.file_url) %>" target="_blank" rel="noopener noreferrer"><%= f.original_name||'Unterlage' %> ↗</a><% }); %></div><% if(!drawings.length&&!files.length){ %><p class="bill-muted">Noch keine Unterlagen hinterlegt.</p><% } %></section>
-<section class="bill-card" id="montagematerial"><h2>Material zum Mitnehmen</h2><% if(materials.length){ %><div class="bill-table-scroll"><table class="bill-table"><thead><tr><th>Teil / Material</th><th>Menge</th><th>Maße mm</th></tr></thead><tbody><% materials.forEach(r=>{ %><tr><td><%= r.name %><small><%= r.material %> · <%= r.finish %></small></td><td><%= num(r.quantity) %></td><td><%= r.dimensions %></td></tr><% }); %></tbody></table></div><% }else{ %><p class="bill-muted">Keine zugängliche CAD-Stückliste. Weitere Materialien und Befestigungen in der Auftragsakte prüfen.</p><% } %><a class="bill-btn" href="/projects/<%= project.id %>#sec-material">Materialentnahme buchen</a></section>
-<section class="bill-card" id="checkliste"><h2>Montagecheckliste</h2><form method="POST" action="/auftragszentrale/<%= project.id %>/montage"><input type="hidden" name="revision" value="<%= current.revision %>"><% checklist.forEach((c,i)=>{ %><label class="flow-check"><input type="checkbox" name="check_<%= i %>" <%= c.done?'checked':'' %> <%= project.acceptance_at?'disabled':'' %>><span><%= c.text %></span></label><% }); %><label class="bill-field" style="margin:18px 0">Montagenotiz / Restarbeiten<textarea class="flow-note" name="note" maxlength="4000" <%= project.acceptance_at?'readonly':'' %>><%= current.data.installationNote||'' %></textarea></label><% if(!project.acceptance_at){ %><button class="bill-btn bill-primary">Checkliste &amp; Notiz speichern</button><% }else{ %><p class="bill-hint">Mit der Abnahme gespeichert. Änderungen nach Aufheben der Abnahme in der Auftragsakte möglich.</p><% } %></form></section>
-<section class="bill-card" id="fotos"><h2>Montagefotos</h2><form method="POST" enctype="multipart/form-data" action="/projects/<%= project.id %>/photos/upload" class="bill-action-form"><input type="hidden" name="return_to" value="montage"><label class="bill-field">Foto aufnehmen<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" required></label><label class="bill-field">Beschreibung<input name="caption" maxlength="500" placeholder="z. B. Anschluss oben nach Montage"></label><button class="bill-btn">Foto speichern</button></form><div class="flow-grid flow-photos"><% photos.forEach(photo=>{ %><figure><a href="<%= safeUrl(photo.file_url) %>" target="_blank" rel="noopener noreferrer"><img src="<%= safeUrl(photo.file_url) %>" loading="lazy" alt="<%= photo.caption||'Montagefoto' %>"></a><figcaption class="bill-hint"><%= photo.caption||photo.original_name||'Montagefoto' %></figcaption></figure><% }); %></div></section>
-<section class="bill-card" id="abnahme"><h2>Abnahme vor Ort</h2><% if(project.acceptance_at){ %><p class="bill-alert bill-success-note">Abgenommen durch <%= project.acceptance_name %> am <%= new Date(project.acceptance_at).toLocaleString('de-DE') %>.</p><img src="<%= project.acceptance_signature %>" alt="Gespeicherte Unterschrift" style="max-width:100%;max-height:160px;background:white"><% }else{ %><p class="bill-hint">Alle Prüfpunkte zuerst abschließen und speichern. Die Unterschrift wird zusammen mit dem Namen und dem Zeitpunkt in der Auftragsakte hinterlegt.</p><form method="POST" action="/auftragszentrale/<%= project.id %>/abnahme" class="bill-action-form"><input type="hidden" name="revision" value="<%= current.revision %>"><input type="hidden" name="signature"><label class="bill-field">Name des Kunden<input name="name" maxlength="120" required autocomplete="name"></label><label class="bill-field">Unterschrift<canvas id="flow-signature" class="flow-signature" width="600" height="160" aria-label="Unterschrift mit Finger oder Maus zeichnen"></canvas></label><button class="bill-btn bill-small" type="button" id="flow-signature-clear">Unterschrift löschen</button><label class="flow-check"><input type="checkbox" name="consent" required><span>Ich bestätige die Ausführung und die dokumentierte Montagecheckliste.</span></label><p id="flow-sign-status" role="status"></p><button class="bill-btn bill-primary">Abnahme speichern</button></form><% } %></section>
-</div></main><script src="/js/workflow.js" defer></script></body></html>
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<div class="max-w-3xl mx-auto px-4 pb-24 pt-4">
+  <div class="mb-4">
+    <a href="/auftragszentrale/<%= project.id %>" class="text-sm text-blue-600 font-semibold">← Auftragszentrale</a>
+    <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1">Montage / Baustelle</h1>
+    <p class="text-xs text-slate-500"><%= project.title || ('Auftrag #' + project.id) %></p>
+  </div>
+
+  <% if (saved) { %>
+  <div class="mb-4 rounded-lg bg-green-50 text-green-700 text-sm px-4 py-2">Gespeichert.</div>
+  <% } %>
+
+  <!-- Checkliste -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+    <h2 class="text-sm font-semibold mb-3">Montage-Checkliste</h2>
+    <form method="POST" action="/auftragszentrale/<%= project.id %>/montage" data-offline="true" data-offline-label="Checkliste">
+      <input type="hidden" name="revision" value="<%= current.revision %>">
+      <div class="space-y-2 mb-3">
+        <% (checklist || []).forEach(function(c, i) { %>
+        <label class="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="check_<%= i %>" <%= c.done ? 'checked' : '' %> class="mt-1">
+          <span><%= c.text %></span>
+        </label>
+        <% }) %>
+      </div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">Montagenotiz</label>
+      <textarea name="note" rows="3" class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm mb-3"><%= (current.data && current.data.installationNote) || '' %></textarea>
+      <button type="submit" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Checkliste speichern</button>
+    </form>
+  </div>
+
+  <!-- Offline: Foto -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4" id="fotos">
+    <h2 class="text-sm font-semibold mb-1">Foto (auch offline)</h2>
+    <p class="text-xs text-slate-400 mb-3">Wird bei schlechtem Netz lokal gepuffert und später hochgeladen.</p>
+    <form method="POST" action="/projects/<%= project.id %>/offline/photo"
+          data-offline="true" data-offline-json="true" data-offline-label="Baustellen-Foto"
+          enctype="multipart/form-data" class="space-y-2">
+      <input type="file" name="photo" accept="image/*" capture="environment" required
+             class="block w-full text-sm">
+      <input type="text" name="caption" placeholder="Beschriftung (optional)"
+             class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <button type="submit" class="bg-slate-800 dark:bg-slate-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Foto speichern</button>
+    </form>
+    <% if ((photos || []).length) { %>
+    <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <% photos.slice(0, 12).forEach(function(ph) { %>
+      <a href="<%= ph.file_url %>" target="_blank" rel="noopener" class="block rounded-lg overflow-hidden border dark:border-slate-600">
+        <img src="<%= ph.file_url %>" alt="<%= ph.caption || ph.original_name || 'Foto' %>" class="w-full h-24 object-cover">
+        <% if (ph.caption) { %><p class="text-[10px] p-1 truncate text-slate-500"><%= ph.caption %></p><% } %>
+      </a>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Offline: Aufmaß -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+    <h2 class="text-sm font-semibold mb-3">Aufmaß (auch offline)</h2>
+    <form method="POST" action="/projects/<%= project.id %>/offline/measurement"
+          data-offline="true" data-offline-json="true" data-offline-label="Aufmaß"
+          class="grid grid-cols-2 gap-2">
+      <input name="component_name" required placeholder="Bauteil *"
+             class="col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="width" placeholder="Breite" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="height" placeholder="Höhe" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="angle" placeholder="Winkel" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="quantity" value="1" placeholder="Menge" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="note" placeholder="Notiz" class="col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <button type="submit" class="col-span-2 bg-slate-800 dark:bg-slate-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Aufmaß speichern</button>
+    </form>
+    <% if ((measurements || []).length) { %>
+    <ul class="mt-3 space-y-1 text-sm">
+      <% measurements.slice(0, 20).forEach(function(m) { %>
+      <li class="border-b dark:border-slate-700 py-1.5">
+        <strong><%= m.component_name %></strong>
+        <span class="text-slate-500 text-xs">
+          <%= [m.width, m.height, m.angle].filter(Boolean).join(' · ') %>
+          <%= m.quantity ? ' · ×' + m.quantity : '' %>
+        </span>
+        <% if (m.note) { %><div class="text-xs text-slate-400"><%= m.note %></div><% } %>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+  </div>
+
+  <!-- Offline: Notiz -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+    <h2 class="text-sm font-semibold mb-3">Baustellen-Notiz (auch offline)</h2>
+    <form method="POST" action="/projects/<%= project.id %>/offline/note"
+          data-offline="true" data-offline-json="true" data-offline-label="Notiz"
+          class="space-y-2">
+      <textarea name="text" rows="3" required placeholder="Notiz …"
+                class="w-full border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm"></textarea>
+      <button type="submit" class="bg-slate-800 dark:bg-slate-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Notiz speichern</button>
+    </form>
+    <% if ((notes || []).length) { %>
+    <ul class="mt-3 space-y-2 text-sm">
+      <% notes.slice(0, 15).forEach(function(n) { %>
+      <li class="border-b dark:border-slate-700 pb-2 text-slate-700 dark:text-slate-200">
+        <%= n.note_text || n.note || n.content || n.text || '' %>
+        <div class="text-[10px] text-slate-400 mt-0.5"><%= n.created_at %></div>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+  </div>
+</div>
