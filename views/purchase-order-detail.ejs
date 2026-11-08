@@ -1,0 +1,97 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<div class="max-w-5xl mx-auto px-4 pb-24 pt-4">
+  <div class="mb-4">
+    <a href="/einkauf/orders" class="text-sm text-blue-600 font-semibold">← Bestellungen</a>
+    <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1">Bestellung #<%= po.id %></h1>
+    <p class="text-xs text-slate-500"><%= po.supplier_name || '—' %> · Status: <strong><%= po.status %></strong></p>
+  </div>
+
+  <% if (success) { %>
+  <div class="mb-4 rounded-lg bg-green-50 text-green-700 text-sm px-4 py-2">Gespeichert.</div>
+  <% } %>
+
+  <form method="POST" action="/einkauf/orders/<%= po.id %>/update" class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <select name="supplier_id" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <option value="">— Lieferant —</option>
+      <% (suppliers || []).forEach(function(s) { %>
+      <option value="<%= s.id %>" <%= String(po.supplier_id)===String(s.id)?'selected':'' %>><%= s.name %></option>
+      <% }) %>
+    </select>
+    <select name="project_id" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <option value="">— Auftrag —</option>
+      <% (projects || []).forEach(function(p) { %>
+      <option value="<%= p.id %>" <%= String(po.project_id)===String(p.id)?'selected':'' %>><%= p.title %></option>
+      <% }) %>
+    </select>
+    <input name="order_number" value="<%= po.order_number || '' %>" placeholder="Bestellnr." class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+    <input name="expected_at" type="date" value="<%= po.expected_at || '' %>" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+    <select name="status" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <% ['ENTWURF','BESTELLT','TEILWEISE','GELIEFERT','STORNIERT'].forEach(function(st) { %>
+      <option value="<%= st %>" <%= po.status===st?'selected':'' %>><%= st %></option>
+      <% }) %>
+    </select>
+    <textarea name="notes" rows="2" class="sm:col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm"><%= po.notes || '' %></textarea>
+    <div class="sm:col-span-2 flex justify-end">
+      <button class="bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg text-sm">Kopf speichern</button>
+    </div>
+  </form>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-4">
+    <h2 class="text-sm font-semibold mb-3">Positionen <span class="text-slate-400 font-normal">(Summe <%= Number(total||0).toLocaleString('de-DE',{minimumFractionDigits:2}) %> €)</span></h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-xs text-slate-500 border-b dark:border-slate-600">
+          <th class="py-2">Beschreibung</th><th>Menge</th><th>EK €</th><th>Geliefert</th><th></th>
+        </tr></thead>
+        <tbody>
+        <% (items || []).forEach(function(i) { %>
+          <tr class="border-b dark:border-slate-700">
+            <td class="py-2 pr-2"><%= i.description %><% if (i.lager_name) { %><br><span class="text-xs text-slate-400">Lager: <%= i.lager_name %></span><% } %></td>
+            <td><%= i.quantity %> <%= i.unit %></td>
+            <td><%= Number(i.unit_price||0).toFixed(2) %></td>
+            <td><%= i.received_qty || 0 %></td>
+            <td>
+              <form method="POST" action="/einkauf/orders/<%= po.id %>/items/<%= i.id %>/delete" onsubmit="return confirm('Position löschen?')">
+                <button class="text-red-600 text-xs">✕</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <form method="POST" action="/einkauf/orders/<%= po.id %>/items" class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <input name="description" required placeholder="Beschreibung *" class="col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+      <input name="quantity" value="1" placeholder="Menge" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+      <input name="unit" value="Stk" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+      <input name="unit_price" placeholder="EK €" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+      <select name="lager_item_id" class="col-span-2 sm:col-span-4 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <option value="">— optional Lagerartikel (Wareneingang bucht Bestand) —</option>
+        <% (lager || []).forEach(function(l) { %>
+        <option value="<%= l.id %>"><%= l.bezeichnung %><%= l.profil ? ' / '+l.profil : '' %></option>
+        <% }) %>
+      </select>
+      <button class="bg-slate-800 dark:bg-slate-600 text-white rounded-lg text-sm font-semibold">+ Position</button>
+    </form>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+    <h2 class="text-sm font-semibold mb-3">Wareneingang buchen</h2>
+    <p class="text-xs text-slate-500 mb-3">Mengen, die jetzt ankommen. Bei verknüpftem Lagerartikel wird der Bestand erhöht und der EK-Preis aktualisiert.</p>
+    <form method="POST" action="/einkauf/orders/<%= po.id %>/receive" class="space-y-2">
+      <% (items || []).forEach(function(i) { %>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="flex-1 truncate"><%= i.description %></span>
+        <span class="text-slate-400 text-xs">offen <%= Math.max(0, Number(i.quantity)-Number(i.received_qty||0)) %></span>
+        <input name="recv_<%= i.id %>" type="number" step="0.001" min="0" placeholder="0" class="w-24 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+      </div>
+      <% }) %>
+      <div class="flex justify-end pt-2">
+        <button class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Wareneingang speichern</button>
+      </div>
+    </form>
+  </div>
+</div>

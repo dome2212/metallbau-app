@@ -1,0 +1,61 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<div class="max-w-5xl mx-auto px-4 pb-20 pt-4">
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Lieferanten</h1>
+      <p class="text-xs text-slate-500">Stammdaten für Bestellungen &amp; Wareneingang</p>
+    </div>
+    <a href="/einkauf/orders" class="text-sm font-semibold text-blue-600">→ Bestellungen</a>
+  </div>
+
+  <% if (success) { %>
+  <div class="mb-4 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm px-4 py-2">Gespeichert.</div>
+  <% } %>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5 mb-6">
+    <h2 class="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">Neuen Lieferanten anlegen</h2>
+    <form method="POST" action="/einkauf/suppliers" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input name="name" required placeholder="Firmenname *" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="contact" placeholder="Ansprechpartner" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="email" type="email" placeholder="E-Mail" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="phone" placeholder="Telefon" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="address" placeholder="Adresse" class="sm:col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <textarea name="notes" rows="2" placeholder="Notiz" class="sm:col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm"></textarea>
+      <div class="sm:col-span-2 flex justify-end">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Speichern</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="space-y-3">
+    <% (suppliers || []).forEach(function(s) { %>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-slate-800 dark:text-slate-100"><%= s.name %>
+            <% if (!s.active) { %><span class="text-xs text-red-500 font-normal">inaktiv</span><% } %>
+          </p>
+          <p class="text-xs text-slate-500"><%= s.contact || '' %> <%= s.email ? '· ' + s.email : '' %> <%= s.phone ? '· ' + s.phone : '' %></p>
+          <p class="text-xs text-slate-400 mt-1"><%= s.order_count || 0 %> Bestellung(en)</p>
+        </div>
+      </div>
+      <form method="POST" action="/einkauf/suppliers/<%= s.id %>/update" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input name="name" value="<%= s.name %>" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <input name="contact" value="<%= s.contact || '' %>" placeholder="Kontakt" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <input name="email" value="<%= s.email || '' %>" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <input name="phone" value="<%= s.phone || '' %>" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <input name="address" value="<%= s.address || '' %>" class="sm:col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2 text-sm">
+        <div class="sm:col-span-2 flex items-center justify-between gap-2">
+          <label class="text-xs flex items-center gap-1"><input type="checkbox" name="active" value="1" <%= s.active ? 'checked' : '' %>> Aktiv</label>
+          <button class="text-sm font-semibold text-blue-600">Aktualisieren</button>
+        </div>
+      </form>
+    </div>
+    <% }) %>
+    <% if (!(suppliers || []).length) { %>
+    <p class="text-sm text-slate-500 text-center py-8">Noch keine Lieferanten.</p>
+    <% } %>
+  </div>
+</div>

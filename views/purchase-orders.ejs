@@ -1,0 +1,66 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<div class="max-w-5xl mx-auto px-4 pb-20 pt-4">
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Bestellungen</h1>
+      <p class="text-xs text-slate-500">Bestellung → Wareneingang → Lager / Auftrag</p>
+    </div>
+    <a href="/einkauf/suppliers" class="text-sm font-semibold text-blue-600">Lieferanten</a>
+  </div>
+
+  <% if (success) { %>
+  <div class="mb-4 rounded-lg bg-green-50 text-green-700 text-sm px-4 py-2">Gespeichert.</div>
+  <% } %>
+
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6">
+    <h2 class="text-sm font-semibold mb-3">Neue Bestellung</h2>
+    <form method="POST" action="/einkauf/orders" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <select name="supplier_id" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+        <option value="">— Lieferant —</option>
+        <% (suppliers || []).forEach(function(s) { %>
+        <option value="<%= s.id %>"><%= s.name %></option>
+        <% }) %>
+      </select>
+      <select name="project_id" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+        <option value="">— Auftrag (optional) —</option>
+        <% (projects || []).forEach(function(p) { %>
+        <option value="<%= p.id %>"><%= p.title %> (#<%= p.id %>)</option>
+        <% }) %>
+      </select>
+      <input name="order_number" placeholder="Bestellnr. intern" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <input name="expected_at" type="date" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
+      <textarea name="notes" rows="2" placeholder="Notiz" class="sm:col-span-2 border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm"></textarea>
+      <div class="sm:col-span-2 flex justify-end">
+        <button class="bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-lg text-sm">Anlegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="flex flex-wrap gap-2 mb-4 text-sm">
+    <a href="/einkauf/orders" class="px-3 py-1 rounded-full border <%= !statusFilter ? 'bg-blue-600 text-white border-blue-600' : '' %>">Alle</a>
+    <% ['ENTWURF','BESTELLT','TEILWEISE','GELIEFERT','STORNIERT'].forEach(function(st) { %>
+    <a href="/einkauf/orders?status=<%= st %>" class="px-3 py-1 rounded-full border <%= statusFilter===st ? 'bg-blue-600 text-white border-blue-600' : '' %>"><%= st %></a>
+    <% }) %>
+  </div>
+
+  <div class="space-y-2">
+    <% (orders || []).forEach(function(o) { %>
+    <a href="/einkauf/orders/<%= o.id %>" class="block bg-white dark:bg-slate-800 rounded-xl shadow p-4 hover:ring-2 hover:ring-blue-400 transition">
+      <div class="flex justify-between gap-2">
+        <div>
+          <p class="font-semibold text-slate-800 dark:text-slate-100">#<%= o.id %> <%= o.order_number || '' %>
+            <span class="text-xs font-medium text-slate-500"><%= o.status %></span>
+          </p>
+          <p class="text-xs text-slate-500"><%= o.supplier_name || 'ohne Lieferant' %><%= o.project_title ? ' · ' + o.project_title : '' %></p>
+        </div>
+        <p class="text-sm font-semibold tabular-nums"><%= Number(o.total_net || 0).toLocaleString('de-DE', {minimumFractionDigits:2}) %> €</p>
+      </div>
+    </a>
+    <% }) %>
+    <% if (!(orders || []).length) { %>
+    <p class="text-center text-slate-500 py-10 text-sm">Keine Bestellungen.</p>
+    <% } %>
+  </div>
+</div>
