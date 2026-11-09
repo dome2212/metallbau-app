@@ -249,8 +249,16 @@ router.get('/', async (req, res) => {
         };
       });
 
+      const todayBerlin = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+      const dueNotes = await safe(`SELECT n.id, n.kind, n.title, n.due_date, n.contact_phone, c.company_name, c.contact_person
+        FROM office_notes n LEFT JOIN customers c ON c.id = n.customer_id
+        WHERE n.status = 'offen' AND n.due_date IS NOT NULL AND n.due_date != '' AND n.due_date <= ?
+        ORDER BY n.due_date ASC LIMIT 6`, [todayBerlin]);
+      const dueNotesTotal = (await safe(`SELECT COUNT(*) AS count FROM office_notes
+        WHERE status = 'offen' AND due_date IS NOT NULL AND due_date != '' AND due_date <= ?`, [todayBerlin]))[0]?.count ?? 0;
+
       res.render('dashboard-buero', {
-        stats, offers, invoices,
+        stats, offers, invoices, dueNotes, dueNotesTotal, todayBerlin,
         teamIn: teamIn.map(r => r.username),
         myTasks, tickers,
         roleLabel: 'Büro', userRole
