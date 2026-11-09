@@ -259,6 +259,7 @@ app.use('/projects', projectRoutes);
 
 // Kunden
 app.use('/customers', customerRoutes);
+app.use('/notizen', require('./routes/notesRoutes'));
 
 // Kalender & Termine & Wetter-API
 app.use('/',              calendarRoutes);
