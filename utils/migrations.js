@@ -863,6 +863,31 @@ const MIGRATIONS = [
       try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_share_doc ON document_share_tokens(document_id)`); } catch (_) {}
     }
   },
+
+  // ── 028 ── Notizen, Telefon-/Rückrufnotizen und Wiedervorlagen (Büro) ────────
+  {
+    id: 28,
+    description: 'office_notes (Notizen, Anrufe, Wiedervorlagen)',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS office_notes (
+        id            ${isPg ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        kind          TEXT NOT NULL DEFAULT 'notiz',
+        title         TEXT NOT NULL,
+        body          TEXT,
+        customer_id   INT,
+        contact_name  TEXT,
+        contact_phone TEXT,
+        due_date      TEXT,
+        status        TEXT NOT NULL DEFAULT 'offen',
+        created_by    INT,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        done_by       INT,
+        done_at       TIMESTAMP
+      )`);
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_office_notes_status ON office_notes(status, due_date)`); } catch (_) {}
+      try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_office_notes_customer ON office_notes(customer_id)`); } catch (_) {}
+    }
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
