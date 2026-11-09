@@ -83,21 +83,21 @@
     { id: 'start', label: null, items: [
       { href: '/', label: 'Dashboard', icon: 'home', ok: _show('dashboard') },
     ]},
-    { id: 'auftraege', label: 'Aufträge & Planung', items: [
+    { id: 'auftraege', collapsed: true, label: 'Aufträge & Planung', items: [
       { href: '/auftragszentrale', label: 'Auftragszentrale',      icon: 'hub',      ok: _projOk },
       { href: '/projects',         label: 'Aufträge & Baustellen', icon: 'projects', ok: _projOk },
       { href: '/calendar',         label: 'Kalender',              icon: 'calendar', ok: _calOk },
       { href: '/montageplan',      label: 'Wochenplan',            icon: 'week',     ok: _calOk && _show('staffplan') },
       { href: '/tasks',            label: 'Aufgaben',              icon: 'tasks',    ok: _show('tasks') && _perm('tasks', true, true) },
     ]},
-    { id: 'werkstatt', label: 'Werkstatt', items: [
+    { id: 'werkstatt', collapsed: true, label: 'Werkstatt', items: [
       { href: '/cad',          label: 'CAD Studio',       icon: 'cad',     tag: '2D / 3D', ok: _show('cad') && _perm('cad', true, false) },
       { href: '/schnittliste', label: 'Schnittliste',     icon: 'cut',     ok: _show('schnittliste') && _perm('schnittliste', true, false) },
       { href: '/lager',        label: 'Lagerliste',       icon: 'stock',   ok: _show('lager') && _perm('lager', true, false) },
       { href: '/einkauf/orders', label: 'Einkauf / Bestellungen', icon: 'stock', ok: _show('lager') && _perm('lager', true, false) },
       { href: '/farben',       label: 'Farben-Bibliothek', icon: 'palette', ok: _show('farben') && _perm('farben', true, true) },
     ]},
-    { id: 'team', label: 'Team', items: [
+    { id: 'team', collapsed: true, label: 'Team', items: [
       { href: '/timetracking', label: 'Zeiterfassung',        icon: 'clock', ok: _show('timetracking') && _perm('timetracking', true, true) },
       { href: '/admin/timetracking', label: 'Arbeitszeiten-Übersicht', icon: 'sheet', ok: _isOffice && _show('admin_timetracking') },
       { href: '/vacations',    label: 'Urlaub & Abwesenheit', icon: 'sun',   ok: _show('vacations') && _perm('vacations', true, true) },
@@ -367,7 +367,7 @@
   }
 
   // ── Menü-Gruppen ──────────────────────────────────────────────────────────
-  const NAV_STATE_KEY = 'navCollapsed';
+  const NAV_STATE_KEY = 'navCollapsed_v2';
 
   function readNavState() {
     try {
