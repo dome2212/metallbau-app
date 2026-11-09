@@ -1,0 +1,152 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+<%
+  const KIND = {
+    anruf:         { label: 'Anruf / Rückruf', icon: '📞' },
+    wiedervorlage: { label: 'Wiedervorlage',   icon: '🔔' },
+    notiz:         { label: 'Notiz',           icon: '📝' }
+  };
+  const fmt = (d) => d ? String(d).slice(0, 10).split('-').reverse().join('.') : '';
+  const custName = (n) => n.company_name || n.contact_person || '';
+%>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-5xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-24">
+
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Notizen & Wiedervorlagen</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Anrufe, Rückrufe und „nachfassen am …“ – nichts geht mehr verloren.</p>
+    </div>
+
+    <!-- Neu anlegen -->
+    <form action="/notizen/add" method="POST" class="card p-4 space-y-3" id="note-form">
+      <input type="hidden" name="redirect" value="/notizen">
+      <div class="grid grid-cols-3 gap-2">
+        <% Object.keys(KIND).forEach(function (k) { %>
+          <label class="cursor-pointer">
+            <input type="radio" name="kind" value="<%= k %>" class="peer sr-only" <%= pre.kind === k ? 'checked' : '' %> onchange="noteKindChanged()">
+            <span class="block text-center rounded-xl border border-slate-200 dark:border-slate-600 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600">
+              <%= KIND[k].icon %> <%= KIND[k].label %>
+            </span>
+          </label>
+        <% }) %>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kunde (optional)</label>
+          <select name="customer_id" class="input text-sm">
+            <option value="">– kein Kunde –</option>
+            <% customers.forEach(function (c) { %>
+              <option value="<%= c.id %>" <%= Number(pre.customer_id) === c.id ? 'selected' : '' %>><%= c.company_name || c.contact_person || ('Kunde ' + c.id) %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5" id="due-label">Erledigen bis</label>
+          <input type="date" name="due_date" class="input text-sm" min="<%= today %>">
+        </div>
+      </div>
+
+      <div id="call-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Wer hat angerufen?</label>
+          <input type="text" name="contact_name" class="input text-sm" placeholder="Name">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Telefonnummer</label>
+          <input type="tel" name="contact_phone" class="input text-sm" placeholder="Rückruf unter …">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Worum geht es?</label>
+        <input type="text" name="title" required maxlength="200" class="input text-sm" placeholder="z. B. Angebot Geländer nachfassen">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Details (optional)</label>
+        <textarea name="body" rows="2" class="input text-sm"></textarea>
+      </div>
+      <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">Speichern</button>
+    </form>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+      <a href="/notizen" class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px <%= tab === 'offen' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500' %>">Offen</a>
+      <a href="/notizen?tab=erledigt" class="px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px <%= tab === 'erledigt' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500' %>">Erledigt</a>
+    </div>
+
+    <%
+      const sections = tab === 'offen' ? [
+        { key: 'ueberfaellig', title: 'Überfällig', cls: 'text-red-600',     list: groups.ueberfaellig },
+        { key: 'heute',        title: 'Heute',      cls: 'text-amber-600',   list: groups.heute },
+        { key: 'spaeter',      title: 'Später',     cls: 'text-slate-600 dark:text-slate-300', list: groups.spaeter },
+        { key: 'ohne',         title: 'Ohne Datum', cls: 'text-slate-500',   list: groups.ohne }
+      ] : [ { key: 'erledigt', title: 'Zuletzt erledigt', cls: 'text-slate-600 dark:text-slate-300', list: rows } ];
+      const anyRows = sections.some(function (s) { return s.list.length; });
+    %>
+
+    <% if (!anyRows) { %>
+      <div class="card p-8 text-center text-sm text-slate-400"><%= tab === 'offen' ? 'Alles erledigt – nichts offen. 🎉' : 'Noch nichts erledigt.' %></div>
+    <% } %>
+
+    <% sections.forEach(function (sec) { if (!sec.list.length) return; %>
+      <section>
+        <h2 class="text-sm font-bold uppercase tracking-wider mb-2 <%= sec.cls %>"><%= sec.title %> <span class="text-slate-400 font-medium">(<%= sec.list.length %>)</span></h2>
+        <ul class="space-y-2">
+          <% sec.list.forEach(function (n) { const k = KIND[n.kind] || KIND.notiz; %>
+          <li class="card p-3.5 <%= sec.key === 'ueberfaellig' ? 'border-l-4 border-red-500' : '' %>">
+            <div class="flex items-start gap-3">
+              <span class="text-xl leading-none mt-0.5"><%= k.icon %></span>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold text-slate-800 dark:text-slate-100 break-words"><%= n.title %></p>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  <%= k.label %>
+                  <% if (custName(n)) { %> · <a href="/customers/<%= n.customer_id %>" class="text-blue-600 hover:underline"><%= custName(n) %></a><% } %>
+                  <% if (n.due_date) { %> · bis <%= fmt(n.due_date) %><% } %>
+                  <% if (n.creator) { %> · von <%= n.creator %><% } %>
+                </p>
+                <% if (n.contact_name || n.contact_phone) { %>
+                  <p class="text-sm text-slate-700 dark:text-slate-300 mt-1">
+                    <%= n.contact_name || '' %>
+                    <% if (n.contact_phone) { %> <a href="tel:<%= n.contact_phone %>" class="text-blue-600 font-semibold hover:underline"><%= n.contact_phone %></a><% } %>
+                  </p>
+                <% } %>
+                <% if (n.body) { %><p class="text-sm text-slate-600 dark:text-slate-400 mt-1 whitespace-pre-line break-words"><%= n.body %></p><% } %>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-3 pl-8">
+              <% if (tab === 'offen') { %>
+                <form action="/notizen/<%= n.id %>/done" method="POST"><input type="hidden" name="redirect" value="/notizen">
+                  <button class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">✓ Erledigt</button></form>
+                <form action="/notizen/<%= n.id %>/snooze" method="POST"><input type="hidden" name="redirect" value="/notizen"><input type="hidden" name="days" value="1">
+                  <button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300">Morgen</button></form>
+                <form action="/notizen/<%= n.id %>/snooze" method="POST"><input type="hidden" name="redirect" value="/notizen"><input type="hidden" name="days" value="7">
+                  <button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300">In 1 Woche</button></form>
+              <% } else { %>
+                <form action="/notizen/<%= n.id %>/reopen" method="POST"><input type="hidden" name="redirect" value="/notizen?tab=erledigt">
+                  <button class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300">Wieder öffnen</button></form>
+              <% } %>
+              <form action="/notizen/<%= n.id %>/delete" method="POST" onsubmit="return confirm('Wirklich löschen?');"><input type="hidden" name="redirect" value="/notizen<%= tab === 'erledigt' ? '?tab=erledigt' : '' %>">
+                <button class="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Löschen</button></form>
+            </div>
+          </li>
+          <% }) %>
+        </ul>
+      </section>
+    <% }) %>
+
+  </div>
+</main>
+
+<script>
+  function noteKindChanged() {
+    const k = (document.querySelector('#note-form input[name=kind]:checked') || {}).value;
+    document.getElementById('call-fields').style.display = (k === 'anruf') ? '' : 'none';
+    document.getElementById('due-label').textContent =
+      k === 'wiedervorlage' ? 'Nachfassen am' : (k === 'anruf' ? 'Zurückrufen bis' : 'Erledigen bis (optional)');
+  }
+  noteKindChanged();
+</script>
+</body>
+</html>

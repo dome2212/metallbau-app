@@ -18,6 +18,7 @@
       <div class="flex flex-wrap gap-2">
         <a href="/documents/offers?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Angebot</a>
         <a href="/projects" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">Auftrag</a>
+        <a href="/notizen?customer_id=<%= customer.id %>&kind=anruf" class="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600">📞 Notiz / Wiedervorlage</a>
         <a href="/documents/invoices?customer_id=<%= customer.id %>" class="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold">Rechnung</a>
         <form action="/customers/delete" method="POST" onsubmit="return confirm('Kunde wirklich löschen?');" class="inline">
           <input type="hidden" name="id" value="<%= customer.id %>">
