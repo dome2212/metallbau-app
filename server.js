@@ -260,6 +260,7 @@ app.use('/projects', projectRoutes);
 // Kunden
 app.use('/customers', customerRoutes);
 app.use('/notizen', require('./routes/notesRoutes'));
+app.use('/anwesenheit', require('./routes/presenceRoutes'));
 
 // Kalender & Termine & Wetter-API
 app.use('/',              calendarRoutes);
