@@ -172,19 +172,7 @@
         </a>
         <% } %>
 
-        <section class="card p-4">
-          <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-2">Gerade eingestempelt</h2>
-          <% if (!teamIn.length) { %>
-            <p class="text-sm text-slate-400">Niemand eingestempelt.</p>
-          <% } else { %>
-            <ul class="space-y-1.5">
-              <% teamIn.forEach(function (n) { %>
-              <li class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span><%= n %></li>
-              <% }) %>
-            </ul>
-          <% } %>
-          <a href="/admin/timetracking" class="inline-block mt-3 text-xs text-blue-600 hover:underline">Arbeitszeiten auswerten →</a>
-        </section>
+        <%- include('partials/who-is-where') %>
 
         <section class="card p-4">
           <div class="flex items-center justify-between mb-2">
