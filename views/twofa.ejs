@@ -1,0 +1,77 @@
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14">
+  <div class="max-w-xl mx-auto px-4 md:px-6 py-6 space-y-5">
+    <div>
+      <a href="/profile" class="text-xs text-blue-600 hover:underline">← Mein Profil</a>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-1">Zwei-Faktor-Anmeldung</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Beim Anmelden zusätzlich ein Code aus einer App auf dem Handy – schützt Rechnungen und Kundendaten auch bei gestohlenem Passwort.</p>
+    </div>
+
+    <% if (notice) { %><div class="px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 text-amber-800 dark:text-amber-300 text-sm"><%= notice %></div><% } %>
+    <% if (error) { %><div class="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-700 dark:text-red-300 text-sm"><%= error %></div><% } %>
+    <% if (success) { %><div class="px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 text-emerald-700 dark:text-emerald-300 text-sm"><%= success %></div><% } %>
+
+    <% if (recoveryCodes) { %>
+      <div class="card p-5">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100 mb-1">Wiederherstellungscodes</h2>
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-3"><strong>Jetzt ausdrucken oder sicher abspeichern</strong> – sie werden nur jetzt angezeigt. Fällt das Handy aus, kommst du damit wieder rein. Jeder Code gilt einmal.</p>
+        <ul class="grid grid-cols-2 gap-2 font-mono text-sm">
+          <% recoveryCodes.forEach(function (c) { %><li class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-center tracking-wider"><%= c %></li><% }) %>
+        </ul>
+        <button type="button" onclick="window.print()" class="mt-4 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-sm font-semibold">🖨️ Drucken</button>
+      </div>
+    <% } %>
+
+    <% if (!enabled) { %>
+      <div class="card p-5 space-y-4">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Einrichten</h2>
+        <% if (!secret) { %>
+          <p class="text-sm text-slate-600 dark:text-slate-300">Du brauchst dafür eine Authenticator-App auf dem Handy (z. B. Google Authenticator, Microsoft Authenticator oder Aegis).</p>
+          <form action="/profile/2fa/start" method="POST"><button class="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">Jetzt einrichten</button></form>
+        <% } else { %>
+          <ol class="list-decimal pl-5 text-sm text-slate-600 dark:text-slate-300 space-y-1">
+            <li>Authenticator-App öffnen und <strong>QR-Code scannen</strong> (oder den Schlüssel unten eintippen).</li>
+            <li>Den angezeigten 6-stelligen Code hier eingeben.</li>
+          </ol>
+          <div class="flex justify-center"><div class="rounded-xl overflow-hidden border border-slate-200"><%- qr %></div></div>
+          <p class="text-xs text-slate-500 text-center">Schlüssel zum Eintippen: <code class="font-mono select-all break-all"><%= secret %></code></p>
+          <form action="/profile/2fa/confirm" method="POST" class="space-y-3">
+            <input type="text" name="code" required inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" class="input text-center text-xl tracking-[.3em]">
+            <button class="w-full px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm">Bestätigen und aktivieren</button>
+          </form>
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="card p-5 space-y-4">
+        <div class="flex items-center gap-2"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span><h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Aktiv</h2></div>
+        <p class="text-sm text-slate-500">Noch <%= codesLeft %> Wiederherstellungscode<%= codesLeft === 1 ? '' : 's' %> übrig.</p>
+
+        <details class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+          <summary class="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Neue Wiederherstellungscodes erzeugen</summary>
+          <form action="/profile/2fa/codes" method="POST" class="space-y-3 mt-3">
+            <input type="password" name="password" required placeholder="Passwort" autocomplete="current-password" class="input">
+            <input type="text" name="code" required inputmode="numeric" maxlength="12" placeholder="Aktueller Code" class="input">
+            <button class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm font-semibold">Neue Codes erzeugen</button>
+          </form>
+        </details>
+
+        <% if (!required) { %>
+        <details class="rounded-xl border border-red-200 dark:border-red-900/40 p-3">
+          <summary class="cursor-pointer text-sm font-semibold text-red-600">Zwei-Faktor-Anmeldung ausschalten</summary>
+          <form action="/profile/2fa/disable" method="POST" class="space-y-3 mt-3" onsubmit="return confirm('Wirklich ausschalten?');">
+            <input type="password" name="password" required placeholder="Passwort" autocomplete="current-password" class="input">
+            <input type="text" name="code" required inputmode="numeric" maxlength="12" placeholder="Aktueller Code" class="input">
+            <button class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold">Ausschalten</button>
+          </form>
+        </details>
+        <% } else { %>
+          <p class="text-xs text-slate-400">Vom Chef vorgeschrieben – kann nicht ausgeschaltet werden.</p>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</main>
+</body>
+</html>
