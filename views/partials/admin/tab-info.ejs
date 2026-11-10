@@ -148,6 +148,9 @@
               <form action="/admin/backup/testmail" method="POST">
                 <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">✉️ Test-E-Mail senden</button>
               </form>
+              <form action="/admin/errors/provoke" method="POST" onsubmit="return confirm('Das löst absichtlich einen Serverfehler aus (du siehst kurz eine Fehlerseite) und schickt eine Fehler-Mail. Fortfahren?');">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">💥 Echten Testfehler auslösen</button>
+              </form>
               <form action="/admin/errors/testmail" method="POST">
                 <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition whitespace-nowrap">⚠️ Test-Fehlermeldung senden</button>
               </form>
