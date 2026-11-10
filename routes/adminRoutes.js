@@ -786,6 +786,12 @@ router.post('/backup/testmail', requireAdmin, async (req, res) => {
   }
 });
 
+// Löst absichtlich einen echten Serverfehler aus (prüft die komplette Fehler-Mail-Kette). Nur Chef/Admin.
+router.post('/errors/provoke', requireAdmin, (req, res, next) => {
+  const stamp = new Date().toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' });
+  next(new Error('TESTFEHLER – absichtlich ausgelöst im Admin-Panel um ' + stamp + ' (kein echter Fehler)'));
+});
+
 router.post('/errors/testmail', requireAdmin, async (req, res) => {
   try {
     const { notifyError, recipient } = require('../utils/errorAlert');
