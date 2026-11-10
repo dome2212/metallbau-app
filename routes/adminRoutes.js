@@ -128,7 +128,12 @@ router.get('/timetracking', requireOffice, async (req, res) => {
       ? `DATE(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin')`
       : `date(time_logs.timestamp)`;
 
-    let logsQuery  = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp FROM time_logs JOIN users ON time_logs.user_id = users.id WHERE 1=1`;
+    let logsQuery  = `SELECT time_logs.*, users.username, ${tsCol} as local_timestamp,
+        projects.title AS project_title, COALESCE(pc.company_name, pc.contact_person) AS project_customer
+      FROM time_logs JOIN users ON time_logs.user_id = users.id
+      LEFT JOIN projects ON projects.id = time_logs.project_id
+      LEFT JOIN customers pc ON pc.id = COALESCE(time_logs.customer_id, projects.customer_id)
+      WHERE 1=1`;
     const logsParams = [];
     if (selectedDate) { logsQuery += ` AND ${dateFilter} = ?`; logsParams.push(selectedDate); }
     if (selectedUserId) { logsQuery += ` AND time_logs.user_id = ?`; logsParams.push(selectedUserId); }
