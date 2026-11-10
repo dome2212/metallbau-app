@@ -22,7 +22,9 @@
 %>
 
 <style>
-  .ap { max-width: 72rem; margin: 0 auto; padding: 0 1rem 6rem; }
+  /* width:100% nötig: in einer Flex-Spalte schrumpft ein Element mit margin:auto sonst auf seinen breitesten Inhalt (z. B. die Rechte-Tabelle) und läuft aus dem Bildschirm */
+  .ap { width: 100%; box-sizing: border-box; max-width: 72rem; margin: 0 auto; padding: 0 1rem 6rem; }
+  .ap-main > * { max-width: 100%; box-sizing: border-box; }
   .ap-head {
     display: flex; align-items: center; justify-content: space-between;
     gap: .75rem; padding: 1rem 0 .75rem;
