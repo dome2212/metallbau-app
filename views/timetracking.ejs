@@ -348,6 +348,13 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 
 // GEO-FENCING
 let detectedProject = null;
+// Auswahl nur EINMAL automatisch setzen – eine manuelle Wahl des Nutzers wird nie überschrieben
+let userPickedProject = false;
+let autoPickedId = null;
+(function () {
+  const sel = document.getElementById('project-select');
+  if (sel) sel.addEventListener('change', () => { userPickedProject = true; });
+})();
 
 function checkGeofence(lat, lng) {
   let nearest = null, nearestDist = Infinity;
@@ -364,9 +371,9 @@ function checkGeofence(lat, lng) {
       '🏗️ ' + nearest.title + (name !== nearest.title ? ' (' + name + ')' : '');
     document.getElementById('geofence-distance').textContent =
       'Entfernung: ca. ' + Math.round(nearestDist) + ' m · Radius: ' + (nearest.site_radius || 200) + ' m';
-    if (!IS_STAMPED_IN) {
+    if (!IS_STAMPED_IN && !userPickedProject && autoPickedId !== nearest.id) {
       const sel = document.getElementById('project-select');
-      if (sel) sel.value = String(nearest.id);
+      if (sel) { sel.value = String(nearest.id); autoPickedId = nearest.id; }
     }
     banner.classList.remove('hidden');
   } else {
