@@ -888,6 +888,18 @@ const MIGRATIONS = [
       try { await safeRaw(`CREATE INDEX IF NOT EXISTS idx_office_notes_customer ON office_notes(customer_id)`); } catch (_) {}
     }
   },
+
+  // ── 029 ── Zwei-Faktor-Anmeldung (TOTP) ─────────────────────────────────────
+  {
+    id: 29,
+    description: 'users: totp_secret, totp_enabled, totp_last_step, totp_recovery',
+    async up() {
+      await safeRaw(`ALTER TABLE users ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} totp_secret TEXT`);
+      await safeRaw(`ALTER TABLE users ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} totp_enabled INT DEFAULT 0`);
+      await safeRaw(`ALTER TABLE users ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} totp_last_step ${isPg ? 'BIGINT' : 'INTEGER'}`);
+      await safeRaw(`ALTER TABLE users ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} totp_recovery TEXT`);
+    }
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

@@ -63,6 +63,7 @@ async function sendBackup() {
   } catch (error) {
     await status.record({ mail_result: "failed", file_result: "failed", mail_reason: "Sicherungsdatei konnte nicht erstellt werden." });
     console.error("[Backup] Sicherungsdatei konnte nicht erstellt werden.");
+    require("./errorAlert").notifyError("Backup fehlgeschlagen", "Die Sicherungsdatei konnte nicht erstellt werden.", { path: "Datenbank-Backup" });
     return { ok: false, failed: true, reason: "Sicherungsdatei konnte nicht erstellt werden." };
   }
   try {
@@ -99,6 +100,7 @@ async function sendBackup() {
     // Status bewusst allgemein: Datenbank-/Tool-Fehler können Verbindungsdaten enthalten.
     await status.record({ mail_result: "failed", mail_reason: "Unerwarteter Fehler beim Backup." });
     console.error("[Backup] Sicherung oder Versand fehlgeschlagen.", error && error.code ? error.code : "");
+    require("./errorAlert").notifyError("Backup fehlgeschlagen", "Unerwarteter Fehler beim Backup.", { path: "Datenbank-Backup" });
     return { ok: false, failed: true, reason: "Unerwarteter Fehler beim Backup." };
   } finally {
     if (file) await cleanupBackup(file.path);
