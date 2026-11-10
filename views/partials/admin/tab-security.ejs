@@ -12,6 +12,17 @@
           </div>
           <div class="space-y-5">
 
+            <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+              <input type="hidden" name="require_2fa" value="false">
+              <label class="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" name="require_2fa" value="true" <%= firma.require_2fa === 'true' ? 'checked' : '' %> class="mt-0.5 w-4 h-4 accent-blue-600">
+                <span class="text-sm text-slate-700 dark:text-slate-200">
+                  <strong>Zwei-Faktor-Anmeldung verpflichtend</strong> für Chef, Admin und Büro
+                  <span class="block text-xs text-slate-400 mt-0.5">Wer es noch nicht eingerichtet hat, wird nach dem Login zur Einrichtung geleitet (Profil → Zwei-Faktor-Anmeldung). Erst einschalten, wenn alle Betroffenen ein Smartphone mit Authenticator-App haben.</span>
+                </span>
+              </label>
+            </div>
+
             <div>
               <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                 Session-Timeout (Minuten) <span class="text-slate-400 font-normal">(0 = niemals automatisch abmelden)</span>
