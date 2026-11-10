@@ -100,10 +100,9 @@
   }
 </style>
 
-<div class="flex h-screen bg-slate-100 dark:bg-slate-900 overflow-hidden">
-  <%- include('partials/sidebar') %>
+<%- include('partials/sidebar') %>
 
-  <main class="flex-1 flex flex-col overflow-y-auto bg-slate-100 dark:bg-slate-900 min-h-screen pt-16 page-bg">
+  <main class="flex-1 flex flex-col overflow-y-auto page-bg min-h-screen pt-16">
 
     <!-- ── Seitenkopf ─────────────────────────────────────── -->
     <header class="bg-white dark:bg-slate-800 shadow px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-6 border-b border-transparent dark:border-slate-700">
@@ -113,7 +112,7 @@
       </div>
     </header>
 
-    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-10">
+    <div class="px-4 md:px-6 max-w-5xl mx-auto w-full space-y-6 pb-20">
 
       <!-- ── Tab-Leiste ────────────────────────────────────── -->
       <div class="flex gap-1 bg-white dark:bg-slate-800 rounded-xl shadow p-1.5 max-w-sm border border-transparent dark:border-slate-700">
@@ -397,7 +396,6 @@
 
     </div>
   </main>
-</div>
 
 <!-- Verstecktes PDF-Formular -->
 <form id="pdf-form" method="POST" action="/schnittliste/pdf" enctype="multipart/form-data" class="hidden">

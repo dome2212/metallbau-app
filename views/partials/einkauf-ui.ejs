@@ -1,0 +1,30 @@
+<style>
+  /* Einkauf (Bestellungen / Lieferanten / Bestelldetail): robuste Formular- & Filter-Styles,
+     unabhängig vom Tailwind-Purge, Hell- und Dunkelmodus. */
+  .ek-page input, .ek-page select, .ek-page textarea {
+    width: 100%; min-width: 0;
+    background-color: #fff; color: #0f172a;
+    border: 1px solid #cbd5e1; border-radius: .5rem;
+  }
+  .ek-page input::placeholder, .ek-page textarea::placeholder { color: #94a3b8; }
+  .ek-page input:focus, .ek-page select:focus, .ek-page textarea:focus {
+    outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgb(59 130 246 / .25);
+  }
+  .ek-page input[type="checkbox"], .ek-page input[type="radio"] { width: auto; }
+  .dark .ek-page input, .dark .ek-page select, .dark .ek-page textarea {
+    background-color: #0f172a; color: #e2e8f0; border-color: #475569;
+  }
+  .dark .ek-page input[type="date"] { color-scheme: dark; }
+  .ek-pill {
+    display: inline-flex; align-items: center; padding: .3rem .85rem; border-radius: 999px;
+    border: 1px solid #cbd5e1; color: #475569; font-size: .8125rem; font-weight: 600;
+    background: transparent; transition: background .15s, color .15s;
+  }
+  .ek-pill:hover { background: #e2e8f0; }
+  .ek-pill.is-active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .dark .ek-pill { border-color: #475569; color: #e2e8f0; }
+  .dark .ek-pill:hover { background: #334155; }
+  .dark .ek-pill.is-active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .ek-card { background: #fff; border: 1px solid transparent; }
+  .dark .ek-card { background: #1e293b; border-color: #334155; }
+</style>

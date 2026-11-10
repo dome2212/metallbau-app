@@ -1,7 +1,10 @@
 <%- include('partials/header') %>
 <%- include('partials/sidebar') %>
+<%- include('partials/einkauf-ui') %>
 
-<div class="max-w-5xl mx-auto px-4 pb-20 pt-4">
+<main class="flex-1 min-h-screen page-bg dark:bg-slate-900 pt-14 ek-page">
+
+<div class="max-w-5xl mx-auto px-4 pb-20 pt-6">
   <div class="flex items-center justify-between gap-3 mb-4">
     <div>
       <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Bestellungen</h1>
@@ -14,7 +17,7 @@
   <div class="mb-4 rounded-lg bg-green-50 text-green-700 text-sm px-4 py-2">Gespeichert.</div>
   <% } %>
 
-  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 mb-6">
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-5 mb-6 border border-transparent dark:border-slate-700">
     <h2 class="text-sm font-semibold mb-3">Neue Bestellung</h2>
     <form method="POST" action="/einkauf/orders" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <select name="supplier_id" class="border dark:border-slate-600 dark:bg-slate-700 rounded-lg p-2.5 text-sm">
@@ -39,9 +42,9 @@
   </div>
 
   <div class="flex flex-wrap gap-2 mb-4 text-sm">
-    <a href="/einkauf/orders" class="px-3 py-1 rounded-full border <%= !statusFilter ? 'bg-blue-600 text-white border-blue-600' : '' %>">Alle</a>
+    <a href="/einkauf/orders" class="ek-pill <%= !statusFilter ? 'is-active' : '' %>">Alle</a>
     <% ['ENTWURF','BESTELLT','TEILWEISE','GELIEFERT','STORNIERT'].forEach(function(st) { %>
-    <a href="/einkauf/orders?status=<%= st %>" class="px-3 py-1 rounded-full border <%= statusFilter===st ? 'bg-blue-600 text-white border-blue-600' : '' %>"><%= st %></a>
+    <a href="/einkauf/orders?status=<%= st %>" class="ek-pill <%= statusFilter===st ? 'is-active' : '' %>"><%= st %></a>
     <% }) %>
   </div>
 
@@ -69,3 +72,4 @@
     <% } %>
   </div>
 </div>
+</main>
