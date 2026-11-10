@@ -210,7 +210,14 @@
                         <span class="text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs font-semibold">Ausgestempelt (OUT)</span>
                       <% } %>
                     </td>
-                    <td class="p-4 text-slate-500 text-xs md:text-sm"><%= log.note || '-' %></td>
+                    <td class="p-4 text-slate-500 text-xs md:text-sm">
+                      <% if (log.project_id) { %>
+                        <span class="block font-semibold text-slate-700 dark:text-slate-200">🏗️ <%= log.project_title || ('Auftrag ' + log.project_id) %><% if (log.project_customer) { %> <span class="font-normal text-slate-500">(<%= log.project_customer %>)</span><% } %></span>
+                      <% } else if (log.type === 'IN') { %>
+                        <span class="block font-semibold text-slate-700 dark:text-slate-200">🏭 Werkstatt / Firma</span>
+                      <% } %>
+                      <% if (log.note) { %><span class="block"><%= log.note %></span><% } else if (!log.project_id && log.type !== 'IN') { %>-<% } %>
+                    </td>
                     <td class="p-4 text-right">
                       <form action="/admin/timetracking/delete" method="POST" onsubmit="return confirm('Diesen Stempel-Eintrag wirklich löschen?');" style="display:inline;">
                         <input type="hidden" name="log_id" value="<%= log.id %>">
