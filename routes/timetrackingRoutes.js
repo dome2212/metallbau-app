@@ -295,16 +295,18 @@ router.get('/admin/monthly', async (req, res) => {
     }
     const entriesRes   = await dbQuery(
       isPg
-        ? `SELECT time_logs.*, projects.title as project_title,
+        ? `SELECT time_logs.*, projects.title as project_title, COALESCE(pc.company_name, pc.contact_person) as project_customer,
                   TO_CHAR(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
            FROM time_logs
            LEFT JOIN projects ON time_logs.project_id = projects.id
+           LEFT JOIN customers pc ON pc.id = COALESCE(time_logs.customer_id, projects.customer_id)
            WHERE time_logs.user_id = ? AND to_char(time_logs.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
            ORDER BY time_logs.timestamp ASC`
-        : `SELECT time_logs.*, projects.title as project_title,
+        : `SELECT time_logs.*, projects.title as project_title, COALESCE(pc.company_name, pc.contact_person) as project_customer,
                   strftime('%Y-%m-%d %H:%M:%S', time_logs.timestamp) as local_timestamp
            FROM time_logs
            LEFT JOIN projects ON time_logs.project_id = projects.id
+           LEFT JOIN customers pc ON pc.id = COALESCE(time_logs.customer_id, projects.customer_id)
            WHERE time_logs.user_id = ? AND strftime('%Y-%m', time_logs.timestamp) = ?
            ORDER BY time_logs.timestamp ASC`,
       [targetUserId, month]
@@ -366,25 +368,34 @@ router.get('/admin/export-csv', async (req, res) => {
 
     const logsRes = await dbQuery(
       isPg
-        ? `SELECT t.*, u.username, TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
+        ? `SELECT t.*, u.username, p.title as project_title, COALESCE(pc.company_name, pc.contact_person) as project_customer,
+                  TO_CHAR(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM-DD HH24:MI:SS') as local_timestamp
            FROM time_logs t JOIN users u ON t.user_id = u.id
+           LEFT JOIN projects p ON p.id = t.project_id
+           LEFT JOIN customers pc ON pc.id = COALESCE(t.customer_id, p.customer_id)
            WHERE t.user_id = ? AND to_char(t.timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin', 'YYYY-MM') = ?
            ORDER BY t.timestamp ASC`
-        : `SELECT t.*, u.username, strftime('%Y-%m-%d %H:%M:%S', t.timestamp) as local_timestamp
+        : `SELECT t.*, u.username, p.title as project_title, COALESCE(pc.company_name, pc.contact_person) as project_customer,
+                  strftime('%Y-%m-%d %H:%M:%S', t.timestamp) as local_timestamp
            FROM time_logs t JOIN users u ON t.user_id = u.id
+           LEFT JOIN projects p ON p.id = t.project_id
+           LEFT JOIN customers pc ON pc.id = COALESCE(t.customer_id, p.customer_id)
            WHERE t.user_id = ? AND strftime('%Y-%m', t.timestamp) = ?
            ORDER BY t.timestamp ASC`,
       [targetUserId, month]
     );
     const entries = logsRes.rows || [];
 
-    let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt\n';
+    let csv = 'Mitarbeiter;Datum;Typ;Notiz;Zeitpunkt;Ort\n';
     entries.forEach(e => {
       const dateObj = new Date(e.local_timestamp || e.timestamp);
       const dateStr = dateObj.toLocaleDateString('de-DE');
       const timeStr = dateObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
       const typeStr = e.type === 'IN' ? 'Kommen (IN)' : 'Gehen (OUT)';
-      csv += `"${e.username}","${dateStr}","${typeStr}","${e.note || ''}","${timeStr}"\n`;
+      const ort = e.project_id
+        ? `${e.project_title || ('Auftrag ' + e.project_id)}${e.project_customer ? ' (' + e.project_customer + ')' : ''}`
+        : (e.type === 'IN' ? 'Werkstatt / Firma' : '');
+      csv += `"${e.username}","${dateStr}","${typeStr}","${e.note || ''}","${timeStr}","${String(ort).replace(/"/g, '""')}"\n`;
     });
 
     res.header('Content-Type', 'text/csv; charset=utf-8');
@@ -446,7 +457,7 @@ router.get('/admin/export-pdf', async (req, res) => {
       const outTime  = outEntry ? new Date((outEntry.local_timestamp || outEntry.timestamp).replace(' ', 'T')) : null;
       const ms       = outTime ? outTime - inTime : 0;
       if (ms > 0) totalMs += ms;
-      pairs.push({ inTime, outTime, ms, note: inEntry.note, project: inEntry.project_title });
+      pairs.push({ inTime, outTime, ms, note: inEntry.note, project: inEntry.project_title || 'Werkstatt / Firma' });
     }
 
     const workedH = Math.floor(totalMs / 3600000);
