@@ -17,11 +17,28 @@ try { PDFKit = require('pdfkit'); } catch (_) {}
 router.get('/users', requireAdmin, async (req, res) => {
   try {
     const result = await dbQuery(
-      'SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, rfid_uid, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, username, role, whatsapp_phone, whatsapp_api_key, whatsapp_notify, rfid_uid, totp_enabled, created_at FROM users ORDER BY created_at DESC'
     );
     res.render('admin-users', { users: result.rows || [] });
   } catch (err) {
     res.status(500).send('Datenbankfehler');
+  }
+});
+
+// Zwei-Faktor zurücksetzen (Handy verloren). Chef-/Admin-Konten darf nur der Chef zurücksetzen.
+router.post('/users/reset-2fa', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.body.user_id, 10);
+    const r = await dbQuery('SELECT id, role FROM users WHERE id = ?', [id]);
+    const target = r.rows[0];
+    if (!target) return res.redirect('/admin/users');
+    if (['CHEF', 'ADMIN'].includes(target.role) && req.user.role !== 'CHEF' && target.id !== req.user.id) {
+      return res.status(403).send('Nur der Chef kann die Zwei-Faktor-Anmeldung von Chef- und Admin-Konten zurücksetzen.');
+    }
+    await require('../utils/twofa').disable(id);
+    res.redirect('/admin/users');
+  } catch (err) {
+    res.status(500).send('Fehler beim Zurücksetzen.');
   }
 });
 
@@ -764,6 +781,17 @@ router.post('/backup/testmail', requireAdmin, async (req, res) => {
     if (missing.length) return res.redirect('/admin/panel?tab=info&msg=mail_missing&detail=' + encodeURIComponent(missing.join(', ')));
     const r = await mailer.sendMail({ to, subject: 'Test-E-Mail – ' + (firma.name || 'Metallbau'), text: 'Der E-Mail-Versand funktioniert.' });
     res.redirect('/admin/panel?tab=info&msg=' + (r.ok ? 'mail_ok' : 'mail_failed') + (r.ok ? '' : '&detail=' + encodeURIComponent(r.error || '')));
+  } catch (err) {
+    res.redirect('/admin/panel?tab=info&msg=mail_failed&detail=' + encodeURIComponent('Unerwarteter Fehler.'));
+  }
+});
+
+router.post('/errors/testmail', requireAdmin, async (req, res) => {
+  try {
+    const { notifyError, recipient } = require('../utils/errorAlert');
+    if (!(await recipient())) return res.redirect('/admin/panel?tab=info&msg=mail_missing&detail=' + encodeURIComponent('Fehler-E-Mail (Empfänger)'));
+    const r = await notifyError('Test-Fehlermeldung', 'Das ist nur ein Test – kein echter Fehler.', { force: true });
+    res.redirect('/admin/panel?tab=info&msg=' + (r && r.ok ? 'mail_ok' : 'mail_failed') + (r && r.ok ? '' : '&detail=' + encodeURIComponent((r && r.error) || '')));
   } catch (err) {
     res.redirect('/admin/panel?tab=info&msg=mail_failed&detail=' + encodeURIComponent('Unerwarteter Fehler.'));
   }

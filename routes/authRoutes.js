@@ -33,6 +33,34 @@ async function createDefaultAdmin() {
 
 createDefaultAdmin();
 
+const twofa = require('../utils/twofa');
+// Eigener Schlüssel für das 2FA-Zwischentoken: es darf nirgends als Anmelde-Token gelten
+const MFA_SECRET = JWT_SECRET + ':mfa-pending';
+
+function issueSession(res, user) {
+  // JWT-Token erstellen (8 Stunden Schichtdauer)
+  const token = jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '8h' }
+  );
+  // Token als HTTP-Only Cookie speichern
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // nur über HTTPS senden
+    sameSite: 'lax',                                 // CSRF-Schutz
+    maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
+  });
+  res.clearCookie('mfa_pending');
+}
+
+function readPending(req) {
+  try {
+    const p = jwt.verify(req.cookies.mfa_pending || '', MFA_SECRET);
+    return p && p.purpose === 'mfa' ? p : null;
+  } catch (_) { return null; }
+}
+
 // GET: Login-Seite anzeigen
 // Nur interne Pfade erlauben (kein Open-Redirect)
 function safeNext(v) {
@@ -63,21 +91,16 @@ router.post('/login', async (req, res) => {
       return res.render('login', { error: 'Ungültiger Benutzername oder Passwort', next: nextUrl });
     }
 
-    // JWT-Token erstellen (8 Stunden Schichtdauer)
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
-        JWT_SECRET,
-      { expiresIn: '8h' }
-    );
+    // Büro-Rollen mit aktiver Zwei-Faktor-Anmeldung: erst Code abfragen
+    if (twofa.needsTwoFactor(user)) {
+      const pending = jwt.sign({ id: user.id, purpose: 'mfa', next: nextUrl }, MFA_SECRET, { expiresIn: '5m' });
+      res.cookie('mfa_pending', pending, {
+        httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 5 * 60 * 1000
+      });
+      return res.redirect('/login/2fa');
+    }
 
-    // Token als HTTP-Only Cookie speichern
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // nur über HTTPS senden
-      sameSite: 'lax',                                 // CSRF-Schutz
-      maxAge: 8 * 60 * 60 * 1000 // 8 Stunden
-    });
-
+    issueSession(res, user);
     res.redirect(nextUrl);
   } catch (error) {
     console.error('❌ Login-Fehler:', error.message);
@@ -85,9 +108,40 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ── Zwei-Faktor: Code-Abfrage nach dem Passwort ─────────────────────────────
+router.get('/login/2fa', (req, res) => {
+  if (!readPending(req)) return res.redirect('/login');
+  res.render('twofa-login', { error: null });
+});
+
+router.post('/login/2fa', async (req, res) => {
+  const pending = readPending(req);
+  if (!pending) return res.redirect('/login');
+  try {
+    const result = await twofa.verifyLogin(pending.id, req.body.code);
+    if (!result.ok) {
+      const error = result.locked
+        ? `Zu viele falsche Codes. Bitte in ${result.locked} Minuten erneut versuchen.`
+        : 'Der Code ist nicht richtig oder abgelaufen. Bitte den aktuellen Code aus der App eingeben.';
+      return res.render('twofa-login', { error });
+    }
+    const r = await dbQuery('SELECT id, username, role FROM users WHERE id = ?', [pending.id]);
+    const user = r.rows[0];
+    if (!user) return res.redirect('/login');
+    issueSession(res, user);
+    // Wiederherstellungscode benutzt: Hinweis auf der Profilseite
+    if (result.recovery) return res.redirect('/profile/2fa?recovery_left=' + result.left);
+    res.redirect(safeNext(pending.next));
+  } catch (error) {
+    console.error('❌ 2FA-Fehler:', error.message);
+    res.render('twofa-login', { error: 'Fehler bei der Anmeldung. Bitte erneut versuchen.' });
+  }
+});
+
 // GET: Logout
 router.get('/logout', (req, res) => {
   res.clearCookie('token');
+  res.clearCookie('mfa_pending');
   res.redirect('/login');
 });
 

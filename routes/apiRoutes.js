@@ -69,6 +69,14 @@ router.post('/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Ungültiger Benutzername oder Passwort' });
 
+    // Zwei-Faktor für Büro-Rollen: Code (oder Wiederherstellungscode) mitschicken
+    const twofa = require('../utils/twofa');
+    if (twofa.needsTwoFactor(user)) {
+      if (!req.body.totp_code) return res.status(401).json({ error: '2FA-Code erforderlich', mfa_required: true });
+      const chk = await twofa.verifyLogin(user.id, req.body.totp_code);
+      if (!chk.ok) return res.status(401).json({ error: chk.locked ? 'Zu viele falsche Codes. Bitte später erneut versuchen.' : '2FA-Code falsch', mfa_required: true });
+    }
+
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       JWT_SECRET,
