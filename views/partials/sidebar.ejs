@@ -100,6 +100,7 @@
     ]},
     { id: 'team', collapsed: true, label: 'Team', items: [
       { href: '/timetracking', label: 'Zeiterfassung',        icon: 'clock', ok: _show('timetracking') && _perm('timetracking', true, true) },
+      { href: '/anwesenheit', label: 'Wer ist wo?', icon: 'users', ok: _isOffice },
       { href: '/admin/timetracking', label: 'Arbeitszeiten-Übersicht', icon: 'sheet', ok: _isOffice && _show('admin_timetracking') },
       { href: '/vacations',    label: 'Urlaub & Abwesenheit', icon: 'sun',   ok: _show('vacations') && _perm('vacations', true, true) },
       { href: '/chat',         label: 'Team-Chat',            icon: 'chat',  ok: _show('chat') && _perm('chat', true, true) },

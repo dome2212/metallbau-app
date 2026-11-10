@@ -1,0 +1,52 @@
+<%# Karte "Gerade eingestempelt" – lädt die Daten selbst nach (alle 60 s) %>
+<section class="card p-4" id="wiw-card">
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Wer ist wo?</h2>
+    <a href="/anwesenheit" class="text-xs text-blue-600 hover:underline">Vollbild →</a>
+  </div>
+  <div id="wiw-body" class="space-y-3"><p class="text-sm text-slate-400">Lädt …</p></div>
+</section>
+<script>
+(function () {
+  const body = document.getElementById('wiw-body');
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function render(data) {
+    body.textContent = '';
+    if (!data.total) { body.appendChild(el('p', 'text-sm text-slate-400', 'Niemand eingestempelt.')); return; }
+    data.groups.forEach(function (g) {
+      const box = el('div', 'rounded-xl border border-slate-200 dark:border-slate-700 p-3');
+      const head = el('div', 'flex items-baseline justify-between gap-2');
+      const title = g.url ? el('a', 'font-semibold text-sm text-blue-600 hover:underline break-words', (g.key === 'werkstatt' ? '🏭 ' : '🏗️ ') + g.label)
+                          : el('span', 'font-semibold text-sm text-slate-800 dark:text-slate-100', '🏭 ' + g.label);
+      if (g.url) title.href = g.url;
+      head.appendChild(title);
+      head.appendChild(el('span', 'text-xs text-slate-400 whitespace-nowrap', g.people.length + (g.people.length === 1 ? ' Person' : ' Personen')));
+      box.appendChild(head);
+      if (g.sub) box.appendChild(el('p', 'text-xs text-slate-500', g.sub));
+      const ul = el('ul', 'mt-1.5 space-y-1');
+      g.people.forEach(function (p) {
+        const li = el('li', 'flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300');
+        li.appendChild(el('span', 'inline-block w-2 h-2 rounded-full bg-emerald-500'));
+        li.appendChild(el('span', null, p.name));
+        if (p.since) li.appendChild(el('span', 'text-xs text-slate-400', 'seit ' + p.since + ' Uhr'));
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      body.appendChild(box);
+    });
+  }
+  function load() {
+    fetch('/anwesenheit/data', { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(render)
+      .catch(function () { body.textContent = ''; body.appendChild(el('p', 'text-sm text-slate-400', 'Konnte nicht geladen werden.')); });
+  }
+  load();
+  setInterval(function () { if (!document.hidden) load(); }, 60000);
+})();
+</script>
