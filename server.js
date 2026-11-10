@@ -247,6 +247,9 @@ app.use(async (req, res, next) => {
   next();
 });
 
+// Zwei-Faktor: wenn vom Chef vorgeschrieben, müssen Büro-Rollen es zuerst einrichten
+app.use(require('./utils/twofa').requireSetupMiddleware());
+
 // Dokument-Routen (Angebote → Projekt / Rechnung)
 app.use('/documents', documentRoutes);
 
@@ -259,6 +262,7 @@ app.use('/projects', projectRoutes);
 
 // Kunden
 app.use('/customers', customerRoutes);
+app.use('/profile/2fa', require('./routes/twofaRoutes'));
 app.use('/notizen', require('./routes/notesRoutes'));
 app.use('/anwesenheit', require('./routes/presenceRoutes'));
 
@@ -332,6 +336,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err && err.stack ? err.stack : err);
   const status = err.status || err.statusCode || 500;
+  require('./utils/errorAlert').fromExpress(err, req, status);
   if (req.accepts('html')) {
     return res.status(status).render('error', {
       status,
@@ -350,6 +355,7 @@ app.use((err, req, res, next) => {
 // http.createServer statt app.listen direkt, damit der WebSocket-Server
 // (Echtzeit-Chat) sich an denselben HTTP-Server anhängen kann (nötig für
 // den "upgrade"-Handshake von WebSocket-Verbindungen).
+require('./utils/errorAlert').installCrashHandlers();
 const server = http.createServer(app);
 initChatServer(server);
 require('./utils/projectTrash').startTrashPurgeSchedule();
