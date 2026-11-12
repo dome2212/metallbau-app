@@ -297,6 +297,9 @@ app.use('/farben', colorsRoutes);
 // Push-Benachrichtigungen (Subscription verwalten)
 app.use('/push', pushRoutes);
 
+// In-App-Benachrichtigungen (Glocke in der Top-Bar)
+app.use('/notifications', require('./routes/notificationRoutes'));
+
 app.use('/tasks', taskRoutes);
 
 app.use('/chat', chatRoutes);
@@ -379,4 +382,6 @@ server.listen(PORT, () => {
   startDunningCron();
   // Proaktive Lagerbestand-Warnung (täglich 07:00 Uhr)
   startLagerAlertCron();
+  // Alte Glocken-Meldungen (> 30 Tage) aufräumen
+  require('./utils/notifications').startCleanup();
 });
