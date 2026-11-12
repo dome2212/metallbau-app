@@ -1,0 +1,107 @@
+/* Glocke / Benachrichtigungen (Top-Bar) – Desktop + Mobil, Hell + Dunkel */
+
+.nb-btn { position: relative; }
+.nb-btn[aria-expanded="true"] { background: rgb(255 255 255 / .12); color: #fff; }
+
+.nb-badge {
+  position: absolute; top: .3rem; right: .2rem;
+  min-width: 1.05rem; height: 1.05rem; padding: 0 .28rem;
+  border-radius: 999px;
+  background: #ef4444; color: #fff;
+  font-size: .625rem; font-weight: 700; line-height: 1.05rem; text-align: center;
+  box-shadow: 0 0 0 2px var(--sidebar-bg, #0f172a);
+  pointer-events: none;
+}
+.nb-badge[hidden] { display: none; }
+
+@keyframes nb-ring {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(3deg); }
+}
+.nb-btn.is-ringing svg { transform-origin: 50% 10%; animation: nb-ring .9s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) { .nb-btn.is-ringing svg { animation: none; } }
+
+/* ── Panel ─────────────────────────────────────────────────────────────
+   z-index: über der Top-Bar (30), unter Abdunklung/Sidebar (40/50) und
+   Bottom-Nav (45) – auf dem Handy endet das Panel deshalb oberhalb der Nav. */
+.nb-panel {
+  position: fixed; z-index: 36;
+  top: 3.75rem; right: 1rem;
+  width: 24rem; max-width: calc(100vw - 1rem);
+  max-height: min(34rem, calc(100vh - 5rem));
+  display: flex; flex-direction: column;
+  background: #fff; color: #0f172a;
+  border: 1px solid #e2e8f0; border-radius: 1rem;
+  box-shadow: 0 20px 45px -12px rgb(15 23 42 / .35), 0 4px 12px -4px rgb(15 23 42 / .15);
+  overflow: hidden;
+  transform-origin: top right;
+  animation: nb-in .16s ease-out both;
+}
+.nb-panel[hidden] { display: none; }
+@keyframes nb-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nb-panel { animation: none; } }
+
+html.dark .nb-panel { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+
+.nb-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  padding: .8rem 1rem; flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+html.dark .nb-head { border-color: #334155; }
+.nb-title { font-size: .9375rem; font-weight: 700; margin: 0; }
+.nb-readall {
+  font-size: .75rem; font-weight: 600; color: var(--primary, #2563eb);
+  background: none; border: 0; padding: .35rem .5rem; margin: -.35rem -.5rem; border-radius: .5rem; cursor: pointer;
+}
+.nb-readall:hover { background: color-mix(in srgb, var(--primary, #2563eb) 10%, transparent); }
+.nb-readall[disabled] { opacity: .4; cursor: default; background: none; }
+html.dark .nb-readall { color: #93c5fd; }
+
+.nb-list { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+.nb-item {
+  position: relative; display: block;
+  padding: .75rem 1rem .75rem 2.1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: inherit; text-decoration: none;
+  transition: background .12s;
+}
+html.dark .nb-item { border-color: #273449; }
+.nb-item:last-child { border-bottom: 0; }
+.nb-item:hover, .nb-item:focus-visible { background: #f8fafc; outline: none; }
+html.dark .nb-item:hover, html.dark .nb-item:focus-visible { background: #273449; }
+
+.nb-item.is-unread { background: color-mix(in srgb, var(--primary, #2563eb) 7%, transparent); }
+.nb-item.is-unread::before {
+  content: ''; position: absolute; left: .85rem; top: 1.05rem;
+  width: .5rem; height: .5rem; border-radius: 999px; background: var(--primary, #2563eb);
+}
+.nb-item-title { display: block; font-size: .8125rem; line-height: 1.3; font-weight: 500; overflow-wrap: anywhere; }
+.nb-item.is-unread .nb-item-title { font-weight: 700; }
+.nb-item-body {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: .15rem; font-size: .78rem; line-height: 1.35; color: #64748b; overflow-wrap: anywhere;
+}
+html.dark .nb-item-body { color: #94a3b8; }
+.nb-item-time { display: block; margin-top: .3rem; font-size: .6875rem; color: #94a3b8; }
+
+.nb-empty { padding: 2.5rem 1.5rem; text-align: center; color: #64748b; }
+html.dark .nb-empty { color: #94a3b8; }
+.nb-empty svg { width: 2.25rem; height: 2.25rem; margin: 0 auto .6rem; opacity: .45; }
+.nb-empty strong { display: block; font-size: .875rem; font-weight: 600; color: #334155; }
+html.dark .nb-empty strong { color: #e2e8f0; }
+.nb-empty span { display: block; margin-top: .25rem; font-size: .78rem; line-height: 1.4; }
+
+/* Handy: Karte über die volle Breite direkt unter der Top-Bar, endet über der Bottom-Nav */
+@media (max-width: 767px) {
+  .nb-panel {
+    top: 3.75rem; left: .5rem; right: .5rem; width: auto; max-width: none;
+    max-height: calc(100dvh - 3.75rem - 6.5rem - env(safe-area-inset-bottom, 0px));
+  }
+  .nb-item { padding-top: .9rem; padding-bottom: .9rem; }          /* größere Tippfläche */
+  .nb-item.is-unread::before { top: 1.2rem; }
+  .nb-readall { padding: .6rem .75rem; margin: -.6rem -.75rem; font-size: .8125rem; }
+}
