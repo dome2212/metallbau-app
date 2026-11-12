@@ -32,7 +32,7 @@ async function notifyAdmins({ title, body, url, whatsappText }) {
     }
   }
   // Fallback: alle Subscriptions (falls user_id null)
-  sendPush({ title, body, url: url || '/lager' }, null).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
+  sendPush({ title, body, url: url || '/lager' }, null, { inApp: false }).catch(e => console.error('⚠️ Benachrichtigung fehlgeschlagen:', e.message));
 
   for (const a of admins) {
     if (a.whatsapp_notify && a.whatsapp_phone && a.whatsapp_api_key && whatsappText) {

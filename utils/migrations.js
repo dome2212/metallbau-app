@@ -900,6 +900,24 @@ const MIGRATIONS = [
       await safeRaw(`ALTER TABLE users ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} totp_recovery TEXT`);
     }
   },
+
+  // ── 030 ── In-App-Benachrichtigungen (Glocke in der Top-Bar) ──
+  {
+    id: 30,
+    description: 'notifications: In-App-Benachrichtigungen (Glocke)',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS notifications (
+        id         ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        user_id    INT NOT NULL,
+        title      TEXT NOT NULL,
+        body       TEXT,
+        url        TEXT,
+        created_ms BIGINT NOT NULL,
+        read_ms    BIGINT
+      )`);
+      await safeRaw('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_ms)');
+    }
+  },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

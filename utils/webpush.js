@@ -17,15 +17,23 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 }
 
 const { dbQuery } = require('./db');   // gemeinsamer Helper (SQLite + PostgreSQL)
+const { addNotification } = require('./notifications');   // In-App-Glocke
 
 /**
  * Send a push notification to all stored subscriptions.
  * Silently drops expired/invalid subscriptions (410 Gone).
  *
+ * Jede Meldung landet zusätzlich in der Glocke (In-App), unabhängig davon, ob
+ * Push eingerichtet ist. opts.inApp === false überspringt das (z.B. Fallback-Aufruf).
+ *
  * @param {object} payload  { title, body, url }
  * @param {number|null} userId  If set, only notify this user; otherwise all.
+ * @param {{inApp?:boolean}} opts
  */
-async function sendPush(payload, userId = null) {
+async function sendPush(payload, userId = null, opts = {}) {
+  if (!opts || opts.inApp !== false) {
+    addNotification(payload, userId).catch(e => console.error('⚠️ In-App-Benachrichtigung:', e.message));
+  }
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return { sent: 0, failed: 0, total: 0, configured: false };
   const result = { sent: 0, failed: 0, total: 0, configured: true };
 
