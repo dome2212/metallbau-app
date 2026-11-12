@@ -1316,7 +1316,8 @@ router.post('/offers/:id/share-link', requireOffice, async (req, res) => {
 
     const rawToken = crypto.randomBytes(32).toString('base64url');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const days = Math.min(90, Math.max(1, parseInt(req.body.expires_days, 10) || 30));
+    const _shareDefault = parseInt((await getFirma().catch(()=>({}))).offer_share_days, 10) || 14;
+    const days = Math.min(90, Math.max(1, parseInt(req.body.expires_days, 10) || _shareDefault));
     const expires = new Date(Date.now() + days * 86400000).toISOString();
 
     await dbQuery(

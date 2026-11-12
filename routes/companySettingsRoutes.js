@@ -12,7 +12,6 @@ const { Readable } = require('stream');
 const { v2: cloudinary } = require('cloudinary');
 
 const { requireAdmin, requireChef } = require('../middleware/auth');
-const { logAudit, listAudit } = require('../utils/audit');
 const { getFirma, setFirmaValue, clearCache } = require('../utils/companySettings');
 
 // Multer: nur im Arbeitsspeicher (kein Dateisystem nötig)
@@ -165,16 +164,11 @@ router.get('/panel', requireAdmin, async (req, res) => {
     const tab     = req.query.tab || 'design';
     const aiKeys         = tab === 'info' ? await require('../utils/aiKeys').status() : [];
     const cloudinaryKeys = tab === 'info' ? await require('../utils/cloudinaryKeys').status() : [];
-    let auditLogs = [];
-    const auditFilter = { entity: (req.query.entity || '').trim() || null };
-    if (tab === 'audit') {
-      try {
-        auditLogs = await listAudit({ limit: 200, entity: auditFilter.entity });
-      } catch (e) {
-        console.error('Audit-Log laden:', e.message);
-      }
+    let healthReport = null;
+    if (tab === 'ops') {
+      try { healthReport = await require('../utils/health').runHealthCheck(); } catch (e) { healthReport = { ok: false, at: new Date().toISOString(), checks: [{ id: 'err', ok: false, label: 'Check', detail: e.message }] }; }
     }
-    res.render('admin-panel', { firma, success, tab, aiKeys, cloudinaryKeys, auditLogs, auditFilter });
+    res.render('admin-panel', { firma, success, tab, aiKeys, cloudinaryKeys, healthReport });
   } catch (err) {
     console.error('Fehler beim Laden des Admin-Panels:', err.message);
     res.status(500).send('Datenbankfehler');
@@ -188,11 +182,6 @@ async function saveFields(body, keys) {
     await setFirmaValue(key, val);
   }
 }
-
-async function auditSettings(req, label, keys) {
-  await logAudit(req, 'Einstellungen gespeichert', 'settings', null, label, { fields: keys });
-}
-
 // Hilfsfunktion: Boolean-Checkboxen speichern (robust gegen Array-Werte durch hidden+checkbox)
 async function saveCheckboxes(body, keys) {
   for (const key of keys) {
@@ -210,7 +199,6 @@ router.post('/panel/design', requireAdmin, async (req, res) => {
       'color_sidebar_hover','color_topbar_bg','color_page_bg',
       'app_icon','dark_mode_default'
     ]);
-    await auditSettings(req, 'Design', []);
     res.redirect('/admin/panel?tab=design&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -231,7 +219,6 @@ router.post('/panel/features', requireAdmin, async (req, res) => {
 router.post('/panel/sidebar', requireAdmin, async (req, res) => {
   try {
     await saveFields(req.body, ['nameKurz','app_icon','sidebar_modus','sidebar_logo_height','sidebar_footer_text']);
-    await auditSettings(req, 'Menü / Sidebar', []);
     res.redirect('/admin/panel?tab=sidebar&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -247,7 +234,6 @@ router.post('/panel/pdf', requireAdmin, async (req, res) => {
       'dunning_fee_1','dunning_fee_2','dunning_fee_3','hourly_rate','skonto_percent','skonto_days'
     ]);
     await saveCheckboxes(req.body, ['kleinunternehmer', 'pdf_qr_payment']);
-    await auditSettings(req, 'Belege & PDF', []);
     res.redirect('/admin/panel?tab=pdf&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -262,7 +248,6 @@ router.post('/panel/datev', requireAdmin, async (req, res) => {
       'datev_erloeskonto_19','datev_erloeskonto_7','datev_erloeskonto_0',
       'datev_debitoren_basis','datev_wj_beginn'
     ]);
-    await auditSettings(req, 'DATEV', []);
     res.redirect('/admin/panel?tab=datev&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -276,7 +261,6 @@ router.post('/panel/worktime', requireAdmin, async (req, res) => {
       'work_hours_per_day','vacation_days_default',
       'break_auto_minutes','break_trigger_hours','holiday_region'
     ]);
-    await auditSettings(req, 'Arbeitszeit', []);
     res.redirect('/admin/panel?tab=worktime&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -287,7 +271,6 @@ router.post('/panel/worktime', requireAdmin, async (req, res) => {
 router.post('/panel/projects', requireAdmin, async (req, res) => {
   try {
     await saveFields(req.body, ['project_number_prefix','default_project_status','archive_after_days']);
-    await auditSettings(req, 'Aufträge', []);
     res.redirect('/admin/panel?tab=projects&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -299,7 +282,6 @@ router.post('/panel/security', requireAdmin, async (req, res) => {
   try {
     await saveFields(req.body, ['session_timeout_minutes','max_login_attempts','min_password_length','data_retention_years']);
     await saveCheckboxes(req.body, ['dunning_enabled']);
-    await auditSettings(req, 'Sicherheit', []);
     res.redirect('/admin/panel?tab=security&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -320,7 +302,6 @@ router.post('/panel/locale', requireAdmin, async (req, res) => {
 router.post('/panel/dashboard', requireAdmin, async (req, res) => {
   try {
     await saveFields(req.body, ['kpi_overdue_warn','kpi_overdue_danger','kpi_tasks_warn','kpi_tasks_danger']);
-    await auditSettings(req, 'Dashboard', []);
     res.redirect('/admin/panel?tab=dashboard&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -340,7 +321,6 @@ router.post('/panel/stampclock', requireAdmin, async (req, res) => {
       const checked = Array.isArray(raw) ? raw.includes('true') : raw === 'true';
       await setFirmaValue(key, checked ? 'true' : 'false');
     }
-    await auditSettings(req, 'Stempeluhr', []);
     res.redirect('/admin/panel?tab=stampclock&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -361,7 +341,6 @@ router.post('/panel/access', requireAdmin, async (req, res) => {
         await setFirmaValue(fieldName, checked ? 'true' : 'false');
       }
     }
-    await auditSettings(req, 'Rechte', []);
     res.redirect('/admin/panel?tab=access&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -375,7 +354,6 @@ router.post('/panel/notifications', requireAdmin, async (req, res) => {
     // Passwort nur speichern wenn ein neuer Wert eingegeben wurde
     const pass = (req.body.smtp_pass || '').trim();
     if (pass) await setFirmaValue('smtp_pass', require('../utils/secretBox').encrypt(pass));
-    await auditSettings(req, 'System / SMTP', []);
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -391,7 +369,6 @@ router.post('/panel/ai-keys', requireChef, async (req, res) => {
       else await ai.saveKey(k.env, req.body[k.env], false);
     }
     await ai.loadAiKeys();
-    await logAudit(req, 'Keys aktualisiert', 'settings', null, 'KI-API-Keys');
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
@@ -407,7 +384,6 @@ router.post('/panel/cloudinary-keys', requireChef, async (req, res) => {
       else await ck.saveKey(k.env, req.body[k.env], false);
     }
     await ck.loadCloudinaryKeys();
-    await logAudit(req, 'Keys aktualisiert', 'settings', null, 'Cloudinary');
     res.redirect('/admin/panel?tab=info&saved=1');
   } catch (err) {
     res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
@@ -441,7 +417,6 @@ router.post('/panel/lager', requireAdmin, async (req, res) => {
 
     await setFirmaValue('lager_custom_tabs', JSON.stringify(tabs));
     await saveCheckboxes(req.body, ['lager_alert_enabled']);
-    await auditSettings(req, 'Lager', []);
     res.redirect('/admin/panel?tab=lager&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
@@ -468,11 +443,71 @@ router.post('/panel/textbausteine', requireAdmin, async (req, res) => {
     }
 
     await setFirmaValue('text_snippets', JSON.stringify(snippets));
-    await auditSettings(req, 'Textbausteine', []);
     res.redirect('/admin/panel?tab=textbausteine&saved=1');
   } catch (err) {
     res.status(500).send('Fehler: ' + err.message);
   }
 });
+
+
+
+// ── POST: Betrieb / Wartung ─────────────────────────────────────────────────
+router.post('/panel/ops-maintenance', requireAdmin, async (req, res) => {
+  try {
+    await setFirmaValue('maintenance_mode', req.body.maintenance_mode === '1' ? 'true' : 'false');
+    await setFirmaValue('maintenance_message', (req.body.maintenance_message || '').toString().trim());
+    try { await require('../utils/audit').logAudit(req, 'Wartungsmodus', 'settings', null, req.body.maintenance_mode === '1' ? 'an' : 'aus'); } catch (_) {}
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+router.post('/panel/ops-sessions', requireAdmin, async (req, res) => {
+  try {
+    const firma = await getFirma();
+    const next = String((parseInt(firma.session_epoch || '1', 10) || 1) + 1);
+    await setFirmaValue('session_epoch', next);
+    try { await require('../utils/audit').logAudit(req, 'Alle Sitzungen beendet', 'security', null, 'epoch ' + next); } catch (_) {}
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+router.post('/panel/ops-share', requireAdmin, async (req, res) => {
+  try {
+    await setFirmaValue('offer_share_days', String(parseInt(req.body.offer_share_days, 10) || 14));
+    await setFirmaValue('offer_share_require_name', req.body.offer_share_require_name === '1' ? 'true' : 'false');
+    await setFirmaValue('app_base_url', (req.body.app_base_url || '').toString().trim());
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+router.post('/panel/ops-notify', requireAdmin, async (req, res) => {
+  try {
+    const events = ['vacation', 'task', 'dunning', 'low_stock', 'offer_decision'];
+    for (const e of events) {
+      await setFirmaValue('notify_' + e + '_mail', req.body['notify_' + e + '_mail'] === '1' ? 'true' : 'false');
+      await setFirmaValue('notify_' + e + '_push', req.body['notify_' + e + '_push'] === '1' ? 'true' : 'false');
+    }
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+router.post('/panel/ops-help', requireAdmin, async (req, res) => {
+  try {
+    for (const k of ['dashboard', 'projects', 'documents', 'timetracking', 'lager']) {
+      await setFirmaValue('help_' + k, (req.body['help_' + k] || '').toString().trim());
+    }
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+router.post('/panel/ops-chat', requireAdmin, async (req, res) => {
+  try {
+    const allowed = ['classic', 'bubbles', 'compact', 'accent'];
+    const th = allowed.includes(req.body.chat_theme) ? req.body.chat_theme : 'classic';
+    await setFirmaValue('chat_theme', th);
+    res.redirect('/admin/panel?tab=ops&saved=1');
+  } catch (err) { res.status(500).send(err.message); }
+});
+
 
 module.exports = router;

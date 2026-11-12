@@ -37,10 +37,15 @@ const twofa = require('../utils/twofa');
 // Eigener Schlüssel für das 2FA-Zwischentoken: es darf nirgends als Anmelde-Token gelten
 const MFA_SECRET = JWT_SECRET + ':mfa-pending';
 
-function issueSession(res, user) {
+async function issueSession(res, user) {
   // JWT-Token erstellen (8 Stunden Schichtdauer)
+  let se = '1';
+  try {
+    const firma = await require('../utils/companySettings').getFirma();
+    se = String(firma.session_epoch || '1');
+  } catch (_) {}
   const token = jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, role: user.role, se },
     JWT_SECRET,
     { expiresIn: '8h' }
   );
@@ -100,7 +105,7 @@ router.post('/login', async (req, res) => {
       return res.redirect('/login/2fa');
     }
 
-    issueSession(res, user);
+    await issueSession(res, user);
     res.redirect(nextUrl);
   } catch (error) {
     console.error('❌ Login-Fehler:', error.message);
@@ -128,7 +133,7 @@ router.post('/login/2fa', async (req, res) => {
     const r = await dbQuery('SELECT id, username, role FROM users WHERE id = ?', [pending.id]);
     const user = r.rows[0];
     if (!user) return res.redirect('/login');
-    issueSession(res, user);
+    await issueSession(res, user);
     // Wiederherstellungscode benutzt: Hinweis auf der Profilseite
     if (result.recovery) return res.redirect('/profile/2fa?recovery_left=' + result.left);
     res.redirect(safeNext(pending.next));
