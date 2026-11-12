@@ -16,6 +16,7 @@
     { id: 'access',        label: 'Rechte',        group: 'Sicherheit' },
     { id: 'security',      label: 'Sicherheit',    group: 'Sicherheit' },
     { id: 'info',          label: 'System',        group: 'System' },
+    { id: 'audit',         label: 'Protokoll',     group: 'System' },
   ];
   const tabGroups = ['Darstellung', 'Finanzen', 'Personal', 'Betrieb', 'Sicherheit', 'System'];
   const activeTab = tabs.find(t => t.id === tab) || tabs[0];
@@ -200,6 +201,7 @@
         <%- include('partials/admin/tab-dashboard') %>
         <%- include('partials/admin/tab-access') %>
         <%- include('partials/admin/tab-info') %>
+        <%- include('partials/admin/tab-audit') %>
         <%- include('partials/admin/tab-lager') %>
         <%- include('partials/admin/tab-textbausteine') %>
 
