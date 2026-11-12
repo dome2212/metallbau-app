@@ -78,6 +78,31 @@ const DEFAULTS = {
   dunning_enabled: 'false',        // Automatisches Mahnwesen bei überfälligen Rechnungen
   dunning_fee_1:   '0',            // Mahngebühr 1. Zahlungserinnerung (€)
   dunning_fee_2:   '5.00',         // Mahngebühr 2. Mahnung (€)
+
+  // ── Betrieb / Admin-Extras ───────────────────────────────────
+  maintenance_mode: 'false',
+  maintenance_message: 'Die App wird gerade gewartet. Bitte später erneut versuchen.',
+  session_epoch: '1',
+  app_base_url: '',
+  offer_share_days: '14',
+  offer_share_require_name: 'true',
+  chat_theme: 'classic',
+  help_dashboard: 'Hier siehst du KPIs, offene Aufgaben und Team-Status.',
+  help_projects: 'Aufträge anlegen, Status setzen, Fotos und Zeiten zuordnen.',
+  help_documents: 'Angebote und Rechnungen erstellen, teilen und verfolgen.',
+  help_timetracking: 'Ein- und ausstempeln, ggf. mit GPS und Projektbezug.',
+  help_lager: 'Bestand, Entnahme und Inventur – auch offline möglich.',
+  notify_vacation_mail: 'true',
+  notify_vacation_push: 'true',
+  notify_task_mail: 'false',
+  notify_task_push: 'true',
+  notify_dunning_mail: 'true',
+  notify_dunning_push: 'false',
+  notify_low_stock_mail: 'true',
+  notify_low_stock_push: 'true',
+  notify_offer_decision_mail: 'true',
+  notify_offer_decision_push: 'true',
+
   dunning_fee_3:   '10.00',        // Mahngebühr 3. Letzte Mahnung (€)
   skonto_percent:  '0',            // Skonto in % (0 = aus)
   skonto_days:     '10',           // Skonto-Frist in Tagen
