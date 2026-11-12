@@ -1,0 +1,28 @@
+/* Chat-Designs – gesteuert über body[data-chat-theme] */
+#chat-list .msg-bubble { transition: background .15s, border-radius .15s; }
+
+body[data-chat-theme="bubbles"] #chat-list .msg-row.mine .msg-bubble {
+  border-radius: 1.15rem 1.15rem 0.25rem 1.15rem;
+  background: color-mix(in srgb, var(--primary) 85%, #000);
+  color: #fff;
+}
+body[data-chat-theme="bubbles"] #chat-list .msg-row:not(.mine) .msg-bubble {
+  border-radius: 1.15rem 1.15rem 1.15rem 0.25rem;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+html.dark body[data-chat-theme="bubbles"] #chat-list .msg-row:not(.mine) .msg-bubble {
+  background: #334155; color: #f1f5f9;
+}
+
+body[data-chat-theme="compact"] #chat-list { font-size: 0.8125rem; }
+body[data-chat-theme="compact"] #chat-list .msg-row { margin-bottom: 0.35rem; }
+body[data-chat-theme="compact"] #chat-input { min-height: 2.25rem; }
+
+body[data-chat-theme="accent"] #chat-list {
+  border-left: 3px solid var(--primary);
+}
+body[data-chat-theme="accent"] #chat-list .msg-row.mine .msg-bubble {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+}
