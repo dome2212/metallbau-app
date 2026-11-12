@@ -1,3 +1,4 @@
+const { logAudit } = require('../utils/audit');
 const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
@@ -36,6 +37,7 @@ router.post('/users/reset-2fa', requireAdmin, async (req, res) => {
       return res.status(403).send('Nur der Chef kann die Zwei-Faktor-Anmeldung von Chef- und Admin-Konten zurücksetzen.');
     }
     await require('../utils/twofa').disable(id);
+    await logAudit(req, '2FA zurückgesetzt', 'user', id, null);
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Fehler beim Zurücksetzen.');
@@ -763,6 +765,7 @@ const fs = require('fs');
 router.post('/backup/run', requireAdmin, async (req, res) => {
   try {
     const result=await runBackup();
+    await logAudit(req, result.ok ? 'Backup per E-Mail' : (result.skipped ? 'Backup nur lokal' : 'Backup fehlgeschlagen'), 'backup', null, null, result);
     res.redirect('/admin/panel?tab=info&msg='+(result.ok?'backup_ok':result.skipped?'backup_skipped':'backup_failed'));
   } catch (err) {
     res.status(500).send('Backup fehlgeschlagen: ' + err.message);
@@ -804,6 +807,7 @@ router.post('/errors/testmail', requireAdmin, async (req, res) => {
 });
 
 router.get('/backup/download', requireAdmin, async (req, res) => {
+  try { await logAudit(req, 'Backup heruntergeladen', 'backup'); } catch (_) {}
   try {
     const { path: filePath, name } = await createBackupFile();
     res.download(filePath, name, (err) => {
@@ -823,6 +827,7 @@ router.post('/backup/restore', requireAdmin, uploadBackup.single('backup'), asyn
     if (!req.file) return res.status(400).send('Keine Datei hochgeladen.');
     const result = await restoreBackupFile(req.file.path, req.file.originalname);
     try { fs.unlinkSync(req.file.path); } catch (e) { console.error('⚠️ POST /backup/restore:', e.message); }
+    await logAudit(req, 'Backup wiederhergestellt', 'backup', null, req.file && req.file.originalname);
     res.redirect('/admin/panel?tab=info&msg=restore_ok');
     if (result && result.restart) setTimeout(() => process.exit(0), 1500);
   } catch (err) {
