@@ -74,75 +74,55 @@ main p.text-sm.text-slate-500 {
   font-size: 0.75rem;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DESKTOP: Inhalt nutzt die Breite – weniger leerer Rand
-   (Handy unverändert, mobile first bleibt)
-   ═══════════════════════════════════════════════════════════ */
-@media (min-width: 1280px) {
-  /* Schmale Container auf Desktop auf ~7xl anheben */
-  main .max-w-2xl,
-  main .max-w-3xl,
-  main .max-w-4xl,
-  main .max-w-5xl {
-    max-width: 80rem; /* 1280px ≈ max-w-7xl */
-  }
 
-  /* Listen / Dashboards dürfen noch etwas breiter */
-  main .max-w-7xl {
-    max-width: min(92rem, 100%); /* ~1472px */
-  }
-
-  /* Formulare: Zweispaltig wo Grid fehlt, Karten füllen */
-  main .page-bg > div.max-w-3xl .space-y-4 > .card,
-  main .page-bg > div.max-w-4xl .space-y-4 > .card {
-    width: 100%;
-  }
-}
-
-@media (min-width: 1536px) {
-  main .max-w-2xl,
-  main .max-w-3xl,
-  main .max-w-4xl,
-  main .max-w-5xl,
-  main .max-w-7xl {
-    max-width: min(100rem, 100%); /* bis ~1600px */
-  }
-
-  .bill-shell {
-    width: min(1600px, 100%);
-  }
-}
-
-/* Desktop: etwas mehr Innenabstand, weniger „schwebende Insel“ */
+/* DESKTOP SIDEBAR PINNED */
 @media (min-width: 1024px) {
-  main .page-bg {
-    min-height: calc(100vh - 4rem);
+  :root {
+    --sidebar-w: 18rem;
   }
 
-  main .page-bg > div[class*="max-w-"] {
-    width: 100%;
+  /* Offen: fest sichtbar, Inhalt und Topbar eingerückt */
+  body.sidebar-desktop-open #sidebar {
+    transform: translateX(0) !important;
+    box-shadow: none;
+    border-right: 1px solid rgb(255 255 255 / .06);
   }
 
-  /* Leere Zustände zentrieren, aber nicht riesige Leere */
-  main .empty-state,
-  main .chat-empty-state {
-    max-width: 28rem;
-    margin-left: auto;
-    margin-right: auto;
-    padding-top: 2.5rem;
-    padding-bottom: 2.5rem;
+  body.sidebar-desktop-open #sidebar-backdrop {
+    display: none !important;
+  }
+
+  body.sidebar-desktop-open .mobile-topbar {
+    left: var(--sidebar-w);
+    width: auto;
+    right: 0;
+  }
+
+  body.sidebar-desktop-open main,
+  body.sidebar-desktop-open .bill-main {
+    margin-left: var(--sidebar-w);
+  }
+
+  /* Bottom-Nav nur mobil */
+  body.sidebar-desktop-open #bottom-nav {
+    display: none !important;
+  }
+
+  /* Schließen-Button in Sidebar bleibt nutzbar */
+  body.sidebar-desktop-open #sidebar .side-close {
+    display: grid;
   }
 }
 
-/* Tabellen und Karten nutzen volle Containerbreite */
-@media (min-width: 1024px) {
-  main table {
-    width: 100%;
+/* Unter Desktop: kein erzwungenes margin */
+@media (max-width: 1023px) {
+  body.sidebar-desktop-open main,
+  body.sidebar-desktop-open .bill-main,
+  body.sidebar-desktop-open .mobile-topbar {
+    margin-left: 0 !important;
+    left: 0 !important;
   }
-  main .card,
-  main .card-clean,
-  main .bg-white.rounded-xl,
-  main .bg-white.rounded-2xl {
-    width: 100%;
+  body.sidebar-desktop-open #sidebar-backdrop:not(.hidden) {
+    display: block !important;
   }
 }
