@@ -128,7 +128,13 @@ self.addEventListener('push', (event) => {
     vibrate: [100, 50, 100]
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, options),
+    // Glocke in offenen Fenstern sofort aktualisieren
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(list => list.forEach(c => c.postMessage({ type: 'notification-push' })))
+      .catch(() => {})
+  ]));
 });
 
 // ── Klick auf Benachrichtigung: passende Seite öffnen/fokussieren ────────────
