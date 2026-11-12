@@ -1,0 +1,140 @@
+<% if (tab === 'ops') {
+  const f = typeof firma !== 'undefined' ? firma : {};
+  const health = typeof healthReport !== 'undefined' ? healthReport : null;
+%>
+<div class="space-y-5">
+
+  <!-- Gesundheitscheck -->
+  <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700">
+    <h2 class="text-base font-semibold mb-1">🩺 Gesundheitscheck</h2>
+    <p class="text-xs text-slate-500 mb-3">Schneller Status von Datenbank, Mail und Diensten.</p>
+    <% if (health && health.checks) { %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <% health.checks.forEach(function(c) { %>
+      <div class="flex items-start gap-2 rounded-lg border dark:border-slate-600 px-3 py-2 text-sm">
+        <span><%= c.ok ? '✅' : '⚠️' %></span>
+        <div>
+          <div class="font-medium"><%= c.label %></div>
+          <div class="text-xs text-slate-500 break-all"><%= c.detail %></div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <p class="text-[10px] text-slate-400 mt-2">Stand: <%= health.at %></p>
+    <% } else { %>
+    <p class="text-sm text-slate-500">Status nicht geladen.</p>
+    <% } %>
+  </div>
+
+  <!-- Wartungsmodus -->
+  <form method="POST" action="/admin/panel/ops-maintenance" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3">
+    <h2 class="text-base font-semibold">🚧 Wartungsmodus</h2>
+    <p class="text-xs text-slate-500">Mitarbeiter sehen nur die Wartungsseite. Chef/Admin bleiben drin.</p>
+    <label class="flex items-center gap-2 text-sm font-medium">
+      <input type="checkbox" name="maintenance_mode" value="1" <%= f.maintenance_mode === 'true' ? 'checked' : '' %>>
+      Wartungsmodus aktiv
+    </label>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Hinweistext</label>
+      <textarea name="maintenance_message" rows="2" class="input w-full text-sm"><%= f.maintenance_message || '' %></textarea>
+    </div>
+    <button class="bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Speichern</button>
+  </form>
+
+  <!-- Sessions -->
+  <form method="POST" action="/admin/panel/ops-sessions" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3"
+        onsubmit="return confirm('Alle aktiven Anmeldungen ungültig machen? Jeder muss sich neu einloggen.');">
+    <h2 class="text-base font-semibold">🔐 Sitzungen / Geräte</h2>
+    <p class="text-xs text-slate-500">Aktuelle Session-Generation: <strong><%= f.session_epoch || '1' %></strong>. Erhöhen meldet alle Geräte ab (JWT).</p>
+    <button class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Alle Sitzungen beenden</button>
+  </form>
+
+  <!-- Kunden-Freigabe Defaults -->
+  <form method="POST" action="/admin/panel/ops-share" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3">
+    <h2 class="text-base font-semibold">🔗 Kunden-Freigabe (Angebot)</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Gültigkeit Link (Tage)</label>
+        <input type="number" min="1" max="365" name="offer_share_days" value="<%= f.offer_share_days || '14' %>" class="input w-full text-sm">
+      </div>
+      <div class="flex items-end pb-1">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="offer_share_require_name" value="1" <%= f.offer_share_require_name !== 'false' ? 'checked' : '' %>>
+          Name bei Freigabe Pflicht
+        </label>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs text-slate-500 mb-1">App-Basis-URL (für Links in Mails)</label>
+        <input type="url" name="app_base_url" placeholder="https://appgehrmann.de" value="<%= f.app_base_url || '' %>" class="input w-full text-sm">
+      </div>
+    </div>
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Speichern</button>
+  </form>
+
+  <!-- Benachrichtigungen -->
+  <form method="POST" action="/admin/panel/ops-notify" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3">
+    <h2 class="text-base font-semibold">🔔 Benachrichtigungen</h2>
+    <p class="text-xs text-slate-500 mb-2">Welche Ereignisse per E-Mail bzw. Push gemeldet werden (soweit Module das unterstützen).</p>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-slate-500 border-b dark:border-slate-600">
+            <th class="py-2">Ereignis</th>
+            <th class="py-2 text-center">E-Mail</th>
+            <th class="py-2 text-center">Push</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%
+            const events = [
+              ['vacation', 'Urlaubsantrag'],
+              ['task', 'Neue / fällige Aufgabe'],
+              ['dunning', 'Mahnung / überfällig'],
+              ['low_stock', 'Niedriger Lagerbestand'],
+              ['offer_decision', 'Angebot freigegeben/abgelehnt'],
+            ];
+            events.forEach(function(ev) {
+              const k = ev[0], label = ev[1];
+              const mailOn = f['notify_' + k + '_mail'] !== 'false';
+              const pushOn = f['notify_' + k + '_push'] !== 'false';
+          %>
+          <tr class="border-b dark:border-slate-700">
+            <td class="py-2"><%= label %></td>
+            <td class="py-2 text-center"><input type="checkbox" name="notify_<%= k %>_mail" value="1" <%= mailOn ? 'checked' : '' %>></td>
+            <td class="py-2 text-center"><input type="checkbox" name="notify_<%= k %>_push" value="1" <%= pushOn ? 'checked' : '' %>></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Speichern</button>
+  </form>
+
+  <!-- Hilfe-Texte -->
+  <form method="POST" action="/admin/panel/ops-help" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3">
+    <h2 class="text-base font-semibold">💡 Hilfe-Texte</h2>
+    <p class="text-xs text-slate-500">Kurze Hinweise auf den Seiten. Nutzer können „Überspringen“ tippen (wird lokal gemerkt).</p>
+    <% [['dashboard','Dashboard'],['projects','Aufträge'],['documents','Belege'],['timetracking','Zeiterfassung'],['lager','Lager']].forEach(function(h) { %>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1"><%= h[1] %></label>
+      <input type="text" name="help_<%= h[0] %>" value="<%= f['help_' + h[0]] || '' %>" class="input w-full text-sm">
+    </div>
+    <% }) %>
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Speichern</button>
+  </form>
+
+  <!-- Chat Design -->
+  <form method="POST" action="/admin/panel/ops-chat" class="bg-white dark:bg-slate-800 rounded-xl shadow p-5 border dark:border-slate-700 space-y-3">
+    <h2 class="text-base font-semibold">💬 Chat-Design</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <% [['classic','Klassisch'],['bubbles','Bubbles'],['compact','Kompakt'],['accent','Akzent']].forEach(function(th) { %>
+      <label class="border dark:border-slate-600 rounded-xl p-3 text-sm cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-indigo-500">
+        <input type="radio" name="chat_theme" value="<%= th[0] %>" class="mr-1" <%= (f.chat_theme || 'classic') === th[0] ? 'checked' : '' %>>
+        <%= th[1] %>
+      </label>
+      <% }) %>
+    </div>
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">Speichern</button>
+  </form>
+</div>
+<% } %>
