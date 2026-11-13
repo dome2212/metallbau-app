@@ -66,18 +66,8 @@ runMigrations().catch(err => {
 });
 
 // Bereinigung alter lokaler Upload-Pfade
-dbQuery("DELETE FROM project_files  WHERE file_url LIKE '/uploads/%'").catch(() => {});
-dbQuery("DELETE FROM customer_files WHERE file_url LIKE '/uploads/%'").catch(() => {});
 
-// ==========================================
-// CLOUDINARY (wird von Route-Dateien benötigt)
-// ==========================================
-const { v2: cloudinary } = require('cloudinary');
-cloudinary.config({
-  cloud_name:  process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:     process.env.CLOUDINARY_API_KEY,
-  api_secret:  process.env.CLOUDINARY_API_SECRET
-});
+// Datei-Uploads: lokal unter /uploads (utils/localUploadStorage.js)
 
 // ==========================================
 // MIDDLEWARE & ROUTEN
@@ -146,6 +136,7 @@ app.use(cookieParser());
 app.use('/cad/vendor/three', express.static(path.join(__dirname, 'node_modules/three/build'), { fallthrough: false }));
 app.use('/cad/vendor/three-controls', express.static(path.join(__dirname, 'node_modules/three/examples/jsm/controls'), { fallthrough: false }));
 app.use(express.static(path.join(__dirname, 'Public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '7d', fallthrough: false }));
 
 // UTF-8 Charset für alle HTML-Antworten erzwingen
 app.use((req, res, next) => {
@@ -217,7 +208,6 @@ app.get('/health', async (req, res) => {
 
 app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
 app.use('/angebot-freigabe', require('./routes/offerShareRoutes').router);
-app.use('/auftrag-info', require('./routes/projectShareRoutes').router);
 // Mobile clients authenticate with Bearer tokens; no browser cookie is required.
 app.use('/api/v2/auth/login', loginLimiter);
 app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
