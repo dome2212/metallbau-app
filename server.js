@@ -217,28 +217,11 @@ app.get('/health', async (req, res) => {
 
 app.use('/cad-approval', require('./routes/cadApprovalRoutes'));
 app.use('/angebot-freigabe', require('./routes/offerShareRoutes').router);
+app.use('/auftrag-info', require('./routes/projectShareRoutes').router);
 // Mobile clients authenticate with Bearer tokens; no browser cookie is required.
 app.use('/api/v2/auth/login', loginLimiter);
 app.use('/api/v2', require('./routes/apiRoutes'), (req, res) => res.status(404).json({ error: 'API-Endpunkt nicht gefunden' }));
 app.use(verifyToken);
-
-// Wartungsmodus: nur Chef/Admin weiter, öffentliche Freigabe-Links bleiben erreichbar
-app.use(async (req, res, next) => {
-  try {
-    if (req.path.startsWith('/login') || req.path.startsWith('/angebot-freigabe') ||
-        req.path.startsWith('/cad-approval') || req.path.startsWith('/api/v2/auth') ||
-        req.path.startsWith('/css') || req.path.startsWith('/js') || req.path.startsWith('/img')) {
-      return next();
-    }
-    const firma = await require('./utils/companySettings').getFirma();
-    if (firma.maintenance_mode !== 'true') return next();
-    // Nach verifyToken: req.user vorhanden – Middleware muss NACH verifyToken hängen
-    if (req.user && (req.user.role === 'CHEF' || req.user.role === 'ADMIN')) return next();
-    if (req.path.startsWith('/api/')) return res.status(503).json({ error: 'Wartungsmodus' });
-    return res.status(503).render('maintenance', { message: firma.maintenance_message });
-  } catch (_) { return next(); }
-});
-
 
 // Firmendaten für alle Views als res.locals bereitstellen (Sidebar-Name etc.)
 const { getFirma: _getFirmaLocals } = require('./utils/companySettings');
