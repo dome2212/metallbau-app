@@ -319,9 +319,14 @@ async function createProjectShare(e) {
     var res = await fetch('/projects/<%= project.id %>/share-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ sections: sections, expires_days: days, password: (form.password && form.password.value || '').trim() || undefined })
     });
-    var data = await res.json();
+    var raw = await res.text();
+    var data;
+    try { data = JSON.parse(raw); } catch (parseErr) {
+      throw new Error('Server antwortete nicht mit JSON (Status ' + res.status + '). Bitte prüfen, ob der Kunden-Link-Patch deployt und der Server neu gestartet wurde.');
+    }
     if (!res.ok) throw new Error(data.error || ('Fehler ' + res.status));
     window.__projectShareLast = data;
     document.getElementById('project-share-url').value = data.url;
