@@ -1,7 +1,8 @@
 const express   = require('express');
 const router    = express.Router();
 const multer    = require('multer');
-const { LocalStorage, saveDataUrl, saveBuffer, deleteLocalUrl } = require('../utils/localUploadStorage');
+const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
+const { v2: cloudinary }    = require('cloudinary');
 const { dbQuery }           = require('../utils/db');
 const { hardDeleteProject, RETENTION_DAYS } = require('../utils/projectTrash');
 const { logAudit, redirectWith }   = require('../utils/audit');
@@ -34,7 +35,8 @@ let PDFKit;
 try { PDFKit = require('pdfkit'); } catch (_) {}
 
 const upload = multer({
-  storage: new LocalStorage({
+  storage: new CloudinaryStorage({
+    cloudinary,
     params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
   }),
   limits: { fileSize: 15 * 1024 * 1024 }
@@ -758,12 +760,17 @@ router.post('/:id/offline/photo', requirePerm('projects', true, true), async (re
     }
     if (dataUrl.length > 8_000_000) return res.status(400).json({ error: 'Bild zu groß (max. ~6 MB).' });
 
-    const url = await saveDataUrl(dataUrl, 'project_photos', filename || 'offline-foto.jpg');
+    const { v2: cloudinary } = require('cloudinary');
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(dataUrl, { folder: 'project_photos', resource_type: 'image' }, (err, r) => {
+        if (err) reject(err); else resolve(r);
+      });
+    });
     await dbQuery(
       `INSERT INTO project_photos (project_id, file_url, original_name, caption) VALUES (?, ?, ?, ?)`,
-      [projectId, url, (filename || 'offline-foto.jpg').slice(0, 180), (caption || '').trim() || null]
+      [projectId, result.secure_url, (filename || 'offline-foto.jpg').slice(0, 180), (caption || '').trim() || null]
     );
-    res.json({ ok: true, url });
+    res.json({ ok: true, url: result.secure_url });
   } catch (err) {
     console.error('offline/photo:', err.message);
     res.status(500).json({ error: err.message || 'Upload fehlgeschlagen' });
@@ -946,11 +953,17 @@ router.post('/:id/notes/audio', audioUpload.single('audio'), async (req, res) =>
   const projectId = req.params.id;
   if (!req.file) return res.status(400).json({ error: 'Keine Audiodatei empfangen.' });
   try {
-    const audioUrl = await saveBuffer(req.file.buffer, 'metallbau-audio-notes', (req.file.originalname || 'note.webm'));
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'metallbau-audio-notes', resource_type: 'video', format: 'webm' },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
     const label = (req.body.label || '').trim() || '🎙️ Sprachnotiz';
     await dbQuery(
       `INSERT INTO project_notes (project_id, note_text, audio_url) VALUES (?, ?, ?)`,
-      [projectId, label, audioUrl]
+      [projectId, label, result.secure_url]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1420,6 +1433,170 @@ router.post('/:id/acceptance/clear', async (req, res) => {
     return redirectWith(res, `/projects/${projectId}`, 'error', 'Abnahme konnte nicht zurückgesetzt werden.');
   }
   res.redirect(`/projects/${projectId}#sec-abnahme`);
+});
+
+
+
+// ── Kunden-Info-Link (öffentliche Auftragsübersicht) ─────────────────────────
+const cryptoShare = require('crypto');
+const { hashToken: hashProjectShareToken } = require('./projectShareRoutes');
+
+router.get('/:id/share-links', requirePerm('projects', true, false), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const rows = (await dbQuery(
+      `SELECT id, token_hint, sections, expires_at, created_at, revoked_at, note
+       FROM project_share_tokens WHERE project_id = ? ORDER BY created_at DESC LIMIT 20`,
+      [id]
+    )).rows || [];
+    res.json({ links: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/share-link', requirePerm('projects', true, false), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    let proj;
+    try {
+      proj = (await dbQuery(`SELECT id, title FROM projects WHERE id = ? AND deleted_at IS NULL`, [id])).rows?.[0];
+    } catch (_) {
+      proj = (await dbQuery(`SELECT id, title FROM projects WHERE id = ?`, [id])).rows?.[0];
+    }
+    if (!proj) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
+
+    const allowed = ['overview', 'appointments', 'measurements', 'photos', 'files', 'status'];
+    let sections = req.body.sections;
+    if (typeof sections === 'string') {
+      try { sections = JSON.parse(sections); } catch (_) { sections = sections.split(','); }
+    }
+    if (!Array.isArray(sections)) sections = [];
+    sections = sections.map(s => String(s).trim()).filter(s => allowed.includes(s));
+    if (!sections.length) sections = ['overview'];
+
+    const firma = await getFirma().catch(() => ({}));
+    const defDays = parseInt(firma.offer_share_days, 10) || 14;
+    const days = Math.min(90, Math.max(1, parseInt(req.body.expires_days, 10) || defDays));
+    const expires = new Date(Date.now() + days * 86400000).toISOString();
+
+    const rawToken = cryptoShare.randomBytes(32).toString('base64url');
+    const tokenHash = hashProjectShareToken(rawToken);
+
+    let plainPw = (req.body.password || '').toString().trim();
+    if (plainPw && plainPw.length < 4) {
+      return res.status(400).json({ error: 'Passwort mindestens 4 Zeichen' });
+    }
+    if (!plainPw) {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let gen = '';
+      const bytes = cryptoShare.randomBytes(8);
+      for (let i = 0; i < 8; i++) gen += alphabet[bytes[i] % alphabet.length];
+      plainPw = gen;
+    }
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(plainPw, 10);
+
+    try {
+      await dbQuery(
+        `INSERT INTO project_share_tokens (project_id, token_hash, token_hint, sections, expires_at, created_by, note, password_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, tokenHash, rawToken.slice(-6), JSON.stringify(sections), expires, req.user?.id || null, (req.body.note || '').toString().slice(0, 120) || null, passwordHash]
+      );
+    } catch (insErr) {
+      // Fallback wenn Spalte password_hash noch fehlt (Migration nicht gelaufen)
+      if (/password_hash|no such column|unknown column/i.test(insErr.message || '')) {
+        await dbQuery(
+          `INSERT INTO project_share_tokens (project_id, token_hash, token_hint, sections, expires_at, created_by, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [id, tokenHash, rawToken.slice(-6), JSON.stringify(sections), expires, req.user?.id || null, (req.body.note || '').toString().slice(0, 120) || null]
+        );
+      } else if (/no such table|does not exist/i.test(insErr.message || '')) {
+        return res.status(500).json({ error: 'Tabelle project_share_tokens fehlt – Server neu starten (Migration).' });
+      } else {
+        throw insErr;
+      }
+    }
+
+    const base = (firma.app_base_url || '').replace(/\/$/, '')
+      || `${req.protocol}://${req.get('host')}`;
+    const url = `${base}/auftrag-info/${rawToken}`;
+
+    try {
+      const { logAudit } = require('../utils/audit');
+      await logAudit(req, 'Kunden-Link erstellt', 'project', id, proj.title, { sections, days });
+    } catch (_) {}
+
+    res.json({ ok: true, url, expires_at: expires, sections, hint: rawToken.slice(-6), has_password: true, password: plainPw });
+  } catch (err) {
+    console.error('share-link:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+router.post('/:id/share-link/send-email', requirePerm('projects', true, false), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { url, to, password, expires_at, message } = req.body || {};
+    if (!url || !to) return res.status(400).json({ error: 'Link und E-Mail-Adresse sind erforderlich' });
+
+    const proj = (await dbQuery(
+      `SELECT p.id, p.title, c.company_name, c.contact_person, c.email
+       FROM projects p LEFT JOIN customers c ON c.id = p.customer_id
+       WHERE p.id = ?`, [id]
+    )).rows?.[0];
+    if (!proj) return res.status(404).json({ error: 'Auftrag nicht gefunden' });
+
+    const firma = await getFirma().catch(() => ({}));
+    const name = firma.name || firma.nameKurz || 'Metallbau';
+    const exp = expires_at ? new Date(expires_at).toLocaleString('de-DE') : '';
+    const intro = (message || `anbei der Link zu den Informationen zu Ihrem Auftrag „${proj.title || ''}“.`).toString();
+    const pwLine = password
+      ? `<p><strong>Passwort:</strong> <code style="font-size:15px;background:#f1f5f9;padding:2px 8px;border-radius:6px">${String(password).replace(/</g,'')}</code></p>`
+      : '';
+    const html = `
+      <div style="font-family:system-ui,sans-serif;max-width:560px;line-height:1.5;color:#0f172a">
+        <p>Guten Tag${proj.contact_person || proj.company_name ? ' ' + (proj.contact_person || proj.company_name) : ''},</p>
+        <p>${intro.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</p>
+        <p style="margin:1.25rem 0">
+          <a href="${String(url).replace(/"/g,'')}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:600">
+            Auftragsinfos öffnen
+          </a>
+        </p>
+        ${pwLine}
+        ${exp ? `<p style="color:#64748b;font-size:13px">Link gültig bis: ${exp}</p>` : ''}
+        <p style="color:#64748b;font-size:13px">Mit freundlichen Grüßen<br>${String(name).replace(/</g,'')}</p>
+      </div>`;
+
+    const { sendEmail } = require('../utils/notifier');
+    const result = await sendEmail(String(to).trim(), `Auftragsinfos: ${proj.title || id}`, html);
+    if (!result.ok) return res.status(500).json({ error: result.error || 'E-Mail fehlgeschlagen' });
+
+    try {
+      const { logAudit } = require('../utils/audit');
+      await logAudit(req, 'Kunden-Link per E-Mail', 'project', id, proj.title, { to: String(to).trim() });
+    } catch (_) {}
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('share-link send-email:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/share-link/:linkId/revoke', requirePerm('projects', true, false), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const linkId = parseInt(req.params.linkId, 10);
+    await dbQuery(
+      `UPDATE project_share_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND project_id = ?`,
+      [linkId, id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 
