@@ -584,13 +584,11 @@ router.patch('/vacations/:id/status', apiAuth, async (req, res) => {
 // FOTO-UPLOAD (Cloudinary) für Projekt-Fotos
 // ═══════════════════════════════════════════════════════════════════════
 const multer = require('multer');
-const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
+const { LocalStorage } = require('../utils/localUploadStorage');
 
 const photoUpload = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'jpeg', 'png', 'webp'] }
+  storage: new LocalStorage({
+        params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'jpeg', 'png', 'webp'] }
   }),
   limits: { fileSize: 15 * 1024 * 1024 }
 });

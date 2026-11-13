@@ -12,14 +12,12 @@ const { requirePerm } = require('../middleware/auth');
 router.use(requirePerm('farben', true, true, 'die Farben-Bibliothek'));
 
 const multer  = require('multer');
-const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
-const { v2: cloudinary }    = require('cloudinary');
+const { LocalStorage } = require('../utils/localUploadStorage');
 const { dbQuery } = require('../utils/db');
 
 const upload = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: { folder: 'metallbau-management/ral-farben', allowed_formats: ['jpg', 'jpeg', 'png', 'webp'] }
+  storage: new LocalStorage({
+        params: { folder: 'metallbau-management/ral-farben', allowed_formats: ['jpg', 'jpeg', 'png', 'webp'] }
   }),
   limits: { fileSize: 10 * 1024 * 1024 }
 });

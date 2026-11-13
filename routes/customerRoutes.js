@@ -1,8 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
-const { CloudinaryStorage } = require('../utils/cloudinaryStorage');
-const { v2: cloudinary }    = require('cloudinary');
+const { LocalStorage } = require('../utils/localUploadStorage');
 const { dbQuery }           = require('../utils/db');
 const { hasPerm, requirePerm }           = require('../middleware/auth');
 const { getFirma }          = require('../utils/companySettings');
@@ -13,9 +12,8 @@ router.use(requirePerm('customers', true, false, 'die Kundenverwaltung'));
 const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const upload = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
+  storage: new LocalStorage({
+        params: { folder: 'metallbau-management', allowed_formats: ['jpg', 'png', 'jpeg', 'pdf', 'webp'] }
   }),
   limits: { fileSize: 15 * 1024 * 1024 }
 });

@@ -9,10 +9,10 @@ const express   = require('express');
 const router    = express.Router();
 const multer    = require('multer');
 const { Readable } = require('stream');
-const { v2: cloudinary } = require('cloudinary');
 
 const { requireAdmin, requireChef } = require('../middleware/auth');
 const { getFirma, setFirmaValue, clearCache } = require('../utils/companySettings');
+const { saveBuffer, deleteLocalUrl } = require('../utils/localUploadStorage');
 
 // Multer: nur im Arbeitsspeicher (kein Dateisystem nötig)
 const upload = multer({
@@ -66,23 +66,10 @@ router.post('/company-settings/logo', requireAdmin, upload.single('logo'), async
   try {
     // Altes Logo bei Cloudinary löschen
     const firma = await getFirma();
-    if (firma.logo_url && firma.logo_url.includes('cloudinary')) {
-      try {
-        const parts  = firma.logo_url.split('/');
-        const fname  = parts[parts.length - 1].split('.')[0];
-        const folder = parts[parts.length - 2];
-        await cloudinary.uploader.destroy(`${folder}/${fname}`);
-      } catch (_) {} // Fehler beim Löschen ignorieren
-    }
+    if (firma.logo_url) deleteLocalUrl(firma.logo_url);
 
     // Neues Logo hochladen
-    const url = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'firma_logo', resource_type: 'image', transformation: [{ width: 600, crop: 'limit' }] },
-        (err, result) => err ? reject(err) : resolve(result.secure_url)
-      );
-      Readable.from(req.file.buffer).pipe(uploadStream);
-    });
+    const url = await saveBuffer(req.file.buffer, 'firma_logo', req.file.originalname || 'logo.png');
 
     await setFirmaValue('logo_url', url);
     res.redirect('/admin/company-settings?saved=1');
@@ -98,20 +85,9 @@ router.post('/company-settings/sidebar-logo', requireAdmin, upload.single('sideb
   try {
     const firma = await getFirma();
     // Altes Sidebar-Logo löschen
-    if (firma.sidebar_logo_url && firma.sidebar_logo_url.includes('cloudinary')) {
-      const parts = firma.sidebar_logo_url.split('/');
-      const fname = parts[parts.length - 1].split('.')[0];
-      const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
-    }
+    if (firma.sidebar_logo_url) deleteLocalUrl(firma.sidebar_logo_url);
     // Neues hochladen
-    const url = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'sidebar_logo', resource_type: 'image', transformation: [{ width: 400, crop: 'limit' }] },
-        (err, result) => err ? reject(err) : resolve(result.secure_url)
-      );
-      Readable.from(req.file.buffer).pipe(uploadStream);
-    });
+    const url = await saveBuffer(req.file.buffer, 'sidebar_logo', req.file.originalname || 'logo.png');
     await setFirmaValue('sidebar_logo_url', url);
     res.redirect('/admin/company-settings?saved=1');
   } catch (err) {
@@ -124,12 +100,7 @@ router.post('/company-settings/sidebar-logo', requireAdmin, upload.single('sideb
 router.post('/company-settings/sidebar-logo-delete', requireAdmin, async (req, res) => {
   try {
     const firma = await getFirma();
-    if (firma.sidebar_logo_url && firma.sidebar_logo_url.includes('cloudinary')) {
-      const parts = firma.sidebar_logo_url.split('/');
-      const fname = parts[parts.length - 1].split('.')[0];
-      const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
-    }
+    if (firma.sidebar_logo_url) deleteLocalUrl(firma.sidebar_logo_url);
     await setFirmaValue('sidebar_logo_url', '');
     res.redirect('/admin/company-settings?saved=1');
   } catch (err) {
@@ -142,12 +113,7 @@ router.post('/company-settings/sidebar-logo-delete', requireAdmin, async (req, r
 router.post('/company-settings/logo-delete', requireAdmin, async (req, res) => {
   try {
     const firma = await getFirma();
-    if (firma.logo_url && firma.logo_url.includes('cloudinary')) {
-      const parts  = firma.logo_url.split('/');
-      const fname  = parts[parts.length - 1].split('.')[0];
-      const folder = parts[parts.length - 2];
-      await cloudinary.uploader.destroy(`${folder}/${fname}`).catch(e => console.warn('⚠️ Cloudinary-Löschen fehlgeschlagen:', e.message));
-    }
+    if (firma.logo_url) deleteLocalUrl(firma.logo_url);
     await setFirmaValue('logo_url', '');
     res.redirect('/admin/company-settings?saved=1');
   } catch (err) {
@@ -163,12 +129,8 @@ router.get('/panel', requireAdmin, async (req, res) => {
     const success = req.query.saved === '1';
     const tab     = req.query.tab || 'design';
     const aiKeys         = tab === 'info' ? await require('../utils/aiKeys').status() : [];
-    const cloudinaryKeys = tab === 'info' ? await require('../utils/cloudinaryKeys').status() : [];
-    let healthReport = null;
-    if (tab === 'ops') {
-      try { healthReport = await require('../utils/health').runHealthCheck(); } catch (e) { healthReport = { ok: false, at: new Date().toISOString(), checks: [{ id: 'err', ok: false, label: 'Check', detail: e.message }] }; }
-    }
-    res.render('admin-panel', { firma, success, tab, aiKeys, cloudinaryKeys, healthReport });
+    const cloudinaryKeys = [];
+    res.render('admin-panel', { firma, success, tab, aiKeys, cloudinaryKeys });
   } catch (err) {
     console.error('Fehler beim Laden des Admin-Panels:', err.message);
     res.status(500).send('Datenbankfehler');
@@ -377,17 +339,7 @@ router.post('/panel/ai-keys', requireChef, async (req, res) => {
 
 // ── POST: Cloudinary-Zugangsdaten ────────────────────────────────────────────
 router.post('/panel/cloudinary-keys', requireChef, async (req, res) => {
-  try {
-    const ck = require('../utils/cloudinaryKeys');
-    for (const k of ck.KEYS) {
-      if (req.body['remove_' + k.env]) await ck.saveKey(k.env, '', true);
-      else await ck.saveKey(k.env, req.body[k.env], false);
-    }
-    await ck.loadCloudinaryKeys();
-    res.redirect('/admin/panel?tab=info&saved=1');
-  } catch (err) {
-    res.status(400).send('Fehler: ' + err.message + ' <a href="/admin/panel?tab=info">Zurück</a>');
-  }
+  res.redirect('/admin/panel?tab=info&msg=' + encodeURIComponent('Cloudinary wurde entfernt – Dateien liegen lokal unter /uploads.'));
 });
 
 // ── POST: Lager-Tabs ─────────────────────────────────────────────────────────
@@ -448,66 +400,5 @@ router.post('/panel/textbausteine', requireAdmin, async (req, res) => {
     res.status(500).send('Fehler: ' + err.message);
   }
 });
-
-
-
-// ── POST: Betrieb / Wartung ─────────────────────────────────────────────────
-router.post('/panel/ops-maintenance', requireAdmin, async (req, res) => {
-  try {
-    await setFirmaValue('maintenance_mode', req.body.maintenance_mode === '1' ? 'true' : 'false');
-    await setFirmaValue('maintenance_message', (req.body.maintenance_message || '').toString().trim());
-    try { await require('../utils/audit').logAudit(req, 'Wartungsmodus', 'settings', null, req.body.maintenance_mode === '1' ? 'an' : 'aus'); } catch (_) {}
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
-router.post('/panel/ops-sessions', requireAdmin, async (req, res) => {
-  try {
-    const firma = await getFirma();
-    const next = String((parseInt(firma.session_epoch || '1', 10) || 1) + 1);
-    await setFirmaValue('session_epoch', next);
-    try { await require('../utils/audit').logAudit(req, 'Alle Sitzungen beendet', 'security', null, 'epoch ' + next); } catch (_) {}
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
-router.post('/panel/ops-share', requireAdmin, async (req, res) => {
-  try {
-    await setFirmaValue('offer_share_days', String(parseInt(req.body.offer_share_days, 10) || 14));
-    await setFirmaValue('offer_share_require_name', req.body.offer_share_require_name === '1' ? 'true' : 'false');
-    await setFirmaValue('app_base_url', (req.body.app_base_url || '').toString().trim());
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
-router.post('/panel/ops-notify', requireAdmin, async (req, res) => {
-  try {
-    const events = ['vacation', 'task', 'dunning', 'low_stock', 'offer_decision'];
-    for (const e of events) {
-      await setFirmaValue('notify_' + e + '_mail', req.body['notify_' + e + '_mail'] === '1' ? 'true' : 'false');
-      await setFirmaValue('notify_' + e + '_push', req.body['notify_' + e + '_push'] === '1' ? 'true' : 'false');
-    }
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
-router.post('/panel/ops-help', requireAdmin, async (req, res) => {
-  try {
-    for (const k of ['dashboard', 'projects', 'documents', 'timetracking', 'lager']) {
-      await setFirmaValue('help_' + k, (req.body['help_' + k] || '').toString().trim());
-    }
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
-router.post('/panel/ops-chat', requireAdmin, async (req, res) => {
-  try {
-    const allowed = ['classic', 'bubbles', 'compact', 'accent'];
-    const th = allowed.includes(req.body.chat_theme) ? req.body.chat_theme : 'classic';
-    await setFirmaValue('chat_theme', th);
-    res.redirect('/admin/panel?tab=ops&saved=1');
-  } catch (err) { res.status(500).send(err.message); }
-});
-
 
 module.exports = router;
