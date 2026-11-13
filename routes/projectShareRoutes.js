@@ -137,38 +137,44 @@ router.get('/:token', async (req, res) => {
     let appointments = [], photos = [], measurements = [], files = [], statusLog = [];
 
     if (has('appointments')) {
-      appointments = (await dbQuery(
-        `SELECT title, start_date, end_date, description FROM appointments WHERE project_id = ? ORDER BY start_date ASC LIMIT 30`,
-        [projectId]
-      )).rows || [];
+      try {
+        appointments = (await dbQuery(
+          `SELECT title, start_date, end_date, description FROM appointments WHERE project_id = ? ORDER BY start_date ASC LIMIT 30`,
+          [projectId]
+        )).rows || [];
+      } catch (e) { console.error('share appointments:', e.message); }
     }
     if (has('photos')) {
-      photos = (await dbQuery(
-        `SELECT url, caption, created_at FROM project_photos WHERE project_id = ? ORDER BY created_at DESC LIMIT 40`,
-        [projectId]
-      )).rows || [];
+      try {
+        photos = (await dbQuery(
+          `SELECT file_url, caption, original_name, created_at FROM project_photos WHERE project_id = ? ORDER BY created_at DESC LIMIT 40`,
+          [projectId]
+        )).rows || [];
+      } catch (e) { console.error('share photos:', e.message); }
     }
     if (has('measurements')) {
-      measurements = (await dbQuery(
-        `SELECT * FROM project_measurements WHERE project_id = ? ORDER BY id DESC LIMIT 50`,
-        [projectId]
-      )).rows || [];
+      try {
+        measurements = (await dbQuery(
+          `SELECT component_name, width, height, angle, quantity, note FROM project_measurements WHERE project_id = ? ORDER BY id DESC LIMIT 50`,
+          [projectId]
+        )).rows || [];
+      } catch (e) { console.error('share measurements:', e.message); }
     }
     if (has('files')) {
       try {
         files = (await dbQuery(
-          `SELECT filename, url, created_at FROM project_files WHERE project_id = ? ORDER BY created_at DESC LIMIT 30`,
+          `SELECT filename, original_name, file_url, created_at FROM project_files WHERE project_id = ? ORDER BY created_at DESC LIMIT 30`,
           [projectId]
         )).rows || [];
-      } catch (_) { files = []; }
+      } catch (e) { console.error('share files:', e.message); }
     }
     if (has('status')) {
       try {
         statusLog = (await dbQuery(
-          `SELECT status, note, created_at, username FROM project_status_log WHERE project_id = ? ORDER BY created_at DESC LIMIT 20`,
+          `SELECT old_status, new_status, changed_by, created_at FROM project_status_log WHERE project_id = ? ORDER BY created_at DESC LIMIT 20`,
           [projectId]
         )).rows || [];
-      } catch (_) { statusLog = []; }
+      } catch (e) { console.error('share status:', e.message); }
     }
 
     const addr = [share.street, [share.zip, share.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -205,8 +211,8 @@ router.get('/:token', async (req, res) => {
       else {
         body += `<table><thead><tr><th>Bezeichnung</th><th>Maße</th><th>Anz.</th></tr></thead><tbody>`;
         body += measurements.map(m => {
-          const dims = [m.length, m.width, m.height].filter(Boolean).join(' × ');
-          return `<tr><td>${esc(m.label || m.note || '–')}</td><td>${esc(dims || m.note || '–')}</td><td>${esc(m.quantity || 1)}</td></tr>`;
+          const dims = [m.width, m.height, m.angle].filter(Boolean).join(' × ');
+          return `<tr><td>${esc(m.component_name || m.note || '–')}</td><td>${esc(dims || m.note || '–')}</td><td>${esc(m.quantity || 1)}</td></tr>`;
         }).join('') + `</tbody></table>`;
       }
       body += `</section>`;
@@ -214,32 +220,36 @@ router.get('/:token', async (req, res) => {
     if (has('photos')) {
       body += `<section class="card"><h2>Fotos</h2>`;
       body += !photos.length ? `<p class="muted">Noch keine Fotos.</p>` :
-        `<div class="photos">` + photos.map(p =>
-          `<figure><a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt=""></a>${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ''}</figure>`
-        ).join('') + `</div>`;
+        `<div class="photos">` + photos.map(ph => {
+          const src = ph.file_url || ph.url || '';
+          return `<figure><a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt=""></a>${ph.caption ? `<figcaption>${esc(ph.caption)}</figcaption>` : ''}</figure>`;
+        }).join('') + `</div>`;
       body += `</section>`;
     }
     if (has('files')) {
       body += `<section class="card"><h2>Dateien</h2>`;
       body += !files.length ? `<p class="muted">Keine Dateien.</p>` :
-        `<ul class="list">` + files.map(f =>
-          `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.filename || 'Datei')}</a><small>${esc(fmtDate(f.created_at))}</small></li>`
-        ).join('') + `</ul>`;
+        `<ul class="list">` + files.map(f => {
+          const href = f.file_url || f.url || '#';
+          const name = f.original_name || f.filename || 'Datei';
+          return `<li><a href="${esc(href)}" target="_blank" rel="noopener">${esc(name)}</a><small>${esc(fmtDate(f.created_at))}</small></li>`;
+        }).join('') + `</ul>`;
       body += `</section>`;
     }
     if (has('status')) {
       body += `<section class="card"><h2>Status-Verlauf</h2>`;
       body += !statusLog.length ? `<p class="muted">Kein Verlauf.</p>` :
         `<ul class="list">` + statusLog.map(s =>
-          `<li><strong>${esc(s.status || '')}</strong><small>${esc(fmtDate(s.created_at))}${s.username ? ' · ' + esc(s.username) : ''}</small>${s.note ? `<span>${esc(s.note)}</span>` : ''}</li>`
+          `<li><strong>${esc(s.new_status || s.status || '')}</strong><small>${esc(fmtDate(s.created_at))}${s.changed_by ? ' · ' + esc(s.changed_by) : ''}</small>${s.old_status ? `<span class="muted">von ${esc(s.old_status)}</span>` : ''}</li>`
         ).join('') + `</ul>`;
       body += `</section>`;
     }
     body += `<footer class="foot muted">${esc(firma.name || '')}${firma.tel ? ' · ' + esc(firma.tel) : ''}${firma.email ? ' · ' + esc(firma.email) : ''}<br>Link gültig bis ${esc(fmtDate(share.expires_at))}</footer>`;
-    res.send(pageShell(share.title || 'Auftrag', body, firma));
+
+        res.send(pageShell(share.title || 'Auftrag', body, firma));
   } catch (err) {
     console.error('auftrag-info:', err.message);
-    res.status(500).send(pageShell('Fehler', '<p class="muted">Seite konnte nicht geladen werden.</p>'));
+    res.status(500).send(pageShell('Fehler', '<p class="muted">Seite konnte nicht geladen werden.</p><p class="muted" style="font-size:12px;margin-top:8px">' + esc(err.message || '') + '</p>'));
   }
 });
 
