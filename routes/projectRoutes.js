@@ -1478,15 +1478,20 @@ router.post('/:id/share-link', requirePerm('projects', true, false), async (req,
     const rawToken = cryptoShare.randomBytes(32).toString('base64url');
     const tokenHash = hashProjectShareToken(rawToken);
 
-    const plainPw = (req.body.password || '').toString().trim();
+    let plainPw = (req.body.password || '').toString().trim();
     if (plainPw && plainPw.length < 4) {
       return res.status(400).json({ error: 'Passwort mindestens 4 Zeichen' });
     }
-    let passwordHash = null;
-    if (plainPw) {
-      const bcrypt = require('bcryptjs');
-      passwordHash = await bcrypt.hash(plainPw, 10);
+    // Kein Passwort angegeben → automatisch erzeugen (immer geschützt)
+    if (!plainPw) {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let gen = '';
+      const bytes = cryptoShare.randomBytes(8);
+      for (let i = 0; i < 8; i++) gen += alphabet[bytes[i] % alphabet.length];
+      plainPw = gen;
     }
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(plainPw, 10);
 
     await dbQuery(
       `INSERT INTO project_share_tokens (project_id, token_hash, token_hint, sections, expires_at, created_by, note, password_hash)
@@ -1503,7 +1508,7 @@ router.post('/:id/share-link', requirePerm('projects', true, false), async (req,
       await logAudit(req, 'Kunden-Link erstellt', 'project', id, proj.title, { sections, days });
     } catch (_) {}
 
-    res.json({ ok: true, url, expires_at: expires, sections, hint: rawToken.slice(-6), has_password: !!passwordHash, password: plainPw || null });
+    res.json({ ok: true, url, expires_at: expires, sections, hint: rawToken.slice(-6), has_password: true, password: plainPw });
   } catch (err) {
     console.error('share-link:', err.message);
     res.status(500).json({ error: err.message });
