@@ -243,8 +243,8 @@
 
 
 <!-- Kunden-Info-Link Modal -->
-<div id="project-share-modal" class="fixed inset-0 z-[80] hidden items-center justify-center p-4" style="background:rgba(15,23,42,.55)" onclick="if(event.target===this)closeProjectShareModal()">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-600 p-5" onclick="event.stopPropagation()">
+<div id="project-share-modal" class="fixed inset-0 z-[100] hidden items-start justify-center pt-14 sm:pt-16 pb-28 sm:pb-8 px-3 overflow-y-auto" style="background:rgba(15,23,42,.55)" onclick="if(event.target===this)closeProjectShareModal()">
+  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[min(85vh,calc(100dvh-7.5rem))] overflow-y-auto border border-slate-200 dark:border-slate-600 p-5 mb-4" onclick="event.stopPropagation()" style="margin-top:0.25rem">
     <div class="flex items-start justify-between gap-2 mb-3">
       <div>
         <h3 class="font-bold text-slate-800 dark:text-slate-100">Kunden-Link erstellen</h3>
@@ -269,10 +269,10 @@
         </div>
         <div>
           <label class="block text-xs text-slate-500 mb-1">Passwort (empfohlen)</label>
-          <input type="text" name="password" minlength="4" placeholder="leer = automatisch" class="input w-full text-sm" autocomplete="off">
+          <input type="text" name="password" minlength="4" placeholder="min. 4 Zeichen" class="input w-full text-sm" autocomplete="off">
         </div>
       </div>
-      <p class="text-[10px] text-slate-400">Leer lassen = sicheres Passwort wird automatisch erzeugt und angezeigt.</p>
+      <p class="text-[10px] text-slate-400">Ohne Passwort ist der Link für jeden mit der URL lesbar.</p>
       <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm">Link erzeugen</button>
     </form>
     <div id="project-share-result" class="hidden mt-4 space-y-3 border-t dark:border-slate-600 pt-3">
@@ -329,10 +329,10 @@ async function createProjectShare(e) {
       'Gültig bis ' + (data.expires_at ? new Date(data.expires_at).toLocaleString('de-DE') : '–') +
       ' · Abschnitte: ' + (data.sections || []).join(', ');
     var pwLine = document.getElementById('project-share-pw-line');
-    if (pwLine) {
-      document.getElementById('project-share-pw').textContent = data.password || '–';
+    if (data.password && pwLine) {
+      document.getElementById('project-share-pw').textContent = data.password;
       pwLine.classList.remove('hidden');
-    }
+    } else if (pwLine) pwLine.classList.add('hidden');
     var ms = document.getElementById('project-share-mail-status'); if (ms) { ms.textContent = ''; }
     document.getElementById('project-share-result').classList.remove('hidden');
   } catch (err) {
