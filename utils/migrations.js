@@ -934,10 +934,20 @@ const MIGRATIONS = [
         created_by   INT,
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         revoked_at   TIMESTAMP,
-        note         TEXT
+        note         TEXT,
+        password_hash TEXT
       )`);
       await safeRaw(`CREATE INDEX IF NOT EXISTS idx_project_share_hash ON project_share_tokens (token_hash)`);
       await safeRaw(`CREATE INDEX IF NOT EXISTS idx_project_share_project ON project_share_tokens (project_id)`);
+    }
+  },
+,
+
+  {
+    id: 32,
+    description: 'project_share_tokens.password_hash',
+    async up() {
+      try { await safeRaw(`ALTER TABLE project_share_tokens ADD COLUMN ${isPg ? 'IF NOT EXISTS' : ''} password_hash TEXT`); } catch (_) {}
     }
   },
 
