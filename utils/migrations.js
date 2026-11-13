@@ -917,7 +917,30 @@ const MIGRATIONS = [
       )`);
       await safeRaw('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_ms)');
     }
+  },,
+
+  // ── 031 ── Kunden-Info-Link für Aufträge ─────────────────────────────
+  {
+    id: 31,
+    description: 'project_share_tokens – Kunden-Link mit wählbaren Abschnitten',
+    async up() {
+      await safeRaw(`CREATE TABLE IF NOT EXISTS project_share_tokens (
+        id           ${isPg ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isPg ? '' : 'AUTOINCREMENT'},
+        project_id   INT NOT NULL,
+        token_hash   TEXT NOT NULL,
+        token_hint   TEXT,
+        sections     TEXT NOT NULL DEFAULT '["overview"]',
+        expires_at   TIMESTAMP,
+        created_by   INT,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        revoked_at   TIMESTAMP,
+        note         TEXT
+      )`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_project_share_hash ON project_share_tokens (token_hash)`);
+      await safeRaw(`CREATE INDEX IF NOT EXISTS idx_project_share_project ON project_share_tokens (project_id)`);
+    }
   },
+
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
