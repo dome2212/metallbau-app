@@ -37,7 +37,7 @@ function isOffice(user) {
   return !!user && OFFICE_ROLES.includes(user.role);
 }
 
-async function verifyToken(req, res, next) {
+function verifyToken(req, res, next) {
   const token = req.cookies.token;
   // Bei GET merken wir uns die Ziel-Seite (z.B. gescannter Stempel-QR-Code),
   // damit man nach dem Login direkt dort landet.
@@ -47,16 +47,6 @@ async function verifyToken(req, res, next) {
   if (!token) return res.redirect(loginUrl);
   try {
     const verified = jwt.verify(token, JWT_SECRET);
-    // Session-Generation: Admin kann alle Geräte abmelden
-    try {
-      const { getFirma } = require('../utils/companySettings');
-      const firma = await getFirma();
-      const epoch = String(firma.session_epoch || '1');
-      if (verified.se != null && String(verified.se) !== epoch) {
-        res.clearCookie('token');
-        return res.redirect('/login?error=' + encodeURIComponent('Sitzung abgelaufen – bitte neu anmelden.'));
-      }
-    } catch (_) { /* Firma nicht lesbar: Token trotzdem akzeptieren */ }
     req.user = verified;
     res.locals.currentUser = verified;
     next();
@@ -123,6 +113,12 @@ function requirePerm(area, adminDef = true, employeeDef = false, label = null) {
       const { getFirma } = require('../utils/companySettings'); // lazy: vermeidet Zirkelbezug
       const firma = await getFirma();
       if (hasPerm(req.user, area, firma, adminDef, employeeDef)) return next();
+      const wantsJson = (req.get('Accept') || '').includes('application/json')
+        || (req.get('Content-Type') || '').includes('application/json')
+        || req.xhr;
+      if (wantsJson) {
+        return res.status(403).json({ error: label ? ('Kein Zugriff auf ' + label) : 'Zugriff verweigert' });
+      }
       return res.status(403).send(
         '<h1>403 – Zugriff verweigert</h1>' +
         (label ? `<p>Kein Zugriff auf ${label}.</p>` : '') +
