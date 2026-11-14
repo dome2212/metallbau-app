@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="/css/tailwind.min.css">
 
   <link rel="stylesheet" href="/css/ui-polish.css">
+  <link rel="stylesheet" href="/css/craft-look.css">
 
 
   <!-- PWA -->
@@ -47,19 +48,19 @@
 
     /* ── Design-Tokens ──────────────────────────────────────────────── */
     :root {
-      --primary:          <%= _d.color_primary      || '#4f46e5' %>;
-      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#4f46e5' %> 80%, #000);
-      --primary-soft:     color-mix(in srgb, <%= _d.color_primary || '#4f46e5' %> 10%, #fff);
+      --primary:          <%= _d.color_primary      || '#1e4a6e' %>;
+      --primary-dark:     color-mix(in srgb, <%= _d.color_primary || '#1e4a6e' %> 80%, #000);
+      --primary-soft:     color-mix(in srgb, <%= _d.color_primary || '#1e4a6e' %> 10%, #fff);
       --sidebar-bg:       <%= _d.color_sidebar_bg   || '#0f172a' %>;
       --sidebar-text:     <%= _d.color_sidebar_text || '#cbd5e1' %>;
       --sidebar-hover:    <%= _d.color_sidebar_hover|| '#1e293b' %>;
       --topbar-bg:        <%= _d.color_topbar_bg    || '#ffffff' %>;
-      --page-bg:          <%= _d.color_page_bg      || '#f8fafc' %>;
-      --radius:           0.875rem;
-      --radius-lg:        1.25rem;
-      --radius-xl:        1.5rem;
-      --shadow-card:      0 1px 2px 0 rgb(15 23 42/.04), 0 1px 6px -2px rgb(15 23 42/.06);
-      --shadow-card-hover:0 8px 24px -4px rgb(15 23 42/.10), 0 2px 8px -2px rgb(15 23 42/.06);
+      --page-bg:          <%= _d.color_page_bg      || '#f4f5f7' %>;
+      --radius:           0.5rem;
+      --radius-lg:        0.65rem;
+      --radius-xl:        0.75rem;
+      --shadow-card:      0 1px 2px 0 rgb(15 23 42/.05);
+      --shadow-card-hover:0 2px 8px 0 rgb(15 23 42/.08);
       --border-soft:      #eef1f6;
     }
     .dark {
